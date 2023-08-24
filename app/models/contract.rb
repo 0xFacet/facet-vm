@@ -1,25 +1,9 @@
 class Contract < ApplicationRecord
-  class StaticCallError < StandardError; end
-  
-  class ContractError < StandardError
-    attr_accessor :contract
-    attr_accessor :error_status
-  
-    def initialize(message, contract)
-      super(message)
-      @contract = contract
-    end
-  end
-  
-  class TransactionError < StandardError; end
-  class ContractRuntimeError < ContractError; end
-  class ContractDefinitionError < ContractError; end
-  class StateVariableTypeError < StandardError; end
-  class VariableTypeError < StandardError; end
-  class StateVariableMutabilityError < StandardError; end
-  class ArgumentError < StandardError; end
+  include ContractErrors
   
   class ContractProxy
+    include ContractErrors
+    
     attr_accessor :contract, :operation
   
     def initialize(contract, operation:)
@@ -110,6 +94,8 @@ class Contract < ApplicationRecord
   attr_accessor :current_transaction
   
   class Transaction
+    include ContractErrors
+    
     attr_accessor :contract_id, :function_name, :contract_protocol,
     :function_args, :tx, :call_receipt, :ethscription, :operation
     
@@ -341,6 +327,8 @@ class Contract < ApplicationRecord
   end
   
   class AbiProxy
+    include ContractErrors
+    
     attr_accessor :data, :contract_class
     
     def initialize(contract_class)
@@ -460,6 +448,8 @@ class Contract < ApplicationRecord
     end
     
     class FunctionProxy
+      include ContractErrors
+      
       attr_accessor :args, :state_mutability, :visibility,
         :returns, :type, :implementation, :override_modifier,
         :from_parent, :parent_functions, :source
@@ -716,6 +706,8 @@ class Contract < ApplicationRecord
   end
   
   class StateProxy
+    include ContractErrors
+    
     attr_reader :contract
     attr_reader :state_variables
     
@@ -762,6 +754,8 @@ class Contract < ApplicationRecord
   end
   
   class StateVariable
+    include ContractErrors
+    
     attr_accessor :typed_variable, :name, :visibility, :immutable, :constant
     
     def initialize(name, typed_variable, args)
