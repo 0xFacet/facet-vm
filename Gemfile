@@ -46,3 +46,7 @@ group :development do
   # gem "spring"
 end
 
+
+gem "dotenv-rails", "~> 2.8", groups: [:development]
+
+gem "httpparty", "~> 0.2.0"
