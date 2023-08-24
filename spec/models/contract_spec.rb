@@ -62,7 +62,7 @@ RSpec.describe Contract, type: :model do
     
     it "won't static call restricted function" do
       expect {
-        Contract::Transaction.make_static_call(
+        ContractTransaction.make_static_call(
           contract_id: @mint_receipt.contract.contract_id,
           function_name: "id"
         )
@@ -71,7 +71,7 @@ RSpec.describe Contract, type: :model do
     
     it "won't static call restricted function" do
       expect {
-        Contract::Transaction.make_static_call(
+        ContractTransaction.make_static_call(
           contract_id: @mint_receipt.contract.contract_id,
           function_name: "_mint",
           function_args: {
@@ -291,7 +291,7 @@ RSpec.describe Contract, type: :model do
       
       expect(add_liq.status).to eq("success")
       
-      a = Contract::Transaction.make_static_call(
+      a = ContractTransaction.make_static_call(
         contract_id: token_0.contract_id,
         function_name: "balanceOf",
         function_args: {
@@ -315,7 +315,7 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      final_token_a_balance = Contract::Transaction.make_static_call(
+      final_token_a_balance = ContractTransaction.make_static_call(
         contract_id: token_0.contract_id,
         function_name: "balanceOf",
         function_args: {
@@ -325,7 +325,7 @@ RSpec.describe Contract, type: :model do
       
       expect(final_token_a_balance).to eq(250)
       
-      final_token_b_balance = Contract::Transaction.make_static_call(
+      final_token_b_balance = ContractTransaction.make_static_call(
         contract_id: token_1.contract_id,
         function_name: "balanceOf",
         function_args: {
@@ -335,7 +335,7 @@ RSpec.describe Contract, type: :model do
       
       expect(final_token_b_balance).to be > 500
       
-      calculate_output_amount = Contract::Transaction.make_static_call(
+      calculate_output_amount = ContractTransaction.make_static_call(
         contract_id: dex.contract_id,
         function_name: "calculate_output_amount",
         function_args: {

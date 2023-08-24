@@ -30,6 +30,6 @@ class Ethscription < ApplicationRecord
   def process_contract_actions
     return unless ENV['ETHEREUM_NETWORK'] == "eth-goerli" || Rails.env.development?
     
-    Contract::Transaction.create_and_execute_from_ethscription_if_needed(self)
+    ContractTransaction.create_and_execute_from_ethscription_if_needed(self)
   end
 end
