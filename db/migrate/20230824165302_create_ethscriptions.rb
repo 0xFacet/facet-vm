@@ -23,11 +23,12 @@ class CreateEthscriptions < ActiveRecord::Migration[7.0]
       
       t.timestamps
       
-      t.check_constraint "ethscription_id ~ '^0x[a-f0-9]{64}$'"
-      t.check_constraint "creator ~ '^0x[a-f0-9]{40}$'"
-      t.check_constraint "initial_owner ~ '^0x[a-f0-9]{40}$'"
-      t.check_constraint "previous_owner IS NULL OR previous_owner ~ '^0x[a-f0-9]{40}$'"
-      t.check_constraint "content_sha ~ '^[a-f0-9]{64}$'"
+      t.check_constraint "ethscription_id ~ '^0x[a-f0-9]{64}$'", name: 'ethscriptions_ethscription_id_format'
+      t.check_constraint "creator ~ '^0x[a-f0-9]{40}$'", name: 'ethscriptions_creator_format'
+      t.check_constraint "current_owner ~ '^0x[a-f0-9]{40}$'", name: 'ethscriptions_current_owner_format'
+      t.check_constraint "initial_owner ~ '^0x[a-f0-9]{40}$'", name: 'ethscriptions_initial_owner_format'
+      t.check_constraint "previous_owner IS NULL OR previous_owner ~ '^0x[a-f0-9]{40}$'", name: 'ethscriptions_previous_owner_format'
+      t.check_constraint "content_sha ~ '^[a-f0-9]{64}$'", name: 'ethscriptions_content_sha_format'
     end
     
     # execute <<-SQL

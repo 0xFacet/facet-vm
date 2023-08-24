@@ -80,11 +80,12 @@ ActiveRecord::Schema[7.0].define(version: 2023_08_24_174647) do
     t.index ["ethscription_id"], name: "index_ethscriptions_on_ethscription_id", unique: true
     t.index ["ethscription_number"], name: "index_ethscriptions_on_ethscription_number", unique: true
     t.index ["overall_order_number"], name: "index_ethscriptions_on_overall_order_number", unique: true
-    t.check_constraint "content_sha::text ~ '^[a-f0-9]{64}$'::text"
-    t.check_constraint "creator::text ~ '^0x[a-f0-9]{40}$'::text"
-    t.check_constraint "ethscription_id::text ~ '^0x[a-f0-9]{64}$'::text"
-    t.check_constraint "initial_owner::text ~ '^0x[a-f0-9]{40}$'::text"
-    t.check_constraint "previous_owner IS NULL OR previous_owner::text ~ '^0x[a-f0-9]{40}$'::text"
+    t.check_constraint "content_sha::text ~ '^[a-f0-9]{64}$'::text", name: "ethscriptions_content_sha_format"
+    t.check_constraint "creator::text ~ '^0x[a-f0-9]{40}$'::text", name: "ethscriptions_creator_format"
+    t.check_constraint "current_owner::text ~ '^0x[a-f0-9]{40}$'::text", name: "ethscriptions_current_owner_format"
+    t.check_constraint "ethscription_id::text ~ '^0x[a-f0-9]{64}$'::text", name: "ethscriptions_ethscription_id_format"
+    t.check_constraint "initial_owner::text ~ '^0x[a-f0-9]{40}$'::text", name: "ethscriptions_initial_owner_format"
+    t.check_constraint "previous_owner IS NULL OR previous_owner::text ~ '^0x[a-f0-9]{40}$'::text", name: "ethscriptions_previous_owner_format"
   end
 
   add_foreign_key "contract_call_receipts", "contracts", primary_key: "contract_id", on_delete: :cascade
