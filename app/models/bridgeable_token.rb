@@ -1,4 +1,4 @@
-class Contracts::BridgeableToken < Contract
+class BridgeableToken < Contract
   store_accessor :data,
   :trusted_smart_contract, :pending_withdrawals
 
