@@ -55,3 +55,5 @@ gem "httpparty", "~> 0.2.0"
 gem "clockwork", "~> 3.0"
 
 gem "dalli", "~> 3.2"
+
+gem "kaminari", "~> 1.2"

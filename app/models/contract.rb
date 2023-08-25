@@ -149,7 +149,9 @@ class Contract < ApplicationRecord
   def self.all_abis
     contract_classes = valid_contract_types
 
-    contract_classes.each_with_object({}) do |contract_class, hash|
+    contract_classes.each_with_object({}) do |name, hash|
+      contract_class = "Contracts::#{name}".constantize
+
       hash[contract_class.name] = contract_class.public_abi
     end.transform_keys(&:demodulize)
   end
@@ -223,6 +225,12 @@ class Contract < ApplicationRecord
   
   def self.pragma(*args)
     # Do nothing for now
+  end
+  
+  def self.valid_contract_types
+    Contracts.constants.map do |c|
+      Contracts.const_get(c).to_s.demodulize
+    end
   end
   
   protected

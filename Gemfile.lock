@@ -92,6 +92,18 @@ GEM
       httparty (> 0)
     i18n (1.14.1)
       concurrent-ruby (~> 1.0)
+    kaminari (1.2.2)
+      activesupport (>= 4.1.0)
+      kaminari-actionview (= 1.2.2)
+      kaminari-activerecord (= 1.2.2)
+      kaminari-core (= 1.2.2)
+    kaminari-actionview (1.2.2)
+      actionview
+      kaminari-core (= 1.2.2)
+    kaminari-activerecord (1.2.2)
+      activerecord
+      kaminari-core (= 1.2.2)
+    kaminari-core (1.2.2)
     loofah (2.21.3)
       crass (~> 1.0.2)
       nokogiri (>= 1.12.0)
@@ -196,6 +208,7 @@ DEPENDENCIES
   dalli (~> 3.2)
   dotenv-rails (~> 2.8)
   httpparty (~> 0.2.0)
+  kaminari (~> 1.2)
   pg (~> 1.1)
   pry
   puma (~> 5.0)

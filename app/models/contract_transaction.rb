@@ -101,7 +101,7 @@ class ContractTransaction
   def ensure_valid_deploy!
     return unless is_deploy? && contract_id.blank?
     
-    unless self.class.valid_contract_types.include?(contract_protocol)
+    unless Contract.valid_contract_types.include?(contract_protocol)
       raise TransactionError.new("Invalid contract protocol: #{contract_protocol}")
     end
     
@@ -156,11 +156,5 @@ class ContractTransaction
   
   def log_event(event)
     call_receipt.logs << event
-  end
-  
-  def self.valid_contract_types
-    Contracts.constants.map do |c|
-      Contracts.const_get(c).to_s.demodulize
-    end
   end
 end
