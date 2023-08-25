@@ -6,3 +6,7 @@
 Rails.application.config.filter_parameters += [
   :passw, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn
 ]
+
+if defined?(Rails::Console) || Rails.env.test?
+  Rails.application.config.filter_parameters = []
+end

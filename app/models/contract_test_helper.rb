@@ -33,17 +33,12 @@ module ContractTestHelper
     block_number = existing&.block_number.to_i + 1
     transaction_index = existing&.transaction_index.to_i + 1
     
-    overall_order_number = (
-      block_number * 1e12.to_d +
-      transaction_index * 1e6.to_d)
-    
     ethscription_attrs = {
       "ethscription_id"=>tx_hash,
       "block_number"=> block_number,
       "current_owner"=>from.downcase,
       "creator"=>from.downcase,
       creation_timestamp: Time.zone.now,
-      overall_order_number: overall_order_number,
       "initial_owner"=>'0x0000000000000000000000000000000000000000',
       "transaction_index"=>transaction_index,
       "content_uri"=> uri,
