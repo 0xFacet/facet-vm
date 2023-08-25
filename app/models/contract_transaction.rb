@@ -89,7 +89,7 @@ class ContractTransaction
     callee_contract = Contract.find_by_contract_id(callee_contract_id.to_s)
     
     if callee_contract.blank?
-      raise TransactionError.new("Contract not found: #{callee_contract_id}")
+      raise CallingNonExistentContractError.new("Contract not found: #{callee_contract_id}")
     end
     
     callee_contract.msg.sender = caller_address_or_id
@@ -125,22 +125,28 @@ class ContractTransaction
   
   def execute_transaction
     begin
-      ActiveRecord::Base.transaction do
+      ActiveRecord::Base.transaction(requires_new: true) do
         ensure_valid_deploy!
         
         initial_contract_proxy.send(function_name, function_args).tap do
           call_receipt.status = :success
+          call_receipt.contract_id = contract_id
         end
       end
     rescue ContractError, TransactionError => e
       call_receipt.error_message = e.message
-      call_receipt.status = is_deploy? ? :deploy_error : :call_error
-    ensure
-      ActiveRecord::Base.transaction do
-        call_receipt.contract_id = contract_id
-
-        call_receipt.save!
+      call_receipt.status = if is_deploy?
+        :deploy_error
+      else
+        e.is_a?(CallingNonExistentContractError) ? :call_to_non_existent_contract : :call_error
       end
+      
+      call_receipt.contract_id = contract_id
+      if is_deploy? || e.is_a?(CallingNonExistentContractError)
+        call_receipt.contract_id = nil
+      end
+    ensure
+      call_receipt.save!
     end
   end
   

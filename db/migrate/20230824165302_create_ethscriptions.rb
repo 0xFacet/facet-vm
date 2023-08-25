@@ -4,7 +4,6 @@ class CreateEthscriptions < ActiveRecord::Migration[7.0]
       t.string :ethscription_id, null: false
       t.bigint :block_number, null: false
       t.integer :transaction_index, null: false
-      t.bigint :ethscription_number
       t.string :creator, null: false
       t.string :initial_owner, null: false
       t.string :current_owner, null: false

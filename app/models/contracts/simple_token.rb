@@ -18,41 +18,41 @@ class Contracts::SimpleToken < Contract
       symbol: :string,
       maxSupply: :uint256,
       perMintLimit: :uint256
-  ) do |a|
-    s.name = a.name
-    s.symbol = a.symbol
-    s.maxSupply = a.maxSupply
-    s.perMintLimit = a.perMintLimit
+  ) do
+    s.name = name
+    s.symbol = symbol
+    s.maxSupply = maxSupply
+    s.perMintLimit = perMintLimit
   end
   
-  function :mint, { amount: :uint256 }, :public do |a|
+  function :mint, { amount: :uint256 }, :public do
     address = msg.sender
     
-    require(a.amount > 0, 'Amount must be positive')
-    require(a.amount <= s.perMintLimit, 'Exceeded mint limit')
+    require(amount > 0, 'Amount must be positive')
+    require(amount <= s.perMintLimit, 'Exceeded mint limit')
     
-    require(s.totalSupply + a.amount <= s.maxSupply, 'Exceeded max supply')
+    require(s.totalSupply + amount <= s.maxSupply, 'Exceeded max supply')
 
-    s.totalSupply += a.amount
-    s.balanceOf[address] += a.amount
+    s.totalSupply += amount
+    s.balanceOf[address] += amount
 
-    emit :transfer, from: address(0), to: address, value: a.amount
+    emit :transfer, from: address(0), to: address, value: amount
   end
 
-  function :transfer, { to: :address, amount: :uint256 }, :public, :virtual do |a|
+  function :transfer, { to: :address, amount: :uint256 }, :public, :virtual do
     from = msg.sender
     
-    require(s.balanceOf[from] >= a.amount, 'Insufficient balance')
+    require(s.balanceOf[from] >= amount, 'Insufficient balance')
     
-    s.balanceOf[from] -= a.amount
-    s.balanceOf[a.to] += a.amount
+    s.balanceOf[from] -= amount
+    s.balanceOf[to] += amount
 
-    emit :transfer, from: from, to: a.to, value: a.amount
+    emit :transfer, from: from, to: to, value: amount
   end
   
-  function :approve, { spender: :address, value: :uint256 }, :public, returns: :bool do |a|
-    spender = a.spender.downcase
-    value = a.value
+  function :approve, { spender: :address, value: :uint256 }, :public, returns: :bool do
+    spender = spender.downcase
+    value = value
 
     s.allowances[msg.sender][spender] = value
     

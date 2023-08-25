@@ -1,7 +1,7 @@
 class CreateContractCallReceipts < ActiveRecord::Migration[7.0]
   def change
     create_table :contract_call_receipts do |t|
-      t.references :contract, null: false, type: :string, foreign_key: {
+      t.references :contract, null: true, type: :string, foreign_key: {
         to_table: :contracts, primary_key: 'contract_id', on_delete: :cascade
       }
       

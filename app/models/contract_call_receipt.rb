@@ -1,7 +1,7 @@
 class ContractCallReceipt < ApplicationRecord
   belongs_to :contract, primary_key: 'contract_id', touch: true, optional: true
     
-  belongs_to :created_by_ethscription,
+  belongs_to :ethscription,
     primary_key: 'ethscription_id', foreign_key: 'ethscription_id',
     class_name: "Ethscription", touch: true
     
@@ -9,7 +9,8 @@ class ContractCallReceipt < ApplicationRecord
     success: 0,
     call_error: 1,
     deploy_error: 2,
-    system_error: 3
+    call_to_non_existent_contract: 3,
+    system_error: 4
   }
   
   before_validation :clear_logs_if_error#, :ensure_status
@@ -17,10 +18,12 @@ class ContractCallReceipt < ApplicationRecord
   validate :status_or_errors_check, :no_contract_on_deploy_error
   
   def no_contract_on_deploy_error
-    if deploy_error? && contract_id.present?
+    if (deploy_error? || call_to_non_existent_contract?) && contract_id.present?
       errors.add(:contract_id, "must be blank on deploy error")
     elsif call_error? && contract_id.blank?
       errors.add(:contract_id, "must be present on call error")
+    elsif success? && contract_id.blank?
+      errors.add(:contract_id, "must be present on success")
     end
   end
   
@@ -32,6 +35,7 @@ class ContractCallReceipt < ApplicationRecord
     super(
       options.merge(
         only: [
+          :ethscription_id,
           :timestamp,
           :contract_id,
           :caller,
@@ -45,9 +49,7 @@ class ContractCallReceipt < ApplicationRecord
           :failed_deployment_contract_id
         ]
       )
-    ).tap do |json|
-      json['ethscription_id'] = eth_transaction_id
-    end
+    )
   end
 
   private

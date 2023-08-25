@@ -1,4 +1,6 @@
 class Type
+  include ContractErrors
+  
   attr_accessor :name, :metadata, :key_type, :value_type
   
   TYPES = [:string, :mapping, :address, :dumbContract,

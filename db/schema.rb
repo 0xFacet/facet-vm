@@ -15,7 +15,7 @@ ActiveRecord::Schema[7.0].define(version: 2023_08_24_174647) do
   enable_extension "plpgsql"
 
   create_table "contract_call_receipts", force: :cascade do |t|
-    t.string "contract_id", null: false
+    t.string "contract_id"
     t.string "ethscription_id", null: false
     t.string "caller", null: false
     t.integer "status", null: false
@@ -63,7 +63,6 @@ ActiveRecord::Schema[7.0].define(version: 2023_08_24_174647) do
     t.string "ethscription_id", null: false
     t.bigint "block_number", null: false
     t.integer "transaction_index", null: false
-    t.bigint "ethscription_number"
     t.string "creator", null: false
     t.string "initial_owner", null: false
     t.string "current_owner", null: false

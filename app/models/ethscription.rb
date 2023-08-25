@@ -6,6 +6,8 @@ class Ethscription < ApplicationRecord
             
   after_create :process_contract_actions
   
+  before_validation :downcase_hex_fields
+  
   scope :newest_first, -> { order(block_number: :desc, transaction_index: :desc) }
 
   def later_ethscriptions
@@ -18,7 +20,10 @@ class Ethscription < ApplicationRecord
   end
   
   def delete_with_later_ethscriptions
-    later_ethscriptions.or(where(id: id)).delete_all
+    Ethscription.transaction do
+      delete
+      later_ethscriptions.delete_all
+    end
   end
   
   def content
@@ -31,5 +36,14 @@ class Ethscription < ApplicationRecord
     return unless ENV['ETHEREUM_NETWORK'] == "eth-goerli" || Rails.env.development?
     
     ContractTransaction.create_and_execute_from_ethscription_if_needed(self)
+  end
+  
+  def downcase_hex_fields
+    self.ethscription_id = ethscription_id.downcase
+    self.creator = creator.downcase
+    self.current_owner = current_owner.downcase
+    self.initial_owner = initial_owner.downcase
+    self.previous_owner = previous_owner.downcase if previous_owner.present?
+    self.content_sha = content_sha.downcase
   end
 end
