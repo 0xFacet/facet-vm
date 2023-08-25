@@ -1,10 +1,8 @@
 class EthscriptionSync
   include HTTParty
-  # base_uri 'https://api.goerli-ethscriptions.com/api/ethscriptions'
 
   def fetch_newer_ethscriptions(latest_ethscription_id, page = 1, per_page = 25)
-    # url = "https://api.goerli-ethscriptions.com/api/ethscriptions/newer_ethscriptions"
-    url = "http://localhost:4000/api/ethscriptions/newer_ethscriptions"
+    url = ENV.fetch("INDEXER_API_BASE_URI") + "/ethscriptions/newer_ethscriptions"
     
     query = {
       ethscription_id: latest_ethscription_id,
@@ -41,6 +39,8 @@ class EthscriptionSync
       response = fetch_newer_ethscriptions(
         local_latest_ethscription&.ethscription_id, page, per_page
       )
+      
+      break if response.blank?
       
       ActiveRecord::Base.transaction do
         starting_ethscription = Ethscription.find_by(

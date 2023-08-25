@@ -51,3 +51,7 @@ end
 gem "dotenv-rails", "~> 2.8", groups: [:development]
 
 gem "httpparty", "~> 0.2.0"
+
+gem "clockwork", "~> 3.0"
+
+gem "dalli", "~> 3.2"
