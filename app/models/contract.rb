@@ -14,7 +14,9 @@ class Contract < ApplicationRecord
   class << self
     attr_accessor :state_variable_definitions, :parent_contracts, :events
   end
-      
+  
+  delegate :block, :tx, to: :current_transaction
+  
   class Message
     attr_reader :sender
     
@@ -41,10 +43,6 @@ class Contract < ApplicationRecord
   
   def current_state
     states.newest_first.first || ContractState.new
-  end
-  
-  def tx
-    current_transaction.tx
   end
   
   def msg

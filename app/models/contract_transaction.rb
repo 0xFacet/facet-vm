@@ -2,18 +2,14 @@ class ContractTransaction
   include ContractErrors
   
   attr_accessor :contract_id, :function_name, :contract_protocol,
-  :function_args, :tx, :call_receipt, :ethscription, :operation
-  
-  class Tx
-    attr_reader :origin
-    
-    def origin=(address)
-      @origin = TypedVariable.create(:address, address).value
-    end
-  end
+  :function_args, :tx, :call_receipt, :ethscription, :operation, :block
   
   def tx
-    @tx ||= Tx.new
+    @tx ||= ContractTransactionGlobals::Tx.new
+  end
+  
+  def block
+    @block ||= ContractTransactionGlobals::Block.new
   end
   
   def set_operation_from_ethscription
@@ -81,6 +77,9 @@ class ContractTransaction
     end
     
     tx.origin = ethscription.creator
+    
+    block.number = ethscription.block_number
+    block.timestamp = ethscription.creation_timestamp.to_i
     
     self
   end
