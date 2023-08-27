@@ -2,6 +2,8 @@ require 'rails_helper'
 
 RSpec.describe Contract, type: :model do
   before do
+    ENV['INDEXER_API_BASE_URI'] = "http://localhost:4000/api"
+    
     @creation_receipt = ContractTestHelper.trigger_contract_interaction(
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
@@ -16,7 +18,6 @@ RSpec.describe Contract, type: :model do
         },
       }
     )
-    # binding.pry
   end
 
   describe ".deploy_new_contract_from_ethscription_if_needed!" do

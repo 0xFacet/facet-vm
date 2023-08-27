@@ -15,7 +15,7 @@ class Contract < ApplicationRecord
     attr_accessor :state_variable_definitions, :parent_contracts, :events
   end
   
-  delegate :block, :tx, to: :current_transaction
+  delegate :block, :tx, :esc, to: :current_transaction
   
   class Message
     attr_reader :sender

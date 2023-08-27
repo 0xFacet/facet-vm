@@ -9,6 +9,7 @@ class Ethscription < ApplicationRecord
   before_validation :downcase_hex_fields
   
   scope :newest_first, -> { order(block_number: :desc, transaction_index: :desc) }
+  scope :oldest_first, -> { order(block_number: :asc, transaction_index: :asc) }
 
   def later_ethscriptions
     Ethscription.where(

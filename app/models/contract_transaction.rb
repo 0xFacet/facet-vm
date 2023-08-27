@@ -2,7 +2,8 @@ class ContractTransaction
   include ContractErrors
   
   attr_accessor :contract_id, :function_name, :contract_protocol,
-  :function_args, :tx, :call_receipt, :ethscription, :operation, :block
+  :function_args, :tx, :esc, :call_receipt, :ethscription, :operation, :block,
+  :current_contract
   
   def tx
     @tx ||= ContractTransactionGlobals::Tx.new
@@ -10,6 +11,10 @@ class ContractTransaction
   
   def block
     @block ||= ContractTransactionGlobals::Block.new
+  end
+  
+  def esc
+    @esc ||= ContractTransactionGlobals::Esc.new(self)
   end
   
   def set_operation_from_ethscription
@@ -94,6 +99,8 @@ class ContractTransaction
     callee_contract.msg.sender = caller_address_or_id
     callee_contract.current_transaction = self
     
+    self.current_contract = callee_contract
+    
     ContractProxy.new(callee_contract, operation: operation)
   end
   
@@ -130,6 +137,8 @@ class ContractTransaction
         initial_contract_proxy.send(function_name, function_args).tap do
           call_receipt.status = :success
           call_receipt.contract_id = contract_id
+          
+          call_receipt.save!
         end
       end
     rescue ContractError, TransactionError => e
@@ -144,7 +153,7 @@ class ContractTransaction
       if is_deploy? || e.is_a?(CallingNonExistentContractError)
         call_receipt.contract_id = nil
       end
-    ensure
+      
       call_receipt.save!
     end
   end
