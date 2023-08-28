@@ -1,56 +1,54 @@
-class BridgeableToken < Contract
-  store_accessor :data,
-  :trusted_smart_contract, :pending_withdrawals
+class Contracts::BridgeableToken < Contract
+  pragma :rubidity, "1.0.0"
+  
+  is :ERC20
 
-  constructor _name: :string,
-              _symbol: :string,
-              _trusted_smart_contract: :address do |_name, _symbol, _trusted_smart_contract|
-    self.trusted_smart_contract = _trusted_smart_contract.downcase
+  event :InitiateWithdrawal, { from: :address, amount: :uint256 }
+  event :WithdrawalComplete, { to: :address, amount: :uint256 }
 
-    super(_name, _symbol)
-  end
-
-  function :bridge_in, { to: :address, amount: :uint256 }, :public do |to, amount|
-    amount = amount.to_i
-    to = to.downcase
+  address :public, :trustedSmartContract
+  mapping ({ address: :uint256 }), :public, :pendingWithdrawals
+  
+  constructor(
+    name: :string,
+    symbol: :string,
+    trustedSmartContract: :address
+  ) {
+    ERC20(name: name, symbol: symbol, decimals: 18)
     
+    s.trustedSmartContract = trustedSmartContract
+  }
+  
+  function :bridgeIn, { to: :address, amount: :uint256 }, :public do
     require(
-      env.fetch(:msgSender).downcase == trusted_smart_contract,
-      "Only the trusted smart contract can bridge in tokens: #{env.fetch(:msgSender)} != #{trusted_smart_contract}"
+      address(msg.sender) == s.trustedSmartContract,
+      "Only the trusted smart contract can bridge in tokens"
     )
     
-    _mint(account: to, value: amount)
+    _mint(to: to, amount: amount)
   end
   
-  function :bridge_out, { amount: :uint256 }, :public do |amount|
-    amount = amount.to_i
+  function :bridgeOut, { amount: :uint256 }, :public do
+    _burn(from: msg.sender, amount: amount)
     
-    _burn(account: env.fetch(:msgSender).downcase, value: amount)
-    self.pending_withdrawals[env.fetch(:msgSender).downcase] += amount
+    s.pendingWithdrawals[address(msg.sender)] += amount
+    
+    emit :InitiateWithdrawal, from: address(msg.sender), amount: amount
   end
   
-  function :mark_withdrawal_complete, { address: :address, amount: :uint256 }, :public do |address, amount|
-    amount = amount.to_i
-    
+  function :markWithdrawalComplete, { to: :address, amount: :uint256 }, :public do
     require(
-      env.fetch(:msgSender).downcase == trusted_smart_contract,
+      address(msg.sender) == s.trustedSmartContract,
       'Only the trusted smart contract can mark withdrawals as complete'
     )
     
     require(
-      self.pending_withdrawals[address.downcase] >= amount,
+      s.pendingWithdrawals[to] >= amount,
       'Insufficient pending withdrawal'
     )
     
-    self.pending_withdrawals[address.downcase] -= amount
-  end
-  
-  private
-  
-  def ensure_default_values
-    self.pending_withdrawals ||= {}
-    self.pending_withdrawals.default = 0
+    s.pendingWithdrawals[to] -= amount
     
-    super
+    emit :WithdrawalComplete, to: to, amount: amount
   end
 end

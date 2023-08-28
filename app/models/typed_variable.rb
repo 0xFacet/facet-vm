@@ -1,4 +1,6 @@
 class TypedVariable
+  include ContractErrors
+  
   attr_accessor :type, :value
 
   def initialize(type, value = nil, **options)
@@ -35,7 +37,13 @@ class TypedVariable
   def value=(new_value)
     @value = if new_value.is_a?(TypedVariable)
       if new_value.type != type
-        raise VariableTypeError.new("invalid #{type}: #{new_value.value}")
+        if type == Type.create(:addressOrDumbContract) &&
+           [Type.create(:address), Type.create(:dumbContract)].include?(new_value.type)
+           
+          new_value.value
+        else
+          raise VariableTypeError.new("invalid #{type}: #{new_value.value}")
+        end
       end
       
       new_value.value

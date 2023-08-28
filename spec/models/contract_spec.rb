@@ -120,69 +120,73 @@ RSpec.describe Contract, type: :model do
       expect(@transfer_receipt.status).to eq("success")
     end
     
-    # it "bridges" do
-    #   trusted_address = "0x019824B229400345510A3a7EFcFB77fD6A78D8d0"
+    it "bridges" do
+      trusted_address = "0x019824B229400345510A3a7EFcFB77fD6A78D8d0"
       
-    #   token = ContractTestHelper.trigger_contract_interaction(
-    #     command: 'deploy',
-    #     from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-    #     data: {
-    #       "protocol": "BridgeableToken",
-    #       constructorArgs: {
-    #         _name: "Bridge Native 1",
-    #         _symbol: "PT1",
-    #         _trusted_smart_contract: trusted_address
-    #       }
-    #     }
-    #   ).contract
+      deploy = ContractTestHelper.trigger_contract_interaction(
+        command: 'deploy',
+        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+        data: {
+          "protocol": "BridgeableToken",
+          constructorArgs: {
+            name: "Bridge Native 1",
+            symbol: "PT1",
+            trustedSmartContract: trusted_address
+          }
+        }
+      )
       
-    #   ContractTestHelper.trigger_contract_interaction(
-    #     command: 'call',
-    #     from: trusted_address,
-    #     data: {
-    #       "contractId": token.contract_id,
-    #       functionName: "bridge_in",
-    #       args: {
-    #         to: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-    #         amount: 500,
-    #       }
-    #     }
-    #   )
+      expect(deploy.status).to eq("success")
       
-    #   ContractTestHelper.trigger_contract_interaction(
-    #     command: 'call',
-    #     from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-    #     data: {
-    #       "contractId": token.contract_id,
-    #       functionName: "bridge_out",
-    #       args: {
-    #         amount: 100,
-    #       }
-    #     }
-    #   )
+      ContractTestHelper.trigger_contract_interaction(
+        command: 'call',
+        from: trusted_address,
+        data: {
+          "contractId": deploy.contract_id,
+          functionName: "bridgeIn",
+          args: {
+            to: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+            amount: 500,
+          }
+        }
+      )
       
-    #   balance = token.static_call(
-    #     function_name: "balance_of",
-    #     args: {
-    #       address: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
-    #     }
-    #   )
+      ContractTestHelper.trigger_contract_interaction(
+        command: 'call',
+        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+        data: {
+          "contractId": deploy.contract_id,
+          functionName: "bridgeOut",
+          args: {
+            amount: 100,
+          }
+        }
+      )
+      # binding.pry
+
+      balance = ContractTransaction.make_static_call(
+        contract_id: deploy.contract_id,
+        function_name: "balanceOf",
+        function_args: {
+          _1: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
+        }
+      )
+      # binding.pry
+      expect(balance).to eq(400)
       
-    #   expect(balance).to eq(400)
-      
-    #   ContractTestHelper.trigger_contract_interaction(
-    #     command: 'call',
-    #     from: trusted_address,
-    #     data: {
-    #       "contractId": token.contract_id,
-    #       functionName: "mark_withdrawal_complete",
-    #       args: {
-    #         address: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-    #         amount: 100,
-    #       }
-    #     }
-    #   )
-    # end
+      ContractTestHelper.trigger_contract_interaction(
+        command: 'call',
+        from: trusted_address,
+        data: {
+          "contractId": deploy.contract_id,
+          functionName: "markWithdrawalComplete",
+          args: {
+            address: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+            amount: 100,
+          }
+        }
+      )
+    end
     
     it "nfts" do
       creation = ContractTestHelper.trigger_contract_interaction(
@@ -329,7 +333,7 @@ RSpec.describe Contract, type: :model do
           functionName: "approve",
           args: {
             spender: dex.contract_id,
-            value: (21e6).to_i
+            amount: (21e6).to_i
           }
         }
       )
@@ -342,7 +346,7 @@ RSpec.describe Contract, type: :model do
           functionName: "approve",
           args: {
             spender: dex.contract_id,
-            value: (21e6).to_i
+            amount: (21e6).to_i
           }
         }
       )

@@ -1,8 +1,8 @@
 class Contracts::ERC20 < Contract
   pragma :rubidity, "1.0.0"
   
-  event :transfer, { from: :addressOrDumbContract, to: :addressOrDumbContract, value: :uint256 }
-  event :approval, { owner: :addressOrDumbContract, spender: :addressOrDumbContract, value: :uint256 }
+  event :Transfer, { from: :addressOrDumbContract, to: :addressOrDumbContract, amount: :uint256 }
+  event :Approval, { owner: :addressOrDumbContract, spender: :addressOrDumbContract, amount: :uint256 }
 
   string :public, :name
   string :public, :symbol
@@ -19,10 +19,10 @@ class Contracts::ERC20 < Contract
     s.decimals = decimals
   }
 
-  function :approve, { spender: :addressOrDumbContract, value: :uint256 }, :public, :virtual, returns: :bool do
-    s.allowance[msg.sender][spender] = value
+  function :approve, { spender: :addressOrDumbContract, amount: :uint256 }, :public, :virtual, returns: :bool do
+    s.allowance[msg.sender][spender] = amount
     
-    emit :approval, owner: msg.sender, spender: spender, value: value
+    emit :Approval, owner: msg.sender, spender: spender, amount: amount
     
     return true
   end
@@ -33,7 +33,7 @@ class Contracts::ERC20 < Contract
     s.balanceOf[msg.sender] -= amount
     s.balanceOf[to] += amount
 
-    emit :transfer, from: msg.sender, to: to, value: amount
+    emit :Transfer, from: msg.sender, to: to, amount: amount
     
     return true
   end
@@ -50,7 +50,7 @@ class Contracts::ERC20 < Contract
     s.balanceOf[from] -= amount
     s.balanceOf[to] += amount
     
-    emit :transfer, from: from, to: to, value: amount
+    emit :Transfer, from: from, to: to, amount: amount
     
     return true
   end
@@ -59,13 +59,13 @@ class Contracts::ERC20 < Contract
     s.totalSupply += amount
     s.balanceOf[to] += amount
     
-    emit :transfer, from: address(0), to: to, value: amount
+    emit :Transfer, from: address(0), to: to, amount: amount
   end
   
   function :_burn, { from: :addressOrDumbContract, amount: :uint256 }, :internal, :virtual do
     s.balanceOf[from] -= amount
     s.totalSupply -= amount
     
-    emit :transfer, from: from, to: address(0), value: amount
+    emit :Transfer, from: from, to: address(0), amount: amount
   end
 end

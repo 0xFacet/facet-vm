@@ -21,7 +21,7 @@ class Contract < ApplicationRecord
     attr_reader :sender
     
     def sender=(address)
-      @sender = TypedVariable.create(:addressOrDumbContract, address).value
+      @sender = TypedVariable.create(:addressOrDumbContract, address)
     end
   end
   
@@ -235,6 +235,11 @@ class Contract < ApplicationRecord
 
   def address(i)
     return TypedVariable.create(:address) if i == 0
+
+    if i.is_a?(TypedVariable) && i.type == Type.create(:addressOrDumbContract)
+      return TypedVariable.create(:address, i.value)
+    end
+    
     raise "Not implemented"
   end
   
