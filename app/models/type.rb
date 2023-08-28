@@ -5,7 +5,7 @@ class Type
   
   TYPES = [:string, :mapping, :address, :dumbContract,
           :addressOrDumbContract, :ethscriptionId,
-          :bool, :bytes, :address, :uint256, :int256]
+          :bool, :bytes, :address, :uint256, :int256, :array]
   
   TYPES.each do |type|
     define_method("#{type}?") do
@@ -70,6 +70,7 @@ class Type
     return '' if string?
     return false if bool?
     return MappingType::Proxy.new(key_type: key_type, value_type: value_type) if mapping?
+    return ArrayType::Proxy.new(value_type: value_type) if array?
     raise "Unknown default value for #{self.inspect}"
   end
   
@@ -151,8 +152,24 @@ class Type
       proxy = MappingType::Proxy.new(data, key_type: key_type, value_type: value_type)
       
       return proxy
+    elsif array?
+      if literal.is_a?(ArrayType::Proxy)
+        return literal
+      end
+      
+      unless literal.is_a?(Array)
+        raise VariableTypeError.new("invalid #{literal}")
+      end
+      
+      data = literal.map do |value|
+        TypedVariable.create(value_type, value)
+      end
+    
+      proxy = ArrayType::Proxy.new(data, value_type: value_type)
+      
+      return proxy
     end
-    # binding.pry
+    
     raise VariableTypeError.new("Unknown type #{self.inspect} : #{literal}")
   end
   
@@ -174,5 +191,7 @@ class Type
     hash == other.hash
   end
   
-  def is_value_type?; !mapping?; end
+  def is_value_type?
+    !mapping? && !array?
+  end
 end

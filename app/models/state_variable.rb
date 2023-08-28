@@ -31,6 +31,8 @@ class StateVariable
     
     if type.mapping?
       create_mapping_getter_function(contract_class)
+    elsif type.array?
+      create_array_getter_function(contract_class)
     else
       contract_class.class_eval do
         self.function(new_var.name, {}, :public, :view, returns: new_var.type.name) do
@@ -59,6 +61,18 @@ class StateVariable
           value = value[send("_#{i}".to_sym)]
         end
         value
+      end
+    end
+  end
+  
+  def create_array_getter_function(contract_class)
+    current_type = type
+    new_var = self
+  
+    contract_class.class_eval do
+      self.function(new_var.name, {index: :uint256}, :public, :view, returns: current_type.value_type.name) do
+        value = s.send(new_var.name)
+        value[send(:index)]
       end
     end
   end

@@ -376,7 +376,7 @@ RSpec.describe Contract, type: :model do
 # binding.pry
       expect(a).to eq(300)
       
-      pp ContractTestHelper.trigger_contract_interaction(
+      ContractTestHelper.trigger_contract_interaction(
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {

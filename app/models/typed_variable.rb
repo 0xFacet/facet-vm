@@ -13,6 +13,8 @@ class TypedVariable
     
     if type.mapping?
       MappingType.new(type, value, **options)
+    elsif type.array?
+      ArrayType.new(type, value, **options)
     else
       new(type, value, **options)
     end

@@ -101,6 +101,14 @@ class Contract < ApplicationRecord
     end
   end
   
+  def self.array(*args)
+    value_type = args.first
+    metadata = {value_type: value_type}
+    type = Type.create(:array, metadata)
+    
+    define_state_variable(type, args)
+  end
+  
   def require(condition, message)
     unless condition
       raise ContractError.new(message, self)
@@ -229,6 +237,14 @@ class Contract < ApplicationRecord
     Contracts.constants.map do |c|
       Contracts.const_get(c).to_s.demodulize
     end
+  end
+  
+  def static_call(name, args = {})
+    ContractTransaction.make_static_call(
+      contract_id: contract_id, 
+      function_name: name, 
+      function_args: args
+    )
   end
   
   protected
