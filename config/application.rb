@@ -21,7 +21,8 @@ module EthscriptionsVm
     loader.inflector.inflect(
       'open_mint_erc20_token' => 'OpenMintERC20Token',
       'erc20_token' => 'ERC20Token',
-      'erc20' => 'ERC20'
+      'erc20' => 'ERC20',
+      'erc721' => 'ERC721'
     )
     
     config.api_only = true

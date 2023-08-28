@@ -234,7 +234,12 @@ class Contract < ApplicationRecord
   protected
 
   def address(i)
-    return "0x" + "0" * 40 if i == 0
+    return TypedVariable.create(:address) if i == 0
+    raise "Not implemented"
+  end
+  
+  def addressOrDumbContract(i)
+    return TypedVariable.create(:addressOrDumbContract) if i == 0
     raise "Not implemented"
   end
   

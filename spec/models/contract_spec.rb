@@ -184,6 +184,76 @@ RSpec.describe Contract, type: :model do
     #   )
     # end
     
+    it "nfts" do
+      creation = ContractTestHelper.trigger_contract_interaction(
+        command: 'deploy',
+        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+        data: {
+          "protocol": "OpenEditionNft",
+          "constructorArgs": {
+            "name": "Glass Punk Thing-y",
+            "symbol": "GP",
+            "maxPerAddress": "1000",
+            description: "HI!",
+            contentURI: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAACXBIWXMAAAsTAAALEwEAmpwYAAAB+0lEQVRIie2VwU4UQRCGv6qanp7ZXUzYgwgJJOpDGIknjibeTXwANb6NkYAejEefwBcw+hZylwsos7PMdvesh2UJibC7LMGT/7nyf/1XdVfL1zFjblF6m+b/AQspm1ewv7tNd6VHf7XPvbW7hFHgx8EBJycnvHrzfS5gZoJPH3dY29hgc2uLhw/us7m+Tqcs6fdXKbsl+7vbywP23j6i6HRRFVJKiAgAIQQAvMtZubPC3rvHMwFXtsi8I6VIPRzgMiPGyPGv3wybU1SNoigIIeK9Xw4AEOKIXCYGVTUgpUSMCYAY4yTJsgDvPVmWk5nhvSe1kcGgpqoqqrqijS29Xg/v3HKAoihwWU5R+vNTphSpq4omNBS5pyzL85lcpUuH/OH9E7pll9w5ityTmQEgolhmOHOUZQczQ8+Gf60E3nvMFFFBVBm3ICgqUHa6qJ2S5w4VYLb/5Qm888SYUDXkzGE8brEsQ1VwLkdEQRSz2W/1UsDzF18wM7iwyUV00iJRVM+gC2z6K/GZGWoZcuEIpoo5h5iiajjnaFO7HAAm8QSlbSftQgTvPW07eQvjdrb51GMhTU3/Mphzi260rmOIHB8dzayZu66nqgc1akabEiFGRqOGn4eHvHz97eaApmkIMUKMhBCohwOGp6O55gsDpnr67PN1yoF/8GX+ATUPoS/WAlmGAAAAAElFTkSuQmCC"
+          },
+        }
+      )
+      
+      expect(creation.status).to eq("success")
+      
+      mint = ContractTestHelper.trigger_contract_interaction(
+        command: 'call',
+        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+        data: {
+          "contractId": creation.contract_id,
+          "functionName": "mint",
+          "args": {
+            "amount": "2"
+          },
+        }
+      )
+      
+      expect(mint.status).to eq("success")
+      
+      mint = ContractTestHelper.trigger_contract_interaction(
+        command: 'call',
+        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+        data: {
+          "contractId": creation.contract_id,
+          "functionName": "mint",
+          "args": {
+            "amount": "2000"
+          },
+        }
+      )
+      
+      expect(mint.status).to eq("call_error")
+      
+      call_res = ContractTransaction.make_static_call(
+        contract_id: creation.contract_id, 
+        function_name: "ownerOf", 
+        function_args: { id: "0" }
+      )
+      
+      expect(call_res).to eq('0xC2172a6315c1D7f6855768F843c420EbB36eDa97'.downcase)
+      
+      expect {
+        ContractTransaction.make_static_call(
+          contract_id: creation.contract_id, 
+          function_name: "ownerOf", 
+          function_args: { id: 100 }
+        )
+      }.to raise_error(ContractErrors::StaticCallError)
+      
+      result = ContractTransaction.make_static_call(
+        contract_id: creation.contract_id, 
+        function_name: "tokenURI", 
+        function_args: { id: "0" }
+      )
+      expect(result).to match(/\A[\x00-\x7F]*\z/)
+    end
+    
     it "dexes" do
       token_0 = ContractTestHelper.trigger_contract_interaction(
         command: 'deploy',

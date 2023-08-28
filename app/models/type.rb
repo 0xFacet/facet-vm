@@ -4,7 +4,7 @@ class Type
   attr_accessor :name, :metadata, :key_type, :value_type
   
   TYPES = [:string, :mapping, :address, :dumbContract,
-          :addressOrDumbContract,
+          :addressOrDumbContract, :ethscriptionId,
           :bool, :bytes, :address]
   # TODO: Arrays
   (8..256).step(8) do |n|
@@ -72,7 +72,7 @@ class Type
   def default_value
     return 0 if int_or_uint?
     return "0x" + "0" * 40 if address? || addressOrDumbContract?
-    return "0x" + "0" * 64 if dumbContract?
+    return "0x" + "0" * 64 if dumbContract? || ethscriptionId?
     return '' if string?
     return false if bool?
     return Mapping::Proxy.new(key_type: key_type, value_type: value_type) if mapping?
@@ -88,9 +88,15 @@ class Type
       return literal.downcase
     # elsif name.to_s.match(/^uint/)
     elsif uint256?
-      if literal.is_a?(String) && literal.match?(/^[1-9]\d*$/)
-        return literal.to_i
-      elsif literal.is_a?(Integer) && literal.between?(0, 2 ** 256 - 1)
+      if literal.is_a?(String)
+        begin
+          literal = Integer(literal)
+        rescue ArgumentError => e
+          raise VariableTypeError.new("invalid #{self}: #{literal}")
+        end
+      end
+        
+      if literal.is_a?(Integer) && literal.between?(0, 2 ** 256 - 1)
         return literal
       end
       
@@ -107,7 +113,7 @@ class Type
       end
       
       return literal
-    elsif dumbContract?
+    elsif (dumbContract? || ethscriptionId?)
       unless literal.is_a?(String) && literal.match?(/^0x[a-f0-9]{64}$/i)
         raise VariableTypeError.new("invalid #{self}: #{literal}")
       end
