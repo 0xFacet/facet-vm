@@ -29,7 +29,11 @@ class TypedVariable
   end
   
   def to_s
-    value.is_a?(String) ? value : super
+    if value.is_a?(String) || value.is_a?(Integer)
+      value.to_s
+    else
+      raise "No string conversion"
+    end
   end
   
   def deserialize(serialized_value)

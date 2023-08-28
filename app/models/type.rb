@@ -5,7 +5,7 @@ class Type
   
   TYPES = [:string, :mapping, :address, :dumbContract,
           :addressOrDumbContract, :ethscriptionId,
-          :bool, :bytes, :address, :uint256, :int256, :array]
+          :bool, :address, :uint256, :int256, :array]
   
   TYPES.each do |type|
     define_method("#{type}?") do
