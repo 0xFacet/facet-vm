@@ -59,3 +59,5 @@ gem "dalli", "~> 3.2"
 gem "kaminari", "~> 1.2"
 
 gem "airbrake", "~> 13.0"
+
+gem "rack-cors", "~> 2.0"
