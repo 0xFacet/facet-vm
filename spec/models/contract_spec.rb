@@ -174,18 +174,113 @@ RSpec.describe Contract, type: :model do
       # binding.pry
       expect(balance).to eq(400)
       
-      ContractTestHelper.trigger_contract_interaction(
+      out = ContractTestHelper.trigger_contract_interaction(
         command: 'call',
         from: trusted_address,
         data: {
           "contractId": deploy.contract_id,
           functionName: "markWithdrawalComplete",
           args: {
-            address: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+            to: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
             amount: 100,
           }
         }
       )
+      
+      expect(out.status).to eq("success")
+    end
+    
+    it "bridges_tokens" do
+      trusted_address = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
+      
+      deploy = ContractTestHelper.trigger_contract_interaction(
+        command: 'deploy',
+        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+        data: {
+          "protocol": "EthsTokenBridge",
+          constructorArgs: {
+            name: "Bridge Native 1",
+            symbol: "PT1",
+            trustedSmartContract: trusted_address
+          }
+        }
+      )
+      
+      expect(deploy.status).to eq("success")
+      
+      mint = ContractTestHelper.trigger_contract_interaction(
+        command: 'call',
+        from: trusted_address,
+        data: {
+          "contractId": deploy.contract_id,
+          functionName: "bridgeIn",
+          args: {
+            to: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928",
+            escrowedId: "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6",
+          }
+        }
+      )
+      
+      expect(mint.status).to eq("success")
+      
+      balance = ContractTransaction.make_static_call(
+        contract_id: deploy.contract_id,
+        function_name: "balanceOf",
+        function_args: {
+          _1: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928"
+        }
+      )
+      
+      expect(balance).to eq(1000)
+      
+      out = ContractTestHelper.trigger_contract_interaction(
+        command: 'call',
+        from: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928",
+        data: {
+          "contractId": deploy.contract_id,
+          functionName: "bridgeOut",
+          args: {
+            amount: 1000,
+          }
+        }
+      )
+      
+      expect(out.status).to eq("success")
+
+      balance = ContractTransaction.make_static_call(
+        contract_id: deploy.contract_id,
+        function_name: "balanceOf",
+        function_args: {
+          _1: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928"
+        }
+      )
+      # binding.pry
+      expect(balance).to eq(0)
+      
+      complete = ContractTestHelper.trigger_contract_interaction(
+        command: 'call',
+        from: trusted_address,
+        data: {
+          "contractId": deploy.contract_id,
+          functionName: "markWithdrawalComplete",
+          args: {
+            to: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928",
+            amount: 1000,
+          }
+        }
+      )
+      
+      expect(complete.status).to eq("success")
+      
+      balance = ContractTransaction.make_static_call(
+        contract_id: deploy.contract_id,
+        function_name: "pendingWithdrawals",
+        function_args: {
+          _1: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928"
+        }
+      )
+      # binding.pry
+      expect(balance).to eq(0)
     end
     
     it "nfts" do

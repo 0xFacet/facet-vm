@@ -104,7 +104,7 @@ class EthscriptionSync
   
       case response.code
       when 200...300
-        return OpenStruct.new(transform_server_response(response.parsed_response['result']))
+        return transform_server_response(response.parsed_response['result'])
       when 404
         raise UnknownEthscriptionError.new("Unknown ethscription: #{ethscription_id}")
       else
