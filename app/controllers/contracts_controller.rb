@@ -6,12 +6,16 @@ class ContractsController < ApplicationController
 
     contracts = Contract.all.order(created_at: :desc).page(page).per(per_page)
 
-    json = Rails.cache.fetch(contracts) do
-      contracts.to_a.as_json
-    end
+    # json = Rails.cache.fetch(contracts) do
+    #   contracts.to_a.as_json
+    # end
 
     render json: {
-      result: contracts
+      result: contracts.map do |i|
+        i.as_json.deep_transform_values do |value|
+          value.is_a?(Integer) ? value.to_s : value
+        end
+      end
     }
   end
 
@@ -27,12 +31,16 @@ class ContractsController < ApplicationController
       return
     end
 
-    json = Rails.cache.fetch(contract) do
-      contract.as_json
-    end
+    # json = Rails.cache.fetch(contract) do
+    #   contract.as_json.deep_transform_values do |value|
+    #     value.is_a?(Integer) ? value.to_s : value
+    #   end
+    # end
 
     render json: {
-      result: contract
+      result: contract.as_json.deep_transform_values do |value|
+        value.is_a?(Integer) ? value.to_s : value
+      end
     }
   end
 
@@ -40,17 +48,11 @@ class ContractsController < ApplicationController
     args = JSON.parse(params.fetch(:args) { '{}' })
     env = JSON.parse(params.fetch(:env) { '{}' })
 
-    contract = Contract.find_by_contract_id(params[:contract_id])
-
-    if contract.blank?
-      render json: { error: "Contract not found" }, status: 404
-      return
-    end
-
     begin
-      result = contract.static_call(
-        function_name: params[:function_name],
-        args: args,
+      result = ContractTransaction.make_static_call(
+        contract_id: params[:contract_id], 
+        function_name: params[:function_name], 
+        function_args: args,
         msgSender: env['msgSender']
       )
     rescue Contract::StaticCallError => e
@@ -61,7 +63,7 @@ class ContractsController < ApplicationController
     end
 
     render json: {
-      result: result
+      result: result.is_a?(Integer) ? result.to_s : result
     }
   end
 
@@ -74,7 +76,9 @@ class ContractsController < ApplicationController
       }
     else
       render json: {
-        result: receipt
+        result: receipt.as_json.deep_transform_values do |value|
+          value.is_a?(Integer) ? value.to_s : value
+        end
       }
     end
   end
@@ -93,7 +97,11 @@ class ContractsController < ApplicationController
     end
 
     render json: {
-      result: receipts
+      result: receipts.map do |i|
+        i.as_json.deep_transform_values do |value|
+          value.is_a?(Integer) ? value.to_s : value
+        end
+      end
     }
   end
 end
