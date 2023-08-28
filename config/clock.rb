@@ -22,6 +22,6 @@ module Clockwork
   end
 
   every(6.seconds, 'Sync ethscriptions') do
-    EthscriptionSync.new.sync
+    EthscriptionSync.sync
   end
 end
