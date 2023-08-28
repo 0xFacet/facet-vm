@@ -5,13 +5,7 @@ class Type
   
   TYPES = [:string, :mapping, :address, :dumbContract,
           :addressOrDumbContract, :ethscriptionId,
-          :bool, :bytes, :address]
-  # TODO: Arrays
-  (8..256).step(8) do |n|
-    TYPES << "uint#{n}".to_sym
-    TYPES << "int#{n}".to_sym
-    TYPES << "bytes#{n / 8}".to_sym
-  end
+          :bool, :bytes, :address, :uint256, :int256]
   
   TYPES.each do |type|
     define_method("#{type}?") do
@@ -39,7 +33,7 @@ class Type
   def self.create(type_or_name, metadata = {})
     return type_or_name if type_or_name.is_a?(self)
     
-    new(type_or_name, metadata) rescue binding.pry
+    new(type_or_name, metadata)
   end
   
   def key_type=(type)
@@ -86,7 +80,6 @@ class Type
       end
       
       return literal.downcase
-    # elsif name.to_s.match(/^uint/)
     elsif uint256?
       if literal.is_a?(String)
         begin
@@ -97,6 +90,20 @@ class Type
       end
         
       if literal.is_a?(Integer) && literal.between?(0, 2 ** 256 - 1)
+        return literal
+      end
+      
+      raise VariableTypeError.new("invalid #{self}: #{literal}")
+    elsif int256?
+      if literal.is_a?(String)
+        begin
+          literal = Integer(literal)
+        rescue ArgumentError => e
+          raise VariableTypeError.new("invalid #{self}: #{literal}")
+        end
+      end
+        
+      if literal.is_a?(Integer) && literal.between?(-2 ** 255, 2 ** 255 - 1)
         return literal
       end
       
