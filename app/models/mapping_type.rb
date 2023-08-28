@@ -1,4 +1,4 @@
-class Mapping < TypedVariable
+class MappingType < TypedVariable
   def initialize(type, value = nil, **options)
     super
   end

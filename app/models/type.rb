@@ -69,7 +69,7 @@ class Type
     return "0x" + "0" * 64 if dumbContract? || ethscriptionId?
     return '' if string?
     return false if bool?
-    return Mapping::Proxy.new(key_type: key_type, value_type: value_type) if mapping?
+    return MappingType::Proxy.new(key_type: key_type, value_type: value_type) if mapping?
     raise "Unknown default value for #{self.inspect}"
   end
   
@@ -133,7 +133,7 @@ class Type
       
       return literal.downcase
     elsif mapping?
-      if literal.is_a?(Mapping::Proxy)
+      if literal.is_a?(MappingType::Proxy)
         return literal
       end
       
@@ -148,7 +148,7 @@ class Type
         ]
       end.to_h
     
-      proxy = Mapping::Proxy.new(data, key_type: key_type, value_type: value_type)
+      proxy = MappingType::Proxy.new(data, key_type: key_type, value_type: value_type)
       
       return proxy
     end

@@ -12,7 +12,7 @@ class TypedVariable
     type = Type.create(type)
     
     if type.mapping?
-      Mapping.new(type, value, **options)
+      MappingType.new(type, value, **options)
     else
       new(type, value, **options)
     end
