@@ -196,7 +196,9 @@ class Contract < ApplicationRecord
         ]
       )
     ).tap do |json|
-      json['abi'] = public_abi.as_json
+      json['abi'] = public_abi.map do |name, func|
+        [name, func.as_json.except('implementation')]
+      end.to_h
       
       json['current_state'] = current_state.state
       json['current_state']['contract_type'] = type.demodulize
