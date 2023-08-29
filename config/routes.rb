@@ -6,6 +6,7 @@ Rails.application.routes.draw do
       get "/call-receipts/:ethscription_id", to: "contracts#show_call_receipt", constraints: { transaction_hash: /(0x)?[a-zA-Z0-9]{64}/ }
       
       get "/all-abis", to: "contracts#all_abis"
+      get "/deployable-contracts", to: "contracts#deployable_contracts"
     end
   end
 end

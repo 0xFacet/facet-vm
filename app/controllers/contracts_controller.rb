@@ -23,6 +23,10 @@ class ContractsController < ApplicationController
     render json: Contract.all_abis
   end
 
+  def deployable_contracts
+    render json: Contract.all_abis(deployable_only: true)
+  end
+
   def show
     contract = Contract.find_by_contract_id(params[:id])
 

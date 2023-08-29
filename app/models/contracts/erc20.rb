@@ -1,6 +1,8 @@
 class Contracts::ERC20 < Contract
   pragma :rubidity, "1.0.0"
   
+  abstract
+  
   event :Transfer, { from: :addressOrDumbContract, to: :addressOrDumbContract, amount: :uint256 }
   event :Approval, { owner: :addressOrDumbContract, spender: :addressOrDumbContract, amount: :uint256 }
 

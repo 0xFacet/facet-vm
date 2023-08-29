@@ -12,7 +12,7 @@ class Contract < ApplicationRecord
   after_initialize :initialize_state_proxy
 
   class << self
-    attr_accessor :state_variable_definitions, :parent_contracts, :events
+    attr_accessor :state_variable_definitions, :parent_contracts, :events, :is_abstract_contract
   end
   
   delegate :block, :tx, :esc, to: :current_transaction
@@ -23,6 +23,10 @@ class Contract < ApplicationRecord
     def sender=(address)
       @sender = TypedVariable.create(:addressOrDumbContract, address)
     end
+  end
+  
+  def self.abstract
+    @is_abstract_contract = true
   end
   
   def self.state_variable_definitions
@@ -152,12 +156,14 @@ class Contract < ApplicationRecord
     function(:constructor, args, *options, returns: nil, &block)
   end
   
-  def self.all_abis
+  def self.all_abis(deployable_only: false)
     contract_classes = valid_contract_types
 
     contract_classes.each_with_object({}) do |name, hash|
       contract_class = "Contracts::#{name}".constantize
 
+      next if deployable_only && contract_class.is_abstract_contract
+      
       hash[contract_class.name] = contract_class.public_abi
     end.transform_keys(&:demodulize)
   end
