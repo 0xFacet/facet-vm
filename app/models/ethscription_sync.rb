@@ -30,13 +30,7 @@ class EthscriptionSync
     
     response = HTTParty.get(url, query: query, headers: headers)
     
-    parsed_response = response.parsed_response
-    
-    Rails.cache.write('total_newer_ethscriptions', parsed_response['total_newer_ethscriptions'].to_i)
-    
-    parsed_response['ethscriptions'].map do |eth|
-      transform_server_response(eth)
-    end
+    response.parsed_response
   end
 
   def self.local_latest_ethscription
@@ -49,29 +43,31 @@ class EthscriptionSync
     per_page = 25
     
     loop do
-      response = fetch_newer_ethscriptions(
+      parsed_response = fetch_newer_ethscriptions(
         local_latest_ethscription&.ethscription_id, page, per_page
       )
       
-      break if response.blank?
+      ethscriptions = parsed_response['ethscriptions'].map do |eth|
+        transform_server_response(eth)
+      end
+      
+      break if ethscriptions.blank?
       
       starting_ethscription = Ethscription.find_by(
-        ethscription_id: response.first[:ethscription_id]
+        ethscription_id: ethscriptions.first[:ethscription_id]
       )
       
       starting_ethscription&.delete_with_later_ethscriptions
       
-      sorted_response = response.sort_by do |e|
+      sorted_response = ethscriptions.sort_by do |e|
         [e[:block_number], e[:transaction_index]]
       end
 
       sorted_response.each do |ethscription_data|
         Ethscription.create!(ethscription_data)
-        
-        Rails.cache.decrement("total_newer_ethscriptions")
       end
       
-      break if response.length < per_page
+      break if ethscriptions.length < per_page
       page += 1
       
       sleep(1)

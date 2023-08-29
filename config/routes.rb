@@ -9,4 +9,6 @@ Rails.application.routes.draw do
       get "/deployable-contracts", to: "contracts#deployable_contracts"
     end
   end
+  
+  get "/status", to: "status#vm_status"
 end
