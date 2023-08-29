@@ -168,7 +168,7 @@ RSpec.describe Contract, type: :model do
         contract_id: deploy.contract_id,
         function_name: "balanceOf",
         function_args: {
-          _1: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
+          arg0: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
         }
       )
       # binding.pry
@@ -227,7 +227,7 @@ RSpec.describe Contract, type: :model do
         contract_id: deploy.contract_id,
         function_name: "balanceOf",
         function_args: {
-          _1: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928"
+          arg0: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928"
         }
       )
       
@@ -251,7 +251,7 @@ RSpec.describe Contract, type: :model do
         contract_id: deploy.contract_id,
         function_name: "balanceOf",
         function_args: {
-          _1: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928"
+          arg0: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928"
         }
       )
       # binding.pry
@@ -276,7 +276,7 @@ RSpec.describe Contract, type: :model do
         contract_id: deploy.contract_id,
         function_name: "pendingWithdrawals",
         function_args: {
-          _1: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928"
+          arg0: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928"
         }
       )
       # binding.pry
@@ -467,7 +467,7 @@ RSpec.describe Contract, type: :model do
         contract_id: token_0.contract_id,
         function_name: "balanceOf",
         function_args: {
-          _1: "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
+          arg0: "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
         }
       )
 # binding.pry
@@ -491,7 +491,7 @@ RSpec.describe Contract, type: :model do
         contract_id: token_0.contract_id,
         function_name: "balanceOf",
         function_args: {
-          _1: "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
+          arg0: "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
         }
       )
       
@@ -501,7 +501,7 @@ RSpec.describe Contract, type: :model do
         contract_id: token_1.contract_id,
         function_name: "balanceOf",
         function_args: {
-          _1: "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
+          arg0: "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
         }
       )
       

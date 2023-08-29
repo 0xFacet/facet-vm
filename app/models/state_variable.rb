@@ -45,11 +45,11 @@ class StateVariable
   def create_mapping_getter_function(contract_class)
     arguments = {}
     current_type = type
-    index = 1
+    index = 0
     new_var = self
     
     while current_type.name == :mapping
-      arguments["_#{index}".to_sym] = current_type.key_type.name
+      arguments["arg#{index}".to_sym] = current_type.key_type.name
       current_type = current_type.value_type
       index += 1
     end
@@ -57,8 +57,8 @@ class StateVariable
     contract_class.class_eval do
       self.function(new_var.name, arguments, :public, :view, returns: current_type.name) do
         value = s.send(new_var.name)
-        (1...index).each do |i|
-          value = value[send("_#{i}".to_sym)]
+        (0...index).each do |i|
+          value = value[send("arg#{i}".to_sym)]
         end
         value
       end

@@ -23,8 +23,8 @@ class Contracts::DexLiquidityPool < Contract
   
   function :reserves, {}, :public, :view do
     {
-      token0: DumbContract(s.token0).balanceOf(_1: dumbContractId(this)),
-      token1: DumbContract(s.token1).balanceOf(_1: dumbContractId(this))
+      token0: DumbContract(s.token0).balanceOf(arg0: dumbContractId(this)),
+      token1: DumbContract(s.token1).balanceOf(arg0: dumbContractId(this))
     }
   end
   
@@ -33,8 +33,8 @@ class Contracts::DexLiquidityPool < Contract
     output_token: :dumbContract,
     input_amount: :uint256
   }, :public, :view, returns: :uint256 do
-    input_reserve = DumbContract(input_token).balanceOf(_1: dumbContractId(this))
-    output_reserve = DumbContract(output_token).balanceOf(_1: dumbContractId(this))
+    input_reserve = DumbContract(input_token).balanceOf(arg0: dumbContractId(this))
+    output_reserve = DumbContract(output_token).balanceOf(arg0: dumbContractId(this))
     
     ((input_amount * output_reserve) / (input_reserve + input_amount)).to_i
   end
@@ -55,7 +55,7 @@ class Contracts::DexLiquidityPool < Contract
       input_amount: input_amount
     )
     
-    output_reserve = DumbContract(output_token).balanceOf(_1: dumbContractId(this))
+    output_reserve = DumbContract(output_token).balanceOf(arg0: dumbContractId(this))
     
     require(output_amount <= output_reserve, "Insufficient output reserve")
   
