@@ -41,6 +41,8 @@ class Contracts::OpenEditionNft < Contract
   end
   
   function :tokenURI, { id: :uint256 }, :public, :view, :override, returns: :string do
+    require(_exists(id: id), 'ERC721Metadata: URI query for nonexistent token')
+
     json_data = {
       name: "#{s.name} ##{string(id)}",
       description: s.description,

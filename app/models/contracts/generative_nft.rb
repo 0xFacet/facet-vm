@@ -45,6 +45,8 @@ class Contracts::GenerativeNft < Contract
   end
   
   function :tokenURI, { id: :uint256 }, :public, :view, :override, returns: :string do
+    require(_exists(id: id), 'ERC721Metadata: URI query for nonexistent token')
+    
     html = getHTML(seed: s.tokenIdToSeed[id])
     
     html_as_base_64_data_uri = "data:text/html;base64,#{Base64.strict_encode64(html)}"

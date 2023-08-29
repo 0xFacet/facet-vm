@@ -69,6 +69,10 @@ class Contracts::ERC721 < Contract
     s.getApproved[id] = addressOrDumbContract(0);
   end
   
+  function :_exists, { id: :uint256 }, :internal, :virtual do
+    return s._ownerOf[id] != addressOrDumbContract(0)
+  end
+  
   function :_mint, { to: :addressOrDumbContract, id: :uint256 }, :internal, :virtual do
     require(to != addressOrDumbContract(0), "ERC721: mint to the zero address");
     require(s._ownerOf[id] == addressOrDumbContract(0), "ERC721: token already minted");
