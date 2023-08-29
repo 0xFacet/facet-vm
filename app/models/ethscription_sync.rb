@@ -29,7 +29,12 @@ class EthscriptionSync
     }
     
     response = HTTParty.get(url, query: query, headers: headers)
-    response.parsed_response['ethscriptions'].map do |eth|
+    
+    parsed_response = response.parsed_response
+    
+    Rails.cache.write('total_newer_ethscriptions', parsed_response['total_newer_ethscriptions'].to_i)
+    
+    parsed_response['ethscriptions'].map do |eth|
       transform_server_response(eth)
     end
   end
@@ -62,6 +67,8 @@ class EthscriptionSync
 
       sorted_response.each do |ethscription_data|
         Ethscription.create!(ethscription_data)
+        
+        Rails.cache.decrement("total_newer_ethscriptions")
       end
       
       break if response.length < per_page
