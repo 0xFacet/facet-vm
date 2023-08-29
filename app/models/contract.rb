@@ -202,6 +202,11 @@ class Contract < ApplicationRecord
       
       json['current_state'] = current_state.state
       json['current_state']['contract_type'] = type.demodulize
+      
+      json['source_code'] = {
+        language: 'ruby',
+        code: source_code
+      }
     end
   end
   
@@ -245,6 +250,20 @@ class Contract < ApplicationRecord
       function_name: name, 
       function_args: args
     )
+  end
+
+  def source_file
+    ActiveSupport::Dependencies.autoload_paths.each do |base_folder|
+      relative_path = "#{self.class.name.underscore}.rb"
+      absolute_path = File.join(base_folder, relative_path)
+
+      return absolute_path if File.file?(absolute_path)
+    end
+    nil
+  end
+
+  def source_code
+    File.read(source_file) if source_file
   end
   
   protected
