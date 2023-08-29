@@ -1,4 +1,12 @@
 class ContractTransactionGlobals
+  class Message
+    attr_reader :sender
+    
+    def sender=(address)
+      @sender = TypedVariable.create(:addressOrDumbContract, address)
+    end
+  end
+  
   class Tx
     include ContractErrors
 
@@ -42,7 +50,7 @@ class ContractTransactionGlobals
       @current_transaction = current_transaction
     end
     
-    def findEthscriptionById(ethscription_id)
+    def getEthscriptionById(ethscription_id)
       begin
         as_of = if Rails.env.test?
           "0xb9a22c9f1f6a2c3dd8e0d186b22b13e91db8ec9e2ee2b162f32c5eea15b0f7b5"
@@ -50,7 +58,7 @@ class ContractTransactionGlobals
           @current_transaction.ethscription.ethscription_id
         end
         
-        resp = EthscriptionSync.findEthscriptionById(
+        resp = EthscriptionSync.getEthscriptionById(
           ethscription_id.downcase,
           as_of: 
         )
@@ -58,7 +66,7 @@ class ContractTransactionGlobals
         ethscription_response_to_struct(resp)
       rescue ContractErrors::UnknownEthscriptionError => e
         raise ContractError.new(
-          "findEthscriptionById: unknown ethscription: #{ethscription_id}",
+          "getEthscriptionById: unknown ethscription: #{ethscription_id}",
           @current_transaction.current_contract
         )
       end

@@ -25,7 +25,7 @@ class Contracts::EthsTokenBridge < Contract
       "Only the trusted smart contract can bridge in tokens"
     )
     
-    ethscription = esc.findEthscriptionById(escrowedId)
+    ethscription = esc.getEthscriptionById(escrowedId)
     uri = ethscription.contentUri
     
     id = uri[/data:,{"p":"erc-20","op":"mint","tick":"eths","id":"([1-9]+\d*)","amt":"1000"}/, 1]

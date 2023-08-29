@@ -17,14 +17,6 @@ class Contract < ApplicationRecord
   
   delegate :block, :tx, :esc, to: :current_transaction
   
-  class Message
-    attr_reader :sender
-    
-    def sender=(address)
-      @sender = TypedVariable.create(:addressOrDumbContract, address)
-    end
-  end
-  
   def self.abstract
     @is_abstract_contract = true
   end
@@ -50,7 +42,7 @@ class Contract < ApplicationRecord
   end
   
   def msg
-    @msg ||= Message.new
+    @msg ||= ContractTransactionGlobals::Message.new
   end
   
   def self.abi
