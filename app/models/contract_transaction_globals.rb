@@ -15,11 +15,11 @@ class ContractTransactionGlobals
     attr_accessor :number, :timestamp
     
     def number=(number)
-      @number = TypedVariable.create(:uint256, number).value
+      @number = TypedVariable.create(:uint256, number)
     end
     
     def timestamp=(timestamp)
-      @timestamp = TypedVariable.create(:uint256, timestamp).value
+      @timestamp = TypedVariable.create(:datetime, timestamp)
     end
   end
   

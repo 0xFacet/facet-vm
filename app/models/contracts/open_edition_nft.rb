@@ -6,8 +6,8 @@ class Contracts::OpenEditionNft < Contract
   uint256 :public, :totalSupply
   string :public, :description
   
-  uint256 :public, :mintStart
-  uint256 :public, :mintEnd
+  datetime :public, :mintStart
+  datetime :public, :mintEnd
   
   constructor(
     name: :string,
@@ -15,8 +15,8 @@ class Contracts::OpenEditionNft < Contract
     contentURI: :string,
     maxPerAddress: :uint256,
     description: :string,
-    mintStart: :uint256,
-    mintEnd: :uint256
+    mintStart: :datetime,
+    mintEnd: :datetime
   ) {
     ERC721(name: name, symbol: symbol)
     

@@ -5,7 +5,7 @@ class Type
   
   TYPES = [:string, :mapping, :address, :dumbContract,
           :addressOrDumbContract, :ethscriptionId,
-          :bool, :address, :uint256, :int256, :array]
+          :bool, :address, :uint256, :int256, :array, :datetime]
   
   TYPES.each do |type|
     define_method("#{type}?") do
@@ -59,12 +59,8 @@ class Type
     name.to_s
   end
   
-  def int_or_uint?
-    name.to_s.match(/^u?int/)
-  end
-  
   def default_value
-    return 0 if int_or_uint?
+    return 0 if int256? || uint256? || datetime?
     return "0x" + "0" * 40 if address? || addressOrDumbContract?
     return "0x" + "0" * 64 if dumbContract? || ethscriptionId?
     return '' if string?
@@ -133,6 +129,14 @@ class Type
       end
       
       return literal.downcase
+    elsif datetime?
+      dummy_uint = Type.create(:uint256)
+      
+      begin
+        return dummy_uint.check_and_normalize_literal(literal)
+      rescue VariableTypeError => e
+        raise VariableTypeError.new("invalid #{self}: #{literal}")
+      end
     elsif mapping?
       if literal.is_a?(MappingType::Proxy)
         return literal
