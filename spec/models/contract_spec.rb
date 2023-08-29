@@ -355,6 +355,140 @@ RSpec.describe Contract, type: :model do
       expect(result).to match(/\A[\x00-\x7F]*\z/)
     end
     
+    it "generative_nfts" do
+      script = %{
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+        var patterns = [];
+        var animationId
+    
+        function Pattern(x, y, size, speed, color) {
+          this.x = x;
+          this.y = y;
+          this.size = size;
+          this.speed = speed;
+          this.color = color;
+        }
+        Pattern.prototype.update = function() {
+          this.y += this.speed;
+          if (this.y > canvas.height) this.y = 0;
+        };
+        Pattern.prototype.draw = function(ctx) {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size, 0, 2 * Math.PI, false);
+          ctx.fillStyle = this.color;
+          ctx.fill();
+        };
+    
+        function LCG(seed) {
+          return function() {
+            seed = Math.imul(48271, seed) | 0 % 2147483647;
+            return (seed & 2147483647) / 2147483648;
+          }
+        }
+    
+        function generateColor(prng) {
+          const r = Math.floor(prng() * 256);
+          const g = Math.floor(prng() * 256);
+          const b = Math.floor(prng() * 256);
+          return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+        }
+    
+        function generateColors(seed, numColors) {
+          const prng = LCG(seed);
+          const colors = [];
+          for (let i = 0; i < numColors; i++) {
+            colors.push(generateColor(prng));
+          }
+          return colors;
+        }
+        const colors = generateColors(SEED, 5);
+        seedPatterns(SEED, colors);
+    
+        function seedPatterns(seed, colors) {
+          patterns = []; // clear existing patterns
+          for (var i = 0; i < canvas.width / 8; i++) {
+            var colorIndex = Math.floor(((Math.sin(i) * seed) + seed) % colors.length);
+            var size = Math.abs(Math.sin(i + seed) * 50);
+            var speed = Math.abs(Math.sin(i * seed) * 5);
+            var pattern = new Pattern(i * 8, 300, size, speed, colors[colorIndex]);
+            patterns.push(pattern);
+          }
+        }
+    
+        function animate() {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#1f2227'
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          patterns.forEach(function(p) {
+            p.update();
+            p.draw(ctx);
+          });
+          animationId = window.requestAnimationFrame(animate);
+        }
+    
+        function resizeCanvas() {
+          canvas.width = window.innerWidth;
+          canvas.height = window.innerHeight;
+          seedPatterns(SEED, colors); // reinitialize patterns array after every resize
+          window.cancelAnimationFrame(animationId)
+          animate();
+        }
+    
+        function debounce(func, timeout = 300) {
+          let timer;
+          return (...args) => {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+              func.apply(this, args);
+            }, timeout);
+          };
+        }
+        resizeCanvas();
+        window.addEventListener('resize', debounce(resizeCanvas, 50));
+      }
+    
+      creation = ContractTestHelper.trigger_contract_interaction(
+        command: 'deploy',
+        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+        data: {
+          "protocol": "GenerativeNft",
+          "constructorArgs": {
+            "name": "Art-y Thing-y",
+            "symbol": "AT",
+            "maxPerAddress": "1000",
+            maxSupply: 1000,
+            description: "HI!",
+            generativeScript: script
+          },
+        }
+      )
+      
+      expect(creation.status).to eq("success")
+      
+      mint = ContractTestHelper.trigger_contract_interaction(
+        command: 'call',
+        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+        data: {
+          "contractId": creation.contract_id,
+          "functionName": "mint",
+          "args": {
+            "amount": "2"
+          },
+        }
+      )
+      
+      expect(mint.status).to eq("success")
+      
+      result = ContractTransaction.make_static_call(
+        contract_id: creation.contract_id, 
+        function_name: "tokenURI", 
+        function_args: { id: "1" }
+      )
+      
+      expect(result).to match(/\A[\x00-\x7F]*\z/)
+    end
+    
     it "dexes" do
       token_0 = ContractTestHelper.trigger_contract_interaction(
         command: 'deploy',

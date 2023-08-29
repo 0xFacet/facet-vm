@@ -244,6 +244,12 @@ class Contract < ApplicationRecord
     # Do nothing for now
   end
   
+  def keccak256(input)
+    str = TypedVariable.create(:string, input)
+    
+    "0x" + Digest::Keccak256.new.hexdigest(str.value)
+  end
+  
   def self.valid_contract_types
     Contracts.constants.map do |c|
       Contracts.const_get(c).to_s.demodulize
@@ -274,6 +280,14 @@ class Contract < ApplicationRecord
   
   protected
 
+  def string(i)
+    if i.is_a?(TypedVariable) && i.type.is_value_type?
+      return TypedVariable.create(:string, i.value.to_s)
+    else
+      raise "Input must be typed"
+    end
+  end
+  
   def address(i)
     return TypedVariable.create(:address) if i == 0
 

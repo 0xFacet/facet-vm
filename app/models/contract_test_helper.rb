@@ -36,6 +36,7 @@ module ContractTestHelper
     ethscription_attrs = {
       "ethscription_id"=>tx_hash,
       "block_number"=> block_number,
+      "block_blockhash"=> "0x" + SecureRandom.hex(32),
       "current_owner"=>from.downcase,
       "creator"=>from.downcase,
       creation_timestamp: Time.zone.now,

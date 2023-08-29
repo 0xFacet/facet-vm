@@ -3,6 +3,7 @@ class CreateEthscriptions < ActiveRecord::Migration[7.0]
     create_table :ethscriptions do |t|
       t.string :ethscription_id, null: false
       t.bigint :block_number, null: false
+      t.string :block_blockhash, null: false
       t.integer :transaction_index, null: false
       t.string :creator, null: false
       t.string :initial_owner, null: false
@@ -20,6 +21,7 @@ class CreateEthscriptions < ActiveRecord::Migration[7.0]
       t.timestamps
       
       t.check_constraint "ethscription_id ~ '^0x[a-f0-9]{64}$'", name: 'ethscriptions_ethscription_id_format'
+      t.check_constraint "block_blockhash ~ '^0x[a-f0-9]{64}$'", name: 'ethscriptions_block_blockhash_format'
       t.check_constraint "creator ~ '^0x[a-f0-9]{40}$'", name: 'ethscriptions_creator_format'
       t.check_constraint "current_owner ~ '^0x[a-f0-9]{40}$'", name: 'ethscriptions_current_owner_format'
       t.check_constraint "initial_owner ~ '^0x[a-f0-9]{40}$'", name: 'ethscriptions_initial_owner_format'

@@ -108,6 +108,7 @@ GEM
       activerecord
       kaminari-core (= 1.2.2)
     kaminari-core (1.2.2)
+    keccak256 (2.0.1)
     loofah (2.21.3)
       crass (~> 1.0.2)
       nokogiri (>= 1.12.0)
@@ -217,6 +218,7 @@ DEPENDENCIES
   dotenv-rails (~> 2.8)
   httpparty (~> 0.2.0)
   kaminari (~> 1.2)
+  keccak256 (~> 2.0)
   pg (~> 1.1)
   pry
   puma (~> 5.0)

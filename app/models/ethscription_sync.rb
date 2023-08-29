@@ -126,6 +126,7 @@ class EthscriptionSync
     res = {
       ethscription_id: server_data['transaction_hash'],
       block_number: server_data['block_number'],
+      block_blockhash: server_data['block_blockhash'],
       transaction_index: server_data['transaction_index'],
       creator: server_data['creator'],
       current_owner: server_data['current_owner'],

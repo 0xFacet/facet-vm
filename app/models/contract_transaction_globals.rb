@@ -14,6 +14,18 @@ class ContractTransactionGlobals
 
     attr_accessor :number, :timestamp
     
+    def initialize(current_transaction)
+      @current_transaction = current_transaction
+    end
+    
+    def blockhash(block_number)
+      unless @current_transaction.ethscription.block_number == block_number.value # TODO FIX
+        raise "Not implemented"
+      end
+      
+      @current_transaction.ethscription.block_blockhash
+    end
+    
     def number=(number)
       @number = TypedVariable.create(:uint256, number)
     end
@@ -58,6 +70,7 @@ class ContractTransactionGlobals
       params_to_type = {
         ethscriptionId: :ethscriptionId,
         blockNumber: :uint256,
+        blockBlockhash: :string,
         transactionIndex: :uint256,
         creator: :address,
         currentOwner: :address,

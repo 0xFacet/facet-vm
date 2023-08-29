@@ -62,6 +62,7 @@ ActiveRecord::Schema[7.0].define(version: 2023_08_24_174647) do
   create_table "ethscriptions", force: :cascade do |t|
     t.string "ethscription_id", null: false
     t.bigint "block_number", null: false
+    t.string "block_blockhash", null: false
     t.integer "transaction_index", null: false
     t.string "creator", null: false
     t.string "initial_owner", null: false
@@ -76,6 +77,7 @@ ActiveRecord::Schema[7.0].define(version: 2023_08_24_174647) do
     t.index ["block_number", "transaction_index"], name: "index_ethscriptions_on_block_number_and_transaction_index", unique: true
     t.index ["content_sha"], name: "index_ethscriptions_on_content_sha", unique: true
     t.index ["ethscription_id"], name: "index_ethscriptions_on_ethscription_id", unique: true
+    t.check_constraint "block_blockhash::text ~ '^0x[a-f0-9]{64}$'::text", name: "ethscriptions_block_blockhash_format"
     t.check_constraint "content_sha::text ~ '^[a-f0-9]{64}$'::text", name: "ethscriptions_content_sha_format"
     t.check_constraint "creator::text ~ '^0x[a-f0-9]{40}$'::text", name: "ethscriptions_creator_format"
     t.check_constraint "current_owner::text ~ '^0x[a-f0-9]{40}$'::text", name: "ethscriptions_current_owner_format"

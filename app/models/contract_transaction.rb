@@ -10,7 +10,7 @@ class ContractTransaction
   end
   
   def block
-    @block ||= ContractTransactionGlobals::Block.new
+    @block ||= ContractTransactionGlobals::Block.new(self)
   end
   
   def esc
