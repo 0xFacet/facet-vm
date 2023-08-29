@@ -42,7 +42,7 @@ class Contracts::OpenEditionNft < Contract
   
   function :tokenURI, { id: :uint256 }, :public, :view, :override, returns: :string do
     json_data = {
-      name: "#{s.name} ##{id}",
+      name: "#{s.name} ##{string(id)}",
       description: s.description,
       image: s.contentURI,
     }.to_json

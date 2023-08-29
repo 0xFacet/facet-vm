@@ -50,7 +50,7 @@ class Contracts::GenerativeNft < Contract
     html_as_base_64_data_uri = "data:text/html;base64,#{Base64.strict_encode64(html)}"
     
     json_data = {
-      name: "#{s.name} ##{id}",
+      name: "#{s.name} ##{string(id)}",
       description: s.description,
       animation_url: html_as_base_64_data_uri,
     }.to_json
