@@ -60,14 +60,30 @@ class Type
   end
   
   def default_value
-    return 0 if int256? || uint256? || datetime?
-    return "0x" + "0" * 40 if address? || addressOrDumbContract?
-    return "0x" + "0" * 64 if dumbContract? || ethscriptionId?
-    return '' if string?
-    return false if bool?
-    return MappingType::Proxy.new(key_type: key_type, value_type: value_type) if mapping?
-    return ArrayType::Proxy.new(value_type: value_type) if array?
-    raise "Unknown default value for #{self.inspect}"
+    is_int256_uint256_datetime = int256? || uint256? || datetime?
+    is_addressOrDumbContract = address? || addressOrDumbContract?
+    is_dumbContract_ethscriptionId = dumbContract? || ethscriptionId?
+  
+    val = case
+    when is_int256_uint256_datetime
+      0
+    when is_addressOrDumbContract
+      "0x" + "0" * 40
+    when is_dumbContract_ethscriptionId
+      "0x" + "0" * 64
+    when string?
+      ''
+    when bool?
+      false
+    when mapping?
+      MappingType::Proxy.new(key_type: key_type, value_type: value_type)
+    when array?
+      ArrayType::Proxy.new(value_type: value_type)
+    else
+      raise "Unknown default value for #{self.inspect}"
+    end
+    
+    check_and_normalize_literal(val)
   end
   
   def check_and_normalize_literal(literal)
@@ -110,7 +126,7 @@ class Type
         raise VariableTypeError.new("invalid #{self}: #{literal}")
       end
       
-      return literal
+      return literal.freeze
     elsif bool?
       unless literal == true || literal == false
         raise VariableTypeError.new("invalid #{self}: #{literal}")
