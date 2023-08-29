@@ -51,6 +51,8 @@ class ContractTransactionGlobals
     end
     
     def getEthscriptionById(ethscription_id)
+      ethscription_id = TypedVariable.create(:ethscriptionId, ethscription_id).value
+      
       begin
         as_of = if Rails.env.test?
           "0xb9a22c9f1f6a2c3dd8e0d186b22b13e91db8ec9e2ee2b162f32c5eea15b0f7b5"
