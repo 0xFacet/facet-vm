@@ -29,6 +29,16 @@ class Contracts::ERC20 < Contract
     return true
   end
   
+  function :decreaseAllowanceUntilZero, { spender: :addressOrDumbContract, difference: :uint256 }, :public, :virtual, returns: :bool do
+    allowed = s.allowance[msg.sender][spender]
+    
+    newAllowed = allowed > difference ? allowed - difference : 0
+    
+    approve(spender: spender, amount: newAllowed)
+    
+    return true
+  end
+  
   function :transfer, { to: :addressOrDumbContract, amount: :uint256 }, :public, :virtual, returns: :bool do
     require(s.balanceOf[msg.sender] >= amount, 'Insufficient balance')
     
@@ -46,6 +56,9 @@ class Contracts::ERC20 < Contract
     amount: :uint256
   }, :public, :virtual, returns: :bool do
     allowed = s.allowance[from][msg.sender]
+    
+    require(s.balanceOf[from] >= amount, 'Insufficient balance')
+    require(allowed >= amount, 'Insufficient allowance')
     
     s.allowance[from][msg.sender] = allowed - amount
     

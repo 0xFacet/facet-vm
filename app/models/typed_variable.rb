@@ -62,6 +62,10 @@ class TypedVariable
     if value.respond_to?(name)
       result = value.send(name, *args, &block)
       
+      if result.class == value.class
+        result = type.check_and_normalize_literal(result)
+      end
+      
       if name.to_s.end_with?("=") && !%w[>= <=].include?(name.to_s[-2..])
         self.value = result if type.is_value_type?
         self
