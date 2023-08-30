@@ -1,0 +1,2 @@
+INDEXER_API_BASE_URI="http://goerli-api.ethscriptions.com/api"
+ETHEREUM_NETWORK="eth-goerli"
