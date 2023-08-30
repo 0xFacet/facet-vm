@@ -21,11 +21,13 @@ class Contracts::DexLiquidityPool < Contract
     )
   end
   
-  function :reserves, {}, :public, :view do
-    {
+  function :reserves, {}, :public, :view, returns: :string do
+    json_data = {
       token0: DumbContract(s.token0).balanceOf(arg0: dumbContractId(this)),
       token1: DumbContract(s.token1).balanceOf(arg0: dumbContractId(this))
-    }
+    }.to_json
+    
+    return "data:application/json,#{json_data}"
   end
   
   function :calculate_output_amount, {
