@@ -480,6 +480,22 @@ RSpec.describe Contract, type: :model do
       
       expect(mint.status).to eq("success")
       
+      t = ContractTestHelper.trigger_contract_interaction(
+        command: 'call',
+        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+        data: {
+          "contractId": creation.contract_id,
+          "functionName": "transferFrom",
+          "args": {
+            "from": "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+            "to": "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+            id: 1
+          },
+        }
+      )
+      # binding.pry
+      expect(t.status).to eq("success")
+      
       result = ContractTransaction.make_static_call(
         contract_id: creation.contract_id, 
         function_name: "tokenURI", 
@@ -490,7 +506,7 @@ RSpec.describe Contract, type: :model do
     end
     
     it "dexes" do
-      token_0 = ContractTestHelper.trigger_contract_interaction(
+      token0 = ContractTestHelper.trigger_contract_interaction(
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -505,7 +521,7 @@ RSpec.describe Contract, type: :model do
         }
       ).contract
       
-      token_1 = ContractTestHelper.trigger_contract_interaction(
+      token1 = ContractTestHelper.trigger_contract_interaction(
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -526,8 +542,8 @@ RSpec.describe Contract, type: :model do
         data: {
           "protocol": "DexLiquidityPool",
           constructorArgs: {
-            token0: token_0.contract_id,
-            token1: token_1.contract_id
+            token0: token0.contract_id,
+            token1: token1.contract_id
           }
         }
       ).contract
@@ -536,7 +552,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": token_0.contract_id,
+          "contractId": token0.contract_id,
           functionName: "mint",
           args: {
             amount: 500
@@ -548,7 +564,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": token_1.contract_id,
+          "contractId": token1.contract_id,
           functionName: "mint",
           args: {
             amount: 600
@@ -560,7 +576,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": token_1.contract_id,
+          "contractId": token1.contract_id,
           functionName: "approve",
           args: {
             spender: dex.contract_id,
@@ -573,7 +589,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": token_0.contract_id,
+          "contractId": token0.contract_id,
           functionName: "approve",
           args: {
             spender: dex.contract_id,
@@ -582,29 +598,28 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      add_liq = ContractTestHelper.trigger_contract_interaction(
+      addLiquidity = ContractTestHelper.trigger_contract_interaction(
         command: 'call',
         from: "0xc2172a6315c1d7f6855768f843c420ebb36eda97",
         data: {
           "contractId": dex.contract_id,
-          functionName: "add_liquidity",
+          functionName: "addLiquidity",
           args: {
-            token_0_amount: 200,
-            token_1_amount: 100
+            token0Amount: 200,
+            token1Amount: 100
           }
         }
       )
       
-      expect(add_liq.status).to eq("success")
+      expect(addLiquidity.status).to eq("success")
       
       a = ContractTransaction.make_static_call(
-        contract_id: token_0.contract_id,
+        contract_id: token0.contract_id,
         function_name: "balanceOf",
         function_args: {
           arg0: "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
         }
       )
-# binding.pry
       expect(a).to eq(300)
       
       ContractTestHelper.trigger_contract_interaction(
@@ -614,40 +629,40 @@ RSpec.describe Contract, type: :model do
           "contractId": dex.contract_id,
           functionName: "swap",
           args: {
-            input_amount: 50,
-            output_token: token_1.contract_id,
-            input_token: token_0.contract_id,
+            inputAmount: 50,
+            outputToken: token1.contract_id,
+            inputToken: token0.contract_id,
           }
         }
       )
       
-      final_token_a_balance = ContractTransaction.make_static_call(
-        contract_id: token_0.contract_id,
+      finalTokenABalance = ContractTransaction.make_static_call(
+        contract_id: token0.contract_id,
         function_name: "balanceOf",
         function_args: {
           arg0: "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
         }
       )
       
-      expect(final_token_a_balance).to eq(250)
+      expect(finalTokenABalance).to eq(250)
       
-      final_token_b_balance = ContractTransaction.make_static_call(
-        contract_id: token_1.contract_id,
+      finalTokenBBalance = ContractTransaction.make_static_call(
+        contract_id: token1.contract_id,
         function_name: "balanceOf",
         function_args: {
           arg0: "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
         }
       )
       
-      expect(final_token_b_balance).to be > 500
+      expect(finalTokenBBalance).to be > 500
       
       calculate_output_amount = ContractTransaction.make_static_call(
         contract_id: dex.contract_id,
-        function_name: "calculate_output_amount",
+        function_name: "calculateOutputAmount",
         function_args: {
-          input_token: token_0.contract_id,
-          output_token: token_1.contract_id,
-          input_amount: 50
+          inputToken: token0.contract_id,
+          outputToken: token1.contract_id,
+          inputAmount: 50
         }
       )
     end

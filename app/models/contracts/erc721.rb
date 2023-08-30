@@ -64,7 +64,7 @@ class Contracts::ERC721 < Contract
     s._balanceOf[from] -= 1;
     s._balanceOf[to] += 1;
     
-    _ownerOf[id] = to;
+    s._ownerOf[id] = to;
     
     s.getApproved[id] = addressOrDumbContract(0);
   end

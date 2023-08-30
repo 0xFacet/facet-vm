@@ -7,71 +7,71 @@ class Contracts::DexLiquidityPool < Contract
     s.token1 = token1
   end
   
-  function :add_liquidity, {token_0_amount: :uint256, token_1_amount: :uint256}, :public do
+  function :addLiquidity, {token0Amount: :uint256, token1Amount: :uint256}, :public do
     DumbContract(s.token0).transferFrom(
       from: msg.sender,
       to: dumbContractId(this),
-      amount: token_0_amount
+      amount: token0Amount
     )
     
     DumbContract(s.token1).transferFrom(
       from: msg.sender,
       to: dumbContractId(this),
-      amount: token_1_amount
+      amount: token1Amount
     )
   end
   
   function :reserves, {}, :public, :view, returns: :string do
-    json_data = {
+    jsonData = {
       token0: DumbContract(s.token0).balanceOf(arg0: dumbContractId(this)),
       token1: DumbContract(s.token1).balanceOf(arg0: dumbContractId(this))
     }.to_json
     
-    return "data:application/json,#{json_data}"
+    return "data:application/json,#{jsonData}"
   end
   
-  function :calculate_output_amount, {
-    input_token: :dumbContract,
-    output_token: :dumbContract,
-    input_amount: :uint256
+  function :calculateOutputAmount, {
+    inputToken: :dumbContract,
+    outputToken: :dumbContract,
+    inputAmount: :uint256
   }, :public, :view, returns: :uint256 do
-    input_reserve = DumbContract(input_token).balanceOf(arg0: dumbContractId(this))
-    output_reserve = DumbContract(output_token).balanceOf(arg0: dumbContractId(this))
+    inputReserve = DumbContract(inputToken).balanceOf(arg0: dumbContractId(this))
+    outputReserve = DumbContract(outputToken).balanceOf(arg0: dumbContractId(this))
     
-    ((input_amount * output_reserve) / (input_reserve + input_amount)).to_i
+    ((inputAmount * outputReserve) / (inputReserve + inputAmount)).to_i
   end
   
   function :swap, {
-    input_token: :dumbContract,
-    output_token: :dumbContract,
-    input_amount: :uint256
+    inputToken: :dumbContract,
+    outputToken: :dumbContract,
+    inputAmount: :uint256
   }, :public, returns: :uint256 do
-    require([s.token0, s.token1].include?(input_token), "Invalid input token")
-    require([s.token0, s.token1].include?(output_token), "Invalid output token")
+    require([s.token0, s.token1].include?(inputToken), "Invalid input token")
+    require([s.token0, s.token1].include?(outputToken), "Invalid output token")
     
-    require(input_token != output_token, "Input and output tokens can't be the same")
+    require(inputToken != outputToken, "Input and output tokens can't be the same")
     
-    output_amount = calculate_output_amount(
-      input_token: input_token,
-      output_token: output_token,
-      input_amount: input_amount
+    outputAmount = calculateOutputAmount(
+      inputToken: inputToken,
+      outputToken: outputToken,
+      inputAmount: inputAmount
     )
     
-    output_reserve = DumbContract(output_token).balanceOf(arg0: dumbContractId(this))
+    outputReserve = DumbContract(outputToken).balanceOf(arg0: dumbContractId(this))
     
-    require(output_amount <= output_reserve, "Insufficient output reserve")
+    require(outputAmount <= outputReserve, "Insufficient output reserve")
   
-    DumbContract(input_token).transferFrom(
+    DumbContract(inputToken).transferFrom(
       from: msg.sender,
       to: dumbContractId(this),
-      amount: input_amount
+      amount: inputAmount
     )
   
-    DumbContract(output_token).transfer(
+    DumbContract(outputToken).transfer(
       to: msg.sender,
-      amount: output_amount
+      amount: outputAmount
     )
   
-    return output_amount
+    return outputAmount
   end
 end
