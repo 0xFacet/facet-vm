@@ -1,4 +1,4 @@
-class Contracts::GenerativeNft < Contract
+class Contracts::GenerativeERC721 < Contract
   is :ERC721
   
   string :public, :generativeScript

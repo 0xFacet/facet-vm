@@ -8,7 +8,7 @@ RSpec.describe Contract, type: :model do
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "protocol": "OpenMintToken",
+        "protocol": "PublicMintERC20",
         "constructorArgs": {
           "name": "My Fun Token",
           "symbol": "FUN",
@@ -127,7 +127,7 @@ RSpec.describe Contract, type: :model do
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "protocol": "BridgeableToken",
+          "protocol": "EtherERC20Bridge",
           constructorArgs: {
             name: "Bridge Native 1",
             symbol: "PT1",
@@ -197,7 +197,7 @@ RSpec.describe Contract, type: :model do
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "protocol": "EthsTokenBridge",
+          "protocol": "EthsTokenERC20Bridge",
           constructorArgs: {
             name: "Bridge Native 1",
             symbol: "PT1",
@@ -288,7 +288,7 @@ RSpec.describe Contract, type: :model do
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "protocol": "OpenEditionNft",
+          "protocol": "OpenEditionERC721",
           "constructorArgs": {
             "name": "Glass Punk Thing-y",
             "symbol": "GP",
@@ -452,7 +452,7 @@ RSpec.describe Contract, type: :model do
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "protocol": "GenerativeNft",
+          "protocol": "GenerativeERC721",
           "constructorArgs": {
             "name": "Art-y Thing-y",
             "symbol": "AT",
@@ -510,7 +510,7 @@ RSpec.describe Contract, type: :model do
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "protocol": "OpenMintToken",
+          "protocol": "PublicMintERC20",
           "constructorArgs": {
             "name": "Pool Token 1",
             "symbol": "PT1",
@@ -525,7 +525,7 @@ RSpec.describe Contract, type: :model do
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "protocol": "OpenMintToken",
+          "protocol": "PublicMintERC20",
           "constructorArgs": {
             "name": "Pool Token 2",
             "symbol": "PT2",
@@ -540,7 +540,7 @@ RSpec.describe Contract, type: :model do
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "protocol": "DexLiquidityPool",
+          "protocol": "ERC20LiquidityPool",
           constructorArgs: {
             token0: token0.contract_id,
             token1: token1.contract_id

@@ -1,4 +1,4 @@
-class Contracts::DexLiquidityPool < Contract
+class Contracts::ERC20LiquidityPool < Contract
   dumbContract :public, :token0
   dumbContract :public, :token1
   

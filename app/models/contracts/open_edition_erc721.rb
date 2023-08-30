@@ -1,4 +1,4 @@
-class Contracts::OpenEditionNft < Contract
+class Contracts::OpenEditionERC721 < Contract
   is :ERC721
   
   string :public, :contentURI

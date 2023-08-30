@@ -4,7 +4,7 @@ module ContractTestHelper
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "protocol": "OpenMintToken",
+        "protocol": "PublicMintERC20",
         "constructorArgs": {
           "name": "My Fun Token",
           "symbol": "FUN",
@@ -56,7 +56,7 @@ module ContractTestHelper
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "protocol": "OpenMintToken",
+        "protocol": "PublicMintERC20",
         "constructorArgs": {
           "name": "My Fun Token",
           "symbol": "FUN",

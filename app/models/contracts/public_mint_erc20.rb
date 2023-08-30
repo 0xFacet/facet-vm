@@ -1,6 +1,4 @@
-class Contracts::OpenMintToken < Contract
-  pragma :rubidity, "1.0.0"
-  
+class Contracts::PublicMintERC20 < Contract
   is :ERC20
   
   uint256 :public, :maxSupply

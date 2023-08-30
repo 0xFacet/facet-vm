@@ -1,4 +1,4 @@
-class Contracts::BridgeableToken < Contract
+class Contracts::EtherERC20Bridge < Contract
   pragma :rubidity, "1.0.0"
   
   is :ERC20
