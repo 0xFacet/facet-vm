@@ -86,7 +86,7 @@ If you want to debug your app you can run `rails c` to open up a console. Once i
 
 ## Creating Dumb Contracts
 
-Now that you're set up you can try the main attraction: creating your own Dumb Contracts. Dumb Contracts live in `app/models/contracts`. You can edit and create them without touching any other part of the codebase. See these docs for more!
+Now that you're set up you can try the main attraction: creating your own Dumb Contracts. Dumb Contracts live in `app/models/contracts`. You can edit and create them without touching any other part of the codebase. [See these docs for more](https://docs.ethscriptions.com/v/ethscriptions-vm/getting-started/welcome-to-ethscriptions-vm)!
 
 
 
