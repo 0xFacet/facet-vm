@@ -21,7 +21,7 @@ module ContractErrors
   class StateVariableTypeError < StandardError; end
   class VariableTypeError < StandardError; end
   class StateVariableMutabilityError < StandardError; end
-  class ArgumentError < StandardError; end
+  class ContractArgumentError < StandardError; end
   class CallingNonExistentContractError < TransactionError; end
   class UnknownEthscriptionError < StandardError; end
   class FatalNetworkError < StandardError; end

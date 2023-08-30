@@ -72,7 +72,7 @@ class AbiProxy
             self, cooked_args, &func_proxy.implementation
           )
           func_proxy.convert_return_to_typed_variable(ret_val)
-        rescue Contract::ArgumentError, Contract::VariableTypeError => e
+        rescue Contract::ContractArgumentError, Contract::VariableTypeError => e
           raise ContractError.new("Wrong args in #{name}: #{e.message}", self)
         end
       end
@@ -99,7 +99,7 @@ class AbiProxy
             self, cooked_args, &parent_func.implementation
           )
           parent_func.convert_return_to_typed_variable(ret_val)
-        rescue Contract::ArgumentError, Contract::VariableTypeError => e
+        rescue Contract::ContractArgumentError, Contract::VariableTypeError => e
           raise ContractError.new("Wrong args in #{name}: #{e.message}", self)
         end
       end
@@ -177,7 +177,7 @@ class AbiProxy
       end
       
       if errors.any?
-        raise ArgumentError.new(errors.join(' '))
+        raise ContractArgumentError.new(errors.join(' '))
       end
     end
     

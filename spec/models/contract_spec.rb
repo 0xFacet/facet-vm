@@ -286,6 +286,25 @@ RSpec.describe Contract, type: :model do
     end
     
     it "nfts" do
+      data = {
+        "protocol": "OpenEditionERC721",
+        constructorArgs: {"contentURI"=>
+        "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAASABIAAD/4TRcRXhpZgAATU0AKgAAA",
+       "name"=>"Purple Cat v2",
+       "symbol"=>"PC",
+       "maxPerAddress"=>"7 PC",
+       "description"=>"cat",
+       "mintStart"=>"0",
+       "mintEnd"=>"1725030683"}}
+      
+      bad_integer = ContractTestHelper.trigger_contract_interaction(
+        command: 'deploy',
+        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+        data: data
+      )
+      
+      expect(bad_integer.status).to eq("deploy_error")
+      
       creation = ContractTestHelper.trigger_contract_interaction(
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
