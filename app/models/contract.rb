@@ -203,10 +203,15 @@ class Contract < ApplicationRecord
       json['current_state'] = current_state.state
       json['current_state']['contract_type'] = type.demodulize
       
-      json['source_code'] = {
-        language: 'ruby',
-        code: source_code
-      }
+      klass = self.class
+      tree = [klass, klass.linearized_parents].flatten
+      
+      json['source_code'] = tree.map do |k|
+        {
+          language: 'ruby',
+          code: k.new.source_code
+        }
+      end
     end
   end
   
