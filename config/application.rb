@@ -19,7 +19,7 @@ module EthscriptionsVm
     
     loader = Rails.autoloaders.main
     loader.inflector.inflect(
-      'eths_token_erc20_bridge' => 'EthsTokenERC20Bridge',
+      'ethscription_erc20_bridge' => 'EthscriptionERC20Bridge',
       'erc20_liquidity_pool' => 'ERC20LiquidityPool',
       'ether_erc20_bridge' => 'EtherERC20Bridge',
       'generative_erc721' => 'GenerativeERC721',

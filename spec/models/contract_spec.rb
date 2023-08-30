@@ -197,7 +197,7 @@ RSpec.describe Contract, type: :model do
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "protocol": "EthsTokenERC20Bridge",
+          "protocol": "EthscriptionERC20Bridge",
           constructorArgs: {
             name: "Bridge Native 1",
             symbol: "PT1",
