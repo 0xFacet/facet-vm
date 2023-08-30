@@ -116,7 +116,7 @@ RSpec.describe Contract, type: :model do
           },
         }
       )
-      # pp @transfer_receipt.contract.load_current_state
+      
       expect(@transfer_receipt.status).to eq("success")
     end
     
@@ -201,7 +201,9 @@ RSpec.describe Contract, type: :model do
           constructorArgs: {
             name: "Bridge Native 1",
             symbol: "PT1",
-            trustedSmartContract: trusted_address
+            trustedSmartContract: trusted_address,
+            # eths on goerli
+            ethscriptionDeployId: '0x930c0fa451d2bf96a6f98c2a00080c1551788d20e5664aa2830618e846abb123'
           }
         }
       )

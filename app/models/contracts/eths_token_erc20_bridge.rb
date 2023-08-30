@@ -6,17 +6,35 @@ class Contracts::EthsTokenERC20Bridge < Contract
   event :InitiateWithdrawal, { from: :address, amount: :uint256 }
   event :WithdrawalComplete, { to: :address, amount: :uint256 }
 
+  string :public, :ethscriptionsTicker
+  uint256 :public, :ethscriptionMintAmount
+  uint256 :public, :ethscriptionMaxSupply
+  ethscriptionId :public, :ethscriptionDeployId
+  
   address :public, :trustedSmartContract
   mapping ({ address: :uint256 }), :public, :pendingWithdrawals
   
   constructor(
     name: :string,
     symbol: :string,
-    trustedSmartContract: :address
+    trustedSmartContract: :address,
+    ethscriptionDeployId: :ethscriptionId
   ) {
     ERC20(name: name, symbol: symbol, decimals: 18)
     
     s.trustedSmartContract = trustedSmartContract
+    s.ethscriptionDeployId = ethscriptionDeployId
+    
+    deploy = esc.findEthscriptionById(ethscriptionDeployId)
+    uri = deploy.contentUri
+    parsed = JSON.parse(uri.split("data:,").last)
+    
+    require(parsed['op'] == 'deploy', "Invalid ethscription deploy id")
+    require(parsed['p'] == 'erc-20', "Invalid protocol")
+    
+    s.ethscriptionsTicker = parsed['tick']
+    s.ethscriptionMintAmount = parsed['lim']
+    s.ethscriptionMaxSupply = parsed['max']
   }
   
   function :bridgeIn, { to: :address, escrowedId: :ethscriptionId }, :public do
@@ -25,20 +43,34 @@ class Contracts::EthsTokenERC20Bridge < Contract
       "Only the trusted smart contract can bridge in tokens"
     )
     
-    ethscription = esc.getEthscriptionById(escrowedId)
+    ethscription = esc.findEthscriptionById(escrowedId)
     uri = ethscription.contentUri
     
-    id = uri[/data:,{"p":"erc-20","op":"mint","tick":"eths","id":"([1-9]+\d*)","amt":"1000"}/, 1]
+    match_data = uri.match(/data:,{"p":"erc-20","op":"mint","tick":"([a-z]+)","id":"([1-9]+\d*)","amt":"([1-9]+\d*)"}/)
     
-    require(id.to_i > 0 && id.to_i <= 21000, "Invalid token id")
+    require(match_data.present?, "Invalid ethscription content uri")
+    
+    tick, id, amt = match_data.captures
+    
+    tick = tick.cast(:string)
+    id = id.cast(:uint256)
+    amt = amt.cast(:uint256)
+    
+    require(tick == s.ethscriptionsTicker, "Invalid ethscription ticker")
+    require(amt == s.ethscriptionMintAmount, "Invalid ethscription mint amount")
+
+    maxId = s.ethscriptionMaxSupply / s.ethscriptionMintAmount
+    
+    require(id > 0 && id <= maxId, "Invalid token id")
+    
     require(ethscription.currentOwner == s.trustedSmartContract, "Ethscription not owned by recipient")
     require(ethscription.previousOwner == to, "Ethscription not owned by recipient")
     
-    _mint(to: to, amount: 1000)
+    _mint(to: to, amount: s.ethscriptionMintAmount)
   end
   
   function :bridgeOut, { amount: :uint256 }, :public do
-    require(amount % 1000 == 0, "Amount must be a multiple of 1000")
+    require(amount % s.ethscriptionMintAmount == 0, "Amount must be a multiple of ethscriptionMintAmount")
     
     _burn(from: msg.sender, amount: amount)
     

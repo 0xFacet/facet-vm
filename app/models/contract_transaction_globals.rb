@@ -50,7 +50,7 @@ class ContractTransactionGlobals
       @current_transaction = current_transaction
     end
     
-    def getEthscriptionById(ethscription_id)
+    def findEthscriptionById(ethscription_id)
       ethscription_id = TypedVariable.create(:ethscriptionId, ethscription_id).value
       
       begin
@@ -60,7 +60,7 @@ class ContractTransactionGlobals
           @current_transaction.ethscription.ethscription_id
         end
         
-        resp = EthscriptionSync.getEthscriptionById(
+        resp = EthscriptionSync.findEthscriptionById(
           ethscription_id.downcase,
           as_of: 
         )
@@ -68,7 +68,7 @@ class ContractTransactionGlobals
         ethscription_response_to_struct(resp)
       rescue ContractErrors::UnknownEthscriptionError => e
         raise ContractError.new(
-          "getEthscriptionById: unknown ethscription: #{ethscription_id}",
+          "findEthscriptionById: unknown ethscription: #{ethscription_id}",
           @current_transaction.current_contract
         )
       end

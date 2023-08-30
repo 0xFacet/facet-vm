@@ -74,7 +74,7 @@ class EthscriptionSync
     end
   end
   
-  def self.test_getEthscriptionById
+  def self.test_findEthscriptionById
     # All on goerli. Todo make into real test
     picture_ethscription = "0xe311b34c7ca0d37ed3c2139ed26696656de707fa39fb04f44f6a86d0f78cd69e"
     initial_owner = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97".downcase
@@ -86,8 +86,8 @@ class EthscriptionSync
     
     second_contract_interaction = "0x95f24a00beb54b1c5b6cf902912b16d25b6d5ba6cf747ea3e7ccc0ba855505b6"
     
-    _initial_owner = getEthscriptionById(picture_ethscription, as_of: first_contract_interaction)['current_owner']
-    _new_owner = getEthscriptionById(picture_ethscription, as_of: second_contract_interaction)['current_owner']
+    _initial_owner = findEthscriptionById(picture_ethscription, as_of: first_contract_interaction)['current_owner']
+    _new_owner = findEthscriptionById(picture_ethscription, as_of: second_contract_interaction)['current_owner']
     
     unless _initial_owner == initial_owner && _new_owner == new_owner
       raise "FAILURE"
@@ -95,7 +95,7 @@ class EthscriptionSync
     "SUCCESS!"
   end
   
-  def self.getEthscriptionById(ethscription_id, as_of:)
+  def self.findEthscriptionById(ethscription_id, as_of:)
     maximum_attempts = 3 
     attempts = 0
     
