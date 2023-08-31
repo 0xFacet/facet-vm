@@ -107,8 +107,13 @@ class Contract < ApplicationRecord
   
   def require(condition, message)
     unless condition
-      raise ContractError.new(message, self)
-    end 
+      caller_location = caller_locations.detect { |l| l.path.include?('/app/models/contracts') }
+      file = caller_location.path.gsub(%r{.*app/models/contracts/}, '')
+      line = caller_location.lineno
+      
+      error_message = "#{message}. (#{file}:#{line})"
+      raise ContractError.new(error_message, self)
+    end
   end
   
   def self.public_abi

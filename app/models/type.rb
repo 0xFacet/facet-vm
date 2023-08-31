@@ -86,10 +86,14 @@ class Type
     check_and_normalize_literal(val)
   end
   
+  def raise_variable_type_error(literal)
+    raise VariableTypeError.new("Invalid #{self}: #{literal.inspect}")
+  end
+  
   def check_and_normalize_literal(literal)
     if address?
       unless literal.is_a?(String) && literal.match?(/^0x[a-f0-9]{40}$/i)
-        raise VariableTypeError.new("invalid address: #{literal}")
+        raise_variable_type_error(literal)
       end
       
       return literal.downcase
@@ -98,7 +102,7 @@ class Type
         begin
           literal = Integer(literal)
         rescue ArgumentError => e
-          raise VariableTypeError.new("invalid #{self}: #{literal}")
+          raise_variable_type_error(literal)
         end
       end
         
@@ -106,13 +110,13 @@ class Type
         return literal
       end
       
-      raise VariableTypeError.new("invalid #{self}: #{literal}")
+      raise_variable_type_error(literal)
     elsif int256?
       if literal.is_a?(String)
         begin
           literal = Integer(literal)
         rescue ArgumentError => e
-          raise VariableTypeError.new("invalid #{self}: #{literal}")
+          raise_variable_type_error(literal)
         end
       end
         
@@ -120,28 +124,28 @@ class Type
         return literal
       end
       
-      raise VariableTypeError.new("invalid #{self}: #{literal}")
+      raise_variable_type_error(literal)
     elsif string?
       unless literal.is_a?(String)
-        raise VariableTypeError.new("invalid #{self}: #{literal}")
+        raise_variable_type_error(literal)
       end
       
       return literal.freeze
     elsif bool?
       unless literal == true || literal == false
-        raise VariableTypeError.new("invalid #{self}: #{literal}")
+        raise_variable_type_error(literal)
       end
       
       return literal
     elsif (dumbContract? || ethscriptionId?)
       unless literal.is_a?(String) && literal.match?(/^0x[a-f0-9]{64}$/i)
-        raise VariableTypeError.new("invalid #{self}: #{literal}")
+        raise_variable_type_error(literal)
       end
       
       return literal.downcase
     elsif addressOrDumbContract?
       unless literal.is_a?(String) && (literal.match?(/^0x[a-f0-9]{64}$/i) || literal.match?(/^0x[a-f0-9]{40}$/i))
-        raise VariableTypeError.new("invalid #{self}: #{literal}")
+        raise_variable_type_error(literal)
       end
       
       return literal.downcase
@@ -151,7 +155,7 @@ class Type
       begin
         return dummy_uint.check_and_normalize_literal(literal)
       rescue VariableTypeError => e
-        raise VariableTypeError.new("invalid #{self}: #{literal}")
+        raise_variable_type_error(literal)
       end
     elsif mapping?
       if literal.is_a?(MappingType::Proxy)
@@ -178,7 +182,7 @@ class Type
       end
       
       unless literal.is_a?(Array)
-        raise VariableTypeError.new("invalid #{literal}")
+        raise_variable_type_error(literal)
       end
       
       data = literal.map do |value|
@@ -190,7 +194,7 @@ class Type
       return proxy
     end
     
-    raise VariableTypeError.new("Unknown type #{self.inspect} : #{literal}")
+    raise VariableTypeError.new("Unknown type #{self.inspect}: #{literal.inspect}")
   end
   
   def ==(other)

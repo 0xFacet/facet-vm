@@ -13,6 +13,7 @@ class Contracts::EthscriptionERC20Bridge < Contract
   
   address :public, :trustedSmartContract
   mapping ({ address: :uint256 }), :public, :pendingWithdrawals
+  mapping ({ address: :uint256 }), :public, :ethscriptionsEscrowedCount
   
   constructor(
     name: :string,
@@ -63,14 +64,25 @@ class Contracts::EthscriptionERC20Bridge < Contract
     
     require(id > 0 && id <= maxId, "Invalid token id")
     
-    require(ethscription.currentOwner == s.trustedSmartContract, "Ethscription not owned by recipient")
-    require(ethscription.previousOwner == to, "Ethscription not owned by recipient")
+    require(
+      ethscription.currentOwner == s.trustedSmartContract,
+      "Ethscription not owned by recipient. Observed owner: #{ethscription.currentOwner}, expected owner: #{s.trustedSmartContract}"
+    )
     
+    require(
+      ethscription.previousOwner == to,
+      "Ethscription not previously owned by to. Observed previous owner: #{ethscription.previousOwner}, expected previous owner: #{to}"
+    )
+    
+    s.ethscriptionsEscrowedCount[to] += 1
     _mint(to: to, amount: s.ethscriptionMintAmount)
   end
   
   function :bridgeOut, { amount: :uint256 }, :public do
     require(amount % s.ethscriptionMintAmount == 0, "Amount must be a multiple of ethscriptionMintAmount")
+    
+    require(s.ethscriptionsEscrowedCount[address(msg.sender)] > 0, "No ethscriptions available to bridge out")
+    require(s.balanceOf[msg.sender] >= amount, "No ethscriptions available to bridge out")
     
     _burn(from: msg.sender, amount: amount)
     
@@ -87,10 +99,11 @@ class Contracts::EthscriptionERC20Bridge < Contract
     
     require(
       s.pendingWithdrawals[to] >= amount,
-      'Insufficient pending withdrawal'
+      "Insufficient pending withdrawal. Has: #{s.pendingWithdrawals[to]}, requested: #{amount}"
     )
     
     s.pendingWithdrawals[to] -= amount
+    s.ethscriptionsEscrowedCount[to] -= amount / s.ethscriptionMintAmount
     
     emit :WithdrawalComplete, to: to, amount: amount
   end

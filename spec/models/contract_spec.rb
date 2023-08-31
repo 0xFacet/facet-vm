@@ -2,9 +2,9 @@ require 'rails_helper'
 
 RSpec.describe Contract, type: :model do
   before do
-    ENV['INDEXER_API_BASE_URI'] = "http://localhost:4000/api"
+    ENV['INDEXER_API_BASE_URI'] = "http://goerli-api.ethscriptions.com/api"
     
-    @creation_receipt = ContractTestHelper.trigger_contract_interaction(
+    @creation_receipt = trigger_contract_interaction_and_expect_success(
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
@@ -20,15 +20,9 @@ RSpec.describe Contract, type: :model do
     )
   end
 
-  describe ".deploy_new_contract_from_ethscription_if_needed!" do
-    it "creates a new contract" do
-      expect(@creation_receipt.status).to eq("success")
-    end
-  end
-
   describe ".call_contract_from_ethscription_if_needed!" do
     before do
-      @mint_receipt = ContractTestHelper.trigger_contract_interaction(
+      @mint_receipt = trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -42,7 +36,7 @@ RSpec.describe Contract, type: :model do
     end
     
     it "won't call constructor after deployed" do
-      r = ContractTestHelper.trigger_contract_interaction(
+      trigger_contract_interaction_and_expect_call_error(
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -57,8 +51,6 @@ RSpec.describe Contract, type: :model do
           },
         }
       )
-      
-      expect(r.status).to eq("call_error")
     end
     
     it "won't static call restricted function" do
@@ -83,12 +75,8 @@ RSpec.describe Contract, type: :model do
       }.to raise_error(Contract::StaticCallError)
     end
     
-    it "mints the contract" do
-      expect(@mint_receipt.status).to eq("success")
-    end
-    
     it "calls transfer" do
-      @transfer_receipt = ContractTestHelper.trigger_contract_interaction(
+      @transfer_receipt = trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -100,11 +88,10 @@ RSpec.describe Contract, type: :model do
           },
         }
       )
-      expect(@transfer_receipt.status).to eq("success")
     end
     
     it "airdrops" do
-      @transfer_receipt = ContractTestHelper.trigger_contract_interaction(
+      @transfer_receipt = trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -116,14 +103,12 @@ RSpec.describe Contract, type: :model do
           },
         }
       )
-      
-      expect(@transfer_receipt.status).to eq("success")
     end
     
     it "bridges" do
       trusted_address = "0x019824B229400345510A3a7EFcFB77fD6A78D8d0"
       
-      deploy = ContractTestHelper.trigger_contract_interaction(
+      deploy = trigger_contract_interaction_and_expect_success(
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -136,9 +121,7 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      expect(deploy.status).to eq("success")
-      
-      ContractTestHelper.trigger_contract_interaction(
+      trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: trusted_address,
         data: {
@@ -151,7 +134,7 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      ContractTestHelper.trigger_contract_interaction(
+      trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -162,7 +145,6 @@ RSpec.describe Contract, type: :model do
           }
         }
       )
-      # binding.pry
 
       balance = ContractTransaction.make_static_call(
         contract_id: deploy.contract_id,
@@ -174,7 +156,7 @@ RSpec.describe Contract, type: :model do
       # binding.pry
       expect(balance).to eq(400)
       
-      out = ContractTestHelper.trigger_contract_interaction(
+      trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: trusted_address,
         data: {
@@ -186,14 +168,13 @@ RSpec.describe Contract, type: :model do
           }
         }
       )
-      
-      expect(out.status).to eq("success")
     end
     
     it "bridges_tokens" do
-      trusted_address = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
+      trusted_address = "0xf99812028817da95f5cf95fb29a2a7eabfbcc27e"
+      dc_token_recipient = "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
       
-      deploy = ContractTestHelper.trigger_contract_interaction(
+      deploy = trigger_contract_interaction_and_expect_success(
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -207,37 +188,33 @@ RSpec.describe Contract, type: :model do
           }
         }
       )
-      
-      expect(deploy.status).to eq("success")
-      
-      mint = ContractTestHelper.trigger_contract_interaction(
+
+      trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: trusted_address,
         data: {
           "contractId": deploy.contract_id,
           functionName: "bridgeIn",
           args: {
-            to: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928",
+            to: dc_token_recipient,
             escrowedId: "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6",
           }
         }
       )
       
-      expect(mint.status).to eq("success")
-      
       balance = ContractTransaction.make_static_call(
         contract_id: deploy.contract_id,
         function_name: "balanceOf",
         function_args: {
-          arg0: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928"
+          arg0: dc_token_recipient
         }
       )
       
       expect(balance).to eq(1000)
       
-      out = ContractTestHelper.trigger_contract_interaction(
+      trigger_contract_interaction_and_expect_success(
         command: 'call',
-        from: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928",
+        from: dc_token_recipient,
         data: {
           "contractId": deploy.contract_id,
           functionName: "bridgeOut",
@@ -246,8 +223,6 @@ RSpec.describe Contract, type: :model do
           }
         }
       )
-      
-      expect(out.status).to eq("success")
 
       balance = ContractTransaction.make_static_call(
         contract_id: deploy.contract_id,
@@ -259,20 +234,18 @@ RSpec.describe Contract, type: :model do
       # binding.pry
       expect(balance).to eq(0)
       
-      complete = ContractTestHelper.trigger_contract_interaction(
+      trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: trusted_address,
         data: {
           "contractId": deploy.contract_id,
           functionName: "markWithdrawalComplete",
           args: {
-            to: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928",
+            to: dc_token_recipient,
             amount: 1000,
           }
         }
       )
-      
-      expect(complete.status).to eq("success")
       
       balance = ContractTransaction.make_static_call(
         contract_id: deploy.contract_id,
@@ -297,15 +270,14 @@ RSpec.describe Contract, type: :model do
        "mintStart"=>"0",
        "mintEnd"=>"1725030683"}}
       
-      bad_integer = ContractTestHelper.trigger_contract_interaction(
+      trigger_contract_interaction_and_expect_deploy_error(
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: data
       )
       
-      expect(bad_integer.status).to eq("deploy_error")
       
-      creation = ContractTestHelper.trigger_contract_interaction(
+      creation = trigger_contract_interaction_and_expect_success(
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -322,9 +294,7 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      expect(creation.status).to eq("success")
-      
-      mint = ContractTestHelper.trigger_contract_interaction(
+      trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -336,9 +306,7 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      expect(mint.status).to eq("success")
-      
-      mint = ContractTestHelper.trigger_contract_interaction(
+      trigger_contract_interaction_and_expect_call_error(
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -350,7 +318,7 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      expect(mint.status).to eq("call_error")
+      # expect(mint.status).to eq("call_error")
       
       call_res = ContractTransaction.make_static_call(
         contract_id: creation.contract_id, 
@@ -469,7 +437,7 @@ RSpec.describe Contract, type: :model do
         window.addEventListener('resize', debounce(resizeCanvas, 50));
       }
     
-      creation = ContractTestHelper.trigger_contract_interaction(
+      creation = trigger_contract_interaction_and_expect_success(
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -485,9 +453,7 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      expect(creation.status).to eq("success")
-      
-      mint = ContractTestHelper.trigger_contract_interaction(
+      trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -499,9 +465,7 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      expect(mint.status).to eq("success")
-      
-      t = ContractTestHelper.trigger_contract_interaction(
+      trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -514,8 +478,6 @@ RSpec.describe Contract, type: :model do
           },
         }
       )
-      # binding.pry
-      expect(t.status).to eq("success")
       
       result = ContractTransaction.make_static_call(
         contract_id: creation.contract_id, 
@@ -527,7 +489,7 @@ RSpec.describe Contract, type: :model do
     end
     
     it "dexes" do
-      token0 = ContractTestHelper.trigger_contract_interaction(
+      token0 = trigger_contract_interaction_and_expect_success(
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -542,7 +504,7 @@ RSpec.describe Contract, type: :model do
         }
       ).contract
       
-      token1 = ContractTestHelper.trigger_contract_interaction(
+      token1 = trigger_contract_interaction_and_expect_success(
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -557,7 +519,7 @@ RSpec.describe Contract, type: :model do
         }
       ).contract
       
-      dex = ContractTestHelper.trigger_contract_interaction(
+      dex = trigger_contract_interaction_and_expect_success(
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -569,7 +531,7 @@ RSpec.describe Contract, type: :model do
         }
       ).contract
       
-      ContractTestHelper.trigger_contract_interaction(
+      trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -581,19 +543,19 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      ContractTestHelper.trigger_contract_interaction(
+      trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
           "contractId": token1.contract_id,
           functionName: "mint",
           args: {
-            amount: 600
+            amount: "600"
           }
         }
       )
       
-      ContractTestHelper.trigger_contract_interaction(
+      trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -606,7 +568,7 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      ContractTestHelper.trigger_contract_interaction(
+      trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -619,7 +581,7 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      addLiquidity = ContractTestHelper.trigger_contract_interaction(
+      trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: "0xc2172a6315c1d7f6855768f843c420ebb36eda97",
         data: {
@@ -632,8 +594,6 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      expect(addLiquidity.status).to eq("success")
-      
       a = ContractTransaction.make_static_call(
         contract_id: token0.contract_id,
         function_name: "balanceOf",
@@ -643,7 +603,7 @@ RSpec.describe Contract, type: :model do
       )
       expect(a).to eq(300)
       
-      ContractTestHelper.trigger_contract_interaction(
+      trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {

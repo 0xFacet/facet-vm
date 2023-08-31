@@ -55,14 +55,14 @@ class ContractTransactionGlobals
       
       begin
         as_of = if Rails.env.test?
-          "0xb9a22c9f1f6a2c3dd8e0d186b22b13e91db8ec9e2ee2b162f32c5eea15b0f7b5"
+          "0xc59f53896133b7eee71167f6dbf470bad27e0af2443d06c2dfdef604a6ddf13c"
         else
           @current_transaction.ethscription.ethscription_id
         end
         
         resp = EthscriptionSync.findEthscriptionById(
           ethscription_id.downcase,
-          as_of: 
+          as_of: as_of
         )
         
         ethscription_response_to_struct(resp)

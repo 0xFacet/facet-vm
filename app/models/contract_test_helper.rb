@@ -1,4 +1,27 @@
 module ContractTestHelper
+  def trigger_contract_interaction_and_expect_call_error(**params)
+    trigger_contract_interaction_and_expect_status(status: "call_error", **params)
+  end
+  
+  def trigger_contract_interaction_and_expect_success(**params)
+    trigger_contract_interaction_and_expect_status(status: "success", **params)
+  end
+  
+  def trigger_contract_interaction_and_expect_deploy_error(**params)
+    trigger_contract_interaction_and_expect_status(status: "deploy_error", **params)
+  end
+  
+  def trigger_contract_interaction_and_expect_status(status:, **params)
+    interaction = ContractTestHelper.trigger_contract_interaction(**params)
+    expect(interaction.status).to eq(status), failure_message(interaction)
+    interaction
+  end
+  
+  def failure_message(interaction)
+    test_location = caller_locations.find { |location| location.path.include?('/spec/') }
+    "\nCall error: #{interaction.error_message}\nTest failed at: #{test_location}"
+  end
+  
   def self.dep
     @creation_receipt = ContractTestHelper.trigger_contract_interaction(
       command: 'deploy',

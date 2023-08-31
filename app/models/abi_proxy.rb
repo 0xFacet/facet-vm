@@ -73,7 +73,8 @@ class AbiProxy
           )
           func_proxy.convert_return_to_typed_variable(ret_val)
         rescue Contract::ContractArgumentError, Contract::VariableTypeError => e
-          raise ContractError.new("Wrong args in #{name}: #{e.message}", self)
+          func_location = func_proxy.implementation.to_s.gsub(%r(.*/app/models/contracts/), '').chop
+          raise ContractError.new("Wrong args in #{name} (#{func_location}): #{e.message}", self)
         end
       end
     end
@@ -100,7 +101,8 @@ class AbiProxy
           )
           parent_func.convert_return_to_typed_variable(ret_val)
         rescue Contract::ContractArgumentError, Contract::VariableTypeError => e
-          raise ContractError.new("Wrong args in #{name}: #{e.message}", self)
+          func_location = parent_func.implementation.to_s.gsub(%r(.*/app/models/contracts/), '').chop
+          raise ContractError.new("Wrong args in #{name} (#{func_location}): #{e.message}", self)
         end
       end
     end
