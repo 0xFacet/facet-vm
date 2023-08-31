@@ -44,4 +44,5 @@ class StateProxy
       state_variables[var_name.to_sym].deserialize(value)
     end
   end
+  alias_method :load, :deserialize
 end

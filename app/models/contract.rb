@@ -1,4 +1,6 @@
 class Contract < ApplicationRecord
+  self.inheritance_column = :_type_disabled
+  
   include ContractErrors
     
   has_many :call_receipts, primary_key: 'contract_id', class_name: "ContractCallReceipt", dependent: :destroy
@@ -7,58 +9,23 @@ class Contract < ApplicationRecord
   belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'contract_id',
     class_name: "Ethscription", touch: true
   
-  attr_accessor :current_transaction, :msg
+  attr_accessor :current_transaction
+  attr_reader :implementation
   
-  after_initialize :initialize_state_proxy
-
-  class << self
-    attr_accessor :state_variable_definitions, :parent_contracts, :events, :is_abstract_contract
-  end
+  delegate :msg, to: :implementation
   
-  delegate :block, :tx, :esc, to: :current_transaction
-  
-  def self.abstract
-    @is_abstract_contract = true
-  end
-  
-  def self.state_variable_definitions
-    @state_variable_definitions ||= {}
-  end
-  
-  def self.parent_contracts
-    @parent_contracts ||= []
-  end
-  
-  def s
-    @state_proxy
-  end
-  
-  def initialize_state_proxy
-    @state_proxy = StateProxy.new(self, self.class.state_variable_definitions)
+  def implementation
+    @implementation ||= type.constantize.new(self)
   end
   
   def current_state
     states.newest_first.first || ContractState.new
   end
   
-  def msg
-    @msg ||= ContractTransactionGlobals::Message.new
-  end
-  
-  def self.abi
-    @abi ||= AbiProxy.new(self)
-  end
-  
-  def abi
-    self.class.abi
-  end
-  
-  def execute_function(function_name, function_args)
-    abi_entry = abi[function_name]
-    
+  def execute_function(function_name, function_args, persist_state:)
     begin
-      with_state_management(read_only: abi_entry.read_only?) do
-        send(function_name.to_sym, function_args.deep_symbolize_keys)
+      with_state_management(persist_state: persist_state) do
+        implementation.send(function_name.to_sym, function_args.deep_symbolize_keys)
       end
     rescue ContractError => e
       e.contract = self
@@ -66,131 +33,20 @@ class Contract < ApplicationRecord
     end
   end
   
-  def with_state_management(read_only:)
-    load_current_state
-  
+  def with_state_management(persist_state:)
+    implementation.state_proxy.load(current_state.state.deep_dup)
+    initial_state = implementation.state_proxy.serialize
+    
     yield.tap do
-      if state_changed? && !read_only
+      final_state = implementation.state_proxy.serialize
+      
+      if (final_state != initial_state) && persist_state
         states.create!(
           ethscription_id: current_transaction.ethscription.ethscription_id,
-          state: @state_proxy.serialize
+          state: final_state
         )
       end
     end
-  end
-  
-  Type.value_types.each do |type|
-    define_singleton_method(type) do |*args|
-      define_state_variable(type, args)
-    end
-  end
-  
-  def self.mapping(*args)
-    key_type, value_type = args.first.first
-    metadata = {key_type: key_type, value_type: value_type}
-    type = Type.create(:mapping, metadata)
-    
-    if args.last.is_a?(Symbol)
-      define_state_variable(type, args)
-    else
-      type
-    end
-  end
-  
-  def self.array(*args)
-    value_type = args.first
-    metadata = {value_type: value_type}
-    type = Type.create(:array, metadata)
-    
-    define_state_variable(type, args)
-  end
-  
-  def require(condition, message)
-    unless condition
-      caller_location = caller_locations.detect { |l| l.path.include?('/app/models/contracts') }
-      file = caller_location.path.gsub(%r{.*app/models/contracts/}, '')
-      line = caller_location.lineno
-      
-      error_message = "#{message}. (#{file}:#{line})"
-      raise ContractError.new(error_message, self)
-    end
-  end
-  
-  def self.public_abi
-    abi.select do |name, details|
-      details.publicly_callable?
-    end
-  end
-  
-  def public_abi
-    self.class.public_abi
-  end
-  
-  def self.is(*constants)
-    self.parent_contracts += constants.map{|i| "Contracts::#{i}".safe_constantize}
-    self.parent_contracts = self.parent_contracts.uniq
-  end
-  
-  def self.linearize_contracts(contract, processed = [])
-    return [] if processed.include?(contract)
-  
-    new_processed = processed + [contract]
-  
-    return [contract] if contract.parent_contracts.empty?
-    linearized = [contract] + contract.parent_contracts.reverse.flat_map { |parent| linearize_contracts(parent, new_processed) }
-    linearized.uniq { |c| raise "Invalid linearization" if linearized.rindex(c) != linearized.index(c); c }
-  end
-  
-  def self.linearized_parents
-    linearize_contracts(self)[1..-1]
-  end
-  
-  def self.function(name, args, *options, returns: nil, &block)
-    abi.create_and_add_function(name, args, *options, returns: returns, &block)
-  end
-  
-  def self.constructor(args, *options, &block)
-    function(:constructor, args, *options, returns: nil, &block)
-  end
-  
-  def self.all_abis(deployable_only: false)
-    contract_classes = valid_contract_types
-
-    contract_classes.each_with_object({}) do |name, hash|
-      contract_class = "Contracts::#{name}".constantize
-
-      next if deployable_only && contract_class.is_abstract_contract
-      
-      hash[contract_class.name] = contract_class.public_abi
-    end.transform_keys(&:demodulize)
-  end
-  
-  def self.event(name, args)
-    @events ||= {}
-    @events[name] = args
-  end
-
-  def self.events
-    @events || {}.with_indifferent_access
-  end
-
-  def emit(event_name, args = {})
-    unless self.class.events.key?(event_name)
-      raise ContractDefinitionError.new("Event #{event_name} is not defined in this contract.", self)
-    end
-
-    expected_args = self.class.events[event_name]
-    missing_args = expected_args.keys - args.keys
-    extra_args = args.keys - expected_args.keys
-
-    if missing_args.any? || extra_args.any?
-      error_messages = []
-      error_messages << "Missing arguments for #{event_name} event: #{missing_args.join(', ')}." if missing_args.any?
-      error_messages << "Unexpected arguments provided for #{event_name} event: #{extra_args.join(', ')}." if extra_args.any?
-      raise ContractDefinitionError.new(error_messages.join(' '), self)
-    end
-
-    current_transaction.log_event({ event: event_name, data: args })
   end
   
   def as_json(options = {})
@@ -201,57 +57,23 @@ class Contract < ApplicationRecord
         ]
       )
     ).tap do |json|
-      json['abi'] = public_abi.map do |name, func|
+      json['abi'] = implementation.public_abi.map do |name, func|
         [name, func.as_json.except('implementation')]
       end.to_h
       
       json['current_state'] = current_state.state
       json['current_state']['contract_type'] = type.demodulize
       
-      klass = self.class
+      klass = implementation.class
       tree = [klass, klass.linearized_parents].flatten
       
       json['source_code'] = tree.map do |k|
         {
           language: 'ruby',
-          code: k.new.source_code
+          code: source_code(k)
         }
       end
     end
-  end
-  
-  def load_current_state
-    @state_proxy.deserialize(current_state.state.deep_dup)
-    @initial_state = @state_proxy.serialize
-    self
-  end
-  
-  def state_changed?
-    @initial_state != @state_proxy.serialize
-  end
-  
-  def self.define_state_variable(type, args)
-    name = args.last.to_sym
-    type = Type.create(type)
-    
-    if state_variable_definitions[name]
-      raise "No shadowing: #{name} is already defined."
-    end
-    
-    state_variable_definitions[name] = { type: type, args: args }
-    
-    state_var = StateVariable.create(name, type, args)
-    state_var.create_public_getter_function(self)
-  end
-  
-  def self.pragma(*args)
-    # Do nothing for now
-  end
-  
-  def keccak256(input)
-    str = TypedVariable.create(:string, input)
-    
-    "0x" + Digest::Keccak256.new.hexdigest(str.value)
   end
   
   def self.valid_contract_types
@@ -268,9 +90,9 @@ class Contract < ApplicationRecord
     )
   end
 
-  def source_file
+  def source_file(type)
     ActiveSupport::Dependencies.autoload_paths.each do |base_folder|
-      relative_path = "#{self.class.name.underscore}.rb"
+      relative_path = "#{type.to_s.underscore}.rb"
       absolute_path = File.join(base_folder, relative_path)
 
       return absolute_path if File.file?(absolute_path)
@@ -278,41 +100,7 @@ class Contract < ApplicationRecord
     nil
   end
 
-  def source_code
-    File.read(source_file) if source_file
-  end
-  
-  protected
-
-  def string(i)
-    if i.is_a?(TypedVariable) && i.type.is_value_type?
-      return TypedVariable.create(:string, i.value.to_s)
-    else
-      raise "Input must be typed"
-    end
-  end
-  
-  def address(i)
-    return TypedVariable.create(:address) if i == 0
-
-    if i.is_a?(TypedVariable) && i.type == Type.create(:addressOrDumbContract)
-      return TypedVariable.create(:address, i.value)
-    end
-    
-    raise "Not implemented"
-  end
-  
-  def addressOrDumbContract(i)
-    return TypedVariable.create(:addressOrDumbContract) if i == 0
-    raise "Not implemented"
-  end
-  
-  def DumbContract(contract_id)
-    current_transaction.create_execution_context_for_call(contract_id, self.contract_id)
-  end
-  
-  def dumbContractId(i)
-    return contract_id if i == self
-    raise "Not implemented"
+  def source_code(type)
+    File.read(source_file(type)) if source_file(type)
   end
 end

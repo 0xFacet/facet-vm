@@ -1,4 +1,4 @@
-class Contracts::GenerativeERC721 < Contract
+class Contracts::GenerativeERC721 < ContractImplementation
   is :ERC721
   
   string :public, :generativeScript

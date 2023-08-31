@@ -117,7 +117,10 @@ class ContractTransaction
       raise TransactionError.new("Cannot deploy abstract contract: #{contract_protocol}")
     end
     
-    new_contract = contract_class.create!(contract_id: ethscription.ethscription_id)
+    new_contract = Contract.create!(
+      contract_id: ethscription.ethscription_id,
+      type: contract_class,
+    )
     
     self.contract_id = new_contract.contract_id
   end

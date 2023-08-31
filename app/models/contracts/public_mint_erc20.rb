@@ -1,4 +1,4 @@
-class Contracts::PublicMintERC20 < Contract
+class Contracts::PublicMintERC20 < ContractImplementation
   is :ERC20
   
   uint256 :public, :maxSupply

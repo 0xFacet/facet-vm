@@ -1,4 +1,4 @@
-class Contracts::OpenEditionERC721 < Contract
+class Contracts::OpenEditionERC721 < ContractImplementation
   is :ERC721
   
   string :public, :contentURI
