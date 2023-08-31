@@ -202,6 +202,19 @@ RSpec.describe Contract, type: :model do
         }
       )
       
+      trigger_contract_interaction_and_expect_call_error(
+        command: 'call',
+        from: trusted_address,
+        data: {
+          "contractId": deploy.contract_id,
+          functionName: "bridgeIn",
+          args: {
+            to: dc_token_recipient,
+            escrowedId: "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6",
+          }
+        }
+      )
+      
       balance = ContractTransaction.make_static_call(
         contract_id: deploy.contract_id,
         function_name: "balanceOf",
