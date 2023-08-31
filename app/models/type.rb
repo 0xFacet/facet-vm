@@ -23,7 +23,7 @@ class Type
     type_name = type_name.to_sym
     
     if TYPES.exclude?(type_name)
-      raise "Invalid type #{name}"
+      raise "Invalid type #{type_name}"
     end
     
     self.name = type_name.to_sym

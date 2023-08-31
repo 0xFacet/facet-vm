@@ -210,7 +210,7 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      expect(balance).to eq(1000)
+      expect(balance).to eq(1000 * (10 ** 18))
       
       trigger_contract_interaction_and_expect_success(
         command: 'call',
@@ -219,7 +219,7 @@ RSpec.describe Contract, type: :model do
           "contractId": deploy.contract_id,
           functionName: "bridgeOut",
           args: {
-            amount: 1000,
+            escrowedId: "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6",
           }
         }
       )
@@ -242,20 +242,20 @@ RSpec.describe Contract, type: :model do
           functionName: "markWithdrawalComplete",
           args: {
             to: dc_token_recipient,
-            amount: 1000,
+            escrowedId: "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6",
           }
         }
       )
       
       balance = ContractTransaction.make_static_call(
         contract_id: deploy.contract_id,
-        function_name: "pendingWithdrawals",
+        function_name: "pendingWithdrawalEthscriptionToOwner",
         function_args: {
-          arg0: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928"
+          arg0: "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6"
         }
       )
       # binding.pry
-      expect(balance).to eq(0)
+      expect(balance).to eq("0x" + "0" * 40)
     end
     
     it "nfts" do

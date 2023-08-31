@@ -3,8 +3,8 @@ class Contracts::EthscriptionERC20Bridge < Contract
   
   is :ERC20
 
-  event :InitiateWithdrawal, { from: :address, amount: :uint256 }
-  event :WithdrawalComplete, { to: :address, amount: :uint256 }
+  event :InitiateWithdrawal, { from: :address, escrowedId: :ethscriptionId }
+  event :WithdrawalComplete, { to: :address, escrowedId: :ethscriptionId }
 
   string :public, :ethscriptionsTicker
   uint256 :public, :ethscriptionMintAmount
@@ -12,8 +12,8 @@ class Contracts::EthscriptionERC20Bridge < Contract
   ethscriptionId :public, :ethscriptionDeployId
   
   address :public, :trustedSmartContract
-  mapping ({ address: :uint256 }), :public, :pendingWithdrawals
-  mapping ({ address: :uint256 }), :public, :ethscriptionsEscrowedCount
+  mapping ({ ethscriptionId: :address }), :public, :pendingWithdrawalEthscriptionToOwner
+  mapping ({ ethscriptionId: :address }), :public, :bridgedEthscriptionToOwner
   
   constructor(
     name: :string,
@@ -42,6 +42,16 @@ class Contracts::EthscriptionERC20Bridge < Contract
     require(
       address(msg.sender) == s.trustedSmartContract,
       "Only the trusted smart contract can bridge in tokens"
+    )
+    
+    require(
+      s.bridgedEthscriptionToOwner[escrowedId] == address(0),
+      "Ethscription already bridged in"
+    )
+    
+    require(
+      s.pendingWithdrawalEthscriptionToOwner[escrowedId] == address(0),
+      "Ethscription withdrawal initiated"
     )
     
     ethscription = esc.findEthscriptionById(escrowedId)
@@ -74,37 +84,34 @@ class Contracts::EthscriptionERC20Bridge < Contract
       "Ethscription not previously owned by to. Observed previous owner: #{ethscription.previousOwner}, expected previous owner: #{to}"
     )
     
-    s.ethscriptionsEscrowedCount[to] += 1
-    _mint(to: to, amount: s.ethscriptionMintAmount)
+    s.bridgedEthscriptionToOwner[escrowedId] = to
+    _mint(to: to, amount: s.ethscriptionMintAmount * (10 ** decimals))
   end
   
-  function :bridgeOut, { amount: :uint256 }, :public do
-    require(amount % s.ethscriptionMintAmount == 0, "Amount must be a multiple of ethscriptionMintAmount")
+  function :bridgeOut, { escrowedId: :ethscriptionId }, :public do
+    require(s.bridgedEthscriptionToOwner[escrowedId] == address(msg.sender), "Ethscription not owned by sender")
     
-    require(s.ethscriptionsEscrowedCount[address(msg.sender)] > 0, "No ethscriptions available to bridge out")
-    require(s.balanceOf[msg.sender] >= amount, "No ethscriptions available to bridge out")
+    _burn(from: msg.sender, amount: s.ethscriptionMintAmount * (10 ** decimals))
     
-    _burn(from: msg.sender, amount: amount)
+    s.bridgedEthscriptionToOwner[escrowedId] = address(0)
+    s.pendingWithdrawalEthscriptionToOwner[escrowedId] = address(msg.sender)
     
-    s.pendingWithdrawals[address(msg.sender)] += amount
-    
-    emit :InitiateWithdrawal, from: address(msg.sender), amount: amount
+    emit :InitiateWithdrawal, from: address(msg.sender), escrowedId: :ethscriptionId
   end
   
-  function :markWithdrawalComplete, { to: :address, amount: :uint256 }, :public do
+  function :markWithdrawalComplete, { to: :address, escrowedId: :ethscriptionId }, :public do
     require(
       address(msg.sender) == s.trustedSmartContract,
       'Only the trusted smart contract can mark withdrawals as complete'
     )
     
     require(
-      s.pendingWithdrawals[to] >= amount,
-      "Insufficient pending withdrawal. Has: #{s.pendingWithdrawals[to]}, requested: #{amount}"
+      s.pendingWithdrawalEthscriptionToOwner[escrowedId] == to,
+      "Withdrawal not initiated"
     )
     
-    s.pendingWithdrawals[to] -= amount
-    s.ethscriptionsEscrowedCount[to] -= amount / s.ethscriptionMintAmount
+    s.pendingWithdrawalEthscriptionToOwner[escrowedId] = address(0)
     
-    emit :WithdrawalComplete, to: to, amount: amount
+    emit :WithdrawalComplete, to: to, escrowedId: :ethscriptionId
   end
 end
