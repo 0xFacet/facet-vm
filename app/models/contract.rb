@@ -49,6 +49,18 @@ class Contract < ApplicationRecord
     end
   end
   
+  def self.all_abis(deployable_only: false)
+    contract_classes = valid_contract_types
+
+    contract_classes.each_with_object({}) do |name, hash|
+      contract_class = "Contracts::#{name}".constantize
+
+      next if deployable_only && contract_class.is_abstract_contract
+
+      hash[contract_class.name] = contract_class.public_abi
+    end.transform_keys(&:demodulize)
+  end
+  
   def as_json(options = {})
     super(
       options.merge(

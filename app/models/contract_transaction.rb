@@ -63,9 +63,12 @@ class ContractTransaction
     begin
       data = JSON.parse(ethscription.content)
     rescue JSON::ParserError => e
-      return call_receipt.update!(
+      call_receipt.update!(
+        status: :json_parse_error,
         error_message: "JSON::ParserError: #{e.message}"
       )
+      
+      return
     end
     
     self.function_name = is_deploy? ? :constructor : data['functionName']
