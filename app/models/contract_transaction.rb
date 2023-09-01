@@ -30,6 +30,42 @@ class ContractTransaction
     new.import_from_ethscription(ethscription)&.execute_transaction
   end
   
+  def self.simulate_transaction(
+    command:,
+    from:,
+    data:
+  )
+    data = data.merge(salt: SecureRandom.hex)
+  
+    mimetype = "data:application/vnd.esc.contract.#{command}+json"
+    uri = %{#{mimetype},#{data.to_json}}
+  
+    ethscription_attrs = {
+      ethscription_id: "0x" + SecureRandom.hex(32),
+      block_number: 1e15.to_i,
+      block_blockhash: "0x" + SecureRandom.hex(32),
+      current_owner: from.downcase,
+      creator: from.downcase,
+      creation_timestamp: Time.zone.now,
+      initial_owner: "0x" + "0" * 40,
+      transaction_index: 0,
+      content_uri: uri,
+      content_sha: Digest::SHA256.hexdigest(uri),
+      mimetype: mimetype
+    }
+    
+    call_receipt = nil
+  
+    ActiveRecord::Base.transaction do
+      eth = Ethscription.create!(ethscription_attrs)
+      call_receipt = eth.contract_call_receipt
+  
+      raise ActiveRecord::Rollback
+    end
+  
+    call_receipt
+  end
+  
   def self.make_static_call(contract_id:, function_name:, function_args: {}, msgSender: nil)
     new(
       operation: :static_call,

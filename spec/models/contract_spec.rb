@@ -53,6 +53,85 @@ RSpec.describe Contract, type: :model do
       )
     end
     
+    it "will simulate a deploy transaction" do
+      command = 'deploy'
+      from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
+      data = {
+        "protocol": "PublicMintERC20",
+        "constructorArgs": {
+          "name": "My Fun Token",
+          "symbol": "FUN",
+          "maxSupply": "21000000",
+          "perMintLimit": "1000",
+          "decimals": 18
+        },
+      }
+      
+      expect {
+        receipt = ContractTransaction.simulate_transaction(command: command, from: from, data: data)
+    
+        expect(receipt).to be_a(ContractCallReceipt)
+        expect(receipt.status).to eq("success")
+        expect(Ethscription.find_by(ethscription_id: receipt.ethscription_id)).to be_nil
+        
+      }.to_not change {
+        [Contract, ContractState, Ethscription].map{|i| i.all.cache_key_with_version}
+      }
+    end
+    
+    it "will simulate a call to a deployed contract" do
+      deploy_receipt = trigger_contract_interaction_and_expect_success(
+        command: 'deploy',
+        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+        data: {
+          "protocol": "PublicMintERC20",
+          "constructorArgs": {
+            "name": "My Fun Token",
+            "symbol": "FUN",
+            "maxSupply": "21000000",
+            "perMintLimit": "1000",
+            "decimals": 18
+          },
+        }
+      )
+    
+      call_receipt_success = ContractTransaction.simulate_transaction(
+        command: 'call',
+        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+        data: {
+          "contractId": deploy_receipt.contract_id,
+          "functionName": "mint",
+          "args": {
+            "amount": "5"
+          },
+        }
+      )
+    
+      expect(call_receipt_success).to be_a(ContractCallReceipt)
+      expect(call_receipt_success.status).to eq("success")
+      
+      expect(Ethscription.find_by(ethscription_id: call_receipt_success.ethscription_id)).to be_nil
+      
+      call_receipt_fail = ContractTransaction.simulate_transaction(
+        command: 'call',
+        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+        data: {
+          "contractId": deploy_receipt.contract_id,
+          "functionName": "mint",
+          "args": {
+            "amount": "5000"
+          },
+        }
+      )
+      
+      expect(call_receipt_fail).to be_a(ContractCallReceipt)
+      expect(call_receipt_fail.status).to eq("call_error")
+      
+      expect(Ethscription.find_by(ethscription_id: call_receipt_fail.ethscription_id)).to be_nil
+      
+      expect(deploy_receipt.contract.states.count).to eq(1)
+    end
+    
     it "won't static call restricted function" do
       expect {
         ContractTransaction.make_static_call(

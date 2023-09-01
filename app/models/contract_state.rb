@@ -12,7 +12,7 @@ class ContractState < ApplicationRecord
       super(
         options.merge(
           only: [
-            :eth_transaction_id,
+            :ethscription_id,
             :contract_id,
             :state,
           ]

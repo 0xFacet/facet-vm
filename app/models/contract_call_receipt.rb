@@ -29,7 +29,7 @@ class ContractCallReceipt < ApplicationRecord
   end
   
   def failed_deployment_contract_id
-    eth_transaction_id if deploy_error?
+    ethscription_id if deploy_error?
   end
   
   def as_json(options = {})

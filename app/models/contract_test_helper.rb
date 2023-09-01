@@ -46,7 +46,8 @@ module ContractTestHelper
   )
     data = data.merge(salt: SecureRandom.hex)
     
-    uri = %{data:application/vnd.esc.contract.#{command}+json,#{data.to_json}}
+    mimetype = "data:application/vnd.esc.contract.#{command}+json"
+    uri = %{#{mimetype},#{data.to_json}}
     
     tx_hash = "0x" + SecureRandom.hex(32)
     sha = Digest::SHA256.hexdigest(uri)
@@ -67,7 +68,7 @@ module ContractTestHelper
       "transaction_index"=>transaction_index,
       "content_uri"=> uri,
       "content_sha"=>sha,
-      mimetype: "data:application/vnd.esc.contract.#{command}+json"
+      mimetype: mimetype
     }
     
     eth = Ethscription.create!(ethscription_attrs)

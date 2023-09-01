@@ -6,10 +6,6 @@ class ContractsController < ApplicationController
 
     contracts = Contract.all.order(created_at: :desc).page(page).per(per_page)
 
-    # json = Rails.cache.fetch(contracts) do
-    #   contracts.to_a.as_json
-    # end
-
     render json: {
       result: contracts.map do |i|
         i.as_json.deep_transform_values do |value|
@@ -34,12 +30,6 @@ class ContractsController < ApplicationController
       render json: { error: "Contract not found" }, status: 404
       return
     end
-
-    # json = Rails.cache.fetch(contract) do
-    #   contract.as_json.deep_transform_values do |value|
-    #     value.is_a?(Integer) ? value.to_s : value
-    #   end
-    # end
 
     render json: {
       result: contract.as_json.deep_transform_values do |value|
@@ -107,5 +97,20 @@ class ContractsController < ApplicationController
         end
       end
     }
+  end
+  
+  def simulate_transaction
+    command = params[:command]
+    from = params[:from]
+    data = JSON.parse(params[:data])
+  
+    begin
+      receipt = ContractTransaction.simulate_transaction(command: command, from: from, data: data)
+    rescue => e
+      render json: { error: e.message }, status: 500
+      return
+    end
+  
+    render json: { result: receipt }
   end
 end
