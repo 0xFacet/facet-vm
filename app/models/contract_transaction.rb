@@ -63,9 +63,12 @@ class ContractTransaction
     begin
       data = JSON.parse(ethscription.content)
     rescue JSON::ParserError => e
-      return call_receipt.update!(
+      call_receipt.update!(
+        status: :json_parse_error,
         error_message: "JSON::ParserError: #{e.message}"
       )
+      
+      return
     end
     
     self.function_name = is_deploy? ? :constructor : data['functionName']
@@ -117,7 +120,10 @@ class ContractTransaction
       raise TransactionError.new("Cannot deploy abstract contract: #{contract_protocol}")
     end
     
-    new_contract = contract_class.create!(contract_id: ethscription.ethscription_id)
+    new_contract = Contract.create!(
+      contract_id: ethscription.ethscription_id,
+      type: contract_class,
+    )
     
     self.contract_id = new_contract.contract_id
   end

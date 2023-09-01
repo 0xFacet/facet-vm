@@ -20,7 +20,7 @@ class ContractProxy
   end
 
   def define_contract_methods
-    filtered_abi = contract.public_abi.select do |name, func|
+    filtered_abi = contract.implementation.public_abi.select do |name, func|
       case operation
       when :static_call
         func.read_only?
@@ -31,9 +31,9 @@ class ContractProxy
       end
     end
     
-    filtered_abi.each do |name, _|
+    filtered_abi.each do |name, func|
       define_singleton_method(name) do |args|
-        contract.execute_function(name, args)
+        contract.execute_function(name, args, persist_state: !func.read_only?)
       end
     end
   end

@@ -11,7 +11,7 @@ class EthscriptionSync
     HTTParty.get(url, query: query, headers: headers)
   end
   
-  def self.fetch_newer_ethscriptions(latest_ethscription_id, page = 1, per_page = 25)
+  def self.fetch_newer_ethscriptions(latest_ethscription_id, per_page = 25)
     url = ENV.fetch("INDEXER_API_BASE_URI") + "/ethscriptions/newer_ethscriptions"
     
     query = {
@@ -20,7 +20,6 @@ class EthscriptionSync
         "application/vnd.esc.contract.call+json",
         "application/vnd.esc.contract.deploy+json"
       ],
-      page: page,
       per_page: per_page
     }
     
@@ -38,20 +37,16 @@ class EthscriptionSync
   end
   
   def self.sync
-    # Ethscription.delete_all
-    page = 1
-    per_page = 25
+    per_page = 50
     
     loop do
       parsed_response = fetch_newer_ethscriptions(
-        local_latest_ethscription&.ethscription_id, page, per_page
+        local_latest_ethscription&.ethscription_id, per_page
       )
       
       ethscriptions = parsed_response['ethscriptions'].map do |eth|
         transform_server_response(eth)
       end
-      
-      break if ethscriptions.blank?
       
       starting_ethscription = Ethscription.find_by(
         ethscription_id: ethscriptions.first[:ethscription_id]
@@ -67,10 +62,9 @@ class EthscriptionSync
         Ethscription.create!(ethscription_data)
       end
       
-      break if ethscriptions.length < per_page
-      page += 1
+      break if parsed_response['total_newer_ethscriptions'].to_i == 0
       
-      sleep(1)
+      sleep(0.5)
     end
   end
   

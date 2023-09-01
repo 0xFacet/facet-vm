@@ -1,4 +1,4 @@
-class Contracts::ERC721 < Contract
+class Contracts::ERC721 < ContractImplementation
   pragma :rubidity, "1.0.0"
 
   abstract

@@ -10,7 +10,8 @@ class ContractCallReceipt < ApplicationRecord
     call_error: 1,
     deploy_error: 2,
     call_to_non_existent_contract: 3,
-    system_error: 4
+    system_error: 4,
+    json_parse_error: 5
   }
   
   before_validation :clear_logs_if_error#, :ensure_status

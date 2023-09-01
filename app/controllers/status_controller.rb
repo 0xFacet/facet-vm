@@ -5,7 +5,7 @@ class StatusController < ApplicationController
 
     resp = EthscriptionSync.fetch_newer_ethscriptions(newest_ethscription.ethscription_id, 1, 1)
     
-    total_newer_ethscriptions = resp['total_newer_ethscriptions'].to_i - 1
+    total_newer_ethscriptions = resp['total_newer_ethscriptions'].to_i
         
     resp = {
       oldest_known_ethscription: oldest_ethscription,
