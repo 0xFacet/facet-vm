@@ -32,8 +32,9 @@ class ContractProxy
     end
     
     filtered_abi.each do |name, func|
-      define_singleton_method(name) do |args|
-        contract.execute_function(name, args, persist_state: !func.read_only?)
+      define_singleton_method(name) do |*args, **kwargs|
+        user_args = { args: args, kwargs: kwargs }
+        contract.execute_function(name, user_args, persist_state: !func.read_only?)
       end
     end
   end

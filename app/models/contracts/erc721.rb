@@ -37,7 +37,7 @@ class Contracts::ERC721 < ContractImplementation
   function :approve, { spender: :addressOrDumbContract, id: :uint256 }, :public, :virtual do
     owner = s._ownerOf[id];
     
-    require(msg.sender == owner || isApprovedForAll[owner][msg.sender], "NOT_AUTHORIZED");
+    require(msg.sender == owner || s.isApprovedForAll[owner][msg.sender], "NOT_AUTHORIZED");
     
     s.getApproved[id] = spender;
 

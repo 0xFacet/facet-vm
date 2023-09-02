@@ -66,6 +66,16 @@ class ContractTransaction
     call_receipt
   end
   
+  def call_with_args_parsed_from_external_json
+    if function_args.is_a?(Array)
+      initial_contract_proxy.send(function_name, *function_args)
+    elsif function_args.is_a?(Hash)
+      initial_contract_proxy.send(function_name, **function_args)
+    else
+      initial_contract_proxy.send(function_name, function_args)
+    end
+  end
+  
   def self.make_static_call(contract_id:, function_name:, function_args: {}, msgSender: nil)
     new(
       operation: :static_call,
@@ -170,7 +180,7 @@ class ContractTransaction
   
   def execute_static_call
     begin
-      initial_contract_proxy.send(function_name, function_args)
+      call_with_args_parsed_from_external_json
     rescue ContractError => e
       raise StaticCallError.new("Static Call error #{e.message}")
     end
@@ -181,7 +191,7 @@ class ContractTransaction
       ActiveRecord::Base.transaction(requires_new: true) do
         ensure_valid_deploy!
         
-        initial_contract_proxy.send(function_name, function_args).tap do
+        call_with_args_parsed_from_external_json.tap do
           call_receipt.status = :success
           call_receipt.contract_id = contract_id
           

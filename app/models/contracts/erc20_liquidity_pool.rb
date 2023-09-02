@@ -23,8 +23,8 @@ class Contracts::ERC20LiquidityPool < ContractImplementation
   
   function :reserves, {}, :public, :view, returns: :string do
     jsonData = {
-      token0: DumbContract(s.token0).balanceOf(arg0: dumbContractId(this)),
-      token1: DumbContract(s.token1).balanceOf(arg0: dumbContractId(this))
+      token0: DumbContract(s.token0).balanceOf(dumbContractId(this)),
+      token1: DumbContract(s.token1).balanceOf(dumbContractId(this))
     }.to_json
     
     return "data:application/json,#{jsonData}"
@@ -35,8 +35,8 @@ class Contracts::ERC20LiquidityPool < ContractImplementation
     outputToken: :dumbContract,
     inputAmount: :uint256
   }, :public, :view, returns: :uint256 do
-    inputReserve = DumbContract(inputToken).balanceOf(arg0: dumbContractId(this))
-    outputReserve = DumbContract(outputToken).balanceOf(arg0: dumbContractId(this))
+    inputReserve = DumbContract(inputToken).balanceOf(dumbContractId(this))
+    outputReserve = DumbContract(outputToken).balanceOf(dumbContractId(this))
     
     ((inputAmount * outputReserve) / (inputReserve + inputAmount)).to_i
   end
@@ -57,7 +57,7 @@ class Contracts::ERC20LiquidityPool < ContractImplementation
       inputAmount: inputAmount
     )
     
-    outputReserve = DumbContract(outputToken).balanceOf(arg0: dumbContractId(this))
+    outputReserve = DumbContract(outputToken).balanceOf(dumbContractId(this))
     
     require(outputAmount <= outputReserve, "Insufficient output reserve")
   
@@ -68,8 +68,8 @@ class Contracts::ERC20LiquidityPool < ContractImplementation
     )
   
     DumbContract(outputToken).transfer(
-      to: msg.sender,
-      amount: outputAmount
+      msg.sender,
+      outputAmount
     )
   
     return outputAmount

@@ -22,10 +22,10 @@ class Contract < ApplicationRecord
     states.newest_first.first || ContractState.new
   end
   
-  def execute_function(function_name, function_args, persist_state:)
+  def execute_function(function_name, user_args, persist_state:)
     begin
       with_state_management(persist_state: persist_state) do
-        implementation.send(function_name.to_sym, function_args.deep_symbolize_keys)
+        implementation.send(function_name, *user_args[:args], **user_args[:kwargs])
       end
     rescue ContractError => e
       e.contract = self
