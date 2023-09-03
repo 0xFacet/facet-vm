@@ -63,8 +63,27 @@ class AbiProxy
   end
   
   def define_method_on_class(name, func_proxy, target_class)
+    define_function_method(name, func_proxy, target_class)
+  
+    parent_func = func_proxy.parent_functions.first
+    return unless parent_func
+    
+    super_function_name = if parent_func.constructor?
+      parent_func.source.to_s.underscore.split("/").last.upcase
+    else
+      "_super_#{name}"
+    end
+  
+    return if target_class.method_defined?(super_function_name)
+  
+    define_function_method(super_function_name, parent_func, target_class)
+  end
+  
+  private
+  
+  def define_function_method(method_name, func_proxy, target_class)
     target_class.class_eval do
-      define_method(name) do |*args, **kwargs|
+      define_method(method_name) do |*args, **kwargs|
         begin
           cooked_args = func_proxy.convert_args_to_typed_variables_struct(args, kwargs)
           ret_val = FunctionContext.define_and_call_function_method(
@@ -72,36 +91,7 @@ class AbiProxy
           )
           func_proxy.convert_return_to_typed_variable(ret_val)
         rescue Contract::ContractArgumentError, Contract::VariableTypeError => e
-          func_location = func_proxy.implementation.to_s.gsub(%r(.*/app/models/contracts/), '').chop
-          raise ContractError.new("Wrong args in #{name} (#{func_location}): #{e.message}", self)
-        end
-      end
-    end
-    
-    parent_func = func_proxy.parent_functions.first
-    
-    return unless parent_func
-    
-    super_function_name = if parent_func.constructor?
-      parent_name = parent_func.source.to_s.underscore.split("/").last
-      super_function_name = parent_name.upcase
-    else
-      "_super_#{name}"
-    end
-    
-    return if target_class.method_defined?(super_function_name)
-
-    target_class.class_eval do
-      define_method(super_function_name) do |*args, **kwargs|
-        begin
-          cooked_args = parent_func.convert_args_to_typed_variables_struct(args, kwargs)
-          ret_val = FunctionContext.define_and_call_function_method(
-            self, cooked_args, &parent_func.implementation
-          )
-          parent_func.convert_return_to_typed_variable(ret_val)
-        rescue Contract::ContractArgumentError, Contract::VariableTypeError => e
-          func_location = parent_func.implementation.to_s.gsub(%r(.*/app/models/contracts/), '').chop
-          raise ContractError.new("Wrong args in #{name} (#{func_location}): #{e.message}", self)
+          raise ContractError.new("Wrong args in #{method_name} (#{func_proxy.func_location}): #{e.message}", self)
         end
       end
     end
@@ -162,6 +152,10 @@ class AbiProxy
     
     def publicly_callable?
       [:public, :external].include?(visibility) || constructor?
+    end
+    
+    def func_location
+      implementation.to_s.gsub(%r(.*/app/models/contracts/), '').chop
     end
     
     def validate_arg_names(other_args)
