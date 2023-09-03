@@ -63,46 +63,35 @@ class AbiProxy
   end
   
   def define_method_on_class(name, func_proxy, target_class)
+    define_function_method(name, func_proxy, target_class)
+  
+    parent_func = func_proxy.parent_functions.first
+    return unless parent_func
+    
+    super_function_name = if parent_func.constructor?
+      parent_func.source.to_s.underscore.split("/").last.upcase
+    else
+      "_super_#{name}"
+    end
+  
+    return if target_class.method_defined?(super_function_name)
+  
+    define_function_method(super_function_name, parent_func, target_class)
+  end
+  
+  private
+  
+  def define_function_method(method_name, func_proxy, target_class)
     target_class.class_eval do
-      define_method(name) do |args = nil|
+      define_method(method_name) do |*args, **kwargs|
         begin
-          # binding.pry if name == "transferFrom"
-          cooked_args = func_proxy.convert_args_to_typed_variables_struct(args)
+          cooked_args = func_proxy.convert_args_to_typed_variables_struct(args, kwargs)
           ret_val = FunctionContext.define_and_call_function_method(
             self, cooked_args, &func_proxy.implementation
           )
           func_proxy.convert_return_to_typed_variable(ret_val)
         rescue Contract::ContractArgumentError, Contract::VariableTypeError => e
-          func_location = func_proxy.implementation.to_s.gsub(%r(.*/app/models/contracts/), '').chop
-          raise ContractError.new("Wrong args in #{name} (#{func_location}): #{e.message}", self)
-        end
-      end
-    end
-    
-    parent_func = func_proxy.parent_functions.first
-    
-    return unless parent_func
-    
-    super_function_name = if parent_func.constructor?
-      parent_name = parent_func.source.to_s.underscore.split("/").last
-      super_function_name = parent_name.upcase
-    else
-      "_super_#{name}"
-    end
-    
-    return if target_class.method_defined?(super_function_name)
-
-    target_class.class_eval do
-      define_method(super_function_name) do |args = nil|
-        begin
-          cooked_args = parent_func.convert_args_to_typed_variables_struct(args)
-          ret_val = FunctionContext.define_and_call_function_method(
-            self, cooked_args, &parent_func.implementation
-          )
-          parent_func.convert_return_to_typed_variable(ret_val)
-        rescue Contract::ContractArgumentError, Contract::VariableTypeError => e
-          func_location = parent_func.implementation.to_s.gsub(%r(.*/app/models/contracts/), '').chop
-          raise ContractError.new("Wrong args in #{name} (#{func_location}): #{e.message}", self)
+          raise ContractError.new("Wrong args in #{method_name} (#{func_proxy.func_location}): #{e.message}", self)
         end
       end
     end
@@ -129,7 +118,7 @@ class AbiProxy
       :from_parent, :parent_functions, :source
     
     def initialize(**opts)
-      @args = opts[:args].presence
+      @args = opts[:args] || {}
       @state_mutability = opts[:state_mutability]
       @visibility = opts[:visibility]
       @returns = opts[:returns]
@@ -165,13 +154,20 @@ class AbiProxy
       [:public, :external].include?(visibility) || constructor?
     end
     
+    def func_location
+      implementation.to_s.gsub(%r(.*/app/models/contracts/), '').chop
+    end
+    
     def validate_arg_names(other_args)
-      return if args.nil? && other_args.blank?
-      
-      other_args ||= {}
-      
-      missing_args = arg_names - other_args.keys
-      extra_args = other_args.keys - arg_names
+      if other_args.is_a?(Hash)
+        missing_args = arg_names - other_args.keys
+        extra_args = other_args.keys - arg_names
+      elsif other_args.is_a?(Array)
+        missing_args = arg_names.size > other_args.size ? arg_names.last(arg_names.size - other_args.size) : []
+        extra_args = other_args.size > arg_names.size ? other_args.last(other_args.size - arg_names.size) : []
+      else
+        raise ArgumentError, "Expected Hash or Array, got #{other_args.class}"
+      end
       
       errors = [].tap do |error_messages|
         error_messages << "Missing arguments for: #{missing_args.join(', ')}." if missing_args.any?
@@ -183,14 +179,29 @@ class AbiProxy
       end
     end
     
-    def convert_args_to_typed_variables_struct(other_args)
+    def convert_args_to_typed_variables_struct(other_args, other_kwargs)
+      if other_kwargs.present?
+        other_args = other_kwargs.deep_symbolize_keys
+      end
+      
+      if other_args.first.is_a?(Hash) && other_args.length == 1
+        other_args = other_args.first.deep_symbolize_keys
+      end
+      
       validate_arg_names(other_args)
       
-      return if other_args&.keys.blank?
+      return Struct.new(nil) if args.blank?
       
-      as_typed = other_args.each.with_object({}) do |(key, value), acc|
-        type = args[key]
-        acc[key.to_sym] = TypedVariable.create(type, value)
+      as_typed = if other_args.is_a?(Array)
+        args.keys.zip(other_args).map do |key, value|
+          type = args[key]
+          [key, TypedVariable.create(type, value)]
+        end.to_h
+      else
+        other_args.each.with_object({}) do |(key, value), acc|
+          type = args[key]
+          acc[key.to_sym] = TypedVariable.create(type, value)
+        end
       end
       
       struct_class = Struct.new(*as_typed.keys)

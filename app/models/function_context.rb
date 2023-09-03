@@ -29,7 +29,6 @@ class FunctionContext < BasicObject
   
   def self.define_and_call_function_method(contract, args, &block)
     context = new(contract, args)
-    # binding.pry
     context.define_singleton_method(:function_implementation, &block)
     context.function_implementation
   end

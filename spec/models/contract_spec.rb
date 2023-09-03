@@ -28,9 +28,7 @@ RSpec.describe Contract, type: :model do
         data: {
           "contractId": @creation_receipt.contract_id,
           "functionName": "mint",
-          "args": {
-            "amount": "5"
-          },
+          "args": ["5"],
         }
       )
     end
@@ -206,10 +204,10 @@ RSpec.describe Contract, type: :model do
         data: {
           "contractId": deploy.contract_id,
           functionName: "bridgeIn",
-          args: {
-            to: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-            amount: 500,
-          }
+          args: [
+            "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+            500
+          ]
         }
       )
       
@@ -228,9 +226,9 @@ RSpec.describe Contract, type: :model do
       balance = ContractTransaction.make_static_call(
         contract_id: deploy.contract_id,
         function_name: "balanceOf",
-        function_args: {
-          arg0: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
-        }
+        function_args: [
+          "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
+        ]
       )
       # binding.pry
       expect(balance).to eq(400)
@@ -297,9 +295,9 @@ RSpec.describe Contract, type: :model do
       balance = ContractTransaction.make_static_call(
         contract_id: deploy.contract_id,
         function_name: "balanceOf",
-        function_args: {
-          arg0: dc_token_recipient
-        }
+        function_args: [
+          dc_token_recipient
+        ]
       )
       
       expect(balance).to eq(1000 * (10 ** 18))
@@ -319,9 +317,9 @@ RSpec.describe Contract, type: :model do
       balance = ContractTransaction.make_static_call(
         contract_id: deploy.contract_id,
         function_name: "balanceOf",
-        function_args: {
-          arg0: "0x3A3323d81e77f6a604314aE6278a7B6f4c580928"
-        }
+        function_args: [
+          "0x3A3323d81e77f6a604314aE6278a7B6f4c580928"
+        ]
       )
       # binding.pry
       expect(balance).to eq(0)
@@ -342,9 +340,9 @@ RSpec.describe Contract, type: :model do
       balance = ContractTransaction.make_static_call(
         contract_id: deploy.contract_id,
         function_name: "pendingWithdrawalEthscriptionToOwner",
-        function_args: {
-          arg0: "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6"
-        }
+        function_args: [
+          "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6"
+        ]
       )
       # binding.pry
       expect(balance).to eq("0x" + "0" * 40)
@@ -689,9 +687,9 @@ RSpec.describe Contract, type: :model do
       a = ContractTransaction.make_static_call(
         contract_id: token0.contract_id,
         function_name: "balanceOf",
-        function_args: {
-          arg0: "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
-        }
+        function_args: [
+          "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
+        ]
       )
       expect(a).to eq(300)
       
@@ -722,9 +720,7 @@ RSpec.describe Contract, type: :model do
       finalTokenBBalance = ContractTransaction.make_static_call(
         contract_id: token1.contract_id,
         function_name: "balanceOf",
-        function_args: {
-          arg0: "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
-        }
+        function_args: "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
       )
       
       expect(finalTokenBBalance).to be > 500
