@@ -90,6 +90,16 @@ class Type
     raise VariableTypeError.new("Invalid #{self}: #{literal.inspect}")
   end
   
+  def parse_integer(literal)
+    base = literal.start_with?("0x") ? 16 : 10
+    
+    begin
+      Integer(literal, base)
+    rescue ArgumentError => e
+      raise_variable_type_error(literal)
+    end
+  end
+  
   def check_and_normalize_literal(literal)
     if address?
       unless literal.is_a?(String) && literal.match?(/^0x[a-f0-9]{40}$/i)
@@ -99,11 +109,7 @@ class Type
       return literal.downcase
     elsif uint256?
       if literal.is_a?(String)
-        begin
-          literal = Integer(literal)
-        rescue ArgumentError => e
-          raise_variable_type_error(literal)
-        end
+        literal = parse_integer(literal)
       end
         
       if literal.is_a?(Integer) && literal.between?(0, 2 ** 256 - 1)
@@ -113,11 +119,7 @@ class Type
       raise_variable_type_error(literal)
     elsif int256?
       if literal.is_a?(String)
-        begin
-          literal = Integer(literal)
-        rescue ArgumentError => e
-          raise_variable_type_error(literal)
-        end
+        literal = parse_integer(literal)
       end
         
       if literal.is_a?(Integer) && literal.between?(-2 ** 255, 2 ** 255 - 1)
