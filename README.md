@@ -1,4 +1,4 @@
-# Welcome to the Ethscriptions VM API!
+# Welcome to the Ethscriptions VM Server!
 
 The Ethscriptions VM is an app that interprets certain special ethscriptions as computer commands direct at computer programs called Dumb Contracts.
 
