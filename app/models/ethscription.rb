@@ -10,6 +10,8 @@ class Ethscription < ApplicationRecord
   
   scope :newest_first, -> { order(block_number: :desc, transaction_index: :desc) }
   scope :oldest_first, -> { order(block_number: :asc, transaction_index: :asc) }
+  
+  attr_accessor :mock_for_simulate_transaction
 
   def later_ethscriptions
     Ethscription.where(
