@@ -25,4 +25,6 @@ module ContractErrors
   class CallingNonExistentContractError < TransactionError; end
   class UnknownEthscriptionError < StandardError; end
   class FatalNetworkError < StandardError; end
+  class InvalidOverrideError < StandardError; end
+  class FunctionAlreadyDefinedError < StandardError; end
 end

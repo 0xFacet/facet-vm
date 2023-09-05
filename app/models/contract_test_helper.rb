@@ -124,7 +124,7 @@ module ContractTestHelper
         "functionName": "approve",
         "args": {
           "spender": "0xF99812028817Da95f5CF95fB29a2a7EAbfBCC27E",
-          "value": "2"
+          "amount": "2"
         },
       }
     )
@@ -148,3 +148,4 @@ module ContractTestHelper
     return [url, url2]
   end
 end
+CTH = ContractTestHelper unless defined?(CTH)

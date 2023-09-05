@@ -222,5 +222,6 @@ class ContractTransaction
   
   def log_event(event)
     call_receipt.logs << event
+    event
   end
 end
