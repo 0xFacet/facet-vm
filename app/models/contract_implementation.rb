@@ -19,6 +19,10 @@ class ContractImplementation
     @contract_record = contract_record
   end
   
+  def self.mock
+    Contract.new(type: self.name).implementation
+  end
+  
   def self.abstract
     @is_abstract_contract = true
   end
@@ -117,7 +121,7 @@ class ContractImplementation
     abi.create_and_add_function(name, args, *options, returns: returns, &block)
   end
   
-  def self.constructor(args, *options, &block)
+  def self.constructor(args = {}, *options, &block)
     function(:constructor, args, *options, returns: nil, &block)
   end
   

@@ -27,56 +27,64 @@ class AbiProxy
   end
   
   def merge_parent_abis
+    return unless contract_class.linearized_parents.present?
+  
     contract_class.linearized_parents.each do |parent|
       parent.abi.data.each do |name, func|
-        add_function(name, func, from_parent: true, source: parent)
+        prefixed_name = "__#{parent.name.demodulize}__#{name}"
+        define_function_method(prefixed_name, func, contract_class)
       end
+  
+      contract_class.class_eval do
+        define_method(parent.name.demodulize) do |*args, **kwargs|
+          send("__#{parent.name.demodulize}__constructor", *args, **kwargs)
+        end
+        
+        define_method("_" + parent.name.demodulize) do
+          contract_instance = self
+          Object.new.tap do |proxy|
+            parent.abi.data.each do |name, _|
+              proxy.define_singleton_method(name) do |*args, **kwargs|
+                contract_instance.send("__#{parent.name.demodulize}__#{name}", *args, **kwargs)
+              end
+            end
+          end
+        end
+      end
+    end
+    
+    closest_parent = contract_class.linearized_parents.first
+    
+    closest_parent.abi.data.each do |name, func|
+      add_function(name, func, from_parent: true)
     end
   end
   
-  def add_function(name, new_function, from_parent: false, source: nil)
+  def add_function(name, new_function, from_parent: false)
     existing_function = @data[name]
     
     new_function.from_parent = from_parent
-    new_function.source = source
     
     if existing_function
       if existing_function.from_parent
         unless (existing_function.virtual? && new_function.override?) ||
                (existing_function.constructor? && new_function.constructor?)
-          raise "Cannot override non-constructor parent function #{name} without proper modifiers!"
+          raise InvalidOverrideError, "Cannot override non-constructor parent function #{name} without proper modifiers!"
         end
-        
-        new_function.parent_functions << existing_function
       else
-        raise "Function #{name} already defined in child!"
+        raise FunctionAlreadyDefinedError, "Function #{name} already defined in child!"
       end
+    elsif new_function.override?
+      raise InvalidOverrideError, "Function #{name} declared with override but does not override any parent function!"
     end
   
     @data[name] = new_function
-    define_method_on_class(name, new_function, contract_class)
+    define_function_method(name, new_function, contract_class)
   end
   
   def create_and_add_function(name, args, *options, returns: nil, &block)
     new_function = FunctionProxy.create(name, args, *options, returns: returns, &block)
     add_function(name, new_function)
-  end
-  
-  def define_method_on_class(name, func_proxy, target_class)
-    define_function_method(name, func_proxy, target_class)
-  
-    parent_func = func_proxy.parent_functions.first
-    return unless parent_func
-    
-    super_function_name = if parent_func.constructor?
-      parent_func.source.to_s.underscore.split("/").last.upcase
-    else
-      "_super_#{name}"
-    end
-  
-    return if target_class.method_defined?(super_function_name)
-  
-    define_function_method(super_function_name, parent_func, target_class)
   end
   
   private
@@ -114,8 +122,8 @@ class AbiProxy
     include ContractErrors
     
     attr_accessor :args, :state_mutability, :visibility,
-      :returns, :type, :implementation, :override_modifier,
-      :from_parent, :parent_functions, :source
+      :returns, :type, :implementation, :override_modifiers,
+      :from_parent
     
     def initialize(**opts)
       @args = opts[:args] || {}
@@ -123,11 +131,9 @@ class AbiProxy
       @visibility = opts[:visibility]
       @returns = opts[:returns]
       @type = opts[:type]
-      @override_modifier = opts[:override_modifier]&.to_sym
+      @override_modifiers = Array.wrap(opts[:override_modifiers]).uniq.map{|i| i.to_sym}
       @implementation = opts[:implementation]
-      @source = opts[:source]
       @from_parent = !!opts[:from_parent]
-      @parent_functions = opts[:parent_functions] || []
     end
     
     def arg_names
@@ -135,11 +141,11 @@ class AbiProxy
     end
     
     def virtual?
-      override_modifier == :virtual
+      override_modifiers.include?(:virtual)
     end
     
     def override?
-      override_modifier == :override
+      override_modifiers.include?(:override)
     end
     
     def constructor?
@@ -217,7 +223,7 @@ class AbiProxy
       options_hash = {
         state_mutability: :non_payable,
         visibility: :internal,
-        override_modifier: nil
+        override_modifiers: []
       }
     
       options.each do |option|
@@ -227,14 +233,14 @@ class AbiProxy
         when :public, :external, :private
           options_hash[:visibility] = option
         when :override, :virtual
-          options_hash[:override_modifier] = option
+          options_hash[:override_modifiers] << option
         end
       end
       
       new(
         args: args,
         state_mutability: options_hash[:state_mutability],
-        override_modifier: options_hash[:override_modifier],
+        override_modifiers: options_hash[:override_modifiers],
         visibility: name == :constructor ? nil : options_hash[:visibility],
         returns: returns,
         type: name == :constructor ? :constructor : :function,
