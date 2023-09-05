@@ -51,7 +51,8 @@ class ContractTransaction
       transaction_index: 0,
       content_uri: uri,
       content_sha: Digest::SHA256.hexdigest(uri),
-      mimetype: mimetype
+      mimetype: mimetype,
+      mock_for_simulate_transaction: true
     }
     
     call_receipt = nil
