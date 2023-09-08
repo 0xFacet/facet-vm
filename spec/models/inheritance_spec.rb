@@ -11,7 +11,7 @@ RSpec.describe AbiProxy, type: :model do
         constructor(
           name: :string,
           symbol: :string,
-          decimals: :uint256
+          decimals: :uint8
         ) {
           _ERC20.constructor(name: name, symbol: symbol, decimals: decimals)
         }
@@ -33,7 +33,7 @@ RSpec.describe AbiProxy, type: :model do
         constructor(
           name: :string,
           symbol: :string,
-          decimals: :uint256
+          decimals: :uint8
         ) {
           _ERC20.constructor(name: name, symbol: symbol, decimals: decimals)
         }
@@ -64,7 +64,7 @@ RSpec.describe AbiProxy, type: :model do
         constructor(
           name: :string,
           symbol: :string,
-          decimals: :uint256
+          decimals: :uint8
         ) {
           _TestContract.constructor(name: name, symbol: symbol, decimals: decimals)
           _NonToken.constructor()

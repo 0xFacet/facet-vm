@@ -20,6 +20,18 @@ class TypedVariable
     end
   end
   
+  def self.create_or_validate(type, value = nil)
+    if value.is_a?(TypedVariable)
+      unless Type.create(type).can_be_assigned_from?(value.type)
+        raise VariableTypeError.new("invalid #{type}: #{value.inspect}")
+      end
+      
+      value = value.value
+    end
+    
+    create(type, value)
+  end
+  
   def as_json(args = {})
     serialize
   end
@@ -41,21 +53,7 @@ class TypedVariable
   end
   
   def value=(new_value)
-    @value = if new_value.is_a?(TypedVariable)
-      if new_value.type != type
-        if type == Type.create(:addressOrDumbContract) &&
-           [Type.create(:address), Type.create(:dumbContract)].include?(new_value.type)
-           
-          new_value.value
-        else
-          raise VariableTypeError.new("invalid #{type}: #{new_value.value}")
-        end
-      end
-      
-      new_value.value
-    else
-      type.check_and_normalize_literal(new_value)
-    end
+    @value = type.check_and_normalize_literal(new_value)
   end
   
   def method_missing(name, *args, &block)
@@ -87,9 +85,12 @@ class TypedVariable
   end
   
   def ==(other)
-    other.is_a?(self.class) &&
-    value == other.value &&
-    type == other.type
+    if other.is_a?(self.class)
+      return false unless type.values_can_be_compared?(other.type)
+      return value == other.value
+    else
+      return value == TypedVariable.create(type, other).value
+    end
   end
   
   def hash

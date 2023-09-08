@@ -51,7 +51,7 @@ class ContractTransactionGlobals
     end
     
     def findEthscriptionById(ethscription_id)
-      ethscription_id = TypedVariable.create(:ethscriptionId, ethscription_id).value
+      ethscription_id = TypedVariable.create_or_validate(:ethscriptionId, ethscription_id).value
       
       begin
         as_of = if Rails.env.test?

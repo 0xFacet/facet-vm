@@ -109,7 +109,6 @@ class AbiProxy
     if data.respond_to?(name)
       data.send(name, *args, &block)
     else
-      binding.pry
       super
     end
   end
@@ -201,12 +200,12 @@ class AbiProxy
       as_typed = if other_args.is_a?(Array)
         args.keys.zip(other_args).map do |key, value|
           type = args[key]
-          [key, TypedVariable.create(type, value)]
+          [key, TypedVariable.create_or_validate(type, value)]
         end.to_h
       else
         other_args.each.with_object({}) do |(key, value), acc|
           type = args[key]
-          acc[key.to_sym] = TypedVariable.create(type, value)
+          acc[key.to_sym] = TypedVariable.create_or_validate(type, value)
         end
       end
       
@@ -216,7 +215,7 @@ class AbiProxy
     
     def convert_return_to_typed_variable(ret_val)
       return ret_val if ret_val.nil? || returns.nil?
-      TypedVariable.create(returns, ret_val)
+      TypedVariable.create_or_validate(returns, ret_val)
     end
     
     def self.create(name, args, *options, returns: nil, &block)

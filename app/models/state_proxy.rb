@@ -20,16 +20,11 @@ class StateProxy
     var = state_variables[var_name]
     
     return super if var.nil?
-    
-    return var.typed_variable unless is_setter
-      
-    begin
-      var.typed_variable.value = args.first
-    rescue StateVariableMutabilityError => e
-      message = "immutability error for #{var_name}: #{e.message}"
-      raise ContractRuntimeError.new(message, contract)
-    rescue StateVariableTypeError => e
-      raise ContractRuntimeError.new(e.message, contract)
+
+    if is_setter
+      var.typed_variable = args.first
+    else
+      var.typed_variable
     end
   end
   

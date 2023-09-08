@@ -8,14 +8,14 @@ class Contracts::ERC20 < ContractImplementation
 
   string :public, :name
   string :public, :symbol
-  uint256 :public, :decimals
+  uint8 :public, :decimals
   
   uint256 :public, :totalSupply
 
   mapping ({ addressOrDumbContract: :uint256 }), :public, :balanceOf
   mapping ({ addressOrDumbContract: mapping(addressOrDumbContract: :uint256) }), :public, :allowance
   
-  constructor(name: :string, symbol: :string, decimals: :uint256) {
+  constructor(name: :string, symbol: :string, decimals: :uint8) {
     s.name = name
     s.symbol = symbol
     s.decimals = decimals

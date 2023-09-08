@@ -20,20 +20,20 @@ class ArrayType < TypedVariable
     end
   
     def [](index)
-      index_var = TypedVariable.create(:uint256, index)
+      index_var = TypedVariable.create_or_validate(:uint256, index)
       
       raise "Index out of bounds" if index_var >= data.size
 
       value = data[index_var]
-      value || TypedVariable.create(value_type)
+      value || TypedVariable.create_or_validate(value_type)
     end
   
     def []=(index, value)
-      index_var = TypedVariable.create(:uint256, index)
+      index_var = TypedVariable.create_or_validate(:uint256, index)
       
       raise "Sparse arrays are not supported" if index_var > data.size
 
-      val_var = TypedVariable.create(value_type, value)
+      val_var = TypedVariable.create_or_validate(value_type, value)
       
       self.data[index_var] ||= val_var
       self.data[index_var].value = val_var.value

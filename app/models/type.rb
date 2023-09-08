@@ -3,9 +3,13 @@ class Type
   
   attr_accessor :name, :metadata, :key_type, :value_type
   
+  INTEGER_TYPES = (8..256).step(8).flat_map do |num|
+    ["uint#{num}", "int#{num}"]
+   end.map(&:to_sym)
+  
   TYPES = [:string, :mapping, :address, :dumbContract,
           :addressOrDumbContract, :ethscriptionId,
-          :bool, :address, :uint256, :int256, :array, :datetime]
+          :bool, :address, :uint256, :int256, :array, :datetime] + INTEGER_TYPES
   
   TYPES.each do |type|
     define_method("#{type}?") do
@@ -51,6 +55,34 @@ class Type
     self.value_type = metadata[:value_type]
   end
   
+  def can_be_assigned_from?(other_type)
+    return true if self == other_type
+
+    if is_uint? && other_type.is_uint? || is_int? && other_type.is_int?
+      return extract_integer_bits >= other_type.extract_integer_bits
+    end
+
+    if addressOrDumbContract? && (other_type.address? || other_type.dumbContract?)
+      return true
+    end
+
+    false
+  end
+  
+  def values_can_be_compared?(other_type)
+    return true if can_be_assigned_from?(other_type)
+
+    if is_uint? && other_type.is_uint? || is_int? && other_type.is_int?
+      return true
+    end
+    
+    if (address? || dumbContract?) && (other_type.addressOrDumbContract?)
+      return true
+    end
+
+    false
+  end
+  
   def metadata
     { key_type: key_type, value_type: value_type }
   end
@@ -60,7 +92,7 @@ class Type
   end
   
   def default_value
-    is_int256_uint256_datetime = int256? || uint256? || datetime?
+    is_int256_uint256_datetime = is_int? || is_uint? || datetime?
     is_addressOrDumbContract = address? || addressOrDumbContract?
     is_dumbContract_ethscriptionId = dumbContract? || ethscriptionId?
   
@@ -101,28 +133,32 @@ class Type
   end
   
   def check_and_normalize_literal(literal)
+    if literal.is_a?(TypedVariable)
+      raise VariableTypeError, "Only literals can be passed to check_and_normalize_literal: #{literal.inspect}"
+    end
+    
     if address?
       unless literal.is_a?(String) && literal.match?(/^0x[a-f0-9]{40}$/i)
         raise_variable_type_error(literal)
       end
       
       return literal.downcase
-    elsif uint256?
+    elsif is_uint?
       if literal.is_a?(String)
         literal = parse_integer(literal)
       end
         
-      if literal.is_a?(Integer) && literal.between?(0, 2 ** 256 - 1)
+      if literal.is_a?(Integer) && literal.between?(0, 2 ** extract_integer_bits - 1)
         return literal
       end
       
       raise_variable_type_error(literal)
-    elsif int256?
+    elsif is_int?
       if literal.is_a?(String)
         literal = parse_integer(literal)
       end
-        
-      if literal.is_a?(Integer) && literal.between?(-2 ** 255, 2 ** 255 - 1)
+      
+      if literal.is_a?(Integer) && literal.between?(-2 ** (extract_integer_bits - 1), 2 ** (extract_integer_bits - 1) - 1)
         return literal
       end
       
@@ -197,6 +233,20 @@ class Type
     end
     
     raise VariableTypeError.new("Unknown type #{self.inspect}: #{literal.inspect}")
+  end
+  
+  def is_uint?
+    name.to_s.start_with?('uint')
+  end
+
+  def is_int?
+    name.to_s.start_with?('int')
+  end
+  
+  def extract_integer_bits
+    return name.to_s[4..-1].to_i if is_uint?
+    return name.to_s[3..-1].to_i if is_int?
+    raise "Not an integer type: #{self}"
   end
   
   def ==(other)

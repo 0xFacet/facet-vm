@@ -97,13 +97,21 @@ class StateVariable
     typed_variable.respond_to?(name, include_private) || super
   end
   
+  def typed_variable=(new_value)
+    if new_value.is_a?(TypedVariable)
+      @typed_variable = TypedVariable.create_or_validate(type, new_value)
+    else
+      typed_variable.value = new_value
+    end
+  rescue StateVariableMutabilityError => e
+    message = "immutability error for #{var.name}: #{e.message}"
+    raise ContractRuntimeError.new(message, contract)
+  rescue StateVariableTypeError => e
+    raise ContractRuntimeError.new(e.message, contract)
+  end
+  
   def ==(other)
-    other.is_a?(self.class) &&
-      typed_variable == other.typed_variable &&
-      name == other.name &&
-      visibility == other.visibility &&
-      immutable == other.immutable &&
-      constant == other.constant
+    other.is_a?(self.class) && typed_variable == other.typed_variable
   end
   
   def !=(other)
