@@ -99,11 +99,7 @@ class StateVariable
   
   def typed_variable=(new_value)
     if new_value.is_a?(TypedVariable)
-      unless type.can_be_assigned_from?(new_value.type)
-        raise VariableTypeError.new("invalid #{type}: #{new_value.inspect}")
-      end
-  
-      typed_variable.value = new_value.value
+      @typed_variable = TypedVariable.create_or_validate(type, new_value)
     else
       typed_variable.value = new_value
     end
