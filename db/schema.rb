@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2023_08_24_174647) do
+ActiveRecord::Schema[7.0].define(version: 2023_09_08_145640) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -75,7 +75,7 @@ ActiveRecord::Schema[7.0].define(version: 2023_08_24_174647) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["block_number", "transaction_index"], name: "index_ethscriptions_on_block_number_and_transaction_index", unique: true
-    t.index ["content_sha"], name: "index_ethscriptions_on_content_sha", unique: true
+    t.index ["content_sha"], name: "index_ethscriptions_on_content_sha"
     t.index ["ethscription_id"], name: "index_ethscriptions_on_ethscription_id", unique: true
     t.check_constraint "block_blockhash::text ~ '^0x[a-f0-9]{64}$'::text", name: "ethscriptions_block_blockhash_format"
     t.check_constraint "content_sha::text ~ '^[a-f0-9]{64}$'::text", name: "ethscriptions_content_sha_format"
