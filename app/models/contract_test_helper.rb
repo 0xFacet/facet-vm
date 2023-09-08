@@ -148,4 +148,4 @@ module ContractTestHelper
     return [url, url2]
   end
 end
-CTH = ContractTestHelper unless defined?(CTH)
+$cth = ContractTestHelper

@@ -10,7 +10,10 @@ module ContractErrors
     
     def message
       return super if contract.blank?
-      "#{contract.class.name.demodulize} error: " + super + " (contract id: #{contract.contract_id})"
+      
+      trace = !Rails.env.production? ? backtrace.join("\n") : ''
+      
+      "#{contract.class.name.demodulize} error: " + super + "#{trace} (contract id: #{contract.contract_id})"
     end
   end
   

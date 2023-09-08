@@ -9,7 +9,7 @@ class Contracts::PublicMintERC20 < ContractImplementation
     symbol: :string,
     maxSupply: :uint256,
     perMintLimit: :uint256,
-    decimals: :uint256
+    decimals: :uint8
   ) {
     ERC20(name: name, symbol: symbol, decimals: decimals)
     s.maxSupply = maxSupply

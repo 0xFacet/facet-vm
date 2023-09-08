@@ -188,11 +188,11 @@ class ContractImplementation
   end
   
   def address(i)
-    return TypedVariable.create(:address) if i == 0
-
-    if i.is_a?(TypedVariable) && i.type == Type.create(:addressOrDumbContract)
+    if i.is_a?(TypedVariable) && i.type.addressOrDumbContract?
       return TypedVariable.create(:address, i.value)
     end
+    
+    return TypedVariable.create(:address) if i == 0
     
     raise "Not implemented"
   end

@@ -20,20 +20,20 @@ class MappingType < TypedVariable
     end
     
     def [](key_var)
-      key_var = TypedVariable.create(key_type, key_var)
+      key_var = TypedVariable.create_or_validate(key_type, key_var)
       value = data[key_var]
 
       if value_type.mapping? && value.nil?
-        value = TypedVariable.create(value_type)
+        value = TypedVariable.create_or_validate(value_type)
         data[key_var] = value
       end
 
-      value || TypedVariable.create(value_type)
+      value || TypedVariable.create_or_validate(value_type)
     end
 
     def []=(key_var, value)
-      key_var = TypedVariable.create(key_type, key_var)
-      val_var = TypedVariable.create(value_type, value)
+      key_var = TypedVariable.create_or_validate(key_type, key_var)
+      val_var = TypedVariable.create_or_validate(value_type, value)
 
       if value_type.mapping?
         val_var = Proxy.new(key_type: value_type.key_type, value_type: value_type.value_type)

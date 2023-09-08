@@ -97,6 +97,23 @@ class StateVariable
     typed_variable.respond_to?(name, include_private) || super
   end
   
+  def typed_variable=(new_value)
+    if new_value.is_a?(TypedVariable)
+      unless type.can_be_assigned_from?(new_value.type)
+        raise VariableTypeError.new("invalid #{type}: #{new_value.inspect}")
+      end
+  
+      typed_variable.value = new_value.value
+    else
+      typed_variable.value = new_value
+    end
+  rescue StateVariableMutabilityError => e
+    message = "immutability error for #{var.name}: #{e.message}"
+    raise ContractRuntimeError.new(message, contract)
+  rescue StateVariableTypeError => e
+    raise ContractRuntimeError.new(e.message, contract)
+  end
+  
   def ==(other)
     other.is_a?(self.class) &&
       typed_variable == other.typed_variable &&
