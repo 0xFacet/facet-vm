@@ -96,7 +96,7 @@ class Contract < ApplicationRecord
   
   def static_call(name, args = {})
     ContractTransaction.make_static_call(
-      contract_id: contract_id, 
+      contract: contract_id, 
       function_name: name, 
       function_args: args
     )

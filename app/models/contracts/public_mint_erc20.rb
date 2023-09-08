@@ -25,7 +25,7 @@ class Contracts::PublicMintERC20 < ContractImplementation
     _mint(to: msg.sender, amount: amount)
   end
   
-  function :airdrop, { to: :addressOrDumbContract, amount: :uint256 }, :public do
+  function :airdrop, { to: :address, amount: :uint256 }, :public do
     require(amount > 0, 'Amount must be positive')
     require(amount <= s.perMintLimit, 'Exceeded mint limit')
     

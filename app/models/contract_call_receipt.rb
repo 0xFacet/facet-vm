@@ -18,6 +18,10 @@ class ContractCallReceipt < ApplicationRecord
   
   validate :status_or_errors_check, :no_contract_on_deploy_error
   
+  def address
+    contract.address
+  end
+  
   def no_contract_on_deploy_error
     if (deploy_error? || call_to_non_existent_contract?) && contract_id.present?
       errors.add(:contract_id, "must be blank on deploy error")

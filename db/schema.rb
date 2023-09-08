@@ -10,8 +10,9 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2023_09_08_145640) do
+ActiveRecord::Schema[7.0].define(version: 2023_09_08_205257) do
   # These are extensions that must be enabled in order to support this database
+  enable_extension "pg_stat_statements"
   enable_extension "plpgsql"
 
   create_table "contract_call_receipts", force: :cascade do |t|
@@ -54,8 +55,11 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_08_145640) do
     t.string "type", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "address", null: false
+    t.index ["address"], name: "index_contracts_on_address", unique: true
     t.index ["contract_id"], name: "index_contracts_on_contract_id", unique: true
     t.index ["type"], name: "index_contracts_on_type"
+    t.check_constraint "address::text ~ '^0x[a-f0-9]{40}$'::text"
     t.check_constraint "contract_id::text ~ '^0x[a-f0-9]{64}$'::text"
   end
 

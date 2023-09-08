@@ -44,7 +44,7 @@ class ContractsController < ApplicationController
 
     begin
       result = ContractTransaction.make_static_call(
-        contract_id: params[:contract_id], 
+        contract: params[:contract_id], 
         function_name: params[:function_name], 
         function_args: args,
         msgSender: env['msgSender']

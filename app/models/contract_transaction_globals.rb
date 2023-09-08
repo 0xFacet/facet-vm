@@ -3,7 +3,7 @@ class ContractTransactionGlobals
     attr_reader :sender
     
     def sender=(address)
-      @sender = TypedVariable.create(:addressOrDumbContract, address)
+      @sender = TypedVariable.create(:address, address)
     end
   end
   

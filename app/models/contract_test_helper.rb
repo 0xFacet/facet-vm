@@ -95,7 +95,7 @@ module ContractTestHelper
       command: 'call',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "contractId": creation_receipt.contract_id,
+        "contract": creation_receipt.address,
         "functionName": "mint",
         "args": {
           "amount": 5
@@ -107,7 +107,7 @@ module ContractTestHelper
       command: 'call',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "contractId": creation_receipt.contract_id,
+        "contract": creation_receipt.address,
         "functionName": "transfer",
         "args": {
           "to": "0xF99812028817Da95f5CF95fB29a2a7EAbfBCC27E",
@@ -120,7 +120,7 @@ module ContractTestHelper
       command: 'call',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "contractId": creation_receipt.contract_id,
+        "contract": creation_receipt.address,
         "functionName": "approve",
         "args": {
           "spender": "0xF99812028817Da95f5CF95fB29a2a7EAbfBCC27E",
@@ -130,7 +130,7 @@ module ContractTestHelper
     )
     
     return
-    created_id = creation_receipt.contract_id
+    created_id = creation_receipt.address
     caller_hash = mint_receipt.eth_transaction_id
     sender_hash = transfer_receipt.eth_transaction_id
     

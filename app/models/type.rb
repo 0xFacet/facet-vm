@@ -7,8 +7,7 @@ class Type
     ["uint#{num}", "int#{num}"]
    end.map(&:to_sym)
   
-  TYPES = [:string, :mapping, :address, :dumbContract,
-          :addressOrDumbContract, :ethscriptionId,
+  TYPES = [:string, :mapping, :address, :ethscriptionId,
           :bool, :address, :uint256, :int256, :array, :datetime] + INTEGER_TYPES
   
   TYPES.each do |type|
@@ -62,10 +61,6 @@ class Type
       return extract_integer_bits >= other_type.extract_integer_bits
     end
 
-    if addressOrDumbContract? && (other_type.address? || other_type.dumbContract?)
-      return true
-    end
-
     false
   end
   
@@ -75,11 +70,6 @@ class Type
     if is_uint? && other_type.is_uint? || is_int? && other_type.is_int?
       return true
     end
-    
-    if (address? || dumbContract?) && (other_type.addressOrDumbContract?)
-      return true
-    end
-
     false
   end
   
@@ -93,15 +83,13 @@ class Type
   
   def default_value
     is_int256_uint256_datetime = is_int? || is_uint? || datetime?
-    is_addressOrDumbContract = address? || addressOrDumbContract?
-    is_dumbContract_ethscriptionId = dumbContract? || ethscriptionId?
   
     val = case
     when is_int256_uint256_datetime
       0
-    when is_addressOrDumbContract
+    when address?
       "0x" + "0" * 40
-    when is_dumbContract_ethscriptionId
+    when ethscriptionId?
       "0x" + "0" * 64
     when string?
       ''
@@ -175,14 +163,8 @@ class Type
       end
       
       return literal
-    elsif (dumbContract? || ethscriptionId?)
+    elsif ethscriptionId?
       unless literal.is_a?(String) && literal.match?(/^0x[a-f0-9]{64}$/i)
-        raise_variable_type_error(literal)
-      end
-      
-      return literal.downcase
-    elsif addressOrDumbContract?
-      unless literal.is_a?(String) && (literal.match?(/^0x[a-f0-9]{64}$/i) || literal.match?(/^0x[a-f0-9]{40}$/i))
         raise_variable_type_error(literal)
       end
       

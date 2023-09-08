@@ -1,7 +1,7 @@
 class ContractTransaction
   include ContractErrors
   
-  attr_accessor :contract_id, :function_name, :contract_protocol,
+  attr_accessor :contract_id, :contract_address, :function_name, :contract_protocol,
   :function_args, :tx, :esc, :call_receipt, :ethscription, :operation, :block,
   :current_contract
   
@@ -77,12 +77,12 @@ class ContractTransaction
     end
   end
   
-  def self.make_static_call(contract_id:, function_name:, function_args: {}, msgSender: nil)
+  def self.make_static_call(contract:, function_name:, function_args: {}, msgSender: nil)
     new(
       operation: :static_call,
       function_name: function_name,
       function_args: function_args,
-      contract_id: contract_id,
+      contract_address: contract,
       msgSender: msgSender
     ).execute_static_call.as_json
   end
@@ -92,6 +92,7 @@ class ContractTransaction
     @function_name = options[:function_name]
     @function_args = options[:function_args]
     @contract_id = options[:contract_id]
+    @contract_address = options[:contract_address]
     tx.origin = options[:msgSender]
   end
   
@@ -120,7 +121,7 @@ class ContractTransaction
     
     self.function_name = is_deploy? ? :constructor : data['functionName']
     self.function_args = data['args'] || data['constructorArgs'] || {}
-    self.contract_id = data['contractId']
+    self.contract_address = data['contract']
     self.contract_protocol = data['protocol']
     
     call_receipt.tap do |r|
@@ -139,14 +140,14 @@ class ContractTransaction
     self
   end
   
-  def create_execution_context_for_call(callee_contract_id, caller_address_or_id)
-    callee_contract = Contract.find_by_contract_id(callee_contract_id.to_s)
+  def create_execution_context_for_call(callee_contract_address, caller_address)
+    callee_contract = Contract.find_by_address(callee_contract_address.to_s)
     
     if callee_contract.blank?
-      raise CallingNonExistentContractError.new("Contract not found: #{callee_contract_id}")
+      raise CallingNonExistentContractError.new("Contract not found: #{callee_contract_address}")
     end
     
-    callee_contract.msg.sender = caller_address_or_id
+    callee_contract.msg.sender = caller_address
     callee_contract.current_transaction = self
     
     self.current_contract = callee_contract
@@ -167,16 +168,24 @@ class ContractTransaction
       raise TransactionError.new("Cannot deploy abstract contract: #{contract_protocol}")
     end
     
+    address = User.calculate_contract_address(
+      deployer: tx.origin,
+      current_tx_ethscription_id: ethscription.ethscription_id
+    )
+    
     new_contract = Contract.create!(
       contract_id: ethscription.ethscription_id,
+      address: address,
       type: contract_class,
     )
     
-    self.contract_id = new_contract.contract_id
+    self.contract_address = new_contract.address
   end
   
   def initial_contract_proxy
-    @initial_contract_proxy ||= create_execution_context_for_call(contract_id, tx.origin)
+    @initial_contract_proxy ||= create_execution_context_for_call(contract_address, tx.origin)
+    self.contract_id = self.current_contract.contract_id
+    @initial_contract_proxy
   end
   
   def execute_static_call
