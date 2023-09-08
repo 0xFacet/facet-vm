@@ -115,12 +115,7 @@ class StateVariable
   end
   
   def ==(other)
-    other.is_a?(self.class) &&
-      typed_variable == other.typed_variable &&
-      name == other.name &&
-      visibility == other.visibility &&
-      immutable == other.immutable &&
-      constant == other.constant
+    other.is_a?(self.class) && typed_variable == other.typed_variable
   end
   
   def !=(other)
