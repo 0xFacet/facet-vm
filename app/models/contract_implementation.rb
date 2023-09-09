@@ -8,7 +8,7 @@ class ContractImplementation
   end
   
   delegate :block, :tx, :esc, to: :current_transaction
-  delegate :current_transaction, :contract_id, to: :contract_record
+  delegate :current_transaction, to: :contract_record
   
   def initialize(contract_record)
     @state_proxy = StateProxy.new(

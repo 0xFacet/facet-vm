@@ -3,7 +3,7 @@ class ContractTransaction
   
   NULL_ADDRESS = ("0x" + "0" * 40).freeze
   
-  attr_accessor :contract_id, :contract_address, :function_name, :contract_protocol,
+  attr_accessor :contract_address, :function_name, :contract_protocol,
   :function_args, :tx, :esc, :call_receipt, :ethscription, :operation, :block,
   :current_contract
   
@@ -89,7 +89,6 @@ class ContractTransaction
     @operation = options[:operation]
     @function_name = options[:function_name]
     @function_args = options[:function_args]
-    @contract_id = options[:contract_id]
     @contract_address = options[:contract_address]
     tx.origin = options[:msgSender]
   end
@@ -157,7 +156,7 @@ class ContractTransaction
   end
   
   def ensure_valid_deploy!
-    return unless is_deploy? && contract_id.blank?
+    return unless is_deploy? && contract_address.blank?
     
     unless Contract.valid_contract_types.include?(contract_protocol)
       raise TransactionError.new("Invalid contract protocol: #{contract_protocol}")
@@ -175,7 +174,7 @@ class ContractTransaction
     )
     
     new_contract = Contract.create!(
-      contract_id: ethscription.ethscription_id,
+      ethscription_id: ethscription.ethscription_id,
       address: address,
       type: contract_class,
     )
@@ -185,8 +184,6 @@ class ContractTransaction
   
   def initial_contract_proxy
     @initial_contract_proxy ||= create_execution_context_for_call(contract_address, tx.origin)
-    self.contract_id = self.current_contract.contract_id
-    @initial_contract_proxy
   end
   
   def execute_static_call
@@ -204,7 +201,7 @@ class ContractTransaction
         
         call_with_args_parsed_from_external_json.tap do
           call_receipt.status = :success
-          call_receipt.contract_id = contract_id
+          call_receipt.contract_address = contract_address
           
           call_receipt.save!
         end
@@ -217,9 +214,9 @@ class ContractTransaction
         e.is_a?(CallingNonExistentContractError) ? :call_to_non_existent_contract : :call_error
       end
       
-      call_receipt.contract_id = contract_id
+      call_receipt.contract_address = contract_address
       if is_deploy? || e.is_a?(CallingNonExistentContractError)
-        call_receipt.contract_id = nil
+        call_receipt.contract_address = nil
       end
       
       call_receipt.save!

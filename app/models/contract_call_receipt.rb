@@ -1,5 +1,5 @@
 class ContractCallReceipt < ApplicationRecord
-  belongs_to :contract, primary_key: 'contract_id', touch: true, optional: true
+  belongs_to :contract, primary_key: 'address', foreign_key: 'contract_address', touch: true, optional: true
     
   belongs_to :ethscription,
     primary_key: 'ethscription_id', foreign_key: 'ethscription_id',
@@ -23,16 +23,16 @@ class ContractCallReceipt < ApplicationRecord
   end
   
   def no_contract_on_deploy_error
-    if (deploy_error? || call_to_non_existent_contract?) && contract_id.present?
-      errors.add(:contract_id, "must be blank on deploy error")
-    elsif call_error? && contract_id.blank?
-      errors.add(:contract_id, "must be present on call error")
-    elsif success? && contract_id.blank?
-      errors.add(:contract_id, "must be present on success")
+    if (deploy_error? || call_to_non_existent_contract?) && contract_address.present?
+      errors.add(:contract_address, "must be blank on deploy error")
+    elsif call_error? && contract_address.blank?
+      errors.add(:contract_address, "must be present on call error")
+    elsif success? && contract_address.blank?
+      errors.add(:contract_address, "must be present on success")
     end
   end
   
-  def failed_deployment_contract_id
+  def failed_deployment_ethscription_id
     ethscription_id if deploy_error?
   end
   
@@ -42,7 +42,7 @@ class ContractCallReceipt < ApplicationRecord
         only: [
           :ethscription_id,
           :timestamp,
-          :contract_id,
+          :contract_address,
           :caller,
           :status,
           :function_name,
@@ -51,7 +51,7 @@ class ContractCallReceipt < ApplicationRecord
           :logs
         ],
         methods: [
-          :failed_deployment_contract_id
+          :failed_deployment_ethscription_id
         ]
       )
     )

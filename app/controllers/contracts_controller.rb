@@ -24,7 +24,7 @@ class ContractsController < ApplicationController
   end
 
   def show
-    contract = Contract.find_by_contract_id(params[:id])
+    contract = Contract.find_by_address(params[:address])
 
     if contract.blank?
       render json: { error: "Contract not found" }, status: 404
@@ -44,8 +44,8 @@ class ContractsController < ApplicationController
 
     begin
       result = ContractTransaction.make_static_call(
-        contract: params[:contract_id], 
-        function_name: params[:function_name], 
+        contract: params[:address], 
+        function_name: params[:function], 
         function_args: args,
         msgSender: env['msgSender']
       )
@@ -82,7 +82,7 @@ class ContractsController < ApplicationController
     per_page = (params[:per_page] || 25).to_i
     per_page = 25 if per_page > 25
 
-    contract = Contract.find_by_contract_id(params[:contract_id])
+    contract = Contract.find_by_address(params[:address])
     receipts = contract.call_receipts.order(created_at: :desc).page(page).per(per_page)
 
     if contract.blank?
