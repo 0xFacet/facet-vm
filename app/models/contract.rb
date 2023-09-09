@@ -64,7 +64,7 @@ class Contract < ApplicationRecord
     super(
       options.merge(
         only: [
-          :contract_address,
+          :address,
           :ethscription_id,
         ]
       )

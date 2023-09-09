@@ -24,7 +24,7 @@ class ContractsController < ApplicationController
   end
 
   def show
-    contract = Contract.find_by_address(params[:address])
+    contract = Contract.find_by_address(params[:id])
 
     if contract.blank?
       render json: { error: "Contract not found" }, status: 404

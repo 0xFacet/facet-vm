@@ -45,6 +45,8 @@ class EthscriptionSync
         transform_server_response(eth)
       end
       
+      break if ethscriptions.empty?
+      
       starting_ethscription = Ethscription.find_by(
         ethscription_id: ethscriptions.first[:ethscription_id]
       )
