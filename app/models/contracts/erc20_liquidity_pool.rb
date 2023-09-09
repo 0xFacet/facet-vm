@@ -8,13 +8,13 @@ class Contracts::ERC20LiquidityPool < ContractImplementation
   end
   
   function :addLiquidity, {token0Amount: :uint256, token1Amount: :uint256}, :public do
-    DumbContract(s.token0).transferFrom(
+    ERC20(s.token0).transferFrom(
       from: msg.sender,
       to: address(this),
       amount: token0Amount
     )
     
-    DumbContract(s.token1).transferFrom(
+    ERC20(s.token1).transferFrom(
       from: msg.sender,
       to: address(this),
       amount: token1Amount
@@ -23,8 +23,8 @@ class Contracts::ERC20LiquidityPool < ContractImplementation
   
   function :reserves, {}, :public, :view, returns: :string do
     jsonData = {
-      token0: DumbContract(s.token0).balanceOf(address(this)),
-      token1: DumbContract(s.token1).balanceOf(address(this))
+      token0: ERC20(s.token0).balanceOf(address(this)),
+      token1: ERC20(s.token1).balanceOf(address(this))
     }.to_json
     
     return "data:application/json,#{jsonData}"
@@ -35,8 +35,8 @@ class Contracts::ERC20LiquidityPool < ContractImplementation
     outputToken: :address,
     inputAmount: :uint256
   }, :public, :view, returns: :uint256 do
-    inputReserve = DumbContract(inputToken).balanceOf(address(this))
-    outputReserve = DumbContract(outputToken).balanceOf(address(this))
+    inputReserve = ERC20(inputToken).balanceOf(address(this))
+    outputReserve = ERC20(outputToken).balanceOf(address(this))
     
     ((inputAmount * outputReserve) / (inputReserve + inputAmount)).to_i
   end
@@ -57,17 +57,17 @@ class Contracts::ERC20LiquidityPool < ContractImplementation
       inputAmount: inputAmount
     )
     
-    outputReserve = DumbContract(outputToken).balanceOf(address(this))
+    outputReserve = ERC20(outputToken).balanceOf(address(this))
     
     require(outputAmount <= outputReserve, "Insufficient output reserve")
   
-    DumbContract(inputToken).transferFrom(
+    ERC20(inputToken).transferFrom(
       from: msg.sender,
       to: address(this),
       amount: inputAmount
     )
   
-    DumbContract(outputToken).transfer(
+    ERC20(outputToken).transfer(
       msg.sender,
       outputAmount
     )

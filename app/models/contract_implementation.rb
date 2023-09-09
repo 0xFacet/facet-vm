@@ -9,6 +9,7 @@ class ContractImplementation
   
   delegate :block, :tx, :esc, to: :current_transaction
   delegate :current_transaction, to: :contract_record
+  delegate :implements?, to: :class
   
   def initialize(contract_record)
     @state_proxy = StateProxy.new(
@@ -117,6 +118,11 @@ class ContractImplementation
     self.parent_contracts = self.parent_contracts.uniq
   end
   
+  def self.implements?(contract)
+    class_name = "Contracts::#{contract}".constantize
+    parent_contracts.include?(class_name) || self == class_name
+  end
+  
   def self.linearize_contracts(contract, processed = [])
     return [] if processed.include?(contract)
   
@@ -217,7 +223,30 @@ class ContractImplementation
     raise "Not implemented"
   end
   
-  def DumbContract(other_address)
-    current_transaction.create_execution_context_for_call(other_address, contract_record.address)
+  def method_missing(method_name, *args, **kwargs, &block)
+    if Contract.valid_contract_types.include?(method_name.to_s)
+      handle_contract_type_cast(method_name, args.first)
+    else
+      super
+    end
+  end
+
+  def respond_to_missing?(method_name, include_private = false)
+    Contract.valid_contract_types.include?(method_name.to_s) || super
+  end
+
+  def handle_contract_type_cast(contract_type, other_address)
+    other = Contract.find_by(address: TypedVariable.create_or_validate(:address, other_address).value)
+
+    if other.blank? || !other.implements?(contract_type.to_s)
+      raise ContractError.new("Contract not found: #{other_address}", self)
+    end
+
+    other.msg.sender = contract_record.address
+    other.current_transaction = current_transaction
+
+    current_transaction.current_contract = other
+
+    ContractProxy.new(other, operation: :call)
   end
 end

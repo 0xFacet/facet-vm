@@ -8,7 +8,7 @@ class ContractTransaction
   :current_contract
   
   def self.required_mimetype
-    "application/vnd.esc".freeze
+    "application/vnd.esc"
   end
   
   def tx
