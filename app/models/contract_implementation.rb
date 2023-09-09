@@ -13,7 +13,7 @@ class ContractImplementation
   def initialize(contract_record)
     @state_proxy = StateProxy.new(
       contract_record,
-      contract_record.type.constantize.state_variable_definitions
+      contract_record.implementation_class.state_variable_definitions
     )
     
     @contract_record = contract_record
@@ -113,10 +113,9 @@ class ContractImplementation
   end
   
   def self.is(*constants)
-    self.parent_contracts += constants.map{|i| "Contracts::#{i}".safe_constantize}
+    self.parent_contracts += constants.map{|i| "Contracts::#{i}".constantize}
     self.parent_contracts = self.parent_contracts.uniq
   end
-  
   
   def self.linearize_contracts(contract, processed = [])
     return [] if processed.include?(contract)

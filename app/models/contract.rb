@@ -13,8 +13,35 @@ class Contract < ApplicationRecord
   
   delegate :msg, to: :implementation
   
+  def self.create_from_user!(deployer:, creation_ethscription_id:, type:)
+    unless valid_contract_types.include?(type)
+      raise TransactionError.new("Invalid contract type: #{type}")
+    end
+    
+    implementation_class = "Contracts::#{type}".constantize
+    
+    if implementation_class.is_abstract_contract
+      raise TransactionError.new("Cannot deploy abstract contract: #{type}")
+    end
+    
+    address = User.calculate_contract_address(
+      deployer: deployer,
+      current_tx_ethscription_id: creation_ethscription_id
+    )
+    
+    Contract.create!(
+      ethscription_id: creation_ethscription_id,
+      address: address,
+      type: type,
+    )
+  end
+  
   def implementation
-    @implementation ||= type.constantize.new(self)
+    @implementation ||= implementation_class.new(self)
+  end
+  
+  def implementation_class
+    "Contracts::#{type}".constantize
   end
   
   def current_state
