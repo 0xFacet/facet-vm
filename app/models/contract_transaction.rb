@@ -3,7 +3,7 @@ class ContractTransaction
   
   NULL_ADDRESS = ("0x" + "0" * 40).freeze
   
-  attr_accessor :contract_address, :function_name, :contract_protocol,
+  attr_accessor :contract_address, :function_name, :contract_type,
   :function_args, :tx, :esc, :call_receipt, :ethscription, :operation, :block,
   :current_contract
   
@@ -125,7 +125,7 @@ class ContractTransaction
     self.function_name = is_deploy? ? :constructor : data['function']
     self.function_args = data['args'] || {}
     self.contract_address = payload['to']
-    self.contract_protocol = data['type']
+    self.contract_type = data['type']
     
     call_receipt.assign_attributes(
       function_name: function_name,
@@ -158,25 +158,10 @@ class ContractTransaction
   def ensure_valid_deploy!
     return unless is_deploy? && contract_address.blank?
     
-    unless Contract.valid_contract_types.include?(contract_protocol)
-      raise TransactionError.new("Invalid contract protocol: #{contract_protocol}")
-    end
-    
-    contract_class = "Contracts::#{contract_protocol}".constantize
-    
-    if contract_class.is_abstract_contract
-      raise TransactionError.new("Cannot deploy abstract contract: #{contract_protocol}")
-    end
-    
-    address = User.calculate_contract_address(
+    new_contract = Contract.create_from_user!(
+      creation_ethscription_id: ethscription.ethscription_id,
       deployer: tx.origin,
-      current_tx_ethscription_id: ethscription.ethscription_id
-    )
-    
-    new_contract = Contract.create!(
-      ethscription_id: ethscription.ethscription_id,
-      address: address,
-      type: contract_class,
+      type: contract_type,
     )
     
     self.contract_address = new_contract.address

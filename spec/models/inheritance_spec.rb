@@ -81,6 +81,21 @@ RSpec.describe AbiProxy, type: :model do
     end
   end
   
+  it "won't deploy abstract contract" do
+    deploy_receipt = trigger_contract_interaction_and_expect_deploy_error(
+      command: 'deploy',
+      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      data: {
+        "protocol": "ERC20",
+        "constructorArgs": {
+          "name": "Test Token",
+          "symbol": "TT",
+          "decimals": 18
+        },
+      }
+    )
+  end
+  
   it "allows a child contract to override a parent contract's function" do
     deploy_receipt = trigger_contract_interaction_and_expect_success(
       command: 'deploy',
