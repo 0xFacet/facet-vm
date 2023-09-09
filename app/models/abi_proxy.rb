@@ -36,10 +36,6 @@ class AbiProxy
       end
   
       contract_class.class_eval do
-        define_method(parent.name.demodulize) do |*args, **kwargs|
-          send("__#{parent.name.demodulize}__constructor", *args, **kwargs)
-        end
-        
         define_method("_" + parent.name.demodulize) do
           contract_instance = self
           Object.new.tap do |proxy|

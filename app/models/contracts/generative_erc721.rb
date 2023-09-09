@@ -17,7 +17,7 @@ class Contracts::GenerativeERC721 < ContractImplementation
     description: :string,
     maxPerAddress: :uint256
   ) {
-    ERC721(name: name, symbol: symbol)
+    _ERC721.constructor(name: name, symbol: symbol)
     
     s.maxSupply = maxSupply
     s.maxPerAddress = maxPerAddress

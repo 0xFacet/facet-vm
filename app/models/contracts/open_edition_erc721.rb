@@ -18,7 +18,7 @@ class Contracts::OpenEditionERC721 < ContractImplementation
     mintStart: :datetime,
     mintEnd: :datetime
   ) {
-    ERC721(name: name, symbol: symbol)
+    _ERC721.constructor(name: name, symbol: symbol)
     
     s.maxPerAddress = maxPerAddress
     s.description = description
