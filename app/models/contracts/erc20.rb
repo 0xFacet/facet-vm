@@ -3,8 +3,8 @@ class Contracts::ERC20 < ContractImplementation
   
   abstract
   
-  event :Transfer, { from: :addressOrDumbContract, to: :addressOrDumbContract, amount: :uint256 }
-  event :Approval, { owner: :addressOrDumbContract, spender: :addressOrDumbContract, amount: :uint256 }
+  event :Transfer, { from: :address, to: :address, amount: :uint256 }
+  event :Approval, { owner: :address, spender: :address, amount: :uint256 }
 
   string :public, :name
   string :public, :symbol
@@ -12,8 +12,8 @@ class Contracts::ERC20 < ContractImplementation
   
   uint256 :public, :totalSupply
 
-  mapping ({ addressOrDumbContract: :uint256 }), :public, :balanceOf
-  mapping ({ addressOrDumbContract: mapping(addressOrDumbContract: :uint256) }), :public, :allowance
+  mapping ({ address: :uint256 }), :public, :balanceOf
+  mapping ({ address: mapping(address: :uint256) }), :public, :allowance
   
   constructor(name: :string, symbol: :string, decimals: :uint8) {
     s.name = name
@@ -21,7 +21,7 @@ class Contracts::ERC20 < ContractImplementation
     s.decimals = decimals
   }
 
-  function :approve, { spender: :addressOrDumbContract, amount: :uint256 }, :public, :virtual, returns: :bool do
+  function :approve, { spender: :address, amount: :uint256 }, :public, :virtual, returns: :bool do
     s.allowance[msg.sender][spender] = amount
     
     emit :Approval, owner: msg.sender, spender: spender, amount: amount
@@ -29,7 +29,7 @@ class Contracts::ERC20 < ContractImplementation
     return true
   end
   
-  function :decreaseAllowanceUntilZero, { spender: :addressOrDumbContract, difference: :uint256 }, :public, :virtual, returns: :bool do
+  function :decreaseAllowanceUntilZero, { spender: :address, difference: :uint256 }, :public, :virtual, returns: :bool do
     allowed = s.allowance[msg.sender][spender]
     
     newAllowed = allowed > difference ? allowed - difference : 0
@@ -39,7 +39,7 @@ class Contracts::ERC20 < ContractImplementation
     return true
   end
   
-  function :transfer, { to: :addressOrDumbContract, amount: :uint256 }, :public, :virtual, returns: :bool do
+  function :transfer, { to: :address, amount: :uint256 }, :public, :virtual, returns: :bool do
     require(s.balanceOf[msg.sender] >= amount, 'Insufficient balance')
     
     s.balanceOf[msg.sender] -= amount
@@ -51,8 +51,8 @@ class Contracts::ERC20 < ContractImplementation
   end
   
   function :transferFrom, {
-    from: :addressOrDumbContract,
-    to: :addressOrDumbContract,
+    from: :address,
+    to: :address,
     amount: :uint256
   }, :public, :virtual, returns: :bool do
     allowed = s.allowance[from][msg.sender]
@@ -70,14 +70,14 @@ class Contracts::ERC20 < ContractImplementation
     return true
   end
   
-  function :_mint, { to: :addressOrDumbContract, amount: :uint256 }, :internal, :virtual do
+  function :_mint, { to: :address, amount: :uint256 }, :internal, :virtual do
     s.totalSupply += amount
     s.balanceOf[to] += amount
     
     emit :Transfer, from: address(0), to: to, amount: amount
   end
   
-  function :_burn, { from: :addressOrDumbContract, amount: :uint256 }, :internal, :virtual do
+  function :_burn, { from: :address, amount: :uint256 }, :internal, :virtual do
     s.balanceOf[from] -= amount
     s.totalSupply -= amount
     

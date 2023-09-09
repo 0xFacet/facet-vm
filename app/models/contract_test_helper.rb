@@ -39,15 +39,35 @@ module ContractTestHelper
     )
   end
   
+  def self.transform_old_format_to_new(payload)
+    payload = payload.stringify_keys
+    
+    if payload.key?("protocol")
+      return {data: {
+        "type" => payload.delete("protocol"),
+        "args" => payload.delete("constructorArgs")
+      }}
+    elsif payload.key?("contract")
+      to = payload.delete("contract")
+      data = {
+        "function" => payload.delete("functionName"),
+        "args" => payload.delete("args")
+      }
+      return { "to" => to, "data" => data }
+    end
+  
+    payload
+  end
+  
   def self.trigger_contract_interaction(
-    command:,
+    command: nil,
     from:,
     data:
   )
-    data = data.merge(salt: SecureRandom.hex)
+    payload = transform_old_format_to_new(data)
     
-    mimetype = "data:application/vnd.esc.contract.#{command}+json"
-    uri = %{#{mimetype},#{data.to_json}}
+    mimetype = ContractTransaction.required_mimetype
+    uri = %{#{mimetype},#{payload.to_json}}
     
     tx_hash = "0x" + SecureRandom.hex(32)
     sha = Digest::SHA256.hexdigest(uri)
@@ -95,7 +115,7 @@ module ContractTestHelper
       command: 'call',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "contractId": creation_receipt.contract_id,
+        "contract": creation_receipt.address,
         "functionName": "mint",
         "args": {
           "amount": 5
@@ -107,7 +127,7 @@ module ContractTestHelper
       command: 'call',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "contractId": creation_receipt.contract_id,
+        "contract": creation_receipt.address,
         "functionName": "transfer",
         "args": {
           "to": "0xF99812028817Da95f5CF95fB29a2a7EAbfBCC27E",
@@ -120,7 +140,7 @@ module ContractTestHelper
       command: 'call',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "contractId": creation_receipt.contract_id,
+        "contract": creation_receipt.address,
         "functionName": "approve",
         "args": {
           "spender": "0xF99812028817Da95f5CF95fB29a2a7EAbfBCC27E",
@@ -130,7 +150,7 @@ module ContractTestHelper
     )
     
     return
-    created_id = creation_receipt.contract_id
+    created_id = creation_receipt.address
     caller_hash = mint_receipt.eth_transaction_id
     sender_hash = transfer_receipt.eth_transaction_id
     

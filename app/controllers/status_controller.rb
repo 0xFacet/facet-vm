@@ -2,7 +2,12 @@ class StatusController < ApplicationController
   def vm_status
     oldest_ethscription = Ethscription.oldest_first.first
     newest_ethscription = Ethscription.newest_first.first
-
+    
+    if newest_ethscription.nil?
+      render json: { error: "No ethscriptions found" }
+      return
+    end
+    
     resp = EthscriptionSync.fetch_newer_ethscriptions(newest_ethscription.ethscription_id, 1)
     
     total_newer_ethscriptions = resp['total_newer_ethscriptions'].to_i

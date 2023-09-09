@@ -13,7 +13,7 @@ module ContractErrors
       
       trace = !Rails.env.production? ? backtrace.join("\n") : ''
       
-      "#{contract.class.name.demodulize} error: " + super + "#{trace} (contract id: #{contract.contract_id})"
+      "#{contract.class.name.demodulize} error: " + super + "#{trace} (contract id: #{contract.address})"
     end
   end
   
@@ -30,4 +30,5 @@ module ContractErrors
   class FatalNetworkError < StandardError; end
   class InvalidOverrideError < StandardError; end
   class FunctionAlreadyDefinedError < StandardError; end
+  class EthscriptionDoesNotTriggerContractInteractionError < StandardError; end
 end

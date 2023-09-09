@@ -16,7 +16,7 @@ RSpec.describe AbiProxy, type: :model do
           _ERC20.constructor(name: name, symbol: symbol, decimals: decimals)
         }
         
-        function :_mint, { to: :addressOrDumbContract, amount: :uint256 }, :public, :virtual, :override do
+        function :_mint, { to: :address, amount: :uint256 }, :public, :virtual, :override do
           _ERC20._mint(to: to, amount: amount)
           s.definedInTest = "definedInTest"
         end
@@ -48,7 +48,7 @@ RSpec.describe AbiProxy, type: :model do
         
         event :Greet, { greeting: :string }
         
-        function :_mint, { to: :addressOrDumbContract, amount: :uint256 }, :public, :virtual do
+        function :_mint, { to: :address, amount: :uint256 }, :public, :virtual do
           emit :Greet, greeting: "Hello"
           s.definedInNonToken = "definedInNonToken"
         end
@@ -72,7 +72,7 @@ RSpec.describe AbiProxy, type: :model do
           s.definedHere = "definedHere"
         }
   
-        function :_mint, { to: :addressOrDumbContract, amount: :uint256 }, :public, :override do
+        function :_mint, { to: :address, amount: :uint256 }, :public, :override do
           _TestContract._mint(to: to, amount: amount)
           _NonToken._mint(to: to, amount: amount)
           _ERC20._mint(to: to, amount: amount)
@@ -99,7 +99,7 @@ RSpec.describe AbiProxy, type: :model do
       command: 'call',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "contractId": deploy_receipt.contract_id,
+        "contract": deploy_receipt.address,
         "functionName": "_mint",
         "args": {
           "to": "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
@@ -127,7 +127,7 @@ RSpec.describe AbiProxy, type: :model do
       command: 'call',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "contractId": deploy_receipt.contract_id,
+        "contract": deploy_receipt.address,
         "functionName": "_mint",
         "args": {
           "to": "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
@@ -155,7 +155,7 @@ RSpec.describe AbiProxy, type: :model do
       command: 'call',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "contractId": deploy_receipt.contract_id,
+        "contract": deploy_receipt.address,
         "functionName": "_mint",
         "args": {
           "to": "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
@@ -201,7 +201,7 @@ RSpec.describe AbiProxy, type: :model do
       class Contracts::TestContractOverrideWithoutModifier < ContractImplementation
         is :TestContract
   
-        function :_mint, { to: :addressOrDumbContract, amount: :uint256 }, :public do
+        function :_mint, { to: :address, amount: :uint256 }, :public do
           _TestContract._mint(to: to, amount: amount)
         end
       end
@@ -211,8 +211,8 @@ RSpec.describe AbiProxy, type: :model do
   it "raises an error when defining the same function twice in a contract" do
     expect {
       class Contracts::TestContractDuplicateFunction < ContractImplementation
-        function(:_mint, { to: :addressOrDumbContract, amount: :uint256 }, :public) {}
-        function(:_mint, { to: :addressOrDumbContract, amount: :uint256 }, :public) {}
+        function(:_mint, { to: :address, amount: :uint256 }, :public) {}
+        function(:_mint, { to: :address, amount: :uint256 }, :public) {}
       end
     }.to raise_error(ContractErrors::FunctionAlreadyDefinedError)
   end

@@ -10,12 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2023_09_08_145640) do
+ActiveRecord::Schema[7.0].define(version: 2023_09_08_205257) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
   create_table "contract_call_receipts", force: :cascade do |t|
-    t.string "contract_id"
     t.string "ethscription_id", null: false
     t.string "caller", null: false
     t.integer "status", null: false
@@ -26,37 +25,41 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_08_145640) do
     t.string "error_message"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["contract_id"], name: "index_contract_call_receipts_on_contract_id"
-    t.index ["ethscription_id"], name: "index_contract_call_receipts_on_ethscription_id"
+    t.string "contract_address"
+    t.index ["contract_address"], name: "index_contract_call_receipts_on_contract_address"
+    t.index ["ethscription_id"], name: "index_contract_call_receipts_on_ethscription_id", unique: true
     t.check_constraint "caller::text ~ '^0x[a-f0-9]{40}$'::text"
-    t.check_constraint "contract_id::text ~ '^0x[a-f0-9]{64}$'::text"
+    t.check_constraint "contract_address::text ~ '^0x[a-f0-9]{40}$'::text"
     t.check_constraint "ethscription_id::text ~ '^0x[a-f0-9]{64}$'::text"
   end
 
   create_table "contract_states", force: :cascade do |t|
-    t.string "contract_id", null: false
     t.string "ethscription_id", null: false
     t.jsonb "state", default: {}, null: false
     t.bigint "block_number", null: false
     t.integer "transaction_index", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "contract_address", null: false
     t.index ["block_number", "transaction_index"], name: "index_contract_states_on_block_number_and_transaction_index"
-    t.index ["contract_id"], name: "index_contract_states_on_contract_id"
+    t.index ["contract_address"], name: "index_contract_states_on_contract_address"
     t.index ["ethscription_id"], name: "index_contract_states_on_ethscription_id"
     t.index ["state"], name: "index_contract_states_on_state", using: :gin
-    t.check_constraint "contract_id::text ~ '^0x[a-f0-9]{64}$'::text"
+    t.check_constraint "contract_address::text ~ '^0x[a-f0-9]{40}$'::text"
     t.check_constraint "ethscription_id::text ~ '^0x[a-f0-9]{64}$'::text"
   end
 
   create_table "contracts", force: :cascade do |t|
-    t.string "contract_id", null: false
+    t.string "ethscription_id", null: false
     t.string "type", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["contract_id"], name: "index_contracts_on_contract_id", unique: true
+    t.string "address", null: false
+    t.index ["address"], name: "index_contracts_on_address", unique: true
+    t.index ["ethscription_id"], name: "index_contracts_on_ethscription_id"
     t.index ["type"], name: "index_contracts_on_type"
-    t.check_constraint "contract_id::text ~ '^0x[a-f0-9]{64}$'::text"
+    t.check_constraint "address::text ~ '^0x[a-f0-9]{40}$'::text"
+    t.check_constraint "ethscription_id::text ~ '^0x[a-f0-9]{64}$'::text"
   end
 
   create_table "ethscriptions", force: :cascade do |t|
@@ -86,9 +89,9 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_08_145640) do
     t.check_constraint "previous_owner IS NULL OR previous_owner::text ~ '^0x[a-f0-9]{40}$'::text", name: "ethscriptions_previous_owner_format"
   end
 
-  add_foreign_key "contract_call_receipts", "contracts", primary_key: "contract_id", on_delete: :cascade
+  add_foreign_key "contract_call_receipts", "contracts", column: "contract_address", primary_key: "address", on_delete: :cascade
   add_foreign_key "contract_call_receipts", "ethscriptions", primary_key: "ethscription_id", on_delete: :cascade
-  add_foreign_key "contract_states", "contracts", primary_key: "contract_id", on_delete: :cascade
+  add_foreign_key "contract_states", "contracts", column: "contract_address", primary_key: "address", on_delete: :cascade
   add_foreign_key "contract_states", "ethscriptions", primary_key: "ethscription_id", on_delete: :cascade
-  add_foreign_key "contracts", "ethscriptions", column: "contract_id", primary_key: "ethscription_id", on_delete: :cascade
+  add_foreign_key "contracts", "ethscriptions", primary_key: "ethscription_id", on_delete: :cascade
 end

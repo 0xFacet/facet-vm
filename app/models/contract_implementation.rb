@@ -8,7 +8,7 @@ class ContractImplementation
   end
   
   delegate :block, :tx, :esc, to: :current_transaction
-  delegate :current_transaction, :contract_id, to: :contract_record
+  delegate :current_transaction, to: :contract_record
   
   def initialize(contract_record)
     @state_proxy = StateProxy.new(
@@ -77,14 +77,28 @@ class ContractImplementation
     define_state_variable(type, args)
   end
   
-  def require(condition, message)
-    unless condition
-      caller_location = caller_locations.detect { |l| l.path.include?('/app/models/contracts') }
-      file = caller_location.path.gsub(%r{.*app/models/contracts/}, '')
-      line = caller_location.lineno
-      
-      error_message = "#{message}. (#{file}:#{line})"
-      raise ContractError.new(error_message, self)
+  def require(condition_or_block, message)
+    caller_location = caller_locations.detect { |l| l.path.include?('/app/models/contracts') }
+    file = caller_location.path.gsub(%r{.*app/models/contracts/}, '')
+    line = caller_location.lineno
+  
+    if condition_or_block.is_a?(Proc)
+      begin
+        condition_result = condition_or_block.call
+      rescue => e
+        error_message = "Exception during condition evaluation: #{e.message}. (#{file}:#{line})"
+        raise ContractError.new(error_message, self)
+      end
+  
+      unless condition_result
+        error_message = "#{message}. (#{file}:#{line})"
+        raise ContractError.new(error_message, self)
+      end
+    else
+      unless condition_or_block
+        error_message = "#{message}. (#{file}:#{line})"
+        raise ContractError.new(error_message, self)
+      end
     end
   end
   
@@ -102,6 +116,7 @@ class ContractImplementation
     self.parent_contracts += constants.map{|i| "Contracts::#{i}".safe_constantize}
     self.parent_contracts = self.parent_contracts.uniq
   end
+  
   
   def self.linearize_contracts(contract, processed = [])
     return [] if processed.include?(contract)
@@ -188,26 +203,22 @@ class ContractImplementation
   end
   
   def address(i)
-    if i.is_a?(TypedVariable) && i.type.addressOrDumbContract?
-      return TypedVariable.create(:address, i.value)
+    if i.is_a?(ContractImplementation) && i == self
+      return TypedVariable.create(:address, contract_record.address)
     end
     
-    return TypedVariable.create(:address) if i == 0
+    if i.is_a?(Integer) && i == 0
+      return TypedVariable.create(:address) 
+    end
+    
+    if i.is_a?(TypedVariable) && i.type.address?
+      return i
+    end
     
     raise "Not implemented"
   end
   
-  def addressOrDumbContract(i)
-    return TypedVariable.create(:addressOrDumbContract) if i == 0
-    raise "Not implemented"
-  end
-  
-  def DumbContract(contract_id)
-    current_transaction.create_execution_context_for_call(contract_id, self.contract_id)
-  end
-  
-  def dumbContractId(i)
-    return contract_id if i == self
-    raise "Not implemented"
+  def DumbContract(other_address)
+    current_transaction.create_execution_context_for_call(other_address, contract_record.address)
   end
 end

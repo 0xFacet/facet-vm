@@ -16,10 +16,7 @@ class EthscriptionSync
     
     query = {
       ethscription_id: latest_ethscription_id,
-      mimetypes: [
-        "application/vnd.esc.contract.call+json",
-        "application/vnd.esc.contract.deploy+json"
-      ],
+      mimetypes: [ContractTransaction.required_mimetype],
       per_page: per_page
     }
     
@@ -47,6 +44,8 @@ class EthscriptionSync
       ethscriptions = parsed_response['ethscriptions'].map do |eth|
         transform_server_response(eth)
       end
+      
+      break if ethscriptions.empty?
       
       starting_ethscription = Ethscription.find_by(
         ethscription_id: ethscriptions.first[:ethscription_id]

@@ -3,11 +3,10 @@ class Contract < ApplicationRecord
   
   include ContractErrors
     
-  has_many :call_receipts, primary_key: 'contract_id', class_name: "ContractCallReceipt", dependent: :destroy
-  has_many :states, primary_key: 'contract_id', class_name: "ContractState", dependent: :destroy
-  
-  belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'contract_id',
+  belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'ethscription_id',
     class_name: "Ethscription", touch: true
+  has_many :call_receipts, primary_key: 'address', foreign_key: 'contract_address', class_name: "ContractCallReceipt"
+  has_many :states, primary_key: 'address', foreign_key: 'contract_address', class_name: "ContractState"
   
   attr_accessor :current_transaction
   attr_reader :implementation
@@ -65,7 +64,8 @@ class Contract < ApplicationRecord
     super(
       options.merge(
         only: [
-          :contract_id,
+          :address,
+          :ethscription_id,
         ]
       )
     ).tap do |json|
@@ -96,7 +96,7 @@ class Contract < ApplicationRecord
   
   def static_call(name, args = {})
     ContractTransaction.make_static_call(
-      contract_id: contract_id, 
+      contract: address, 
       function_name: name, 
       function_args: args
     )

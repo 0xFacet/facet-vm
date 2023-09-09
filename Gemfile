@@ -63,3 +63,5 @@ gem "airbrake", "~> 13.0"
 gem "rack-cors", "~> 2.0"
 
 gem "keccak256", "~> 2.0"
+
+gem "eth", "~> 0.5.11"

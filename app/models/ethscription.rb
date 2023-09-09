@@ -1,9 +1,8 @@
 class Ethscription < ApplicationRecord
-  has_one :contract_call_receipt, primary_key: 'ethscription_id', dependent: :destroy
-  has_many :contract_states, primary_key: 'ethscription_id', dependent: :destroy
-  has_many :contracts, primary_key: 'ethscription_id', foreign_key: 'contract_id',
-            dependent: :destroy
-            
+  has_many :contracts, primary_key: 'ethscription_id', foreign_key: 'ethscription_id'
+  has_one :contract_call_receipt, primary_key: 'ethscription_id', foreign_key: 'ethscription_id'
+  has_many :contract_states, primary_key: 'ethscription_id', foreign_key: 'ethscription_id'
+
   after_create :process_contract_actions
   
   before_validation :downcase_hex_fields

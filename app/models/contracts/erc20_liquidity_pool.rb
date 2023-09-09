@@ -1,8 +1,8 @@
 class Contracts::ERC20LiquidityPool < ContractImplementation
-  dumbContract :public, :token0
-  dumbContract :public, :token1
+  address :public, :token0
+  address :public, :token1
   
-  constructor(token0: :dumbContract, token1: :dumbContract) do
+  constructor(token0: :address, token1: :address) do
     s.token0 = token0
     s.token1 = token1
   end
@@ -10,40 +10,40 @@ class Contracts::ERC20LiquidityPool < ContractImplementation
   function :addLiquidity, {token0Amount: :uint256, token1Amount: :uint256}, :public do
     DumbContract(s.token0).transferFrom(
       from: msg.sender,
-      to: dumbContractId(this),
+      to: address(this),
       amount: token0Amount
     )
     
     DumbContract(s.token1).transferFrom(
       from: msg.sender,
-      to: dumbContractId(this),
+      to: address(this),
       amount: token1Amount
     )
   end
   
   function :reserves, {}, :public, :view, returns: :string do
     jsonData = {
-      token0: DumbContract(s.token0).balanceOf(dumbContractId(this)),
-      token1: DumbContract(s.token1).balanceOf(dumbContractId(this))
+      token0: DumbContract(s.token0).balanceOf(address(this)),
+      token1: DumbContract(s.token1).balanceOf(address(this))
     }.to_json
     
     return "data:application/json,#{jsonData}"
   end
   
   function :calculateOutputAmount, {
-    inputToken: :dumbContract,
-    outputToken: :dumbContract,
+    inputToken: :address,
+    outputToken: :address,
     inputAmount: :uint256
   }, :public, :view, returns: :uint256 do
-    inputReserve = DumbContract(inputToken).balanceOf(dumbContractId(this))
-    outputReserve = DumbContract(outputToken).balanceOf(dumbContractId(this))
+    inputReserve = DumbContract(inputToken).balanceOf(address(this))
+    outputReserve = DumbContract(outputToken).balanceOf(address(this))
     
     ((inputAmount * outputReserve) / (inputReserve + inputAmount)).to_i
   end
   
   function :swap, {
-    inputToken: :dumbContract,
-    outputToken: :dumbContract,
+    inputToken: :address,
+    outputToken: :address,
     inputAmount: :uint256
   }, :public, returns: :uint256 do
     require([s.token0, s.token1].include?(inputToken), "Invalid input token")
@@ -57,13 +57,13 @@ class Contracts::ERC20LiquidityPool < ContractImplementation
       inputAmount: inputAmount
     )
     
-    outputReserve = DumbContract(outputToken).balanceOf(dumbContractId(this))
+    outputReserve = DumbContract(outputToken).balanceOf(address(this))
     
     require(outputAmount <= outputReserve, "Insufficient output reserve")
   
     DumbContract(inputToken).transferFrom(
       from: msg.sender,
-      to: dumbContractId(this),
+      to: address(this),
       amount: inputAmount
     )
   

@@ -13,12 +13,6 @@ RSpec.describe Type, type: :model do
       expect(type.can_be_assigned_from?(Type.create(:uint128))).to be true
     end
 
-    it 'returns true if the first type is addressOrDumbContract and the second type is address or dumbContract' do
-      type = Type.create(:addressOrDumbContract)
-      expect(type.can_be_assigned_from?(Type.create(:address))).to be true
-      expect(type.can_be_assigned_from?(Type.create(:dumbContract))).to be true
-    end
-
     it 'returns false otherwise' do
       type = Type.create(:uint128)
       expect(type.can_be_assigned_from?(Type.create(:uint256))).to be false
@@ -49,11 +43,6 @@ RSpec.describe Type, type: :model do
     it 'returns true if both types are integer types' do
       type = Type.create(:uint256)
       expect(type.values_can_be_compared?(Type.create(:uint128))).to be true
-    end
-  
-    it 'returns true if either type is address or dumbContract and the other type is addressOrDumbContract' do
-      type = Type.create(:address)
-      expect(type.values_can_be_compared?(Type.create(:addressOrDumbContract))).to be true
     end
   
     it 'returns false otherwise' do

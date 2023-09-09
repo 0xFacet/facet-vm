@@ -26,7 +26,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": @creation_receipt.contract_id,
+          "contract": @creation_receipt.address,
           "functionName": "mint",
           "args": ["5"],
         }
@@ -38,7 +38,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": @creation_receipt.contract_id,
+          "contract": @creation_receipt.address,
           "functionName": "constructor",
           "args": {
             "name": "My Fun Token",
@@ -52,21 +52,23 @@ RSpec.describe Contract, type: :model do
     end
     
     it "will simulate a deploy transaction" do
-      command = 'deploy'
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
       data = {
-        "protocol": "PublicMintERC20",
-        "constructorArgs": {
-          "name": "My Fun Token",
-          "symbol": "FUN",
-          "maxSupply": "21000000",
-          "perMintLimit": "1000",
-          "decimals": 18
-        },
+        to: nil,
+        data: {
+          type: "PublicMintERC20",
+          args: {
+            "name": "My Fun Token",
+            "symbol": "FUN",
+            "maxSupply": "21000000",
+            "perMintLimit": "1000",
+            "decimals": 18
+          }
+        }
       }
       
       expect {
-        receipt = ContractTransaction.simulate_transaction(command: command, from: from, data: data)
+        receipt = ContractTransaction.simulate_transaction(from: from, tx_payload: data)
     
         expect(receipt).to be_a(ContractCallReceipt)
         expect(receipt.status).to eq("success")
@@ -94,14 +96,15 @@ RSpec.describe Contract, type: :model do
       )
     
       call_receipt_success = ContractTransaction.simulate_transaction(
-        command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-        data: {
-          "contractId": deploy_receipt.contract_id,
-          "functionName": "mint",
-          "args": {
-            "amount": "5"
-          },
+        tx_payload: {
+          "to": deploy_receipt.address,
+          data: {
+            "function": "mint",
+            "args": {
+              "amount": "5"
+            }
+          }
         }
       )
     
@@ -111,14 +114,15 @@ RSpec.describe Contract, type: :model do
       expect(Ethscription.find_by(ethscription_id: call_receipt_success.ethscription_id)).to be_nil
       
       call_receipt_fail = ContractTransaction.simulate_transaction(
-        command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-        data: {
-          "contractId": deploy_receipt.contract_id,
-          "functionName": "mint",
-          "args": {
-            "amount": "5000"
-          },
+        tx_payload: {
+          "to": deploy_receipt.address,
+          data: {
+            "function": "mint",
+            "args": {
+              "amount": "5000"
+            },
+          }
         }
       )
       
@@ -133,7 +137,7 @@ RSpec.describe Contract, type: :model do
     it "won't static call restricted function" do
       expect {
         ContractTransaction.make_static_call(
-          contract_id: @mint_receipt.contract.contract_id,
+          contract: @mint_receipt.contract.address,
           function_name: "id"
         )
       }.to raise_error(Contract::StaticCallError)
@@ -142,7 +146,7 @@ RSpec.describe Contract, type: :model do
     it "won't static call restricted function" do
       expect {
         ContractTransaction.make_static_call(
-          contract_id: @mint_receipt.contract.contract_id,
+          contract: @mint_receipt.contract.address,
           function_name: "_mint",
           function_args: {
             "amount": "5",
@@ -157,7 +161,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": @creation_receipt.contract_id,
+          "contract": @creation_receipt.address,
           "functionName": "transfer",
           "args": {
             "amount": "2",
@@ -172,7 +176,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": @creation_receipt.contract_id,
+          "contract": @creation_receipt.address,
           "functionName": "airdrop",
           "args": {
             "to": "0xF99812028817Da95f5CF95fB29a2a7EAbfBCC27E",
@@ -202,7 +206,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: trusted_address,
         data: {
-          "contractId": deploy.contract_id,
+          "contract": deploy.address,
           functionName: "bridgeIn",
           args: [
             "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
@@ -215,7 +219,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": deploy.contract_id,
+          "contract": deploy.address,
           functionName: "bridgeOut",
           args: {
             amount: 100,
@@ -224,7 +228,7 @@ RSpec.describe Contract, type: :model do
       )
 
       balance = ContractTransaction.make_static_call(
-        contract_id: deploy.contract_id,
+        contract: deploy.address,
         function_name: "balanceOf",
         function_args: [
           "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
@@ -237,7 +241,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: trusted_address,
         data: {
-          "contractId": deploy.contract_id,
+          "contract": deploy.address,
           functionName: "markWithdrawalComplete",
           args: {
             to: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
@@ -270,7 +274,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: trusted_address,
         data: {
-          "contractId": deploy.contract_id,
+          "contract": deploy.address,
           functionName: "bridgeIn",
           args: {
             to: dc_token_recipient,
@@ -283,7 +287,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: trusted_address,
         data: {
-          "contractId": deploy.contract_id,
+          "contract": deploy.address,
           functionName: "bridgeIn",
           args: {
             to: dc_token_recipient,
@@ -293,7 +297,7 @@ RSpec.describe Contract, type: :model do
       )
       
       balance = ContractTransaction.make_static_call(
-        contract_id: deploy.contract_id,
+        contract: deploy.address,
         function_name: "balanceOf",
         function_args: [
           dc_token_recipient
@@ -306,7 +310,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: dc_token_recipient,
         data: {
-          "contractId": deploy.contract_id,
+          "contract": deploy.address,
           functionName: "bridgeOut",
           args: {
             escrowedId: "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6",
@@ -315,7 +319,7 @@ RSpec.describe Contract, type: :model do
       )
 
       balance = ContractTransaction.make_static_call(
-        contract_id: deploy.contract_id,
+        contract: deploy.address,
         function_name: "balanceOf",
         function_args: [
           "0x3A3323d81e77f6a604314aE6278a7B6f4c580928"
@@ -328,7 +332,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: trusted_address,
         data: {
-          "contractId": deploy.contract_id,
+          "contract": deploy.address,
           functionName: "markWithdrawalComplete",
           args: {
             to: dc_token_recipient,
@@ -338,7 +342,7 @@ RSpec.describe Contract, type: :model do
       )
       
       balance = ContractTransaction.make_static_call(
-        contract_id: deploy.contract_id,
+        contract: deploy.address,
         function_name: "pendingWithdrawalEthscriptionToOwner",
         function_args: [
           "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6"
@@ -388,7 +392,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": creation.contract_id,
+          "contract": creation.address,
           "functionName": "mint",
           "args": {
             "amount": "2"
@@ -400,7 +404,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": creation.contract_id,
+          "contract": creation.address,
           "functionName": "mint",
           "args": {
             "amount": "2000"
@@ -411,7 +415,7 @@ RSpec.describe Contract, type: :model do
       # expect(mint.status).to eq("call_error")
       
       call_res = ContractTransaction.make_static_call(
-        contract_id: creation.contract_id, 
+        contract: creation.address, 
         function_name: "ownerOf", 
         function_args: { id: "0" }
       )
@@ -420,14 +424,14 @@ RSpec.describe Contract, type: :model do
       
       expect {
         ContractTransaction.make_static_call(
-          contract_id: creation.contract_id, 
+          contract: creation.address, 
           function_name: "ownerOf", 
           function_args: { id: 100 }
         )
       }.to raise_error(ContractErrors::StaticCallError)
       
       result = ContractTransaction.make_static_call(
-        contract_id: creation.contract_id, 
+        contract: creation.address, 
         function_name: "tokenURI", 
         function_args: { id: "0" }
       )
@@ -547,7 +551,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": creation.contract_id,
+          "contract": creation.address,
           "functionName": "mint",
           "args": {
             "amount": "2"
@@ -559,7 +563,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": creation.contract_id,
+          "contract": creation.address,
           "functionName": "transferFrom",
           "args": {
             "from": "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
@@ -570,7 +574,7 @@ RSpec.describe Contract, type: :model do
       )
       
       result = ContractTransaction.make_static_call(
-        contract_id: creation.contract_id, 
+        contract: creation.address, 
         function_name: "tokenURI", 
         function_args: { id: "1" }
       )
@@ -615,8 +619,8 @@ RSpec.describe Contract, type: :model do
         data: {
           "protocol": "ERC20LiquidityPool",
           constructorArgs: {
-            token0: token0.contract_id,
-            token1: token1.contract_id
+            token0: token0.address,
+            token1: token1.address
           }
         }
       ).contract
@@ -625,7 +629,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": token0.contract_id,
+          "contract": token0.address,
           functionName: "mint",
           args: {
             amount: 500
@@ -637,7 +641,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": token1.contract_id,
+          "contract": token1.address,
           functionName: "mint",
           args: {
             amount: "600"
@@ -649,10 +653,10 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": token1.contract_id,
+          "contract": token1.address,
           functionName: "approve",
           args: {
-            spender: dex.contract_id,
+            spender: dex.address,
             amount: (21e6).to_i
           }
         }
@@ -662,10 +666,10 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": token0.contract_id,
+          "contract": token0.address,
           functionName: "approve",
           args: {
-            spender: dex.contract_id,
+            spender: dex.address,
             amount: (21e6).to_i
           }
         }
@@ -675,7 +679,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xc2172a6315c1d7f6855768f843c420ebb36eda97",
         data: {
-          "contractId": dex.contract_id,
+          "contract": dex.address,
           functionName: "addLiquidity",
           args: {
             token0Amount: 200,
@@ -685,7 +689,7 @@ RSpec.describe Contract, type: :model do
       )
       
       a = ContractTransaction.make_static_call(
-        contract_id: token0.contract_id,
+        contract: token0.address,
         function_name: "balanceOf",
         function_args: [
           "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
@@ -697,18 +701,18 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "contractId": dex.contract_id,
+          "contract": dex.address,
           functionName: "swap",
           args: {
             inputAmount: 50,
-            outputToken: token1.contract_id,
-            inputToken: token0.contract_id,
+            outputToken: token1.address,
+            inputToken: token0.address,
           }
         }
       )
       
       finalTokenABalance = ContractTransaction.make_static_call(
-        contract_id: token0.contract_id,
+        contract: token0.address,
         function_name: "balanceOf",
         function_args: {
           arg0: "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
@@ -718,7 +722,7 @@ RSpec.describe Contract, type: :model do
       expect(finalTokenABalance).to eq(250)
       
       finalTokenBBalance = ContractTransaction.make_static_call(
-        contract_id: token1.contract_id,
+        contract: token1.address,
         function_name: "balanceOf",
         function_args: "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
       )
@@ -726,11 +730,11 @@ RSpec.describe Contract, type: :model do
       expect(finalTokenBBalance).to be > 500
       
       calculate_output_amount = ContractTransaction.make_static_call(
-        contract_id: dex.contract_id,
+        contract: dex.address,
         function_name: "calculateOutputAmount",
         function_args: {
-          inputToken: token0.contract_id,
-          outputToken: token1.contract_id,
+          inputToken: token0.address,
+          outputToken: token1.address,
           inputAmount: 50
         }
       )
