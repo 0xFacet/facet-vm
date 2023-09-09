@@ -11,7 +11,7 @@ class Contract < ApplicationRecord
   attr_accessor :current_transaction
   attr_reader :implementation
   
-  delegate :msg, to: :implementation
+  delegate :msg, :implements?, to: :implementation
   
   def self.create_from_user!(deployer:, creation_ethscription_id:, type:)
     unless valid_contract_types.include?(type)
