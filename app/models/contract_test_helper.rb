@@ -39,15 +39,35 @@ module ContractTestHelper
     )
   end
   
+  def self.transform_old_format_to_new(payload)
+    payload = payload.stringify_keys
+    
+    if payload.key?("protocol")
+      return {data: {
+        "type" => payload.delete("protocol"),
+        "args" => payload.delete("constructorArgs")
+      }}
+    elsif payload.key?("contract")
+      to = payload.delete("contract")
+      data = {
+        "function" => payload.delete("functionName"),
+        "args" => payload.delete("args")
+      }
+      return { "to" => to, "data" => data }
+    end
+  
+    payload
+  end
+  
   def self.trigger_contract_interaction(
-    command:,
+    command: nil,
     from:,
     data:
   )
-    data = data.merge(salt: SecureRandom.hex)
+    payload = transform_old_format_to_new(data)
     
-    mimetype = "data:application/vnd.esc.contract.#{command}+json"
-    uri = %{#{mimetype},#{data.to_json}}
+    mimetype = ContractTransaction.required_mimetype
+    uri = %{#{mimetype},#{payload.to_json}}
     
     tx_hash = "0x" + SecureRandom.hex(32)
     sha = Digest::SHA256.hexdigest(uri)

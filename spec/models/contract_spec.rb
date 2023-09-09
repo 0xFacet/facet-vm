@@ -52,21 +52,23 @@ RSpec.describe Contract, type: :model do
     end
     
     it "will simulate a deploy transaction" do
-      command = 'deploy'
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
       data = {
-        "protocol": "PublicMintERC20",
-        "constructorArgs": {
-          "name": "My Fun Token",
-          "symbol": "FUN",
-          "maxSupply": "21000000",
-          "perMintLimit": "1000",
-          "decimals": 18
-        },
+        to: nil,
+        data: {
+          type: "PublicMintERC20",
+          args: {
+            "name": "My Fun Token",
+            "symbol": "FUN",
+            "maxSupply": "21000000",
+            "perMintLimit": "1000",
+            "decimals": 18
+          }
+        }
       }
       
       expect {
-        receipt = ContractTransaction.simulate_transaction(command: command, from: from, data: data)
+        receipt = ContractTransaction.simulate_transaction(from: from, tx_payload: data)
     
         expect(receipt).to be_a(ContractCallReceipt)
         expect(receipt.status).to eq("success")
@@ -94,14 +96,15 @@ RSpec.describe Contract, type: :model do
       )
     
       call_receipt_success = ContractTransaction.simulate_transaction(
-        command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-        data: {
-          "contract": deploy_receipt.address,
-          "functionName": "mint",
-          "args": {
-            "amount": "5"
-          },
+        tx_payload: {
+          "to": deploy_receipt.address,
+          data: {
+            "function": "mint",
+            "args": {
+              "amount": "5"
+            }
+          }
         }
       )
     
@@ -111,14 +114,15 @@ RSpec.describe Contract, type: :model do
       expect(Ethscription.find_by(ethscription_id: call_receipt_success.ethscription_id)).to be_nil
       
       call_receipt_fail = ContractTransaction.simulate_transaction(
-        command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-        data: {
-          "contract": deploy_receipt.address,
-          "functionName": "mint",
-          "args": {
-            "amount": "5000"
-          },
+        tx_payload: {
+          "to": deploy_receipt.address,
+          data: {
+            "function": "mint",
+            "args": {
+              "amount": "5000"
+            },
+          }
         }
       )
       

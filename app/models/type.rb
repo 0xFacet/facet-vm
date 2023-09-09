@@ -30,7 +30,7 @@ class Type
     end
     
     self.name = type_name.to_sym
-    self.metadata = metadata
+    self.metadata = metadata.deep_dup
   end
   
   def self.create(type_or_name, metadata = {})

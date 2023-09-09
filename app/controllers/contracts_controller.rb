@@ -100,12 +100,13 @@ class ContractsController < ApplicationController
   end
   
   def simulate_transaction
-    command = params[:command]
     from = params[:from]
-    data = JSON.parse(params[:data])
+    tx_payload = JSON.parse(params[:tx_payload])
   
     begin
-      receipt = ContractTransaction.simulate_transaction(command: command, from: from, data: data)
+      receipt = ContractTransaction.simulate_transaction(
+        from: from, tx_payload: tx_payload
+      )
     rescue => e
       render json: { error: e.message }, status: 500
       return

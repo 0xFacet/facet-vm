@@ -30,4 +30,5 @@ module ContractErrors
   class FatalNetworkError < StandardError; end
   class InvalidOverrideError < StandardError; end
   class FunctionAlreadyDefinedError < StandardError; end
+  class EthscriptionDoesNotTriggerContractInteractionError < StandardError; end
 end

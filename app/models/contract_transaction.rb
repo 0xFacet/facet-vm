@@ -1,9 +1,15 @@
 class ContractTransaction
   include ContractErrors
   
+  NULL_ADDRESS = ("0x" + "0" * 40).freeze
+  
   attr_accessor :contract_id, :contract_address, :function_name, :contract_protocol,
   :function_args, :tx, :esc, :call_receipt, :ethscription, :operation, :block,
   :current_contract
+  
+  def self.required_mimetype
+    "application/vnd.esc".freeze
+  end
   
   def tx
     @tx ||= ContractTransactionGlobals::Tx.new
@@ -17,28 +23,20 @@ class ContractTransaction
     @esc ||= ContractTransactionGlobals::Esc.new(self)
   end
   
-  def set_operation_from_ethscription
-    return unless ethscription.initial_owner == "0x" + "0" * 40
-    
-    mimetype = ethscription.mimetype
-    match_data = mimetype.match(%q{application/vnd.esc.contract.(call|deploy)\+json})
-
-    self.operation = match_data && match_data[1].to_sym
-  end
-  
   def self.create_and_execute_from_ethscription_if_needed(ethscription)
-    new.import_from_ethscription(ethscription)&.execute_transaction
+    begin
+      new.import_from_ethscription(ethscription)&.execute_transaction
+    rescue EthscriptionDoesNotTriggerContractInteractionError => e
+      logger.info(e.message)
+    end
   end
   
   def self.simulate_transaction(
-    command:,
     from:,
-    data:
+    tx_payload:
   )
-    data = data.merge(salt: SecureRandom.hex)
-  
-    mimetype = "data:application/vnd.esc.contract.#{command}+json"
-    uri = %{#{mimetype},#{data.to_json}}
+    mimetype = ContractTransaction.required_mimetype
+    uri = %{#{mimetype},#{tx_payload.to_json}}
   
     ethscription_attrs = {
       ethscription_id: "0x" + SecureRandom.hex(32),
@@ -97,10 +95,13 @@ class ContractTransaction
   end
   
   def import_from_ethscription(ethscription)
-    self.ethscription = ethscription
-    set_operation_from_ethscription
+    unless ethscription.initial_owner == NULL_ADDRESS && ethscription.mimetype == ContractTransaction.required_mimetype
+      raise EthscriptionDoesNotTriggerContractInteractionError.new(
+        "#{ethscription.inspect} does not trigger contract interaction"
+      )
+    end
     
-    return unless operation.present?
+    self.ethscription = ethscription
     
     self.call_receipt = ContractCallReceipt.new(
       caller: ethscription.creator,
@@ -109,7 +110,8 @@ class ContractTransaction
     )
     
     begin
-      data = JSON.parse(ethscription.content)
+      payload = JSON.parse(ethscription.content)
+      data = payload['data']
     rescue JSON::ParserError => e
       call_receipt.update!(
         status: :json_parse_error,
@@ -119,18 +121,17 @@ class ContractTransaction
       return
     end
     
-    self.function_name = is_deploy? ? :constructor : data['functionName']
-    self.function_args = data['args'] || data['constructorArgs'] || {}
-    self.contract_address = data['contract']
-    self.contract_protocol = data['protocol']
+    self.operation = payload['to'].nil? ? :deploy : :call
     
-    call_receipt.tap do |r|
-      r.caller = ethscription.creator
-      r.ethscription_id = ethscription.ethscription_id
-      r.timestamp = ethscription.creation_timestamp
-      r.function_name = function_name
-      r.function_args = function_args
-    end
+    self.function_name = is_deploy? ? :constructor : data['function']
+    self.function_args = data['args'] || {}
+    self.contract_address = payload['to']
+    self.contract_protocol = data['type']
+    
+    call_receipt.assign_attributes(
+      function_name: function_name,
+      function_args: function_args
+    )
     
     tx.origin = ethscription.creator
     
