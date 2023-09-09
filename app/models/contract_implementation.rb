@@ -4,7 +4,8 @@ class ContractImplementation
   attr_reader :contract_record
   
   class << self
-    attr_accessor :state_variable_definitions, :parent_contracts, :events, :is_abstract_contract
+    attr_accessor :state_variable_definitions, :parent_contracts,
+    :events, :is_abstract_contract, :valid_contract_types
   end
   
   delegate :block, :tx, :esc, to: :current_transaction
@@ -223,16 +224,19 @@ class ContractImplementation
     raise "Not implemented"
   end
   
-  def method_missing(method_name, *args, **kwargs, &block)
-    if Contract.valid_contract_types.include?(method_name.to_s)
-      handle_contract_type_cast(method_name, args.first)
-    else
-      super
+  def self.inherited(subclass)
+    super
+    
+    method_name = subclass.name.demodulize.to_sym
+    
+    if Contracts.constants.include?(method_name)
+      define_method(method_name) do |other_address|
+        handle_contract_type_cast(method_name, other_address)
+      end
+      
+      self.valid_contract_types ||= []
+      self.valid_contract_types << method_name
     end
-  end
-
-  def respond_to_missing?(method_name, include_private = false)
-    Contract.valid_contract_types.include?(method_name.to_s) || super
   end
 
   def handle_contract_type_cast(contract_type, other_address)
