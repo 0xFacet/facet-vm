@@ -13,8 +13,12 @@ class Contract < ApplicationRecord
   
   delegate :msg, :implements?, to: :implementation
   
+  class << self
+    delegate :valid_contract_types, to: ContractImplementation
+  end
+  
   def self.create_from_user!(deployer:, creation_ethscription_id:, type:)
-    unless valid_contract_types.include?(type)
+    unless valid_contract_types.include?(type.to_sym)
       raise TransactionError.new("Invalid contract type: #{type}")
     end
     
@@ -112,12 +116,6 @@ class Contract < ApplicationRecord
           code: source_code(k)
         }
       end
-    end
-  end
-  
-  def self.valid_contract_types
-    Contracts.constants.map do |c|
-      Contracts.const_get(c).to_s.demodulize
     end
   end
   
