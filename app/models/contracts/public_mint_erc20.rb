@@ -11,7 +11,7 @@ class Contracts::PublicMintERC20 < ContractImplementation
     perMintLimit: :uint256,
     decimals: :uint8
   ) {
-    _ERC20.constructor(name: name, symbol: symbol, decimals: decimals)
+    ERC20.constructor(name: name, symbol: symbol, decimals: decimals)
     s.maxSupply = maxSupply
     s.perMintLimit = perMintLimit
   }

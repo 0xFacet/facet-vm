@@ -56,7 +56,10 @@ class ContractProxy
       define_singleton_method(name) do |*args, **kwargs|
         user_args = { args: args, kwargs: kwargs }
         
-        TransactionContext.set(msg_sender: caller_address) do
+        TransactionContext.set(
+          msg_sender: caller_address,
+          current_contract: to_contract,
+        ) do
           to_contract.execute_function(
             name,
             user_args,

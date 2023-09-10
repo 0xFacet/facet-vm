@@ -13,11 +13,11 @@ RSpec.describe AbiProxy, type: :model do
           symbol: :string,
           decimals: :uint8
         ) {
-          _ERC20.constructor(name: name, symbol: symbol, decimals: decimals)
+          ERC20.constructor(name: name, symbol: symbol, decimals: decimals)
         }
         
         function :_mint, { to: :address, amount: :uint256 }, :public, :virtual, :override do
-          _ERC20._mint(to: to, amount: amount)
+          ERC20._mint(to: to, amount: amount)
           s.definedInTest = "definedInTest"
         end
         
@@ -35,7 +35,7 @@ RSpec.describe AbiProxy, type: :model do
           symbol: :string,
           decimals: :uint8
         ) {
-          _ERC20.constructor(name: name, symbol: symbol, decimals: decimals)
+          ERC20.constructor(name: name, symbol: symbol, decimals: decimals)
         }
       end
     end
@@ -66,16 +66,16 @@ RSpec.describe AbiProxy, type: :model do
           symbol: :string,
           decimals: :uint8
         ) {
-          _TestContract.constructor(name: name, symbol: symbol, decimals: decimals)
-          _NonToken.constructor()
+          TestContract.constructor(name: name, symbol: symbol, decimals: decimals)
+          NonToken.constructor()
           
           s.definedHere = "definedHere"
         }
   
         function :_mint, { to: :address, amount: :uint256 }, :public, :override do
-          _TestContract._mint(to: to, amount: amount)
-          _NonToken._mint(to: to, amount: amount)
-          _ERC20._mint(to: to, amount: amount)
+          TestContract._mint(to: to, amount: amount)
+          NonToken._mint(to: to, amount: amount)
+          ERC20._mint(to: to, amount: amount)
         end
       end
     end
@@ -205,7 +205,7 @@ RSpec.describe AbiProxy, type: :model do
         is :TestContract
   
         function :nonVirtual, {}, :public, :override do
-          _ERC20._mint(to: to, amount: amount)
+          ERC20._mint(to: to, amount: amount)
         end
       end
     }.to raise_error(ContractErrors::InvalidOverrideError)

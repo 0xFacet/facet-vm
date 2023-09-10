@@ -15,14 +15,10 @@ class FunctionContext < BasicObject
     end
   end
   
-  def this
-    @contract
-  end
-  
   def require(*args)
     @contract.send(:require, *args)
   end
-
+  
   def respond_to_missing?(name, include_private = false)
     @args.respond_to?(name, include_private) || @contract.respond_to?(name, include_private)
   end
