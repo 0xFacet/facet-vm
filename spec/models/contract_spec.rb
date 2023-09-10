@@ -688,6 +688,13 @@ RSpec.describe Contract, type: :model do
         }
       )
       
+      x = ContractTransaction.make_static_call(
+        contract: dex.address,
+        function_name: "reserves"
+      )
+      
+      expect(x).to be_a(Hash)
+      
       a = ContractTransaction.make_static_call(
         contract: token0.address,
         function_name: "balanceOf",
