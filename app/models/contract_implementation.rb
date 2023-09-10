@@ -8,7 +8,7 @@ class ContractImplementation
     :events, :is_abstract_contract, :valid_contract_types
   end
   
-  delegate :block, :blockhash, :tx, :esc, :msg, :log_event, to: TransactionContext
+  delegate :block, :blockhash, :tx, :esc, :msg, :log_event, :this, to: TransactionContext
   delegate :implements?, to: :class
   
   def initialize(contract_record)
@@ -42,6 +42,14 @@ class ContractImplementation
   
   def state_proxy
     @state_proxy
+  end
+  
+  def self.const_missing(name)
+    TransactionContext.current_contract.implementation.tap do |impl|
+      valid_methods = impl.class.linearized_parents.map{|p| p.name.demodulize.to_sym }
+      
+      return valid_methods.include?(name) ? impl.send(name) : super
+    end
   end
   
   def self.abi
@@ -204,7 +212,7 @@ class ContractImplementation
   end
   
   def address(i)
-    if i.is_a?(ContractImplementation) && i == self
+    if i.is_a?(Contract) && i == self.contract_record
       return TypedVariable.create(:address, contract_record.address)
     end
     

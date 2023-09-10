@@ -36,7 +36,7 @@ class AbiProxy
       end
   
       contract_class.class_eval do
-        define_method("_" + parent.name.demodulize) do
+        define_method(parent.name.demodulize) do
           contract_instance = self
           Object.new.tap do |proxy|
             parent.abi.data.each do |name, _|

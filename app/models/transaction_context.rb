@@ -1,7 +1,7 @@
 class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
-  attribute :current_transaction
+  attribute :current_transaction, :current_contract
   delegate :log_event, :ethscription, to: :current_transaction
   
   def current_transaction=(new_value)
@@ -35,6 +35,10 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     
       Struct.new(*struct_params).new(*struct_values)
     end
+  end
+  
+  def this
+    current_contract
   end
   
   def blockhash(input_block_number)

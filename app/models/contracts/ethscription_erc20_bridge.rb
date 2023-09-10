@@ -21,7 +21,7 @@ class Contracts::EthscriptionERC20Bridge < ContractImplementation
     trustedSmartContract: :address,
     ethscriptionDeployId: :ethscriptionId
   ) {
-    _ERC20.constructor(name: name, symbol: symbol, decimals: 18)
+    ERC20.constructor(name: name, symbol: symbol, decimals: 18)
     
     s.trustedSmartContract = trustedSmartContract
     s.ethscriptionDeployId = ethscriptionDeployId

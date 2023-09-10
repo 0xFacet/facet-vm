@@ -4,7 +4,7 @@ class Contracts::ERC20Receiver < ContractImplementation
   is :ERC20
   
   constructor() {
-    _ERC20.constructor(name: "bye", symbol: "B", decimals: 18)
+    ERC20.constructor(name: "bye", symbol: "B", decimals: 18)
   }
 end
 

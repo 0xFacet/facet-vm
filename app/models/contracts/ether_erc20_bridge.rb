@@ -14,7 +14,7 @@ class Contracts::EtherERC20Bridge < ContractImplementation
     symbol: :string,
     trustedSmartContract: :address
   ) {
-    _ERC20.constructor(name: name, symbol: symbol, decimals: 18)
+    ERC20.constructor(name: name, symbol: symbol, decimals: 18)
     
     s.trustedSmartContract = trustedSmartContract
   }
