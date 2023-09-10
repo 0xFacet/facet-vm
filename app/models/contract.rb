@@ -8,10 +8,9 @@ class Contract < ApplicationRecord
   has_many :call_receipts, primary_key: 'address', foreign_key: 'contract_address', class_name: "ContractCallReceipt"
   has_many :states, primary_key: 'address', foreign_key: 'contract_address', class_name: "ContractState"
   
-  attr_accessor :current_transaction
   attr_reader :implementation
   
-  delegate :msg, :implements?, to: :implementation
+  delegate :implements?, to: :implementation
   
   class << self
     delegate :valid_contract_types, to: ContractImplementation
@@ -72,7 +71,7 @@ class Contract < ApplicationRecord
       
       if (final_state != initial_state) && persist_state
         states.create!(
-          ethscription_id: current_transaction.ethscription.ethscription_id,
+          ethscription_id: TransactionContext.ethscription.ethscription_id,
           state: final_state
         )
       end

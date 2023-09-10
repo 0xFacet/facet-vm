@@ -8,8 +8,7 @@ class ContractImplementation
     :events, :is_abstract_contract, :valid_contract_types
   end
   
-  delegate :block, :tx, :esc, to: :current_transaction
-  delegate :current_transaction, to: :contract_record
+  delegate :block, :blockhash, :tx, :esc, :msg, :log_event, to: TransactionContext
   delegate :implements?, to: :class
   
   def initialize(contract_record)
@@ -43,10 +42,6 @@ class ContractImplementation
   
   def state_proxy
     @state_proxy
-  end
-  
-  def msg
-    @msg ||= ContractTransactionGlobals::Message.new
   end
   
   def self.abi
@@ -171,7 +166,7 @@ class ContractImplementation
       raise ContractDefinitionError.new(error_messages.join(' '), self)
     end
 
-    current_transaction.log_event({ event: event_name, data: args })
+    log_event({ event: event_name, data: args })
   end
 
   def self.define_state_variable(type, args)
@@ -236,21 +231,18 @@ class ContractImplementation
       
       self.valid_contract_types ||= []
       self.valid_contract_types << method_name
+      
+      Type::TYPES << method_name unless Type::TYPES.include?(method_name)
     end
   end
 
   def handle_contract_type_cast(contract_type, other_address)
-    other = Contract.find_by(address: TypedVariable.create_or_validate(:address, other_address).value)
-
-    if other.blank? || !other.implements?(contract_type.to_s)
-      raise ContractError.new("Contract not found: #{other_address}", self)
-    end
-
-    other.msg.sender = contract_record.address
-    other.current_transaction = current_transaction
-
-    current_transaction.current_contract = other
-
-    ContractProxy.new(other, operation: :call)
+    proxy = ContractType::Proxy.new(
+      contract_type: contract_type,
+      address: other_address,
+      caller_address: contract_record.address
+    )
+    
+    TypedVariable.create(contract_type, proxy)
   end
 end

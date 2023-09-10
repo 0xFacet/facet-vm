@@ -30,7 +30,7 @@ class Contracts::GenerativeERC721 < ContractImplementation
     require(amount + s._balanceOf[msg.sender] <= s.maxPerAddress, 'Exceeded mint limit')
     require(amount + s.totalSupply <= s.maxSupply, 'Exceeded max supply')
     
-    hash = block.blockhash(block.number).cast(:uint256) % (2 ** 48)
+    hash = blockhash(block.number).cast(:uint256) % (2 ** 48)
     
     amount.times do |id|
       tokenId = s.totalSupply + id

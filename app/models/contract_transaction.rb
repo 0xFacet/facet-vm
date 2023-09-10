@@ -4,23 +4,11 @@ class ContractTransaction
   NULL_ADDRESS = ("0x" + "0" * 40).freeze
   
   attr_accessor :contract_address, :function_name, :contract_type,
-  :function_args, :tx, :esc, :call_receipt, :ethscription, :operation, :block,
-  :current_contract
+  :function_args, :call_receipt, :ethscription, :operation,
+  :external_caller_address
   
   def self.required_mimetype
     "application/vnd.esc"
-  end
-  
-  def tx
-    @tx ||= ContractTransactionGlobals::Tx.new
-  end
-  
-  def block
-    @block ||= ContractTransactionGlobals::Block.new(self)
-  end
-  
-  def esc
-    @esc ||= ContractTransactionGlobals::Esc.new(self)
   end
   
   def self.create_and_execute_from_ethscription_if_needed(ethscription)
@@ -81,7 +69,7 @@ class ContractTransaction
       function_name: function_name,
       function_args: function_args,
       contract_address: contract,
-      msgSender: msgSender
+      external_caller_address: msgSender
     ).execute_static_call.as_json
   end
   
@@ -90,7 +78,7 @@ class ContractTransaction
     @function_name = options[:function_name]
     @function_args = options[:function_args]
     @contract_address = options[:contract_address]
-    tx.origin = options[:msgSender]
+    @external_caller_address = options[:external_caller_address]
   end
   
   def import_from_ethscription(ethscription)
@@ -120,6 +108,8 @@ class ContractTransaction
       return
     end
     
+    self.external_caller_address = ethscription.creator
+    
     self.operation = payload['to'].nil? ? :deploy : :call
     
     self.function_name = is_deploy? ? :constructor : data['function']
@@ -132,11 +122,6 @@ class ContractTransaction
       function_args: function_args
     )
     
-    tx.origin = ethscription.creator
-    
-    block.number = ethscription.block_number
-    block.timestamp = ethscription.creation_timestamp.to_i
-    
     unless function_name
       raise EthscriptionDoesNotTriggerContractInteractionError.new(
         "#{ethscription.inspect} does not trigger contract interaction"
@@ -146,27 +131,12 @@ class ContractTransaction
     self
   end
   
-  def create_execution_context_for_call(callee_contract_address, caller_address)
-    callee_contract = Contract.find_by_address(callee_contract_address.to_s)
-    
-    if callee_contract.blank?
-      raise CallingNonExistentContractError.new("Contract not found: #{callee_contract_address}")
-    end
-    
-    callee_contract.msg.sender = caller_address
-    callee_contract.current_transaction = self
-    
-    self.current_contract = callee_contract
-    
-    ContractProxy.new(callee_contract, operation: operation)
-  end
-  
   def ensure_valid_deploy!
     return unless is_deploy? && contract_address.blank?
     
     new_contract = Contract.create_from_user!(
       creation_ethscription_id: ethscription.ethscription_id,
-      deployer: tx.origin,
+      deployer: external_caller_address,
       type: contract_type,
     )
     
@@ -174,43 +144,64 @@ class ContractTransaction
   end
   
   def initial_contract_proxy
-    @initial_contract_proxy ||= create_execution_context_for_call(contract_address, tx.origin)
+    ContractProxy.create(
+      to_contract_address: contract_address,
+      to_contract_type: contract_type,
+      caller_address: external_caller_address,
+      operation: operation
+    )
+  end
+  
+  def with_global_context
+    TransactionContext.set(
+      current_transaction: self,
+      tx_origin: external_caller_address,
+      block_number: ethscription&.block_number,
+      block_timestamp: ethscription&.creation_timestamp&.to_i,
+      block_blockhash: ethscription&.block_blockhash
+    ) do
+      yield
+    end
   end
   
   def execute_static_call
-    begin
-      call_with_args_parsed_from_external_json
-    rescue ContractError => e
-      raise StaticCallError.new("Static Call error #{e.message}")
+    with_global_context do
+      begin
+        call_with_args_parsed_from_external_json
+      rescue ContractError => e
+        raise StaticCallError.new("Static Call error #{e.message}")
+      end
     end
   end
   
   def execute_transaction
-    begin
-      ActiveRecord::Base.transaction(requires_new: true) do
-        ensure_valid_deploy!
-        
-        call_with_args_parsed_from_external_json.tap do
-          call_receipt.status = :success
-          call_receipt.contract_address = contract_address
+    with_global_context do
+      begin
+        ActiveRecord::Base.transaction(requires_new: true) do
+          ensure_valid_deploy!
           
-          call_receipt.save!
+          call_with_args_parsed_from_external_json.tap do
+            call_receipt.status = :success
+            call_receipt.contract_address = contract_address
+            
+            call_receipt.save!
+          end
         end
+      rescue ContractError, TransactionError => e
+        call_receipt.error_message = e.message
+        call_receipt.status = if is_deploy?
+          :deploy_error
+        else
+          e.is_a?(CallingNonExistentContractError) ? :call_to_non_existent_contract : :call_error
+        end
+        
+        call_receipt.contract_address = contract_address
+        if is_deploy? || e.is_a?(CallingNonExistentContractError)
+          call_receipt.contract_address = nil
+        end
+        
+        call_receipt.save!
       end
-    rescue ContractError, TransactionError => e
-      call_receipt.error_message = e.message
-      call_receipt.status = if is_deploy?
-        :deploy_error
-      else
-        e.is_a?(CallingNonExistentContractError) ? :call_to_non_existent_contract : :call_error
-      end
-      
-      call_receipt.contract_address = contract_address
-      if is_deploy? || e.is_a?(CallingNonExistentContractError)
-        call_receipt.contract_address = nil
-      end
-      
-      call_receipt.save!
     end
   end
   

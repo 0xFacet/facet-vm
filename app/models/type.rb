@@ -99,6 +99,8 @@ class Type
       MappingType::Proxy.new(key_type: key_type, value_type: value_type)
     when array?
       ArrayType::Proxy.new(value_type: value_type)
+    when is_contract_type?
+      ContractType::Proxy.new(contract_type: name, address: nil, caller_address: nil)
     else
       raise "Unknown default value for #{self.inspect}"
     end
@@ -212,6 +214,12 @@ class Type
       proxy = ArrayType::Proxy.new(data, value_type: value_type)
       
       return proxy
+    elsif is_contract_type?
+      if literal.is_a?(ContractType::Proxy)
+        return literal
+      else
+        raise_variable_type_error("No literals allowed for contract types")
+      end
     end
     
     raise VariableTypeError.new("Unknown type #{self.inspect}: #{literal.inspect}")
@@ -251,5 +259,9 @@ class Type
   
   def is_value_type?
     !mapping? && !array?
+  end
+  
+  def is_contract_type?
+    ContractImplementation.valid_contract_types.include?(name)
   end
 end
