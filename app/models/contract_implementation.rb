@@ -212,7 +212,7 @@ class ContractImplementation
   end
   
   def address(i)
-    if i.is_a?(Contract) && i == self.contract_record
+    if i.is_a?(ContractImplementation) && i == self
       return TypedVariable.create(:address, contract_record.address)
     end
     
