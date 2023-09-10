@@ -21,13 +21,11 @@ class Contracts::ERC20LiquidityPool < ContractImplementation
     )
   end
   
-  function :reserves, {}, :public, :view, returns: :string do
-    jsonData = {
+  function :reserves, {}, :public, :view, returns: { token0: :uint256, token1: :uint256 } do
+    return {
       token0: ERC20(s.token0).balanceOf(address(this)),
       token1: ERC20(s.token1).balanceOf(address(this))
-    }.to_json
-    
-    return "data:application/json,#{jsonData}"
+    }
   end
   
   function :calculateOutputAmount, {

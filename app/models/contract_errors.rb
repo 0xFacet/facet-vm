@@ -31,4 +31,5 @@ module ContractErrors
   class InvalidOverrideError < StandardError; end
   class FunctionAlreadyDefinedError < StandardError; end
   class EthscriptionDoesNotTriggerContractInteractionError < StandardError; end
+  class InvalidDestructuringError < StandardError; end
 end

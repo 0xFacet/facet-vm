@@ -211,7 +211,15 @@ class AbiProxy
     
     def convert_return_to_typed_variable(ret_val)
       return ret_val if ret_val.nil? || returns.nil?
-      TypedVariable.create_or_validate(returns, ret_val)
+    
+      if returns.is_a?(Hash)
+        ret_val.each.with_object({}) do |(key, value), acc|
+          acc[key.to_sym] = TypedVariable.create_or_validate(returns[key], value)
+        end
+        DestructureOnly.new(ret_val)
+      else
+        TypedVariable.create_or_validate(returns, ret_val)
+      end
     end
     
     def self.create(name, args, *options, returns: nil, &block)
@@ -241,6 +249,33 @@ class AbiProxy
         type: name == :constructor ? :constructor : :function,
         implementation: block
       )
+    end
+  end
+  
+  class DestructureOnly
+    include ContractErrors
+    
+    def initialize(hash)
+      @hash = hash
+    end
+  
+    def to_ary
+      if @destructured
+        raise InvalidDestructuringError, "This object has already been destructured and cannot be used again"
+      else
+        @destructured = true
+        @hash.values
+      end
+    end
+  
+    def as_json(*)
+      @hash
+    end
+  
+    private
+  
+    def method_missing(name, *args, &block)
+      raise InvalidDestructuringError, "This object must be destructured immediately and cannot be used as a regular object"
     end
   end
 end
