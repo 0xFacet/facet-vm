@@ -38,7 +38,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def this
-    current_contract
+    current_contract.implementation
   end
   
   def blockhash(input_block_number)
