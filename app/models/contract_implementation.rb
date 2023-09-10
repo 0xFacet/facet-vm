@@ -45,6 +45,8 @@ class ContractImplementation
   end
   
   def self.const_missing(name)
+    return super unless TransactionContext.current_contract
+    
     TransactionContext.current_contract.implementation.tap do |impl|
       valid_methods = impl.class.linearized_parents.map{|p| p.name.demodulize.to_sym }
       
