@@ -27,7 +27,7 @@ class ContractTransaction
     begin
       new.import_from_ethscription(ethscription)&.execute_transaction
     rescue EthscriptionDoesNotTriggerContractInteractionError => e
-      logger.info(e.message)
+      Rails.logger.info(e.message)
     end
   end
   
@@ -136,6 +136,12 @@ class ContractTransaction
     
     block.number = ethscription.block_number
     block.timestamp = ethscription.creation_timestamp.to_i
+    
+    unless function_name
+      raise EthscriptionDoesNotTriggerContractInteractionError.new(
+        "#{ethscription.inspect} does not trigger contract interaction"
+      )
+    end
     
     self
   end
