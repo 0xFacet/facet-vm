@@ -176,7 +176,7 @@ class ContractImplementation
       raise ContractDefinitionError.new(error_messages.join(' '), self)
     end
 
-    log_event({ event: event_name, data: args })
+    log_event.call({ event: event_name, data: args })
   end
 
   def self.define_state_variable(type, args)
@@ -249,8 +249,7 @@ class ContractImplementation
   def handle_contract_type_cast(contract_type, other_address)
     proxy = ContractType::Proxy.new(
       contract_type: contract_type,
-      address: other_address,
-      caller_address: contract_record.address
+      address: other_address
     )
     
     TypedVariable.create(contract_type, proxy)

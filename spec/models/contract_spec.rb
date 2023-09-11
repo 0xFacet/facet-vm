@@ -70,9 +70,9 @@ RSpec.describe Contract, type: :model do
       expect {
         receipt = ContractTransaction.simulate_transaction(from: from, tx_payload: data)
     
-        expect(receipt).to be_a(ContractCallReceipt)
+        expect(receipt).to be_a(ContractTransactionReceipt)
         expect(receipt.status).to eq("success")
-        expect(Ethscription.find_by(ethscription_id: receipt.ethscription_id)).to be_nil
+        expect(Ethscription.find_by(ethscription_id: receipt.transaction_hash)).to be_nil
         
       }.to_not change {
         [Contract, ContractState, Ethscription].map{|i| i.all.cache_key_with_version}
@@ -108,10 +108,10 @@ RSpec.describe Contract, type: :model do
         }
       )
     
-      expect(call_receipt_success).to be_a(ContractCallReceipt)
+      expect(call_receipt_success).to be_a(ContractTransactionReceipt)
       expect(call_receipt_success.status).to eq("success")
       
-      expect(Ethscription.find_by(ethscription_id: call_receipt_success.ethscription_id)).to be_nil
+      expect(Ethscription.find_by(ethscription_id: call_receipt_success.transaction_hash)).to be_nil
       
       call_receipt_fail = ContractTransaction.simulate_transaction(
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
@@ -126,10 +126,10 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      expect(call_receipt_fail).to be_a(ContractCallReceipt)
-      expect(call_receipt_fail.status).to eq("call_error")
+      expect(call_receipt_fail).to be_a(ContractTransactionReceipt)
+      expect(call_receipt_fail.status).to eq("error")
       
-      expect(Ethscription.find_by(ethscription_id: call_receipt_fail.ethscription_id)).to be_nil
+      expect(Ethscription.find_by(ethscription_id: call_receipt_fail.transaction_hash)).to be_nil
       
       expect(deploy_receipt.contract.states.count).to eq(1)
     end

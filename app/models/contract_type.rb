@@ -18,30 +18,28 @@ class ContractType < TypedVariable
   class Proxy
     include ContractErrors
 
-    attr_accessor :contract_type, :address, :caller_address
+    attr_accessor :contract_type, :address
 
-    def initialize(contract_type:, address:, caller_address:)
+    def initialize(contract_type:, address:)
       address = TypedVariable.create_or_validate(:address, address).value
     
       self.contract_type = contract_type
       self.address = address
-      self.caller_address = caller_address
-    end
-    
-    def contract_proxy
-      ContractProxy.create(
-        to_contract_address: address,
-        to_contract_type: contract_type,
-        caller_address: caller_address,
-      )
     end
     
     def method_missing(name, *args, **kwargs, &block)
-      contract_proxy.send(name, *args, **kwargs, &block)
+      TransactionContext.call_stack.execute_in_new_frame(
+        to_contract_address: address,
+        to_contract_type: contract_type,
+        function_name: name,
+        function_args: args.presence || kwargs,
+        type: :call
+      )
     end
     
     def respond_to_missing?(name, include_private = false)
-      contract_proxy.respond_to?(name, include_private) || super
+      # It would be annoying to compute this and I don't think we need it
+      super
     end
   end
 end

@@ -1,14 +1,9 @@
 class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
-  attribute :current_transaction, :current_contract
-  delegate :log_event, :ethscription, to: :current_transaction
+  attribute :call_stack, :log_event, :ethscription,
+  :transaction_hash, :transaction_index, :current_transaction
   
-  def current_transaction=(new_value)
-    raise "current_transaction is already set" if current_transaction && new_value
-    super(new_value)
-  end
-
   STRUCT_DETAILS = {
     msg:    { attributes: { sender: :address } },
     tx:     { attributes: { origin: :address } },
@@ -28,13 +23,24 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     end
 
     define_method(struct_name) do
-      validate_presence_of_current_transaction
-    
       struct_params = details[:attributes].keys
       struct_values = struct_params.map { |key| send("#{struct_name}_#{key}") }
     
       Struct.new(*struct_params).new(*struct_values)
     end
+  end
+  
+  def call_stack
+    self.call_stack = CallStack.new if super.nil?
+    super
+  end
+  
+  def msg_sender
+    addr = call_stack.previous_frame&.to_contract_address || tx_origin
+  end
+  
+  def current_contract
+    call_stack.current_frame.to_contract
   end
   
   def this
@@ -73,11 +79,5 @@ class TransactionContext < ActiveSupport::CurrentAttributes
         end
       end
     end
-  end
-
-  private
-
-  def validate_presence_of_current_transaction
-    raise "current_transaction is not set" unless current_transaction
   end
 end

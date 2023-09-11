@@ -25,7 +25,7 @@ RSpec.describe ContractsController, type: :controller do
       
       parsed = JSON.parse(response.body)
       
-      expect(parsed['result']['status']).to eq('success')
+      expect(parsed.dig('result', 'status')).to eq('success')
       
       expect(response).to have_http_status(:success)
     end
@@ -52,7 +52,7 @@ RSpec.describe ContractsController, type: :controller do
       
       parsed = JSON.parse(response.body)
       
-      expect(parsed['result']['status']).to eq('deploy_error')
+      expect(parsed.dig('result', 'status')).to eq('error')
       
       expect(response).to have_http_status(:success)
     end

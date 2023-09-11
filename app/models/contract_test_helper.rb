@@ -1,6 +1,6 @@
 module ContractTestHelper
   def trigger_contract_interaction_and_expect_call_error(**params)
-    trigger_contract_interaction_and_expect_status(status: "call_error", **params)
+    trigger_contract_interaction_and_expect_status(status: "error", **params)
   end
   
   def trigger_contract_interaction_and_expect_success(**params)
@@ -8,7 +8,7 @@ module ContractTestHelper
   end
   
   def trigger_contract_interaction_and_expect_deploy_error(**params)
-    trigger_contract_interaction_and_expect_status(status: "deploy_error", **params)
+    trigger_contract_interaction_and_expect_status(status: "error", **params)
   end
   
   def trigger_contract_interaction_and_expect_status(status:, **params)
@@ -92,7 +92,7 @@ module ContractTestHelper
     }
     
     eth = Ethscription.create!(ethscription_attrs)
-    eth.contract_call_receipt
+    eth.contract_transaction_receipt
   end
   
   def self.test_api
