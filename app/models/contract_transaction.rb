@@ -55,11 +55,11 @@ class ContractTransaction
   
   def call_with_args_parsed_from_external_json
     if function_args.is_a?(Array)
-      initial_contract_proxy.send(function_name, *function_args)
+      initial_contract_proxy.public_send(function_name, *function_args)
     elsif function_args.is_a?(Hash)
-      initial_contract_proxy.send(function_name, **function_args)
+      initial_contract_proxy.public_send(function_name, **function_args)
     else
-      initial_contract_proxy.send(function_name, function_args)
+      initial_contract_proxy.public_send(function_name, function_args)
     end
   end
   

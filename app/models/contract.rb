@@ -54,7 +54,7 @@ class Contract < ApplicationRecord
   def execute_function(function_name, user_args, persist_state:)
     begin
       with_state_management(persist_state: persist_state) do
-        implementation.send(function_name, *user_args[:args], **user_args[:kwargs])
+        implementation.public_send(function_name, *user_args[:args], **user_args[:kwargs])
       end
     rescue ContractError => e
       e.contract = self
