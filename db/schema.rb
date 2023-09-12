@@ -14,6 +14,29 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_11_151706) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
+  create_table "contract_calls", force: :cascade do |t|
+    t.string "transaction_hash", null: false
+    t.integer "internal_transaction_index", null: false
+    t.string "from_address", null: false
+    t.string "to_contract_address"
+    t.string "to_contract_type"
+    t.string "created_contract_address"
+    t.string "function"
+    t.jsonb "args", default: {}, null: false
+    t.integer "call_type", null: false
+    t.jsonb "return_value"
+    t.jsonb "logs", default: [], null: false
+    t.string "error"
+    t.integer "status", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_contract_address"], name: "index_contract_calls_on_created_contract_address", unique: true
+    t.index ["transaction_hash", "internal_transaction_index"], name: "index_contract_calls_on_contract_tx_id_and_internal_tx_index", unique: true
+    t.check_constraint "created_contract_address IS NULL OR created_contract_address::text ~ '^0x[a-f0-9]{40}$'::text"
+    t.check_constraint "from_address::text ~ '^0x[a-f0-9]{40}$'::text"
+    t.check_constraint "to_contract_address IS NULL OR to_contract_address::text ~ '^0x[a-f0-9]{40}$'::text"
+  end
+
   create_table "contract_states", force: :cascade do |t|
     t.string "transaction_hash", null: false
     t.jsonb "state", default: {}, null: false
@@ -55,29 +78,11 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_11_151706) do
     t.bigint "block_timestamp", null: false
     t.bigint "block_number", null: false
     t.integer "transaction_index", null: false
-    t.string "from_address", null: false
-    t.string "to_contract_address"
-    t.string "to_contract_type"
-    t.string "created_contract_address"
-    t.string "function"
-    t.jsonb "args", default: {}, null: false
-    t.string "type", null: false
-    t.jsonb "return_value"
-    t.jsonb "logs", default: [], null: false
-    t.jsonb "error", default: {}, null: false
-    t.string "status", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["block_number", "transaction_index"], name: "index_contract_txs_on_block_number_and_tx_index", unique: true
-    t.index ["from_address"], name: "index_contract_transactions_on_from_address"
-    t.index ["status"], name: "index_contract_transactions_on_status"
-    t.index ["to_contract_address"], name: "index_contract_transactions_on_to_contract_address"
     t.index ["transaction_hash"], name: "index_contract_transactions_on_transaction_hash", unique: true
-    t.index ["type"], name: "index_contract_transactions_on_type"
     t.check_constraint "block_blockhash::text ~ '^0x[a-f0-9]{64}$'::text", name: "block_blockhash_format"
-    t.check_constraint "created_contract_address IS NULL OR created_contract_address::text ~ '^0x[a-f0-9]{40}$'::text", name: "created_contract_address_format"
-    t.check_constraint "from_address::text ~ '^0x[a-f0-9]{40}$'::text", name: "from_address_format"
-    t.check_constraint "to_contract_address IS NULL OR to_contract_address::text ~ '^0x[a-f0-9]{40}$'::text", name: "to_contract_address_format"
     t.check_constraint "transaction_hash::text ~ '^0x[a-f0-9]{64}$'::text", name: "transaction_hash_format"
   end
 
@@ -121,43 +126,11 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_11_151706) do
     t.check_constraint "previous_owner IS NULL OR previous_owner::text ~ '^0x[a-f0-9]{40}$'::text", name: "ethscriptions_previous_owner_format"
   end
 
-  create_table "internal_transactions", force: :cascade do |t|
-    t.string "transaction_hash", null: false
-    t.integer "internal_transaction_index", null: false
-    t.string "from_contract", null: false
-    t.string "to_contract_address"
-    t.string "to_contract_type", null: false
-    t.string "created_contract_address"
-    t.string "interface", null: false
-    t.string "function"
-    t.jsonb "args", default: {}, null: false
-    t.string "type", null: false
-    t.jsonb "return_value"
-    t.jsonb "logs", default: [], null: false
-    t.jsonb "error", default: {}, null: false
-    t.string "status", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["created_contract_address"], name: "index_internal_transactions_on_created_contract_address", unique: true
-    t.index ["from_contract"], name: "index_internal_transactions_on_from_contract"
-    t.index ["status"], name: "index_internal_transactions_on_status"
-    t.index ["to_contract_address"], name: "index_internal_transactions_on_to_contract_address"
-    t.index ["transaction_hash", "internal_transaction_index"], name: "index_internal_txs_on_contract_tx_id_and_internal_tx_index", unique: true
-    t.index ["transaction_hash"], name: "index_internal_transactions_on_transaction_hash", unique: true
-    t.index ["type"], name: "index_internal_transactions_on_type"
-    t.check_constraint "created_contract_address IS NOT NULL OR type::text = 'create'::text"
-    t.check_constraint "created_contract_address IS NULL OR created_contract_address::text ~ '^0x[a-f0-9]{40}$'::text"
-    t.check_constraint "from_contract::text ~ '^0x[a-f0-9]{40}$'::text"
-    t.check_constraint "function IS NOT NULL OR type::text <> 'create'::text"
-    t.check_constraint "to_contract_address IS NOT NULL OR type::text <> 'create'::text"
-    t.check_constraint "to_contract_address IS NULL OR to_contract_address::text ~ '^0x[a-f0-9]{40}$'::text"
-  end
-
+  add_foreign_key "contract_calls", "ethscriptions", column: "transaction_hash", primary_key: "ethscription_id", on_delete: :cascade
   add_foreign_key "contract_states", "contracts", column: "contract_address", primary_key: "address", on_delete: :cascade
   add_foreign_key "contract_states", "ethscriptions", column: "transaction_hash", primary_key: "ethscription_id", on_delete: :cascade
   add_foreign_key "contract_transaction_receipts", "contracts", column: "contract_address", primary_key: "address", on_delete: :cascade
   add_foreign_key "contract_transaction_receipts", "ethscriptions", column: "transaction_hash", primary_key: "ethscription_id", on_delete: :cascade
   add_foreign_key "contract_transactions", "ethscriptions", column: "transaction_hash", primary_key: "ethscription_id", on_delete: :cascade
   add_foreign_key "contracts", "ethscriptions", column: "transaction_hash", primary_key: "ethscription_id", on_delete: :cascade
-  add_foreign_key "internal_transactions", "contract_transactions", column: "transaction_hash", primary_key: "transaction_hash", on_delete: :cascade
 end

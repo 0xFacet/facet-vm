@@ -1,7 +1,7 @@
 class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
-  attribute :call_stack, :log_event, :ethscription,
+  attribute :call_stack, :ethscription, :current_call,
   :transaction_hash, :transaction_index, :current_transaction
   
   STRUCT_DETAILS = {
@@ -30,17 +30,16 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     end
   end
   
-  def call_stack
-    self.call_stack = CallStack.new if super.nil?
-    super
+  def log_event(event)
+    current_call.log_event(event)
   end
   
   def msg_sender
-    addr = call_stack.previous_frame&.to_contract_address || tx_origin
+    TypedVariable.create_or_validate(:address, current_call.from_address)
   end
   
   def current_contract
-    call_stack.current_frame.to_contract
+    current_call.to_contract
   end
   
   def this

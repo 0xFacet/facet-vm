@@ -1,38 +1,46 @@
-class CallFrame
+class ContractCall < ApplicationRecord
   include ContractErrors
   
-  attr_accessor :to_contract_address, :to_contract_type,
-    :function_name, :function_args, :to_contract, :type
+  enum :call_type, [ :call, :static_call, :create ], prefix: :is
+  enum :status, [ :failure, :success ]
+  
+  belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
 
-  def initialize(
-    to_contract_address:,
-    to_contract_type:,
-    function_name:,
-    function_args:,
-    type:
-  )
-    @to_contract_address = to_contract_address
-    @to_contract_type = to_contract_type
-    @function_name = function_name
-    @function_args = function_args
-    @type = type
+  def execute!
+    result = nil
+
+    ActiveRecord::Base.transaction(requires_new: true) do
+      result = target_contract.execute_function(
+        function, args
+      )
+      
+      if function_object.read_only? || is_static_call?
+        raise ActiveRecord::Rollback
+      end
+    end
+    
+    assign_attributes(return_value: result, status: :success)
+    result
+  rescue ContractError, TransactionError => e
+    assign_attributes(error: e.message, status: :failure)
+    raise
   end
   
-  def set_contract!
-    self.to_contract = create_or_find_to_contract
-    
+  def target_contract
     validate_to_contract!
     validate_function!
     
-    self.function_name = :constructor if type == :create
+    self.function = :constructor if is_create?
     
     to_contract
   end
   
-  def create_or_find_to_contract
-    return create_contract! if type == :create
-    
-    Contract.find_by(address: to_contract_address)
+  def to_contract
+    @to_contract ||= if is_create?
+      create_contract!
+    else
+      Contract.find_by(address: to_contract_address)
+    end
   end
   
   def create_contract!
@@ -43,7 +51,7 @@ class CallFrame
       address: calculate_msg_sender_contract_address,
       type: to_contract_type,
     ).tap do |c|
-      TransactionContext.current_transaction.created_contract_address = c.address
+      self.created_contract_address = c.address
     end
   end
   
@@ -57,32 +65,28 @@ class CallFrame
     end
   end
   
-  def persist_state?
-    function_object.read_only?
-  end
-  
   def function_object
     public_abi = to_contract.implementation.public_abi
     
-    public_abi[function_name]
+    public_abi[function]
   end
   
   def validate_function!
     function = function_object
 
-    if !function && type != :create
-      raise ContractError.new("Call to unknown function #{function_name}", to_contract)
+    if !function && !is_create?
+      raise ContractError.new("Call to unknown function #{function}", to_contract)
     end
     
-    if type == :static_call && !function.read_only?
-      raise ContractError.new("Cannot call non-read-only function in static call: #{function_name}", to_contract)
+    if is_static_call? && !function.read_only?
+      raise ContractError.new("Cannot call non-read-only function in static call: #{function}", to_contract)
     end
     
-    if type != :create && function.constructor?
-      raise ContractError.new("Cannot call constructor function: #{function_name}", to_contract)
+    if !is_create? && function.constructor?
+      raise ContractError.new("Cannot call constructor function: #{function}", to_contract)
     end
     
-    if type == :create && function_name.present?
+    if is_create? && function.present?
       raise ContractError.new("Cannot call function on contract creation", to_contract)
     end
   end
@@ -90,8 +94,10 @@ class CallFrame
   def calculate_msg_sender_contract_address
     deployer = TransactionContext.msg_sender.serialize
     
-    scope = ContractTransaction.where(
-      from_address: deployer
+    scope = ContractCall.where(
+      from_address: TransactionContext.msg_sender.serialize,
+      call_type: :create,
+      internal_transaction_index: 0,
     ).where.not(transaction_hash: TransactionContext.transaction_hash)
     
     nonce = scope.count
@@ -113,5 +119,10 @@ class CallFrame
     if implementation_class.is_abstract_contract
       raise TransactionError.new("Cannot deploy abstract contract: #{to_contract_type}")
     end
+  end
+  
+  def log_event(event)
+    logs << event
+    event
   end
 end

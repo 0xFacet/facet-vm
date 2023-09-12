@@ -13,6 +13,10 @@ class Contracts::Receiver < ContractImplementation
   
   constructor() {}
   
+  function :sayHi, {}, :public, :view do
+    return "hi"
+  end
+  
   function :receiveCall, { }, :public, returns: :uint256 do
     emit :MsgSender, sender: msg.sender
     
@@ -32,11 +36,13 @@ class Contracts::Caller < ContractImplementation
   
   constructor() {}
   
-  function :makeCall, { receiver: :address }, :public do
+  function :makeCall, { receiver: :address }, :public, returns: :string do
     resp = Receiver(receiver).receiveCall()
     
     emit :BlockNumber, number: block.number
     emit :BlockNumber, number: resp
+    
+    return Receiver(receiver).sayHi()
   end
   
   function :callInternal, { receiver: :address }, :public do
@@ -79,6 +85,13 @@ RSpec.describe ContractImplementation, type: :model do
         },
       }
     )
+    
+    last_call = call_receipt.contract_transaction.contract_calls.last
+    
+    expect(last_call.function).to eq("sayHi")
+    expect(last_call.return_value).to eq("hi")
+    expect(last_call.from_address).to eq(caller_deploy_receipt.address)
+    expect(last_call.to_contract_address).to eq(receiver_deploy_receipt.address)
     
     block_number_logs = call_receipt.logs.select { |log| log['event'] == 'BlockNumber' }
     expect(block_number_logs.size).to eq(2)

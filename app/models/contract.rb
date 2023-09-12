@@ -33,29 +33,24 @@ class Contract < ApplicationRecord
     states.newest_first.first || ContractState.new
   end
   
-  def execute_function(function_name, args, persist_state)
-    begin
-      with_state_management(persist_state: persist_state) do
-        if args.is_a?(Hash)
-          implementation.public_send(function_name, **args)
-        else
-          implementation.public_send(function_name, *Array.wrap(args))
-        end
+  def execute_function(function_name, args)
+    with_state_management do
+      if args.is_a?(Hash)
+        implementation.public_send(function_name, **args)
+      else
+        implementation.public_send(function_name, *Array.wrap(args))
       end
-    rescue ContractError => e
-      e.contract = self
-      raise e
     end
   end
   
-  def with_state_management(persist_state:)
+  def with_state_management
     implementation.state_proxy.load(current_state.state.deep_dup)
     initial_state = implementation.state_proxy.serialize
     
     yield.tap do
       final_state = implementation.state_proxy.serialize
       
-      if (final_state != initial_state) && persist_state
+      if final_state != initial_state
         states.create!(
           transaction_hash: TransactionContext.transaction_hash,
           block_number: TransactionContext.block_number,

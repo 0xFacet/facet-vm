@@ -31,8 +31,8 @@ class ContractType < TypedVariable
       TransactionContext.call_stack.execute_in_new_frame(
         to_contract_address: address,
         to_contract_type: contract_type,
-        function_name: name,
-        function_args: args.presence || kwargs,
+        function: name,
+        args: args.presence || kwargs,
         type: :call
       )
     end

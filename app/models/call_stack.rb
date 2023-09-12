@@ -3,10 +3,13 @@ class CallStack
 
   def initialize
     @frames = []
+    @push_count = 0
   end
 
   def push(frame)
     @frames.push(frame)
+    
+    @push_count += 1
   end
 
   def pop
@@ -17,45 +20,36 @@ class CallStack
     @frames.last
   end
   
-  def previous_frame
-    @frames[-2]
-  end
-
   def execute_in_new_frame(
     to_contract_address:,
-    to_contract_type:,
-    function_name:,
-    function_args:,
+    to_contract_type: nil,
+    function:,
+    args:,
     type:
   )
-    frame = CallFrame.new(
+  
+    call = TransactionContext.current_transaction.contract_calls.build(
       to_contract_address: to_contract_address,
       to_contract_type: to_contract_type,
-      function_name: function_name,
-      function_args: function_args,
-      type: type
+      function: function,
+      args: args,
+      call_type: type,
+      internal_transaction_index: @push_count,
+      from_address: current_frame&.to_contract_address || TransactionContext.tx_origin,
     )
     
-    execute_in_frame(frame)
+    TransactionContext.set(current_call: call) do
+      execute_in_frame(call)
+    end
   end
   
-  def execute_in_frame(frame)
-    push(frame)
+  def execute_in_frame(call)
+    push(call)
     
     begin
-      return execute_current_frame
+      return current_frame.execute!
     ensure
       pop
     end
-  end
-
-  def execute_current_frame
-    contract = current_frame.set_contract!
-      
-    contract.execute_function(
-      current_frame.function_name.to_sym,
-      current_frame.function_args,
-      persist_state: current_frame.persist_state?
-    )
   end
 end

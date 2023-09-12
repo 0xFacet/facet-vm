@@ -6,12 +6,14 @@ class ContractTransaction < ApplicationRecord
   belongs_to :ethscription, primary_key: :ethscription_id, foreign_key: :transaction_hash
   has_one :contract_transaction_receipt, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_states, foreign_key: :transaction_hash, primary_key: :transaction_hash
-  has_many :internal_transactions, foreign_key: :transaction_hash, primary_key: :transaction_hash
+  has_many :contract_calls, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contracts, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_one :created_contract, class_name: 'Contract', primary_key: 'created_contract_address', foreign_key: 'address'
   belongs_to :contract, primary_key: 'address', foreign_key: 'to_contract_address', optional: true
 
   after_create :create_transaction_receipt!
+  
+  attr_accessor :tx_origin, :initial_call_info
   
   def self.required_mimetype
     "application/vnd.esc"
@@ -20,7 +22,7 @@ class ContractTransaction < ApplicationRecord
   def self.on_ethscription_created(ethscription)
     begin
       new_from_ethscription(ethscription).execute_transaction
-    rescue EthscriptionDoesNotTriggerContractInteractionError => e
+    rescue InvalidEthscriptionError => e
       Rails.logger.info(e.message)
     end
   end
@@ -40,7 +42,7 @@ class ContractTransaction < ApplicationRecord
       payload = JSON.parse(ethscription.content)
       data = payload['data']
     rescue JSON::ParserError => e
-      raise EthscriptionDoesNotTriggerContractInteractionError.new(
+      raise InvalidEthscriptionError.new(
         "JSON parse error: #{e.message}"
       )
     end
@@ -50,26 +52,33 @@ class ContractTransaction < ApplicationRecord
       block_timestamp: ethscription.creation_timestamp.to_i,
       block_number: ethscription.block_number,
       transaction_index: ethscription.transaction_index,
-      from_address: ethscription.creator,
-      type: (payload['to'].nil? ? :create : :call),
-      function: data['function'],
-      args: data['args'],
-      to_contract_type: data['type'],
-      to_contract_address: payload['to'],
+      tx_origin: ethscription.creator,
+      
+      initial_call_info: {
+        to_contract_type: data['type'],
+        to_contract_address: payload['to'],
+        function: data['function'],
+        args: data['args'],
+        type: (payload['to'].nil? ? :create : :call),
+      }
     )
+  end
+  
+  def initial_call
+    contract_calls.sort_by(&:internal_transaction_index).first
   end
   
   def create_transaction_receipt!
     ContractTransactionReceipt.create!(
       transaction_hash: transaction_hash,
-      caller: from_address,
+      caller: initial_call.from_address,
       timestamp: Time.zone.at(block_timestamp),
-      function_name: function,
-      function_args: args,
-      logs: logs,
+      function_name: initial_call.function,
+      function_args: initial_call.args,
+      logs: contract_calls.order(:internal_transaction_index).map(&:logs).flatten,
       status: status,
-      contract_address: to_contract_address,
-      error_message: error.blank? ? "" : error.to_json
+      contract_address: initial_call.to_contract_address,
+      error_message: initial_call.error.blank? ? "" : initial_call.error.to_json
     )
   end
   
@@ -107,22 +116,20 @@ class ContractTransaction < ApplicationRecord
     transaction_receipt
   end
   
-  def type
-    super.to_sym
-  end
-  
   def self.make_static_call(contract:, function_name:, function_args: {}, msgSender: nil)
     record = new(
-      type: :static_call,
-      function: function_name,
-      args: function_args,
-      to_contract_address: contract,
-      from_address: msgSender
+      tx_origin: msgSender,
+      initial_call_info: {
+        type: :static_call,
+        function: function_name,
+        args: function_args,
+        to_contract_address: contract,
+      }
     )
     
     record.with_global_context do
       begin
-        record.initial_call.as_json
+        record.make_initial_call.as_json
       rescue ContractError => e
         raise StaticCallError.new("Static Call error #{e.message}")
       end
@@ -131,64 +138,51 @@ class ContractTransaction < ApplicationRecord
   
   def with_global_context
     TransactionContext.set(
+      call_stack: CallStack.new,
       current_transaction: self,
-      tx_origin: from_address,
+      tx_origin: tx_origin,
       block_number: block_number,
       block_timestamp: block_timestamp,
       block_blockhash: block_blockhash,
       transaction_hash: transaction_hash,
       transaction_index: transaction_index,
-      ethscription: ethscription,
-      log_event: method(:log_event)
+      ethscription: ethscription
     ) do
       yield
     end
   end
   
-  def initial_call
-    TransactionContext.call_stack.execute_in_new_frame(
-      to_contract_address: to_contract_address,
-      to_contract_type: to_contract_type,
-      function_name: function,
-      function_args: args,
-      type: type
-    )
-  end
-
-  def execute_transaction
+  def make_initial_call
     with_global_context do
-      begin
-        ActiveRecord::Base.transaction(requires_new: true) do
-          initial_call.tap do |return_value|
-            update!(
-              return_value: return_value,
-              status: :success
-            )
-          end
-        end
-      rescue ContractError, TransactionError => e
-        update!(
-          error: e.message,
-          status: :error
-        )
-      end
+      TransactionContext.call_stack.execute_in_new_frame(
+        **initial_call_info
+      )
     end
   end
   
-  def is_create?
-    type.to_sym == :create
+  def execute_transaction
+    begin
+      make_initial_call
+    rescue ContractError, TransactionError => e
+      # puts e.message
+    end
+    
+    save! unless is_static_call?
   end
   
-  def log_event(event)
-    logs << event
-    event
+  def is_static_call?
+    initial_call.is_static_call?
+  end
+  
+  def status
+    contract_calls.any?(&:failure?) ? :error : :success
   end
   
   private
   
   def validate_mimetype_and_to!
     unless ethscription.initial_owner == ("0x" + "0" * 40) && ethscription.mimetype == ContractTransaction.required_mimetype
-      raise EthscriptionDoesNotTriggerContractInteractionError.new(
+      raise InvalidEthscriptionError.new(
         "#{ethscription.inspect} does not trigger contract interaction"
       )
     end
