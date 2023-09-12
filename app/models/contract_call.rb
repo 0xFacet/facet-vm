@@ -5,6 +5,7 @@ class ContractCall < ApplicationRecord
   enum :status, [ :failure, :success ]
   
   belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
+  belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true, inverse_of: :contract_calls
 
   def execute!
     result = nil
@@ -43,12 +44,16 @@ class ContractCall < ApplicationRecord
     end
   end
   
+  def args=(args)
+    super(args || {})
+  end
+  
   def create_contract!
     validate_contract_creation!
     
     Contract.create!(
       transaction_hash: TransactionContext.transaction_hash,
-      address: calculate_msg_sender_contract_address,
+      address: calculate_new_contract_address,
       type: to_contract_type,
     ).tap do |c|
       self.created_contract_address = c.address
@@ -91,22 +96,43 @@ class ContractCall < ApplicationRecord
     end
   end
   
-  def calculate_msg_sender_contract_address
-    deployer = TransactionContext.msg_sender.serialize
+  def calculate_new_contract_address
+    # TODO: triple check this works
+    rlp_encoded = Eth::Rlp.encode([Integer(from_address, 16), current_nonce])
+    
+    hash = Digest::Keccak256.new.hexdigest(rlp_encoded)
+    
+    "0x" + hash[24..-1]
+  end
+  
+  def contract_nonce
+    in_memory = contract_transaction.contract_calls.count do |call|
+      call.from_address == from_address &&
+      call.is_create?
+    end
     
     scope = ContractCall.where(
-      from_address: TransactionContext.msg_sender.serialize,
-      call_type: :create,
+      from_address: from_address,
+      call_type: :create
+    )
+    
+    in_memory + scope.count
+  end
+  
+  def eoa_nonce
+    scope = ContractCall.where(
+      from_address: from_address,
+      call_type: [:create, :call],
       internal_transaction_index: 0,
-    ).where.not(transaction_hash: TransactionContext.transaction_hash)
+    )
     
-    nonce = scope.count
+    scope.count
+  end
+  
+  def current_nonce
+    return unless is_create?
     
-    rlp_encoded = Eth::Rlp.encode([Integer(deployer, 16), nonce])
-  
-    hash = Digest::Keccak256.new.hexdigest(rlp_encoded)
-  
-    "0x" + hash[24..-1]
+    internal_transaction_index.zero? ? eoa_nonce : contract_nonce
   end
   
   def validate_contract_creation!

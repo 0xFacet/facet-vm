@@ -21,10 +21,10 @@ class CallStack
   end
   
   def execute_in_new_frame(
-    to_contract_address:,
+    to_contract_address: nil,
     to_contract_type: nil,
-    function:,
-    args:,
+    function: nil,
+    args: {},
     type:
   )
   

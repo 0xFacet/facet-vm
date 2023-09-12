@@ -18,9 +18,10 @@ class ContractType < TypedVariable
   class Proxy
     include ContractErrors
 
-    attr_accessor :contract_type, :address
+    attr_accessor :contract_type, :address, :uncast_address
 
     def initialize(contract_type:, address:)
+      self.uncast_address = address
       address = TypedVariable.create_or_validate(:address, address).value
     
       self.contract_type = contract_type
