@@ -4,6 +4,8 @@ class ContractCall < ApplicationRecord
   enum :call_type, [ :call, :static_call, :create ], prefix: :is
   enum :status, [ :failure, :success ]
   
+  attr_accessor :to_contract
+  
   belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true, inverse_of: :contract_calls
 
@@ -11,7 +13,13 @@ class ContractCall < ApplicationRecord
     result = nil
 
     ActiveRecord::Base.transaction(requires_new: true) do
-      result = validated_to_contract.execute_function(
+      if is_create?
+        create_and_validate_new_contract!(to_contract_type)
+      else
+        find_and_validate_existing_contract!(to_contract_address)
+      end
+      
+      result = to_contract.execute_function(
         function, args
       )
       
@@ -21,23 +29,12 @@ class ContractCall < ApplicationRecord
     end
     
     assign_attributes(return_value: result, status: :success)
+    self.created_contract = to_contract if is_create?
+    
     result
   rescue ContractError, TransactionError => e
     assign_attributes(error: e.message, status: :failure)
     raise
-  end
-  
-  def validated_to_contract
-    send(:"validate_#{call_type}!")
-    to_contract
-  end
-  
-  def to_contract
-    @to_contract ||= if is_create?
-      create_and_validate_new_contract!(to_contract_type)
-    else
-      find_and_validate_existing_contract!(to_contract_address)
-    end
   end
   
   def args=(args)
@@ -53,10 +50,30 @@ class ContractCall < ApplicationRecord
       if to_contract_type && !to_contract.implements?(to_contract_type.to_s)
         raise ContractError.new("Contract doesn't implement interface: #{to_contract_address}, #{to_contract_type}", to_contract)
       end
+      
+      self.to_contract = to_contract
+    end
+    
+    if !function_object
+      raise ContractError.new("Call to unknown function #{function}", to_contract)
+    end
+    
+    if function.to_sym == :constructor
+      raise ContractError.new("Cannot call constructor function: #{function}", to_contract)
+    end
+    
+    if is_static_call? && !function_object.read_only?
+      raise ContractError.new("Cannot call non-read-only function in static call: #{function}", to_contract)
     end
   end
   
   def create_and_validate_new_contract!(to_contract_type)
+    if function
+      raise ContractError.new("Cannot call function on contract creation")
+    end
+    
+    self.function = :constructor
+    
     unless Contract.type_valid?(to_contract_type)
       raise TransactionError.new("Invalid contract type: #{to_contract_type}")
     end
@@ -70,7 +87,7 @@ class ContractCall < ApplicationRecord
       address: calculate_new_contract_address,
       type: to_contract_type,
     ).tap do |c|
-      self.created_contract_address = c.address
+      self.to_contract = c
     end
   end
   
@@ -80,34 +97,6 @@ class ContractCall < ApplicationRecord
     public_abi[function]
   end
   
-  def validate_create!
-    if function
-      raise ContractError.new("Cannot call function on contract creation")
-    end
-    
-    self.function = :constructor
-  end
-  
-  def validate_call!
-    if !function_object
-      raise ContractError.new("Call to unknown function #{function}", to_contract)
-    end
-    
-    if function.to_sym == :constructor
-      raise ContractError.new("Cannot call constructor function: #{function}", to_contract)
-    end
-  end
-  
-  def validate_static_call!
-    if !function_object
-      raise ContractError.new("Call to unknown function #{function}", to_contract)
-    end
-    
-    if !function_object.read_only?
-      raise ContractError.new("Cannot call non-read-only function in static call: #{function}", to_contract)
-    end
-  end
-
   def calculate_new_contract_address
     # TODO: triple check this works
     rlp_encoded = Eth::Rlp.encode([Integer(from_address, 16), current_nonce])

@@ -32,9 +32,12 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_11_151706) do
     t.datetime "updated_at", null: false
     t.index ["created_contract_address"], name: "index_contract_calls_on_created_contract_address", unique: true
     t.index ["transaction_hash", "internal_transaction_index"], name: "index_contract_calls_on_contract_tx_id_and_internal_tx_index", unique: true
+    t.check_constraint "call_type <> 2 OR error IS NOT NULL OR created_contract_address IS NOT NULL"
+    t.check_constraint "call_type = 2 AND error IS NULL OR created_contract_address IS NULL"
     t.check_constraint "created_contract_address IS NULL OR created_contract_address::text ~ '^0x[a-f0-9]{40}$'::text"
     t.check_constraint "from_address::text ~ '^0x[a-f0-9]{40}$'::text"
     t.check_constraint "to_contract_address IS NULL OR to_contract_address::text ~ '^0x[a-f0-9]{40}$'::text"
+    t.check_constraint "transaction_hash::text ~ '^0x[a-f0-9]{64}$'::text", name: "transaction_hash_format"
   end
 
   create_table "contract_states", force: :cascade do |t|

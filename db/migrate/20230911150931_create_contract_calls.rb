@@ -21,14 +21,15 @@ class CreateContractCalls < ActiveRecord::Migration[7.0]
       
       t.foreign_key :ethscriptions, column: :transaction_hash, primary_key: :ethscription_id, on_delete: :cascade
       
+      t.check_constraint "transaction_hash ~ '^0x[a-f0-9]{64}$'", name: "transaction_hash_format"
       t.check_constraint "created_contract_address IS NULL OR created_contract_address ~ '^0x[a-f0-9]{40}$'"
+      t.check_constraint "to_contract_address IS NULL OR to_contract_address ~ '^0x[a-f0-9]{40}$'"
       t.check_constraint "from_address ~ '^0x[a-f0-9]{40}$'"
       
-      # t.check_constraint "function IS NOT NULL OR type = 'create'"
-      # t.check_constraint "created_contract_address IS NOT NULL OR type = 'create'"
+      t.check_constraint "(call_type <> 2 OR error IS NOT NULL) OR (created_contract_address IS NOT NULL)" # For the first rule
+      t.check_constraint "(call_type = 2 AND error IS NULL) OR (created_contract_address IS NULL)" # For the second rule
       
       # t.check_constraint "to_contract_address IS NOT NULL OR type <> 'create'"
-      t.check_constraint "to_contract_address IS NULL OR to_contract_address ~ '^0x[a-f0-9]{40}$'"
     end
     
     # create_table :internal_transactions do |t|
