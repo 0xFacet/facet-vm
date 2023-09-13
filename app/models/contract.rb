@@ -33,6 +33,14 @@ class Contract < ApplicationRecord
     states.newest_first.first || ContractState.new
   end
   
+  def self.type_abstract?(type)
+    "Contracts::#{type}".constantize.is_abstract_contract
+  end
+  
+  def self.type_valid?(type)
+    Contract.valid_contract_types.include?(type.to_sym)
+  end
+  
   def execute_function(function_name, args)
     with_state_management do
       if args.is_a?(Hash)

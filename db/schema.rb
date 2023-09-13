@@ -21,7 +21,7 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_11_151706) do
     t.string "to_contract_address"
     t.string "to_contract_type"
     t.string "created_contract_address"
-    t.string "function"
+    t.string "function", null: false
     t.jsonb "args", default: {}, null: false
     t.integer "call_type", null: false
     t.jsonb "return_value"

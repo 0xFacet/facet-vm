@@ -11,7 +11,7 @@ class ContractCall < ApplicationRecord
     result = nil
 
     ActiveRecord::Base.transaction(requires_new: true) do
-      result = target_contract.execute_function(
+      result = validated_to_contract.execute_function(
         function, args
       )
       
@@ -27,20 +27,16 @@ class ContractCall < ApplicationRecord
     raise
   end
   
-  def target_contract
-    validate_to_contract!
-    validate_function!
-    
-    self.function = :constructor if is_create?
-    
+  def validated_to_contract
+    send(:"validate_#{call_type}!")
     to_contract
   end
   
   def to_contract
     @to_contract ||= if is_create?
-      create_contract!
+      create_and_validate_new_contract!(to_contract_type)
     else
-      Contract.find_by(address: to_contract_address)
+      find_and_validate_existing_contract!(to_contract_address)
     end
   end
   
@@ -48,8 +44,26 @@ class ContractCall < ApplicationRecord
     super(args || {})
   end
   
-  def create_contract!
-    validate_contract_creation!
+  def find_and_validate_existing_contract!(address)
+    Contract.find_by(address: to_contract_address).tap do |to_contract|
+      if to_contract.blank?
+        raise CallingNonExistentContractError.new("Contract not found: #{to_contract_address}")
+      end
+      
+      if to_contract_type && !to_contract.implements?(to_contract_type.to_s)
+        raise ContractError.new("Contract doesn't implement interface: #{to_contract_address}, #{to_contract_type}", to_contract)
+      end
+    end
+  end
+  
+  def create_and_validate_new_contract!(to_contract_type)
+    unless Contract.type_valid?(to_contract_type)
+      raise TransactionError.new("Invalid contract type: #{to_contract_type}")
+    end
+    
+    if Contract.type_abstract?(to_contract_type)
+      raise TransactionError.new("Cannot deploy abstract contract: #{to_contract_type}")
+    end
     
     Contract.create!(
       transaction_hash: TransactionContext.transaction_hash,
@@ -60,42 +74,40 @@ class ContractCall < ApplicationRecord
     end
   end
   
-  def validate_to_contract!
-    if to_contract.blank?
-      raise CallingNonExistentContractError.new("Contract not found: #{to_contract_address}")
-    end
-    
-    if to_contract_type && !to_contract.implements?(to_contract_type.to_s)
-      raise ContractError.new("Contract doesn't implement interface: #{to_contract_address}, #{to_contract_type}", to_contract)
-    end
-  end
-  
   def function_object
     public_abi = to_contract.implementation.public_abi
     
     public_abi[function]
   end
   
-  def validate_function!
-    function = function_object
-
-    if !function && !is_create?
+  def validate_create!
+    if function
+      raise ContractError.new("Cannot call function on contract creation")
+    end
+    
+    self.function = :constructor
+  end
+  
+  def validate_call!
+    if !function_object
       raise ContractError.new("Call to unknown function #{function}", to_contract)
     end
     
-    if is_static_call? && !function.read_only?
-      raise ContractError.new("Cannot call non-read-only function in static call: #{function}", to_contract)
-    end
-    
-    if !is_create? && function.constructor?
+    if function.to_sym == :constructor
       raise ContractError.new("Cannot call constructor function: #{function}", to_contract)
-    end
-    
-    if is_create? && function.present?
-      raise ContractError.new("Cannot call function on contract creation", to_contract)
     end
   end
   
+  def validate_static_call!
+    if !function_object
+      raise ContractError.new("Call to unknown function #{function}", to_contract)
+    end
+    
+    if !function_object.read_only?
+      raise ContractError.new("Cannot call non-read-only function in static call: #{function}", to_contract)
+    end
+  end
+
   def calculate_new_contract_address
     # TODO: triple check this works
     rlp_encoded = Eth::Rlp.encode([Integer(from_address, 16), current_nonce])
@@ -133,18 +145,6 @@ class ContractCall < ApplicationRecord
     return unless is_create?
     
     internal_transaction_index.zero? ? eoa_nonce : contract_nonce
-  end
-  
-  def validate_contract_creation!
-    unless Contract.valid_contract_types.include?(to_contract_type.to_sym)
-      raise TransactionError.new("Invalid contract type: #{to_contract_type}")
-    end
-    
-    implementation_class = "Contracts::#{to_contract_type}".constantize
-    
-    if implementation_class.is_abstract_contract
-      raise TransactionError.new("Cannot deploy abstract contract: #{to_contract_type}")
-    end
   end
   
   def log_event(event)

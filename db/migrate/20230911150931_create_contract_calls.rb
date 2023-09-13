@@ -7,12 +7,11 @@ class CreateContractCalls < ActiveRecord::Migration[7.0]
       t.string :to_contract_address
       t.string :to_contract_type
       t.string :created_contract_address, index: { unique: true }
-      t.string :function
+      t.string :function, null: false
       t.jsonb :args, default: {}, null: false
       t.integer :call_type, null: false
       t.jsonb :return_value
       t.jsonb :logs, default: [], null: false
-      # t.jsonb :error, default: {}, null: false
       t.string :error
       t.integer :status, null: false
       
