@@ -36,6 +36,8 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_11_151706) do
     t.check_constraint "call_type = 2 AND error IS NULL OR created_contract_address IS NULL"
     t.check_constraint "created_contract_address IS NULL OR created_contract_address::text ~ '^0x[a-f0-9]{40}$'::text"
     t.check_constraint "from_address::text ~ '^0x[a-f0-9]{40}$'::text"
+    t.check_constraint "status = 0 AND error IS NOT NULL OR status <> 0 AND error IS NULL"
+    t.check_constraint "status = 0 AND logs = '[]'::jsonb OR status <> 0"
     t.check_constraint "to_contract_address IS NULL OR to_contract_address::text ~ '^0x[a-f0-9]{40}$'::text"
     t.check_constraint "transaction_hash::text ~ '^0x[a-f0-9]{64}$'::text", name: "transaction_hash_format"
   end

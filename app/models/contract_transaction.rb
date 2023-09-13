@@ -8,7 +8,6 @@ class ContractTransaction < ApplicationRecord
   has_many :contract_states, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_calls, foreign_key: :transaction_hash, primary_key: :transaction_hash, inverse_of: :contract_transaction
   has_many :contracts, foreign_key: :transaction_hash, primary_key: :transaction_hash
-  has_one :created_contract, class_name: 'Contract', primary_key: 'created_contract_address', foreign_key: 'address'
   belongs_to :contract, primary_key: 'address', foreign_key: 'to_contract_address', optional: true
 
   after_create :create_transaction_receipt!

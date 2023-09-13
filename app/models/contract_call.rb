@@ -8,6 +8,8 @@ class ContractCall < ApplicationRecord
   
   belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true, inverse_of: :contract_calls
+  
+  belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
 
   def execute!
     result = nil

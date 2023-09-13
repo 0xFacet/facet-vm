@@ -12,6 +12,8 @@ class Contract < ApplicationRecord
   
   belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
   has_many :contract_transaction_receipts, through: :contract_transactions
+  
+  has_many :creating_contract_calls, class_name: 'ContractCall', foreign_key: 'created_contract_address', primary_key: 'address'
 
   attr_reader :implementation
   
