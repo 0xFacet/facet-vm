@@ -149,6 +149,6 @@ class ContractCall < ApplicationRecord
   
   def log_event(event)
     logs << event
-    event
+    nil
   end
 end
