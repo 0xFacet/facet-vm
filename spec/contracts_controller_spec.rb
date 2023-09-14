@@ -30,6 +30,28 @@ RSpec.describe ContractsController, type: :controller do
       expect(response).to have_http_status(:success)
     end
     
+    it 'simulates call to non-existent contract' do
+      from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
+      data = {
+        to: "0xe9ff6048004823961bb53d7a0629e570fe2c1c59",
+        data: {
+          function: "mint",
+          args: {"amount":"1000000000000000000000"}
+        }
+      }
+
+      get :simulate_transaction, params: {
+        from: from,
+        tx_payload: data.to_json
+      }
+      
+      parsed = JSON.parse(response.body)
+      
+      expect(parsed.dig('result', 'status')).to eq('error')
+      
+      expect(response).to have_http_status(:success)
+    end
+    
     it 'simulates failure' do
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
       data = {

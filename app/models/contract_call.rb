@@ -11,6 +11,8 @@ class ContractCall < ApplicationRecord
   
   belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
 
+  before_validation :set_effective_contract_address
+
   def execute!
     result = nil
 
@@ -25,7 +27,7 @@ class ContractCall < ApplicationRecord
         function, args
       )
       
-      if function_object.read_only? || is_static_call?
+      if function_object.read_only?
         raise ActiveRecord::Rollback
       end
     end
@@ -44,18 +46,16 @@ class ContractCall < ApplicationRecord
   end
   
   def find_and_validate_existing_contract!(address)
-    Contract.find_by(address: to_contract_address).tap do |to_contract|
-      if to_contract.blank?
-        raise CallingNonExistentContractError.new("Contract not found: #{to_contract_address}")
-      end
-      
-      if to_contract_type && !to_contract.implements?(to_contract_type.to_s)
-        raise ContractError.new("Contract doesn't implement interface: #{to_contract_address}, #{to_contract_type}", to_contract)
-      end
-      
-      self.to_contract = to_contract
+    self.to_contract = Contract.find_by(address: to_contract_address)
+    
+    if to_contract.blank?
+      raise CallingNonExistentContractError.new("Contract not found: #{to_contract_address}")
     end
     
+    if to_contract_type && !to_contract.implements?(to_contract_type.to_s)
+      raise ContractError.new("Contract doesn't implement interface: #{to_contract_address}, #{to_contract_type}", to_contract)
+    end
+      
     if !function_object
       raise ContractError.new("Call to unknown function #{function}", to_contract)
     end
@@ -74,8 +74,6 @@ class ContractCall < ApplicationRecord
       raise ContractError.new("Cannot call function on contract creation")
     end
     
-    self.function = :constructor
-    
     unless Contract.type_valid?(to_contract_type)
       raise TransactionError.new("Invalid contract type: #{to_contract_type}")
     end
@@ -84,13 +82,13 @@ class ContractCall < ApplicationRecord
       raise TransactionError.new("Cannot deploy abstract contract: #{to_contract_type}")
     end
     
-    Contract.create!(
+    self.to_contract = Contract.create!(
       transaction_hash: TransactionContext.transaction_hash,
       address: calculate_new_contract_address,
       type: to_contract_type,
-    ).tap do |c|
-      self.to_contract = c
-    end
+    )
+    
+    self.function = :constructor
   end
   
   def function_object
@@ -111,12 +109,14 @@ class ContractCall < ApplicationRecord
   def contract_nonce
     in_memory = contract_transaction.contract_calls.count do |call|
       call.from_address == from_address &&
-      call.is_create?
+      call.is_create? &&
+      call.success?
     end
     
     scope = ContractCall.where(
       from_address: from_address,
-      call_type: :create
+      call_type: :create,
+      status: :success
     )
     
     in_memory + scope.count
@@ -126,14 +126,14 @@ class ContractCall < ApplicationRecord
     scope = ContractCall.where(
       from_address: from_address,
       call_type: [:create, :call],
-      internal_transaction_index: 0,
+      status: :success
     )
     
     scope.count
   end
   
   def current_nonce
-    return unless is_create?
+    raise "Not possible" unless is_create?
     
     internal_transaction_index.zero? ? eoa_nonce : contract_nonce
   end
@@ -141,5 +141,15 @@ class ContractCall < ApplicationRecord
   def log_event(event)
     logs << event
     nil
+  end
+  
+  private
+  
+  def set_effective_contract_address
+    self.effective_contract_address = if is_create?
+      created_contract_address
+    else
+      to_contract_address
+    end
   end
 end

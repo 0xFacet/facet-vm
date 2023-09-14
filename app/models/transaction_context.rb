@@ -73,7 +73,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
           Ethscription.esc_findEthscriptionById(id, as_of)
         rescue ContractErrors::UnknownEthscriptionError => e
           raise ContractError.new(
-            "findEthscriptionById: unknown ethscription: #{ethscription_id}"
+            "findEthscriptionById: unknown ethscription: #{id}"
           )
         end
       end

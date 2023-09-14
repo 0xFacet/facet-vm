@@ -21,7 +21,8 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_11_151706) do
     t.string "to_contract_address"
     t.string "to_contract_type"
     t.string "created_contract_address"
-    t.string "function", null: false
+    t.string "effective_contract_address"
+    t.string "function"
     t.jsonb "args", default: {}, null: false
     t.integer "call_type", null: false
     t.jsonb "return_value"
@@ -30,15 +31,22 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_11_151706) do
     t.integer "status", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["call_type"], name: "index_contract_calls_on_call_type"
     t.index ["created_contract_address"], name: "index_contract_calls_on_created_contract_address", unique: true
+    t.index ["effective_contract_address"], name: "index_contract_calls_on_effective_contract_address"
+    t.index ["from_address"], name: "index_contract_calls_on_from_address"
+    t.index ["internal_transaction_index"], name: "index_contract_calls_on_internal_transaction_index"
+    t.index ["status"], name: "index_contract_calls_on_status"
+    t.index ["to_contract_address"], name: "index_contract_calls_on_to_contract_address"
     t.index ["transaction_hash", "internal_transaction_index"], name: "index_contract_calls_on_contract_tx_id_and_internal_tx_index", unique: true
-    t.check_constraint "call_type <> 2 OR error IS NOT NULL OR created_contract_address IS NOT NULL"
-    t.check_constraint "call_type = 2 AND error IS NULL OR created_contract_address IS NULL"
-    t.check_constraint "created_contract_address IS NULL OR created_contract_address::text ~ '^0x[a-f0-9]{40}$'::text"
-    t.check_constraint "from_address::text ~ '^0x[a-f0-9]{40}$'::text"
-    t.check_constraint "status = 0 AND error IS NOT NULL OR status <> 0 AND error IS NULL"
-    t.check_constraint "status = 0 AND logs = '[]'::jsonb OR status <> 0"
-    t.check_constraint "to_contract_address IS NULL OR to_contract_address::text ~ '^0x[a-f0-9]{40}$'::text"
+    t.check_constraint "call_type <> 2 OR error IS NOT NULL OR created_contract_address IS NOT NULL", name: "call_type_2_error_or_created_contract_address"
+    t.check_constraint "call_type = 2 AND effective_contract_address::text = created_contract_address::text OR call_type <> 2 AND effective_contract_address::text = to_contract_address::text", name: "effective_contract_address_correct"
+    t.check_constraint "call_type = 2 AND error IS NULL OR created_contract_address IS NULL", name: "call_type_2_error_or_created_contract_address2"
+    t.check_constraint "created_contract_address IS NULL OR created_contract_address::text ~ '^0x[a-f0-9]{40}$'::text", name: "created_contract_address_format"
+    t.check_constraint "from_address::text ~ '^0x[a-f0-9]{40}$'::text", name: "from_address_format"
+    t.check_constraint "status = 0 AND error IS NOT NULL OR status <> 0 AND error IS NULL", name: "status_0_error_or_status_not_0_error"
+    t.check_constraint "status = 0 AND logs = '[]'::jsonb OR status <> 0", name: "status_0_logs_empty_or_status_not_0"
+    t.check_constraint "to_contract_address IS NULL OR to_contract_address::text ~ '^0x[a-f0-9]{40}$'::text", name: "to_contract_address_format"
     t.check_constraint "transaction_hash::text ~ '^0x[a-f0-9]{64}$'::text", name: "transaction_hash_format"
   end
 
@@ -134,7 +142,6 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_11_151706) do
   add_foreign_key "contract_calls", "ethscriptions", column: "transaction_hash", primary_key: "ethscription_id", on_delete: :cascade
   add_foreign_key "contract_states", "contracts", column: "contract_address", primary_key: "address", on_delete: :cascade
   add_foreign_key "contract_states", "ethscriptions", column: "transaction_hash", primary_key: "ethscription_id", on_delete: :cascade
-  add_foreign_key "contract_transaction_receipts", "contracts", column: "contract_address", primary_key: "address", on_delete: :cascade
   add_foreign_key "contract_transaction_receipts", "ethscriptions", column: "transaction_hash", primary_key: "ethscription_id", on_delete: :cascade
   add_foreign_key "contract_transactions", "ethscriptions", column: "transaction_hash", primary_key: "ethscription_id", on_delete: :cascade
   add_foreign_key "contracts", "ethscriptions", column: "transaction_hash", primary_key: "ethscription_id", on_delete: :cascade

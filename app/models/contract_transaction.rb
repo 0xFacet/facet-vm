@@ -12,7 +12,7 @@ class ContractTransaction < ApplicationRecord
 
   after_create :create_transaction_receipt!
   
-  attr_accessor :tx_origin, :initial_call_info
+  attr_accessor :tx_origin, :initial_call_info, :payload
   
   def self.required_mimetype
     "application/vnd.esc"
@@ -35,16 +35,16 @@ class ContractTransaction < ApplicationRecord
   def import_ethscription=(ethscription)
     self.ethscription = ethscription
 
-    validate_mimetype_and_to!
-    
     begin
-      payload = JSON.parse(ethscription.content)
+      self.payload = JSON.parse(ethscription.content)
       data = payload['data']
     rescue JSON::ParserError => e
       raise InvalidEthscriptionError.new(
         "JSON parse error: #{e.message}"
       )
     end
+    
+    validate_mimetype_and_to!
     
     assign_attributes(
       block_blockhash: ethscription.block_blockhash,
@@ -55,7 +55,7 @@ class ContractTransaction < ApplicationRecord
       
       initial_call_info: {
         to_contract_type: data['type'],
-        to_contract_address: payload['to'],
+        to_contract_address: payload['to']&.downcase,
         function: data['function'],
         args: data['args'],
         type: (payload['to'].nil? ? :create : :call),
@@ -181,6 +181,12 @@ class ContractTransaction < ApplicationRecord
   
   def validate_mimetype_and_to!
     unless ethscription.initial_owner == ("0x" + "0" * 40) && ethscription.mimetype == ContractTransaction.required_mimetype
+      raise InvalidEthscriptionError.new(
+        "#{ethscription.inspect} does not trigger contract interaction"
+      )
+    end
+    
+    if payload['to'] && !payload['to'].match(/^0x[a-f0-9]{40}$/i)
       raise InvalidEthscriptionError.new(
         "#{ethscription.inspect} does not trigger contract interaction"
       )

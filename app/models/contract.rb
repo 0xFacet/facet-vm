@@ -5,15 +5,14 @@ class Contract < ApplicationRecord
     
   has_many :states, primary_key: 'address', foreign_key: 'contract_address', class_name: "ContractState"
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
-  has_many :contract_transactions, primary_key: 'address', foreign_key: 'to_contract_address'
 
-  has_one :creating_internal_transaction, class_name: 'InternalTransaction',
-  foreign_key: :created_contract_address, primary_key: :address
-  
   belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
+  
+  has_many :contract_calls, foreign_key: :effective_contract_address, primary_key: :address
+  has_many :contract_transactions, through: :contract_calls
   has_many :contract_transaction_receipts, through: :contract_transactions
   
-  has_many :creating_contract_calls, class_name: 'ContractCall', foreign_key: 'created_contract_address', primary_key: 'address'
+  has_one :creating_contract_call, class_name: 'ContractCall', foreign_key: 'created_contract_address', primary_key: 'address'
 
   attr_reader :implementation
   

@@ -3,7 +3,7 @@ module ContractErrors
     attr_accessor :contract
     attr_accessor :error_status
   
-    def initialize(message, contract)
+    def initialize(message, contract = nil)
       super(message)
       @contract = contract
     end
