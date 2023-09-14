@@ -28,11 +28,11 @@ class ContractTransaction < ApplicationRecord
   
   def self.new_from_ethscription(ethscription)
     new.tap do |r|
-      r.import_ethscription = ethscription
+      r.import_ethscription(ethscription)
     end
   end
   
-  def import_ethscription=(ethscription)
+  def import_ethscription(ethscription)
     self.ethscription = ethscription
 
     begin
