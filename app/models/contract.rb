@@ -87,7 +87,7 @@ class Contract < ApplicationRecord
       options.merge(
         only: [
           :address,
-          :ethscription_id,
+          :transaction_hash,
         ]
       )
     ).tap do |json|

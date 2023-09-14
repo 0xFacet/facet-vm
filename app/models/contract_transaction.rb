@@ -76,8 +76,8 @@ class ContractTransaction < ApplicationRecord
       function_args: initial_call.args,
       logs: contract_calls.order(:internal_transaction_index).map(&:logs).flatten,
       status: status,
-      contract_address: initial_call.to_contract_address,
-      error_message: initial_call.error.blank? ? "" : initial_call.error.to_json
+      contract_address: initial_call.effective_contract_address,
+      error_message: initial_call.error
     )
   end
   

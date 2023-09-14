@@ -39,10 +39,6 @@ class ContractTransactionReceipt < ApplicationRecord
     end
   end
   
-  def failed_deployment_ethscription_id
-    ethscription_id if deploy_error?
-  end
-  
   def as_json(options = {})
     super(
       options.merge(
@@ -56,9 +52,6 @@ class ContractTransactionReceipt < ApplicationRecord
           :function_args,
           :error_message,
           :logs
-        ],
-        methods: [
-          :failed_deployment_ethscription_id
         ]
       )
     )
