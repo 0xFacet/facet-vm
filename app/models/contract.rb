@@ -3,40 +3,23 @@ class Contract < ApplicationRecord
   
   include ContractErrors
     
-  belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'ethscription_id',
-    class_name: "Ethscription", touch: true
-  has_many :call_receipts, primary_key: 'address', foreign_key: 'contract_address', class_name: "ContractCallReceipt"
   has_many :states, primary_key: 'address', foreign_key: 'contract_address', class_name: "ContractState"
+  belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
+
+  belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
   
+  has_many :contract_calls, foreign_key: :effective_contract_address, primary_key: :address
+  has_many :contract_transactions, through: :contract_calls
+  has_many :contract_transaction_receipts, through: :contract_transactions
+  
+  has_one :creating_contract_call, class_name: 'ContractCall', foreign_key: 'created_contract_address', primary_key: 'address'
+
   attr_reader :implementation
   
   delegate :implements?, to: :implementation
   
   class << self
     delegate :valid_contract_types, to: ContractImplementation
-  end
-  
-  def self.create_from_user!(deployer:, creation_ethscription_id:, type:)
-    unless valid_contract_types.include?(type.to_sym)
-      raise TransactionError.new("Invalid contract type: #{type}")
-    end
-    
-    implementation_class = "Contracts::#{type}".constantize
-    
-    if implementation_class.is_abstract_contract
-      raise TransactionError.new("Cannot deploy abstract contract: #{type}")
-    end
-    
-    address = User.calculate_contract_address(
-      deployer: deployer,
-      current_tx_ethscription_id: creation_ethscription_id
-    )
-    
-    Contract.create!(
-      ethscription_id: creation_ethscription_id,
-      address: address,
-      type: type,
-    )
   end
   
   def implementation
@@ -51,27 +34,36 @@ class Contract < ApplicationRecord
     states.newest_first.first || ContractState.new
   end
   
-  def execute_function(function_name, user_args, persist_state:)
-    begin
-      with_state_management(persist_state: persist_state) do
-        implementation.public_send(function_name, *user_args[:args], **user_args[:kwargs])
+  def self.type_abstract?(type)
+    "Contracts::#{type}".constantize.is_abstract_contract
+  end
+  
+  def self.type_valid?(type)
+    Contract.valid_contract_types.include?(type.to_sym)
+  end
+  
+  def execute_function(function_name, args)
+    with_state_management do
+      if args.is_a?(Hash)
+        implementation.public_send(function_name, **args)
+      else
+        implementation.public_send(function_name, *Array.wrap(args))
       end
-    rescue ContractError => e
-      e.contract = self
-      raise e
     end
   end
   
-  def with_state_management(persist_state:)
+  def with_state_management
     implementation.state_proxy.load(current_state.state.deep_dup)
     initial_state = implementation.state_proxy.serialize
     
     yield.tap do
       final_state = implementation.state_proxy.serialize
       
-      if (final_state != initial_state) && persist_state
+      if final_state != initial_state
         states.create!(
-          ethscription_id: TransactionContext.ethscription.ethscription_id,
+          transaction_hash: TransactionContext.transaction_hash,
+          block_number: TransactionContext.block_number,
+          transaction_index: TransactionContext.transaction_index,
           state: final_state
         )
       end
@@ -95,7 +87,7 @@ class Contract < ApplicationRecord
       options.merge(
         only: [
           :address,
-          :ethscription_id,
+          :transaction_hash,
         ]
       )
     ).tap do |json|

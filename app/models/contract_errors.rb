@@ -3,7 +3,7 @@ module ContractErrors
     attr_accessor :contract
     attr_accessor :error_status
   
-    def initialize(message, contract)
+    def initialize(message, contract = nil)
       super(message)
       @contract = contract
     end
@@ -13,7 +13,7 @@ module ContractErrors
       
       trace = !Rails.env.production? ? backtrace.join("\n") : ''
       
-      "#{contract.class.name.demodulize} error: " + super + "#{trace} (contract id: #{contract.address})"
+      "#{contract.class.name.demodulize} error: " + super
     end
   end
   
@@ -30,6 +30,6 @@ module ContractErrors
   class FatalNetworkError < StandardError; end
   class InvalidOverrideError < StandardError; end
   class FunctionAlreadyDefinedError < StandardError; end
-  class EthscriptionDoesNotTriggerContractInteractionError < StandardError; end
+  class InvalidEthscriptionError < StandardError; end
   class InvalidDestructuringError < StandardError; end
 end

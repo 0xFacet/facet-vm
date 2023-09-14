@@ -1,25 +1,32 @@
-class ContractCallReceipt < ApplicationRecord
+class ContractTransactionReceipt < ApplicationRecord
   belongs_to :contract, primary_key: 'address', foreign_key: 'contract_address', touch: true, optional: true
-    
+  belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash
   belongs_to :ethscription,
-    primary_key: 'ethscription_id', foreign_key: 'ethscription_id',
-    class_name: "Ethscription", touch: true
-    
+  primary_key: 'ethscription_id', foreign_key: 'transaction_hash',
+  touch: true
+  has_one :contract, through: :contract_transaction
+
   enum status: {
     success: 0,
     call_error: 1,
     deploy_error: 2,
     call_to_non_existent_contract: 3,
     system_error: 4,
-    json_parse_error: 5
+    json_parse_error: 5,
+    error: 6
   }
   
   before_validation :clear_logs_if_error#, :ensure_status
   
-  validate :status_or_errors_check, :no_contract_on_deploy_error
+  validate :status_or_errors_check#, :no_contract_on_deploy_error
+  
+  def contract
+    Contract.find_by_address(address)
+  end
   
   def address
-    contract.address
+    contract_transaction.contract_calls.first.to_contract_address ||
+    contract_transaction.contract_calls.first.created_contract_address
   end
   
   def no_contract_on_deploy_error
@@ -32,15 +39,11 @@ class ContractCallReceipt < ApplicationRecord
     end
   end
   
-  def failed_deployment_ethscription_id
-    ethscription_id if deploy_error?
-  end
-  
   def as_json(options = {})
     super(
       options.merge(
         only: [
-          :ethscription_id,
+          :transaction_hash,
           :timestamp,
           :contract_address,
           :caller,
@@ -49,9 +52,6 @@ class ContractCallReceipt < ApplicationRecord
           :function_args,
           :error_message,
           :logs
-        ],
-        methods: [
-          :failed_deployment_ethscription_id
         ]
       )
     )

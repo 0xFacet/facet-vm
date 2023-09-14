@@ -229,14 +229,45 @@ class ContractImplementation
     raise "Not implemented"
   end
   
+  def new(contract_initializer)
+    if contract_initializer.is_a?(TypedVariable)
+      contract_initializer = {
+        to_contract_type: contract_initializer.type.name,
+        args: contract_initializer.uncast_address,
+      }
+    end
+    
+    TransactionContext.call_stack.execute_in_new_frame(
+      **contract_initializer.merge(type: :create)
+    )
+    
+    addr = TransactionContext.current_transaction.contract_calls.last.created_contract_address
+    
+    handle_contract_type_cast(
+      contract_initializer[:to_contract_type].to_sym,
+      addr
+    )
+  end
+  
+  def create_contract_initializer(type, args)
+    {
+      to_contract_type: type, 
+      args: args,
+    }
+  end
+  
   def self.inherited(subclass)
     super
     
     method_name = subclass.name.demodulize.to_sym
     
     if Contracts.constants.include?(method_name)
-      define_method(method_name) do |other_address|
-        handle_contract_type_cast(method_name, other_address)
+      define_method(method_name) do |*args, **kwargs|
+        if args.many? || kwargs.present?
+          return create_contract_initializer(method_name, args.presence || kwargs)
+        end
+        
+        handle_contract_type_cast(method_name, args.first)
       end
       
       self.valid_contract_types ||= []
@@ -249,8 +280,7 @@ class ContractImplementation
   def handle_contract_type_cast(contract_type, other_address)
     proxy = ContractType::Proxy.new(
       contract_type: contract_type,
-      address: other_address,
-      caller_address: contract_record.address
+      address: other_address
     )
     
     TypedVariable.create(contract_type, proxy)

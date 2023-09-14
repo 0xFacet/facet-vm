@@ -40,7 +40,7 @@ class Contracts::EthscriptionERC20Bridge < ContractImplementation
   
   function :bridgeIn, { to: :address, escrowedId: :ethscriptionId }, :public do
     require(
-      address(msg.sender) == s.trustedSmartContract,
+      msg.sender == s.trustedSmartContract,
       "Only the trusted smart contract can bridge in tokens"
     )
     
@@ -89,19 +89,19 @@ class Contracts::EthscriptionERC20Bridge < ContractImplementation
   end
   
   function :bridgeOut, { escrowedId: :ethscriptionId }, :public do
-    require(s.bridgedEthscriptionToOwner[escrowedId] == address(msg.sender), "Ethscription not owned by sender")
+    require(s.bridgedEthscriptionToOwner[escrowedId] == msg.sender, "Ethscription not owned by sender")
     
     _burn(from: msg.sender, amount: s.ethscriptionMintAmount * (10 ** decimals))
     
     s.bridgedEthscriptionToOwner[escrowedId] = address(0)
-    s.pendingWithdrawalEthscriptionToOwner[escrowedId] = address(msg.sender)
+    s.pendingWithdrawalEthscriptionToOwner[escrowedId] = msg.sender
     
-    emit :InitiateWithdrawal, from: address(msg.sender), escrowedId: :ethscriptionId
+    emit :InitiateWithdrawal, from: msg.sender, escrowedId: :ethscriptionId
   end
   
   function :markWithdrawalComplete, { to: :address, escrowedId: :ethscriptionId }, :public do
     require(
-      address(msg.sender) == s.trustedSmartContract,
+      msg.sender == s.trustedSmartContract,
       'Only the trusted smart contract can mark withdrawals as complete'
     )
     

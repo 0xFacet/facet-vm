@@ -1,3 +1,6 @@
+
+ContractCallReceipt = Class.new(ActiveRecord::Base)
+
 class AddAddressToContracts < ActiveRecord::Migration[7.0]
   def up
     add_column :contracts, :address, :string

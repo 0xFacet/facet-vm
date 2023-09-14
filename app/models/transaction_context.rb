@@ -1,14 +1,9 @@
 class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
-  attribute :current_transaction, :current_contract
-  delegate :log_event, :ethscription, to: :current_transaction
+  attribute :call_stack, :ethscription, :current_call,
+  :transaction_hash, :transaction_index, :current_transaction
   
-  def current_transaction=(new_value)
-    raise "current_transaction is already set" if current_transaction && new_value
-    super(new_value)
-  end
-
   STRUCT_DETAILS = {
     msg:    { attributes: { sender: :address } },
     tx:     { attributes: { origin: :address } },
@@ -28,13 +23,23 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     end
 
     define_method(struct_name) do
-      validate_presence_of_current_transaction
-    
       struct_params = details[:attributes].keys
       struct_values = struct_params.map { |key| send("#{struct_name}_#{key}") }
     
       Struct.new(*struct_params).new(*struct_values)
     end
+  end
+  
+  def log_event(event)
+    current_call.log_event(event)
+  end
+  
+  def msg_sender
+    TypedVariable.create_or_validate(:address, current_call.from_address)
+  end
+  
+  def current_contract
+    current_call.to_contract
   end
   
   def this
@@ -68,16 +73,10 @@ class TransactionContext < ActiveSupport::CurrentAttributes
           Ethscription.esc_findEthscriptionById(id, as_of)
         rescue ContractErrors::UnknownEthscriptionError => e
           raise ContractError.new(
-            "findEthscriptionById: unknown ethscription: #{ethscription_id}"
+            "findEthscriptionById: unknown ethscription: #{id}"
           )
         end
       end
     end
-  end
-
-  private
-
-  def validate_presence_of_current_transaction
-    raise "current_transaction is not set" unless current_transaction
   end
 end

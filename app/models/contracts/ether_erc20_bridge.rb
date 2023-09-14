@@ -21,7 +21,7 @@ class Contracts::EtherERC20Bridge < ContractImplementation
   
   function :bridgeIn, { to: :address, amount: :uint256 }, :public do
     require(
-      address(msg.sender) == s.trustedSmartContract,
+      msg.sender == s.trustedSmartContract,
       "Only the trusted smart contract can bridge in tokens"
     )
     
@@ -31,14 +31,14 @@ class Contracts::EtherERC20Bridge < ContractImplementation
   function :bridgeOut, { amount: :uint256 }, :public do
     _burn(from: msg.sender, amount: amount)
     
-    s.pendingWithdrawals[address(msg.sender)] += amount
+    s.pendingWithdrawals[msg.sender] += amount
     
-    emit :InitiateWithdrawal, from: address(msg.sender), amount: amount
+    emit :InitiateWithdrawal, from: msg.sender, amount: amount
   end
   
   function :markWithdrawalComplete, { to: :address, amount: :uint256 }, :public do
     require(
-      address(msg.sender) == s.trustedSmartContract,
+      msg.sender == s.trustedSmartContract,
       'Only the trusted smart contract can mark withdrawals as complete'
     )
     

@@ -1,7 +1,8 @@
 class Ethscription < ApplicationRecord
-  has_many :contracts, primary_key: 'ethscription_id', foreign_key: 'ethscription_id'
-  has_one :contract_call_receipt, primary_key: 'ethscription_id', foreign_key: 'ethscription_id'
-  has_many :contract_states, primary_key: 'ethscription_id', foreign_key: 'ethscription_id'
+  has_many :contracts, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
+  has_one :contract_transaction_receipt, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
+  has_one :contract_transaction, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
+  has_many :contract_states, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
 
   after_create :process_contract_actions
   
@@ -46,7 +47,7 @@ class Ethscription < ApplicationRecord
   def process_contract_actions
     return unless ENV.fetch('ETHEREUM_NETWORK') == "eth-goerli" || Rails.env.development?
     
-    ContractTransaction.create_and_execute_from_ethscription_if_needed(self)
+    ContractTransaction.on_ethscription_created(self)
   end
   
   def downcase_hex_fields
