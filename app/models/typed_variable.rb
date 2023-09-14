@@ -63,8 +63,18 @@ class TypedVariable
       result = value.send(name, *args, &block)
       
       if result.class == value.class
-        result = type.check_and_normalize_literal(result)
+        begin
+          result = type.check_and_normalize_literal(result)
+        rescue ContractErrors::VariableTypeError => e
+          if type.is_uint?
+            result = TypedVariable.create(:uint256, result)
+          else
+            raise
+          end
+        end
       end
+      
+      result
       
       if name.to_s.end_with?("=") && !%w[>= <=].include?(name.to_s[-2..])
         self.value = result if type.is_value_type?

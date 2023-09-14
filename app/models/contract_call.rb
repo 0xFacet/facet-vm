@@ -4,7 +4,7 @@ class ContractCall < ApplicationRecord
   enum :call_type, [ :call, :static_call, :create ], prefix: :is
   enum :status, [ :failure, :success ]
   
-  attr_accessor :to_contract, :salt
+  attr_accessor :to_contract, :salt, :pending_logs
   
   belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true, inverse_of: :contract_calls
@@ -15,7 +15,8 @@ class ContractCall < ApplicationRecord
 
   def execute!
     result = nil
-
+    self.pending_logs = []
+    
     ActiveRecord::Base.transaction(requires_new: true) do
       if is_create?
         create_and_validate_new_contract!(to_contract_type)
@@ -32,7 +33,12 @@ class ContractCall < ApplicationRecord
       end
     end
     
-    assign_attributes(return_value: result, status: :success)
+    assign_attributes(
+      return_value: result,
+      status: :success,
+      logs: pending_logs
+    )
+    
     self.created_contract = to_contract if is_create?
     
     result
@@ -164,7 +170,7 @@ end
   end
   
   def log_event(event)
-    logs << event
+    pending_logs << event
     nil
   end
   

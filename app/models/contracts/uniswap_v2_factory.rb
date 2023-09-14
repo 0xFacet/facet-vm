@@ -19,7 +19,7 @@ class Contracts::UniswapV2Factory < ContractImplementation
     require(tokenA != tokenB, 'Scribeswap: IDENTICAL_ADDRESSES')
     
     token0 = tokenA.cast(:uint256) < tokenB.cast(:uint256) ? tokenA : tokenB
-    token1 = tokenA.cast(:uint256) > tokenB.cast(:uint256) ? tokenB : tokenA
+    token1 = tokenA.cast(:uint256) > tokenB.cast(:uint256) ? tokenA : tokenB
     
     require(token0 != address(0), "Scribeswap: ZERO_ADDRESS");
     require(s.getPair[token0][token1] == address(0), "Scribeswap: PAIR_EXISTS");

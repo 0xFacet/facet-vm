@@ -8,7 +8,7 @@ class Type
    end.map(&:to_sym)
   
   TYPES = [:string, :mapping, :address, :ethscriptionId,
-          :bool, :address, :uint256, :int256, :array, :datetime] + INTEGER_TYPES
+          :bool, :address, :uint256, :int256, :array, :datetime, :bytes] + INTEGER_TYPES
   
   TYPES.each do |type|
     define_method("#{type}?") do
@@ -91,6 +91,8 @@ class Type
     val = case
     when is_int256_uint256_datetime
       0
+    when bytes?
+      "0x00"
     when address?
       "0x" + "0" * 40
     when ethscriptionId?
@@ -132,7 +134,7 @@ class Type
     end
     
     if address?
-      unless literal.is_a?(String) && literal.match?(/^0x[a-f0-9]{40}$/i)
+      unless literal.is_a?(String) && literal.match?(/\A0x[a-f0-9]{40}\z/i)
         raise_variable_type_error(literal)
       end
       
@@ -170,11 +172,17 @@ class Type
       
       return literal
     elsif ethscriptionId?
-      unless literal.is_a?(String) && literal.match?(/^0x[a-f0-9]{64}$/i)
+      unless literal.is_a?(String) && literal.match?(/\A0x[a-f0-9]{64}\z/i)
         raise_variable_type_error(literal)
       end
       
       return literal.downcase
+    elsif bytes?
+      unless literal.is_a?(String) && literal.match?(/\A0x[a-fA-F0-9]*\z/) && literal.size.even?
+        raise_variable_type_error(literal)
+      end
+      
+      return literal.downcase.sub(/^0x/, '')
     elsif datetime?
       dummy_uint = Type.create(:uint256)
       

@@ -231,6 +231,24 @@ class ContractImplementation
     raise "Not implemented"
   end
   
+  def downcast_integer(integer, target_bits)
+    integer = TypedVariable.create_or_validate(:uint256, integer)
+    new_val = integer.value % (2 ** target_bits)
+    TypedVariable.create(:"uint#{target_bits}", new_val)
+  end
+  
+  (8..256).step(8).flat_map do |bits|
+    define_method("uint#{bits}") do |integer|
+      downcast_integer(integer, bits)
+    end
+  end
+  
+  def sqrt(integer)
+    integer = TypedVariable.create_or_validate(:uint256, integer)
+
+    Math.sqrt(integer.value.to_d).floor
+  end
+  
   def new(contract_initializer)
     if contract_initializer.is_a?(TypedVariable)
       contract_initializer = {
