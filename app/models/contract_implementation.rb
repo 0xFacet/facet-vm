@@ -198,6 +198,8 @@ class ContractImplementation
   end
   
   def keccak256(input)
+    input = input.to_s(16) if input.is_a?(Integer)
+    
     str = TypedVariable.create(:string, input)
     
     "0x" + Digest::Keccak256.new.hexdigest(str.value)
@@ -250,9 +252,22 @@ class ContractImplementation
   end
   
   def create_contract_initializer(type, args)
+    if args.is_a?(Hash)
+      return {
+        to_contract_type: type, 
+        args: args,
+      }
+    end
+    
+    input_args = args.select { |arg| !arg.is_a?(Hash) }
+    options = args.detect { |arg| arg.is_a?(Hash) } || {}
+    
+    input_salt = options[:salt]
+    
     {
       to_contract_type: type, 
-      args: args,
+      args: input_args,
+      salt: input_salt
     }
   end
   
@@ -263,7 +278,7 @@ class ContractImplementation
     
     if Contracts.constants.include?(method_name)
       define_method(method_name) do |*args, **kwargs|
-        if args.many? || kwargs.present?
+        if args.many? || kwargs.present? || args.one? && args.first.is_a?(Hash)
           return create_contract_initializer(method_name, args.presence || kwargs)
         end
         

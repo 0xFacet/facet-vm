@@ -28,7 +28,7 @@ class TypedVariable
         raise VariableTypeError.new("invalid #{type}: #{value.inspect}")
       end
       
-      value = value.value
+      value = value.serialize
     end
     
     create(type, value)

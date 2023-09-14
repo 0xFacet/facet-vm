@@ -60,6 +60,10 @@ class Type
     if is_uint? && other_type.is_uint? || is_int? && other_type.is_int?
       return extract_integer_bits >= other_type.extract_integer_bits
     end
+    
+    if address? && other_type.is_contract_type?
+      return true
+    end
 
     false
   end

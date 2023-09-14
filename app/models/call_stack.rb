@@ -25,15 +25,16 @@ class CallStack
     to_contract_type: nil,
     function: nil,
     args: {},
-    type:
+    type:,
+    salt: nil
   )
-  
     call = TransactionContext.current_transaction.contract_calls.build(
       to_contract_address: to_contract_address,
       to_contract_type: to_contract_type,
       function: function,
       args: args,
       call_type: type,
+      salt: salt,
       internal_transaction_index: @push_count,
       from_address: current_frame&.to_contract_address || TransactionContext.tx_origin,
     )

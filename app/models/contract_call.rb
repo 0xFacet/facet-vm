@@ -4,7 +4,7 @@ class ContractCall < ApplicationRecord
   enum :call_type, [ :call, :static_call, :create ], prefix: :is
   enum :status, [ :failure, :success ]
   
-  attr_accessor :to_contract
+  attr_accessor :to_contract, :salt
   
   belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true, inverse_of: :contract_calls
@@ -98,13 +98,34 @@ class ContractCall < ApplicationRecord
   end
   
   def calculate_new_contract_address
-    # TODO: triple check this works
+    if contract_initiated? && salt
+      return calculate_new_contract_address_with_salt
+    end
+    
     rlp_encoded = Eth::Rlp.encode([Integer(from_address, 16), current_nonce])
     
     hash = Digest::Keccak256.new.hexdigest(rlp_encoded)
     
     "0x" + hash[24..-1]
   end
+  
+  def calculate_new_contract_address_with_salt
+    salt_hex = Integer(salt, 16).to_s(16)
+    padded_from = from_address[2..-1].rjust(64, "0")
+    bytecode_simulation = Eth::Util.hex_to_bin(Digest::Keccak256.new.hexdigest(to_contract_type))
+
+    data = "0xff" + padded_from + salt_hex + Digest::Keccak256.new.hexdigest(bytecode_simulation)
+
+    hash = Digest::Keccak256.new.hexdigest(Eth::Util.hex_to_bin(data))
+
+    address = "0x" + hash[24..-1]
+
+    if Contract.where(address: address).exists?
+      raise ContractError.new("Contract already exists at address: #{address}")
+    end
+
+    address
+end
   
   def contract_nonce
     in_memory = contract_transaction.contract_calls.count do |call|
@@ -135,7 +156,11 @@ class ContractCall < ApplicationRecord
   def current_nonce
     raise "Not possible" unless is_create?
     
-    internal_transaction_index.zero? ? eoa_nonce : contract_nonce
+    contract_initiated? ? contract_nonce : eoa_nonce
+  end
+  
+  def contract_initiated?
+    internal_transaction_index > 0
   end
   
   def log_event(event)
