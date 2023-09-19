@@ -116,22 +116,16 @@ class ContractCall < ApplicationRecord
   end
   
   def calculate_new_contract_address_with_salt
-    salt_hex = Integer(salt, 16).to_s(16)
-    padded_from = from_address[2..-1].rjust(64, "0")
-    bytecode_simulation = Eth::Util.hex_to_bin(Digest::Keccak256.new.hexdigest(to_contract_type))
-
-    data = "0xff" + padded_from + salt_hex + Digest::Keccak256.new.hexdigest(bytecode_simulation)
-
-    hash = Digest::Keccak256.new.hexdigest(Eth::Util.hex_to_bin(data))
-
-    address = "0x" + hash[24..-1]
-
+    address = ContractImplementation.calculate_new_contract_address_with_salt(
+      salt, from_address, to_contract_type
+    )
+    
     if Contract.where(address: address).exists?
       raise ContractError.new("Contract already exists at address: #{address}")
     end
 
     address
-end
+  end
   
   def contract_nonce
     in_memory = contract_transaction.contract_calls.count do |call|

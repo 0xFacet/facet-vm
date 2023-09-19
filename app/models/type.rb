@@ -23,6 +23,21 @@ class Type
   end
   
   def initialize(type_name, metadata = {})
+    if type_name.is_a?(Array)
+      if type_name.length != 1
+        raise "Invalid array type #{type_name.inspect}"
+      end
+      
+      value_type = type_name.first
+      
+      if TYPES.exclude?(value_type)
+        raise "Invalid type #{value_type.inspect}"
+      end
+      
+      metadata = { value_type: value_type }
+      type_name = :array
+    end
+    
     type_name = type_name.to_sym
     
     if TYPES.exclude?(type_name)
@@ -178,11 +193,15 @@ class Type
       
       return literal.downcase
     elsif bytes?
+      if literal.is_a?(String) && literal.length == 0
+        return literal
+      end
+      
       unless literal.is_a?(String) && literal.match?(/\A0x[a-fA-F0-9]*\z/) && literal.size.even?
         raise_variable_type_error(literal)
       end
       
-      return literal.downcase.sub(/^0x/, '')
+      return literal.downcase
     elsif datetime?
       dummy_uint = Type.create(:uint256)
       

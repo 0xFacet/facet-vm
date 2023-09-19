@@ -84,6 +84,12 @@ class ContractImplementation
     define_state_variable(type, args)
   end
   
+  def array(value_type)
+    metadata = {value_type: value_type}
+    type = Type.create(:array, metadata)
+    TypedVariable.create(type)
+  end
+  
   def require(condition_or_block, message)
     caller_location = caller_locations.detect { |l| l.path.include?('/app/models/contracts') }
     file = caller_location.path.gsub(%r{.*app/models/contracts/}, '')
@@ -176,7 +182,7 @@ class ContractImplementation
       raise ContractDefinitionError.new(error_messages.join(' '), self)
     end
 
-    log_event({ event: event_name, data: args })
+    log_event({ address: contract_record.address, event: event_name, data: args })
   end
 
   def self.define_state_variable(type, args)
@@ -207,6 +213,17 @@ class ContractImplementation
   
   protected
 
+  def abi
+    Object.new.tap do |proxy|
+      def proxy.encodePacked(*args)
+        args.map do |arg|
+          arg = Integer(arg, 16)
+          arg.to_s(16).rjust(64, '0')
+        end.join
+      end
+    end
+  end
+  
   def string(i)
     if i.is_a?(TypedVariable) && i.type.is_value_type?
       return TypedVariable.create(:string, i.value.to_s)
@@ -229,6 +246,26 @@ class ContractImplementation
     end
     
     raise "Not implemented"
+  end
+  
+  def self.calculate_new_contract_address_with_salt(salt, from_address, to_contract_type)
+    unless Contract.type_valid?(to_contract_type)
+      raise TransactionError.new("Invalid contract type: #{to_contract_type}")
+    end
+    
+    salt_hex = Integer(salt, 16).to_s(16)
+    padded_from = from_address.to_s[2..-1].rjust(64, "0")
+    bytecode_simulation = Eth::Util.hex_to_bin(Digest::Keccak256.new.hexdigest(to_contract_type))
+    
+    data = "0xff" + padded_from + salt_hex + Digest::Keccak256.new.hexdigest(bytecode_simulation)
+
+    hash = Digest::Keccak256.new.hexdigest(Eth::Util.hex_to_bin(data))
+
+    "0x" + hash[24..-1]
+  end
+  
+  def create2_address(salt:, deployer:, contract_type:)
+    self.class.calculate_new_contract_address_with_salt(salt, deployer, contract_type)
   end
   
   def downcast_integer(integer, target_bits)

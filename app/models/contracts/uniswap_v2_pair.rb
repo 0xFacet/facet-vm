@@ -12,7 +12,7 @@ class Contracts::UniswapV2Pair < ContractImplementation
   uint32  :private, :blockTimestampLast
 
   uint256 :public, :price0CumulativeLast
-  uint256 :public, :price1CumulativeLast;
+  uint256 :public, :price1CumulativeLast
   uint256 :public, :kLast
 
   uint256 :private, :unlocked
@@ -56,18 +56,25 @@ class Contracts::UniswapV2Pair < ContractImplementation
   function :init, { _token0: :address, _token1: :address }, :external do
     require(msg.sender == s.factory, 'ScribeSwap: FORBIDDEN')
 
-    s.token0 = _token0;
-    s.token1 = _token1;
+    s.token0 = _token0
+    s.token1 = _token1
   end
   
-  function :_update, { balance0: :uint256, balance1: :uint256, _reserve0: :uint112, _reserve1: :uint112 }, :private do
+  function :_update, {
+    balance0: :uint256,
+    balance1: :uint256,
+    _reserve0: :uint112,
+    _reserve1: :uint112
+  }, :private do
+    require(balance0 <= (2 ** 112 - 1) && balance1 <= (2 ** 112 - 1), 'ScribeSwap: OVERFLOW')
+    
     blockTimestamp = uint32(block.timestamp % 2 ** 32)
     timeElapsed = blockTimestamp - s.blockTimestampLast # overflow is desired
     
     if timeElapsed > 0 && _reserve0 != 0 && _reserve1 != 0
       # * never overflows, and + overflow is desired
-      s.price0CumulativeLast += _reserve1.div(_reserve0 * timeElapsed)
-      s.price1CumulativeLast += _reserve0.div(_reserve1 * timeElapsed)
+      s.price0CumulativeLast += uint256(uqdiv(encode(_reserve1), _reserve0)) * timeElapsed
+      s.price1CumulativeLast += uint256(uqdiv(encode(_reserve0), _reserve1)) * timeElapsed
     end
     
     s.reserve0 = uint112(balance0)
@@ -75,6 +82,14 @@ class Contracts::UniswapV2Pair < ContractImplementation
     
     s.blockTimestampLast = blockTimestamp
     emit :Sync, reserve0: s.reserve0, reserve1: s.reserve1
+  end
+  
+  function :encode, { y: :uint112 }, :internal, :pure, returns: :uint224 do
+    return uint224(y) * (2 ** 112)
+  end
+
+  function :uqdiv, { x: :uint224, y: :uint112 }, :internal, :pure, returns: :uint224 do
+    return x / uint224(y)
   end
   
   function :_mintFee, { _reserve0: :uint112, _reserve1: :uint112 }, :private, returns: :bool do
@@ -100,7 +115,7 @@ class Contracts::UniswapV2Pair < ContractImplementation
   end
   
   function :mint, { to: :address }, :public, returns: :uint256 do
-    require(s.unlocked == 1, 'ScribeSwap: LOCKED');
+    require(s.unlocked == 1, 'ScribeSwap: LOCKED')
     
     _reserve0, _reserve1, _ = getReserves
     
@@ -131,7 +146,7 @@ class Contracts::UniswapV2Pair < ContractImplementation
   end
   
   function :burn, { to: :address }, :external, :lock, returns: { amount0: :uint256, amount1: :uint256 } do
-    require(s.unlocked == 1, 'ScribeSwap: LOCKED');
+    require(s.unlocked == 1, 'ScribeSwap: LOCKED')
 
     _reserve0, _reserve1, _ = getReserves
     _token0 = s.token0
@@ -156,17 +171,19 @@ class Contracts::UniswapV2Pair < ContractImplementation
     s.kLast = s.reserve0 * s.reserve1 if feeOn
     
     emit :Burn, sender: msg.sender, amount0: amount0, amount1: amount1, to: to
+    
+    return { amount0: amount0, amount1: amount1 }
   end
   
-  function :swap, { amount0Out: :uint256, amount1Out: :uint256, to: :address, data: :bytes }, :external, :lock do
-    require(s.unlocked == 1, 'ScribeSwap: LOCKED');
+  function :swap, { amount0Out: :uint256, amount1Out: :uint256, to: :address, data: :bytes }, :external do
+    require(s.unlocked == 1, 'ScribeSwap: LOCKED')
     
     require(amount0Out > 0 || amount1Out > 0, 'ScribeSwap: INSUFFICIENT_OUTPUT_AMOUNT')
     _reserve0, _reserve1, _ = getReserves
     require(amount0Out < _reserve0 && amount1Out < _reserve1, 'ScribeSwap: INSUFFICIENT_LIQUIDITY')
   
-    balance0 = nil
-    balance1 = nil
+    balance0 = 0
+    balance1 = 0
     _token0 = s.token0
     _token1 = s.token1
     
@@ -175,8 +192,7 @@ class Contracts::UniswapV2Pair < ContractImplementation
     _safeTransfer(_token0, to, amount0Out) if amount0Out > 0 # optimistically transfer tokens
     _safeTransfer(_token1, to, amount1Out) if amount1Out > 0 # optimistically transfer tokens
     
-    require(data.length == 0, "for now")
-    # IScribeSwapCallee(to).ScribeSwapCall(msg.sender, amount0Out, amount1Out, data) if data.length > 0
+    UniswapV2Callee(to).uniswapV2Call(msg.sender, amount0Out, amount1Out, data) if data.length > 0
     
     balance0 = ERC20(_token0).balanceOf(address(this))
     balance1 = ERC20(_token1).balanceOf(address(this))
@@ -189,15 +205,17 @@ class Contracts::UniswapV2Pair < ContractImplementation
     balance0Adjusted = balance0 * 1000 - amount0In * 3
     balance1Adjusted = balance1 * 1000 - amount1In * 3
     
-    require(balance0Adjusted * balance1Adjusted >= uint256(_reserve0) * _reserve1 * (1000 ** 2),
-    'ScribeSwap: K')
+    require(
+      balance0Adjusted * balance1Adjusted >= uint256(_reserve0) * _reserve1 * (1000 ** 2),
+      'ScribeSwap: K'
+    )
   
     _update(balance0, balance1, _reserve0, _reserve1)
     emit :Swap, sender: msg.sender, amount0In: amount0In, amount1In: amount1In, amount0Out: amount0Out, amount1Out: amount1Out, to: to
   end
   
-  function :skim, { to: :address }, :external, :lock do
-    require(s.unlocked == 1, 'ScribeSwap: LOCKED');
+  function :skim, { to: :address }, :external do
+    require(s.unlocked == 1, 'ScribeSwap: LOCKED')
     
     _token0 = s.token0
     _token1 = s.token1
@@ -206,8 +224,8 @@ class Contracts::UniswapV2Pair < ContractImplementation
     _safeTransfer(_token1, to, ERC20(_token1).balanceOf(address(this)) - s.reserve1)
   end
   
-  function :sync, {}, :external, :lock do
-    require(s.unlocked == 1, 'ScribeSwap: LOCKED');
+  function :sync, {}, :external do
+    require(s.unlocked == 1, 'ScribeSwap: LOCKED')
     
     _update(
       ERC20(s.token0).balanceOf(address(this)),

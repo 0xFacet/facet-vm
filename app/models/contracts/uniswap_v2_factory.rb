@@ -18,13 +18,12 @@ class Contracts::UniswapV2Factory < ContractImplementation
   function :createPair, { tokenA: :address, tokenB: :address }, :public, returns: :address do
     require(tokenA != tokenB, 'Scribeswap: IDENTICAL_ADDRESSES')
     
-    token0 = tokenA.cast(:uint256) < tokenB.cast(:uint256) ? tokenA : tokenB
-    token1 = tokenA.cast(:uint256) > tokenB.cast(:uint256) ? tokenA : tokenB
+    token0, token1 = tokenA.cast(:uint256) < tokenB.cast(:uint256) ? [tokenA, tokenB] : [tokenB, tokenA]
     
     require(token0 != address(0), "Scribeswap: ZERO_ADDRESS");
     require(s.getPair[token0][token1] == address(0), "Scribeswap: PAIR_EXISTS");
     
-    salt = keccak256(token0.cast(:uint256) + token1.cast(:uint256))
+    salt = keccak256(abi.encodePacked(token0, token1))
     
     pair = new UniswapV2Pair({ salt: salt })
     pair.init(token0, token1)

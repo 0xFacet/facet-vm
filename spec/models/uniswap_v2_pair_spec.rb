@@ -1,5 +1,39 @@
 require 'rails_helper'
 
+class Contracts::UniswapV2CalleeTester < ContractImplementation
+  is :UniswapV2Callee
+  
+  address :public, :pair
+  
+  address :public, :token0
+  address :public, :token1
+  
+  uint256 :public, :extraAmount
+  
+  constructor(pair: :address, extraAmount: :uint256) {
+    s.pair = pair
+    s.token0 = UniswapV2Pair(pair).token0();
+    s.token1 = UniswapV2Pair(pair).token1();
+    
+    s.extraAmount = extraAmount
+  }
+  
+  function :uniswapV2Call, {
+    sender: :address,
+    amount0: :uint256,
+    amount1: :uint256,
+    data: :bytes
+  }, :override, :external do
+    balance0 = ERC20(s.token0).balanceOf(address(this))
+    balance1 = ERC20(s.token1).balanceOf(address(this))
+    
+    require(balance0 == amount0, 'Amount0 is incorrect')
+    require(balance1 == amount1, 'Amount1 is incorrect')
+    
+    ERC20(s.token0).transfer(s.pair, s.extraAmount)
+  end
+end
+
 RSpec.describe Contracts::UniswapV2Pair, type: :model do
   it 'executes the Uniswap V2 process' do
     # Deploy the ERC20 tokens
@@ -226,6 +260,19 @@ RSpec.describe Contracts::UniswapV2Pair, type: :model do
       }
     )
     
+    extraAmount = 10
+    
+    UniswapV2CalleeTester = trigger_contract_interaction_and_expect_success(
+      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      payload: {
+        to: nil,
+        data: {
+          type: "UniswapV2CalleeTester",
+          args: [pair_address, extraAmount]
+        }
+      }
+    ).address
+    
     reserves = ContractTransaction.make_static_call(
       contract: pair_address,
       function_name: "getReserves"
@@ -237,6 +284,8 @@ RSpec.describe Contracts::UniswapV2Pair, type: :model do
     denominator = (reserveB * 1000) + (inputAmount * 997);
     expectedOut = numerator.div(denominator)
     
+    expectedOut += extraAmount
+    
     swap_receipt = trigger_contract_interaction_and_expect_success(
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       payload: {
@@ -246,8 +295,8 @@ RSpec.describe Contracts::UniswapV2Pair, type: :model do
           args: {
             amount0Out: expectedOut,
             amount1Out: 0,
-            to: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-            data: "0x"
+            to: UniswapV2CalleeTester,
+            data: "0x01"
           }
         }
       }
