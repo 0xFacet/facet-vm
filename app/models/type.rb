@@ -106,13 +106,11 @@ class Type
     val = case
     when is_int256_uint256_datetime
       0
-    when bytes?
-      "0x00"
     when address?
       "0x" + "0" * 40
     when ethscriptionId?
       "0x" + "0" * 64
-    when string?
+    when string? || bytes?
       ''
     when bool?
       false
