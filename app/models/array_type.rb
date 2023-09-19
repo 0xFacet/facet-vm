@@ -44,5 +44,9 @@ class ArrayType < TypedVariable
       
       self.[]=(next_index, value)
     end
+    
+    def length
+      data.length
+    end
   end
 end

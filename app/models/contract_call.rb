@@ -4,7 +4,7 @@ class ContractCall < ApplicationRecord
   enum :call_type, [ :call, :static_call, :create ], prefix: :is
   enum :status, [ :failure, :success ]
   
-  attr_accessor :to_contract
+  attr_accessor :to_contract, :salt, :pending_logs
   
   belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true, inverse_of: :contract_calls
@@ -15,7 +15,8 @@ class ContractCall < ApplicationRecord
 
   def execute!
     result = nil
-
+    self.pending_logs = []
+    
     ActiveRecord::Base.transaction(requires_new: true) do
       if is_create?
         create_and_validate_new_contract!(to_contract_type)
@@ -32,7 +33,12 @@ class ContractCall < ApplicationRecord
       end
     end
     
-    assign_attributes(return_value: result, status: :success)
+    assign_attributes(
+      return_value: result,
+      status: :success,
+      logs: pending_logs
+    )
+    
     self.created_contract = to_contract if is_create?
     
     result
@@ -98,12 +104,27 @@ class ContractCall < ApplicationRecord
   end
   
   def calculate_new_contract_address
-    # TODO: triple check this works
+    if contract_initiated? && salt
+      return calculate_new_contract_address_with_salt
+    end
+    
     rlp_encoded = Eth::Rlp.encode([Integer(from_address, 16), current_nonce])
     
     hash = Digest::Keccak256.new.hexdigest(rlp_encoded)
     
     "0x" + hash[24..-1]
+  end
+  
+  def calculate_new_contract_address_with_salt
+    address = ContractImplementation.calculate_new_contract_address_with_salt(
+      salt, from_address, to_contract_type
+    )
+    
+    if Contract.where(address: address).exists?
+      raise ContractError.new("Contract already exists at address: #{address}")
+    end
+
+    address
   end
   
   def contract_nonce
@@ -135,11 +156,15 @@ class ContractCall < ApplicationRecord
   def current_nonce
     raise "Not possible" unless is_create?
     
-    internal_transaction_index.zero? ? eoa_nonce : contract_nonce
+    contract_initiated? ? contract_nonce : eoa_nonce
+  end
+  
+  def contract_initiated?
+    internal_transaction_index > 0
   end
   
   def log_event(event)
-    logs << event
+    pending_logs << event
     nil
   end
   

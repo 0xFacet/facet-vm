@@ -64,6 +64,7 @@ class Contract < ApplicationRecord
           transaction_hash: TransactionContext.transaction_hash,
           block_number: TransactionContext.block_number,
           transaction_index: TransactionContext.transaction_index,
+          internal_transaction_index: TransactionContext.current_call.internal_transaction_index,
           state: final_state
         )
       end

@@ -8,7 +8,7 @@ class Type
    end.map(&:to_sym)
   
   TYPES = [:string, :mapping, :address, :ethscriptionId,
-          :bool, :address, :uint256, :int256, :array, :datetime] + INTEGER_TYPES
+          :bool, :address, :uint256, :int256, :array, :datetime, :bytes] + INTEGER_TYPES
   
   TYPES.each do |type|
     define_method("#{type}?") do
@@ -23,6 +23,21 @@ class Type
   end
   
   def initialize(type_name, metadata = {})
+    if type_name.is_a?(Array)
+      if type_name.length != 1
+        raise "Invalid array type #{type_name.inspect}"
+      end
+      
+      value_type = type_name.first
+      
+      if TYPES.exclude?(value_type)
+        raise "Invalid type #{value_type.inspect}"
+      end
+      
+      metadata = { value_type: value_type }
+      type_name = :array
+    end
+    
     type_name = type_name.to_sym
     
     if TYPES.exclude?(type_name)
@@ -60,6 +75,10 @@ class Type
     if is_uint? && other_type.is_uint? || is_int? && other_type.is_int?
       return extract_integer_bits >= other_type.extract_integer_bits
     end
+    
+    if address? && other_type.is_contract_type?
+      return true
+    end
 
     false
   end
@@ -91,7 +110,7 @@ class Type
       "0x" + "0" * 40
     when ethscriptionId?
       "0x" + "0" * 64
-    when string?
+    when string? || bytes?
       ''
     when bool?
       false
@@ -128,7 +147,7 @@ class Type
     end
     
     if address?
-      unless literal.is_a?(String) && literal.match?(/^0x[a-f0-9]{40}$/i)
+      unless literal.is_a?(String) && literal.match?(/\A0x[a-f0-9]{40}\z/i)
         raise_variable_type_error(literal)
       end
       
@@ -166,7 +185,17 @@ class Type
       
       return literal
     elsif ethscriptionId?
-      unless literal.is_a?(String) && literal.match?(/^0x[a-f0-9]{64}$/i)
+      unless literal.is_a?(String) && literal.match?(/\A0x[a-f0-9]{64}\z/i)
+        raise_variable_type_error(literal)
+      end
+      
+      return literal.downcase
+    elsif bytes?
+      if literal.is_a?(String) && literal.length == 0
+        return literal
+      end
+      
+      unless literal.is_a?(String) && literal.match?(/\A0x[a-fA-F0-9]*\z/) && literal.size.even?
         raise_variable_type_error(literal)
       end
       

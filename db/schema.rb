@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2023_09_11_151706) do
+ActiveRecord::Schema[7.0].define(version: 2023_09_14_181546) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -58,8 +58,11 @@ ActiveRecord::Schema[7.0].define(version: 2023_09_11_151706) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "contract_address", null: false
+    t.integer "internal_transaction_index", null: false
     t.index ["block_number", "transaction_index"], name: "index_contract_states_on_block_number_and_transaction_index"
     t.index ["contract_address"], name: "index_contract_states_on_contract_address"
+    t.index ["internal_transaction_index", "transaction_hash"], name: "index_contract_states_on_internal_tx_index_and_tx_hash", unique: true
+    t.index ["internal_transaction_index"], name: "index_contract_states_on_internal_transaction_index"
     t.index ["state"], name: "index_contract_states_on_state", using: :gin
     t.index ["transaction_hash"], name: "index_contract_states_on_transaction_hash"
     t.check_constraint "contract_address::text ~ '^0x[a-f0-9]{40}$'::text"

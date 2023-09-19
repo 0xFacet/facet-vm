@@ -3,6 +3,10 @@ module ContractTestHelper
     trigger_contract_interaction_and_expect_status(status: "error", **params)
   end
   
+  def trigger_contract_interaction_and_expect_error(**params)
+    trigger_contract_interaction_and_expect_status(status: "error", **params)
+  end
+  
   def trigger_contract_interaction_and_expect_success(**params)
     trigger_contract_interaction_and_expect_status(status: "success", **params)
   end
@@ -12,8 +16,13 @@ module ContractTestHelper
   end
   
   def trigger_contract_interaction_and_expect_status(status:, **params)
-    interaction = ContractTestHelper.trigger_contract_interaction(**params)
+    interaction = ContractTestHelper.trigger_contract_interaction(**params.except(:error_msg_includes))
     expect(interaction.status).to eq(status), failure_message(interaction)
+    
+    if status == "error" && params[:error_msg_includes]
+      expect(interaction.error_message).to include(params[:error_msg_includes])
+    end
+    
     interaction
   end
   
@@ -62,9 +71,10 @@ module ContractTestHelper
   def self.trigger_contract_interaction(
     command: nil,
     from:,
-    data:
+    data: nil,
+    payload: nil
   )
-    payload = transform_old_format_to_new(data)
+    payload = transform_old_format_to_new(data || payload)
     
     mimetype = ContractTransaction.required_mimetype
     uri = %{#{mimetype},#{payload.to_json}}

@@ -36,7 +36,14 @@ class AbiProxy
       end
   
       contract_class.class_eval do
-        define_method(parent.name.demodulize) do
+        method_name = parent.name.demodulize.to_sym
+        old_method = instance_method(method_name) if method_defined?(method_name)
+        
+        define_method(method_name) do |*args|
+          if args.present? && old_method
+            return old_method.bind(self).call(*args)
+          end
+          
           contract_instance = self
           Object.new.tap do |proxy|
             parent.abi.data.each do |name, _|

@@ -186,7 +186,7 @@ class ContractTransaction < ApplicationRecord
       )
     end
     
-    if payload['to'] && !payload['to'].match(/^0x[a-f0-9]{40}$/i)
+    if payload['to'] && !payload['to'].to_s.match(/\A0x[a-f0-9]{40}\z/i)
       raise InvalidEthscriptionError.new(
         "#{ethscription.inspect} does not trigger contract interaction"
       )
