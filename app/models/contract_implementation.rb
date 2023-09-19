@@ -333,7 +333,7 @@ class ContractImplementation
     
     if Contracts.constants.include?(method_name)
       define_method(method_name) do |*args, **kwargs|
-        if args.many? || kwargs.present? || args.one? && args.first.is_a?(Hash)
+        if args.many? || kwargs.present? || (args.one? && args.first.is_a?(Hash))
           return create_contract_initializer(method_name, args.presence || kwargs)
         end
         
