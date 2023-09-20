@@ -25,8 +25,7 @@ class ContractTransactionReceipt < ApplicationRecord
   end
   
   def address
-    contract_transaction.contract_calls.first.to_contract_address ||
-    contract_transaction.contract_calls.first.created_contract_address
+    contract_address
   end
   
   def no_contract_on_deploy_error

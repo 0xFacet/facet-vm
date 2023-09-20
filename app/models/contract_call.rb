@@ -146,8 +146,7 @@ class ContractCall < ApplicationRecord
   def eoa_nonce
     scope = ContractCall.where(
       from_address: from_address,
-      call_type: [:create, :call],
-      status: :success
+      call_type: [:create, :call]
     )
     
     scope.count
