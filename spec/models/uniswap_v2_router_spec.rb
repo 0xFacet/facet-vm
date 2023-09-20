@@ -3,8 +3,8 @@ require 'rails_helper'
 class Contracts::StubERC20 < ContractImplementation
   is :ERC20
   
-  constructor() {
-    ERC20.constructor(name: "name", symbol: "symbol", decimals: 18)
+  constructor(name: :string) {
+    ERC20.constructor(name: name, symbol: "symbol", decimals: 18)
   }
   
   function :mint, { amount: :uint256 }, :public do
@@ -21,8 +21,18 @@ describe 'UniswapV2Router contract' do
   end
   
   it 'performs a token swap' do
-    user_address = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
-
+    user_address = "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: nil,
+        data: {
+          type: "UniswapSetupZapOne"
+        }
+      }
+    )
+    
     factory_deploy_receipt = trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
@@ -40,7 +50,8 @@ describe 'UniswapV2Router contract' do
       payload: {
         to: nil,
         data: {
-          type: "StubERC20"
+          type: "StubERC20",
+          args: { name: "Token A" }
         }
       }
     )
@@ -51,7 +62,8 @@ describe 'UniswapV2Router contract' do
       payload: {
         to: nil,
         data: {
-          type: "StubERC20"
+          type: "StubERC20",
+          args: { name: "Token B" }
         }
       }
     )
@@ -77,7 +89,7 @@ describe 'UniswapV2Router contract' do
     }.with_indifferent_access
     
     create_pair_receipt = trigger_contract_interaction_and_expect_success(
-      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      from: "0xc2172a6315c1d7f6855768f843c420ebb36eda97",
       payload: {
         to: factory_address,
         data: {
@@ -94,7 +106,7 @@ describe 'UniswapV2Router contract' do
     
     [:tokenA, :tokenB].each do |token|
       trigger_contract_interaction_and_expect_success(
-        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+        from: "0xc2172a6315c1d7f6855768f843c420ebb36eda97",
         payload: {
           to: deploy_receipts[token].address,
           data: {
@@ -107,7 +119,7 @@ describe 'UniswapV2Router contract' do
       )
 
       trigger_contract_interaction_and_expect_success(
-        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+        from: "0xc2172a6315c1d7f6855768f843c420ebb36eda97",
         payload: {
           to: deploy_receipts[token].address,
           data: {
@@ -122,7 +134,7 @@ describe 'UniswapV2Router contract' do
     end
     
     trigger_contract_interaction_and_expect_success(
-      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      from: "0xc2172a6315c1d7f6855768f843c420ebb36eda97",
       payload: {
         to: pair_address,
         data: {
@@ -274,18 +286,19 @@ describe 'UniswapV2Router contract' do
       function_args: user_address
     )
     
-    amountIn = 1_000.ether
-    amountOutMin = 300.ether
-    
     reserves = ContractTransaction.make_static_call(
-      contract: pair_address,
-      function_name: "getReserves"
+      contract: router_address,
+      function_name: "getReserves",
+      function_args: [factory_address, token_a_address, token_b_address]
     )
     
-    reserveA, reserveB = reserves.values_at(:_reserve0, :_reserve1)
+    reserveA, reserveB = reserves.values_at(:reserveA, :reserveB)
     
-    numerator = amountIn * 997 * reserveA;
-    denominator = (reserveB * 1000) + (amountIn * 997);
+    amountIn = 1_000.ether
+    amountOutMin = 300.ether
+
+    numerator = amountIn * 997 * reserveB;
+    denominator = (reserveA * 1000) + (amountIn * 997);
     expectedOut = numerator.div(denominator)
     
     swap_receipt = trigger_contract_interaction_and_expect_success(

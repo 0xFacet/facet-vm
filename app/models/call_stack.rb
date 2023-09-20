@@ -28,6 +28,12 @@ class CallStack
     type:,
     salt: nil
   )
+    # We don't use to_contract_address because that is not
+    # persisted until the tx is a success
+    from_address = @push_count.zero? ?
+      TransactionContext.tx_origin :
+      current_frame.to_contract.address
+    
     call = TransactionContext.current_transaction.contract_calls.build(
       to_contract_address: to_contract_address,
       to_contract_type: to_contract_type,
@@ -36,7 +42,7 @@ class CallStack
       call_type: type,
       salt: salt,
       internal_transaction_index: @push_count,
-      from_address: current_frame&.to_contract_address || TransactionContext.tx_origin,
+      from_address: from_address
     )
     
     TransactionContext.set(current_call: call) do
