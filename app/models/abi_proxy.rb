@@ -198,7 +198,7 @@ class AbiProxy
       
       validate_arg_names(other_args)
       
-      return Struct.new(nil) if args.blank?
+      return Struct.new(nil).new if args.blank?
       
       as_typed = if other_args.is_a?(Array)
         args.keys.zip(other_args).map do |key, value|
