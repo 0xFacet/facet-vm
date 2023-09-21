@@ -50,4 +50,29 @@ class Contracts::UniswapSetupZap < ContractImplementation
       router: s.routers[s.routers.length - 1]
     }
   end
+  
+  function :userStats, {
+    user: :address,
+    router: :address,
+    factory: :address,
+    tokenA: :address,
+    tokenB: :address,
+  }, :public, :view, returns: {
+    userTokenABalance: :uint256,
+    userTokenBBalance: :uint256,
+    tokenAReserves: :uint256,
+    tokenBReserves: :uint256,
+    userLPBalance: :uint256
+  } do
+    tokenAReserves, tokenBReserves = UniswapV2Router(router).getReserves(factory, tokenA, tokenB)
+    pair = UniswapV2Factory(factory).getPair(tokenA, tokenB)
+    
+    return {
+      userTokenABalance: ERC20(tokenA).balanceOf(user),
+      userTokenBBalance: ERC20(tokenB).balanceOf(user),
+      tokenAReserves: tokenAReserves,
+      tokenBReserves: tokenBReserves,
+      userLPBalance: UniswapV2ERC20(pair).balanceOf(user)
+    }
+  end
 end

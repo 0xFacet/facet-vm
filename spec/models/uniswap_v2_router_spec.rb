@@ -44,9 +44,17 @@ describe 'UniswapV2Router contract' do
       }
     )
     
-    ContractTransaction.make_static_call(
+    res = ContractTransaction.make_static_call(
       contract: zap.contract_address,
       function_name: "lastZap"
+    )
+    
+    args = res.values_at(:router, :factory, :tokenA, :tokenB)
+    
+    ContractTransaction.make_static_call(
+      contract: zap.contract_address,
+      function_name: "userStats",
+      function_args: [user_address, *args],
     )
     
     factory_deploy_receipt = trigger_contract_interaction_and_expect_success(
