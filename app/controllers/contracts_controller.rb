@@ -62,7 +62,7 @@ class ContractsController < ApplicationController
   end
 
   def show_call_receipt
-    receipt = ContractTransactionReceipt.find_by_transaction_hash(params[:transaction_hash])
+    receipt = ContractTransactionReceipt.includes(:contract_transaction).find_by_transaction_hash(params[:transaction_hash])
 
     if receipt.blank?
       render json: {
@@ -83,7 +83,7 @@ class ContractsController < ApplicationController
     per_page = 25 if per_page > 25
 
     contract = Contract.find_by_address(params[:address])
-    receipts = contract.contract_transaction_receipts.order(created_at: :desc).page(page).per(per_page)
+    receipts = contract.contract_transaction_receipts.includes(:contract_transaction).order(created_at: :desc).page(page).per(per_page)
 
     if contract.blank?
       render json: { error: "Contract not found" }, status: 404
