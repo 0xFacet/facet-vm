@@ -4,7 +4,7 @@ class Contracts::EtherBridge < ContractImplementation
   is :ERC20
 
   event :InitiateWithdrawal, { from: :address, amount: :uint256, withdrawalId: :bytes32 }
-  event :WithdrawalComplete, { to: :address, amount: :uint256, withdrawalId: :bytes32 }
+  event :WithdrawalComplete, { to: :address, amounts: [:uint256], withdrawalIds: [:bytes32] }
 
   address :public, :trustedSmartContract
   mapping ({ address: :uint256 }), :public, :pendingWithdrawalAmounts
@@ -42,30 +42,35 @@ class Contracts::EtherBridge < ContractImplementation
   
   function :markWithdrawalComplete, {
     to: :address,
-    amount: :uint256,
-    withdrawalId: :bytes32
+    amounts: [:uint256],
+    withdrawalIds: [:bytes32]
   }, :public do
     require(
       msg.sender == s.trustedSmartContract,
       'Only the trusted smart contract can mark withdrawals as complete'
     )
     
-    require(
-      s.pendingWithdrawalAmounts[to] >= amount,
-      'Insufficient pending withdrawal'
-    )
-    
-    require(
-      _removeFirstOccurenceOfValueFromArray(
-        s.pendingUserWithdrawalIds[to],
-        withdrawalId
-      ),
-      "Withdrawal id not found"
-    )
-    
-    s.pendingWithdrawalAmounts[to] -= amount
-    
-    emit :WithdrawalComplete, to: to, amount: amount, withdrawalId: withdrawalId
+    for i in 0...withdrawalIds.length
+      withdrawalId = withdrawalIds[i]
+      amount = amounts[i]
+      
+      require(
+        s.pendingWithdrawalAmounts[to] >= amount,
+        'Insufficient pending withdrawal'
+      )
+      
+      require(
+        _removeFirstOccurenceOfValueFromArray(
+          s.pendingUserWithdrawalIds[to],
+          withdrawalId
+        ),
+        "Withdrawal id not found"
+      )
+      
+      s.pendingWithdrawalAmounts[to] -= amount
+    end
+      
+    emit :WithdrawalComplete, to: to, amounts: amounts, withdrawalIds: withdrawalIds
   end
   
   function :getPendingWithdrawalsForUser, { user: :address }, :public, :view, returns: [:bytes32] do
@@ -73,7 +78,7 @@ class Contracts::EtherBridge < ContractImplementation
   end
   
   function :_removeFirstOccurenceOfValueFromArray, { arr: array(:bytes32), value: :bytes32 }, :internal do
-    for i in 0..arr.length - 1
+    for i in 0...arr.length
       if arr[i] == value
         return _removeItemAtIndex(arr: arr, indexToRemove: i)
       end
