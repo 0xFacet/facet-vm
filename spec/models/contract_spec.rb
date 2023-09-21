@@ -193,7 +193,7 @@ RSpec.describe Contract, type: :model do
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "protocol": "EtherERC20Bridge",
+          "protocol": "EtherBridge",
           constructorArgs: {
             name: "Bridge Native 1",
             symbol: "PT1",
@@ -259,7 +259,7 @@ RSpec.describe Contract, type: :model do
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "protocol": "EthscriptionERC20Bridge",
+          "protocol": "EthscriptionBridge",
           constructorArgs: {
             name: "Bridge Native 1",
             symbol: "PT1",

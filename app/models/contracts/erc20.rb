@@ -29,16 +29,6 @@ class Contracts::ERC20 < ContractImplementation
     return true
   end
   
-  function :decreaseAllowanceUntilZero, { spender: :address, difference: :uint256 }, :public, :virtual, returns: :bool do
-    allowed = s.allowance[msg.sender][spender]
-    
-    newAllowed = allowed > difference ? allowed - difference : 0
-    
-    approve(spender: spender, amount: newAllowed)
-    
-    return true
-  end
-  
   function :transfer, { to: :address, amount: :uint256 }, :public, :virtual, returns: :bool do
     require(s.balanceOf[msg.sender] >= amount, 'Insufficient balance')
     

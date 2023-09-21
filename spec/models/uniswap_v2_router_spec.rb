@@ -23,14 +23,30 @@ describe 'UniswapV2Router contract' do
   it 'performs a token swap' do
     user_address = "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
     
-    trigger_contract_interaction_and_expect_success(
+    zap = trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
         to: nil,
         data: {
-          type: "UniswapSetupZapOne"
+          type: "UniswapSetupZap"
         }
       }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: "0xc2172a6315c1d7f6855768f843c420ebb36eda97",
+      payload: {
+        to: zap.contract_address,
+        data: {
+          function: "doZap",
+          args: {}
+        }
+      }
+    )
+    
+    ContractTransaction.make_static_call(
+      contract: zap.contract_address,
+      function_name: "lastZap"
     )
     
     factory_deploy_receipt = trigger_contract_interaction_and_expect_success(
