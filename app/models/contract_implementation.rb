@@ -21,7 +21,7 @@ class ContractImplementation
   end
   
   def self.mock
-    Contract.new(type: self.name).implementation
+    Contract.new(type: self.name.demodulize).implementation
   end
   
   def self.abstract
@@ -81,7 +81,11 @@ class ContractImplementation
     metadata = {value_type: value_type}
     type = Type.create(:array, metadata)
     
-    define_state_variable(type, args)
+    if args.length == 1
+      type
+    else
+      define_state_variable(type, args)
+    end
   end
   
   def array(value_type)

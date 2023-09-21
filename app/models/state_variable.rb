@@ -53,7 +53,11 @@ class StateVariable
       current_type = current_type.value_type
       index += 1
     end
-    
+  
+    if current_type.array?
+      arguments["arg#{index}".to_sym] = :uint256
+    end
+  
     contract_class.class_eval do
       self.function(new_var.name, arguments, :public, :view, returns: current_type.name) do
         value = s.send(new_var.name)
