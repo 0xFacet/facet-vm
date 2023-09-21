@@ -55,7 +55,7 @@ class ContractTransactionReceipt < ApplicationRecord
       )
     ).tap do |json|
       [:block_blockhash, :block_number, :transaction_index].each do |key|
-        json[key] = contract_transaction.public_send(key)
+        json[key] = contract_transaction&.public_send(key)
       end
     end.with_indifferent_access
   end
