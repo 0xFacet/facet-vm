@@ -57,6 +57,14 @@ describe 'UniswapV2Router contract' do
       function_args: [user_address, *args],
     )
     
+    args = res.values_at(:tokenA, :tokenB)
+    
+    ContractTransaction.make_static_call(
+      contract: res[:router],
+      function_name: "userStats",
+      function_args: [user_address, *args],
+    )
+    
     factory_deploy_receipt = trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
