@@ -1,5 +1,5 @@
 class Contracts::UniswapV2Pair < ContractImplementation
-  is :ERC20
+  is :UniswapV2ERC20
   
   uint256 :public, :MINIMUM_LIQUIDITY
 
