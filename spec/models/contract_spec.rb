@@ -228,6 +228,16 @@ RSpec.describe Contract, type: :model do
       )
       
       withdrawal_id = bridge_out.logs.detect{|i| i['event'] == 'InitiateWithdrawal'}['data']['withdrawalId']
+      
+      pending = ContractTransaction.make_static_call(
+        contract: deploy.address,
+        function_name: "getPendingWithdrawalsForUser",
+        function_args: [
+          "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
+        ]
+      )
+      
+      expect(pending).to eq([withdrawal_id])
 
       balance = ContractTransaction.make_static_call(
         contract: deploy.address,

@@ -68,6 +68,10 @@ class Contracts::EtherBridge < ContractImplementation
     emit :WithdrawalComplete, to: to, amount: amount, withdrawalId: withdrawalId
   end
   
+  function :getPendingWithdrawalsForUser, { user: :address }, :public, :view, returns: [:bytes32] do
+    return s.pendingUserWithdrawalIds[user]
+  end
+  
   function :_removeFirstOccurenceOfValueFromArray, { arr: array(:bytes32), value: :bytes32 }, :internal do
     for i in 0..arr.length - 1
       if arr[i] == value
