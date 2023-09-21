@@ -220,6 +220,28 @@ class Contracts::UniswapV2Router < ContractImplementation
     require(token0 != address(0), 'UniswapV2Library: ZERO_ADDRESS')
     
     return { token0: token0, token1: token1 }
-  end  
+  end
   
+  function :userStats, {
+    user: :address,
+    tokenA: :address,
+    tokenB: :address,
+  }, :public, :view, returns: {
+    userTokenABalance: :uint256,
+    userTokenBBalance: :uint256,
+    tokenAReserves: :uint256,
+    tokenBReserves: :uint256,
+    userLPBalance: :uint256
+  } do
+    tokenAReserves, tokenBReserves = getReserves(s.factory, tokenA, tokenB)
+    pair = UniswapV2Factory(s.factory).getPair(tokenA, tokenB)
+    
+    return {
+      userTokenABalance: ERC20(tokenA).balanceOf(user),
+      userTokenBBalance: ERC20(tokenB).balanceOf(user),
+      tokenAReserves: tokenAReserves,
+      tokenBReserves: tokenBReserves,
+      userLPBalance: UniswapV2ERC20(pair).balanceOf(user)
+    }
+  end
 end
