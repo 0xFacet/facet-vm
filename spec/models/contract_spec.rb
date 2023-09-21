@@ -257,8 +257,8 @@ RSpec.describe Contract, type: :model do
           functionName: "markWithdrawalComplete",
           args: {
             to: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-            amount: 100,
-            withdrawalId: withdrawal_id
+            amounts: [100],
+            withdrawalIds: [withdrawal_id]
           }
         }
       )
