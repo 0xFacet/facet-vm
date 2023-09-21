@@ -215,7 +215,7 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      trigger_contract_interaction_and_expect_success(
+      bridge_out = trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
@@ -226,6 +226,18 @@ RSpec.describe Contract, type: :model do
           }
         }
       )
+      
+      withdrawal_id = bridge_out.logs.detect{|i| i['event'] == 'InitiateWithdrawal'}['data']['withdrawalId']
+      
+      pending = ContractTransaction.make_static_call(
+        contract: deploy.address,
+        function_name: "getPendingWithdrawalsForUser",
+        function_args: [
+          "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
+        ]
+      )
+      
+      expect(pending).to eq([withdrawal_id])
 
       balance = ContractTransaction.make_static_call(
         contract: deploy.address,
@@ -234,7 +246,7 @@ RSpec.describe Contract, type: :model do
           "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
         ]
       )
-      # binding.pry
+      
       expect(balance).to eq(400)
       
       trigger_contract_interaction_and_expect_success(
@@ -246,6 +258,7 @@ RSpec.describe Contract, type: :model do
           args: {
             to: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
             amount: 100,
+            withdrawalId: withdrawal_id
           }
         }
       )

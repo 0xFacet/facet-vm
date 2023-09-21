@@ -7,7 +7,7 @@ class Type
     ["uint#{num}", "int#{num}"]
    end.map(&:to_sym)
   
-  TYPES = [:string, :mapping, :address, :ethscriptionId,
+  TYPES = [:string, :mapping, :address, :ethscriptionId, :bytes32,
           :bool, :address, :uint256, :int256, :array, :datetime, :bytes] + INTEGER_TYPES
   
   TYPES.each do |type|
@@ -108,7 +108,7 @@ class Type
       0
     when address?
       "0x" + "0" * 40
-    when ethscriptionId?
+    when ethscriptionId? || bytes32?
       "0x" + "0" * 64
     when string? || bytes?
       ''
@@ -147,6 +147,10 @@ class Type
     end
     
     if address?
+      if literal.is_a?(ContractType::Proxy)
+        return literal.address
+      end
+      
       unless literal.is_a?(String) && literal.match?(/\A0x[a-f0-9]{40}\z/i)
         raise_variable_type_error(literal)
       end
@@ -184,7 +188,7 @@ class Type
       end
       
       return literal
-    elsif ethscriptionId?
+    elsif ethscriptionId? || bytes32?
       unless literal.is_a?(String) && literal.match?(/\A0x[a-f0-9]{64}\z/i)
         raise_variable_type_error(literal)
       end

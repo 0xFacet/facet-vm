@@ -5,6 +5,8 @@ class MappingType < TypedVariable
   
   def serialize
     value.data.each.with_object({}) do |(key, value), h|
+      next if value.value == value.type.default_value
+
       h[key.serialize] = value.serialize
     end
   end
@@ -23,12 +25,11 @@ class MappingType < TypedVariable
       key_var = TypedVariable.create_or_validate(key_type, key_var)
       value = data[key_var]
 
-      if value_type.mapping? && value.nil?
-        value = TypedVariable.create_or_validate(value_type)
-        data[key_var] = value
+      if value.nil?
+        data[key_var] = TypedVariable.create_or_validate(value_type)
       end
-
-      value || TypedVariable.create_or_validate(value_type)
+      
+      data[key_var]
     end
 
     def []=(key_var, value)
