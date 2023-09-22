@@ -154,6 +154,11 @@ class ContractImplementation
   end
   
   def self.function(name, args, *options, returns: nil, &block)
+    if args.is_a?(Symbol)
+      options.unshift(args)
+      args = {}
+    end
+    
     abi.create_and_add_function(name, args, *options, returns: returns, &block)
   end
   

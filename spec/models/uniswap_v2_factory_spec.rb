@@ -26,7 +26,17 @@ RSpec.describe Contracts::UniswapV2Factory, type: :model do
         }
       }
     )
-  
+    
+    ContractTransaction.make_static_call(
+      contract: factory_deploy_receipt.address,
+      function_name: "allPairsLength"
+    )
+    
+    ContractTransaction.make_static_call(
+      contract: factory_deploy_receipt.address,
+      function_name: "getAllPairs"
+    )
+    
     expect(create_pair_receipt.logs).to include(
       hash_including('event' => 'PairCreated')
     )

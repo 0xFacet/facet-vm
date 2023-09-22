@@ -43,6 +43,7 @@ class ArrayType < TypedVariable
       next_index = data.size
       
       self.[]=(next_index, value)
+      nil
     end
     
     def pop
