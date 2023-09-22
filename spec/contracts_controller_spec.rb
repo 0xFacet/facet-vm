@@ -79,4 +79,45 @@ RSpec.describe ContractsController, type: :controller do
       expect(response).to have_http_status(:success)
     end
   end
+  
+  describe 'GET #static_call' do
+    let(:contract_address) { '0x' + '1' * 40 }
+    let(:function_name) { 'myFunction' }
+    let(:args) { { arg1: 'value1', arg2: 'value2' } }
+    let(:env) { { 'msgSender' => '0x456' } }
+
+    before do
+      allow(ContractTransaction).to receive(:make_static_call).and_return(result)
+      get :static_call, params: { address: contract_address, function: function_name, args: args.to_json, env: env.to_json }
+    end
+
+    context 'when the result is an integer' do
+      let(:result) { 123 }
+
+      it 'returns the result as a string' do
+        expect(JSON.parse(response.body)['result']).to eq('123')
+      end
+    end
+
+    context 'when the result is a hash' do
+      let(:result) { { key1: 123, key2: 456, key3: [222], key4: {key5: 123} } }
+
+      it 'returns the result with integer values converted to strings' do
+        expect(JSON.parse(response.body)['result']).to eq(
+          {"key1"=>"123",
+          "key2"=>"456",
+          "key3"=>["222"],
+          "key4"=>{"key5"=>"123"}}
+        )
+      end
+    end
+
+    context 'when the result is neither an integer nor a hash' do
+      let(:result) { 'some string' }
+
+      it 'returns the result as is' do
+        expect(JSON.parse(response.body)['result']).to eq('some string')
+      end
+    end
+  end
 end
