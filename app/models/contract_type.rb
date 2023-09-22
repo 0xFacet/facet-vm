@@ -20,6 +20,13 @@ class ContractType < TypedVariable
 
     attr_accessor :contract_type, :address, :uncast_address
 
+    def ==(other)
+      return false unless other.is_a?(self.class)
+      
+      other.contract_type == contract_type &&
+      other.address == address
+    end
+    
     def initialize(contract_type:, address:)
       self.uncast_address = address
       address = TypedVariable.create_or_validate(:address, address).value

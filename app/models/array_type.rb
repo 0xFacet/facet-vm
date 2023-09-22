@@ -9,6 +9,13 @@ class ArrayType < TypedVariable
   
   class Proxy
     attr_accessor :value_type, :data
+    
+    def ==(other)
+      return false unless other.is_a?(self.class)
+      
+      other.value_type == value_type &&
+      other.data == data
+    end
   
     def initialize(initial_value = [], value_type:)
       unless value_type.is_value_type?
