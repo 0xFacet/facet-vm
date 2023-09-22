@@ -12,7 +12,11 @@ class Contracts::UniswapV2Factory < ContractImplementation
   }
 
   function :allPairsLength, :public, :view, returns: :uint256 do
-    return allPairs.length
+    return s.allPairs.length
+  end
+  
+  function :getAllPairs, :public, :view, returns: [:address] do
+    return s.allPairs
   end
 
   function :createPair, { tokenA: :address, tokenB: :address }, :public, returns: :address do

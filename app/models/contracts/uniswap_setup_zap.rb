@@ -9,7 +9,7 @@ class Contracts::UniswapSetupZap < ContractImplementation
   
   constructor() {}
   
-  function :doZap, {}, :public do
+  function :doZap, :public do
     factory = new UniswapV2Factory(_feeToSetter: msg.sender)
     
     tokenA = new UnsafeNoApprovalERC20(
@@ -41,7 +41,7 @@ class Contracts::UniswapSetupZap < ContractImplementation
     emit :ZapOneSetup, { factory: factory, tokenA: tokenA, tokenB: tokenB, pair: pair, router: router }
   end
   
-  function :lastZap, {}, :public, :view, returns: { factory: :address, tokenA: :address, tokenB: :address, pair: :address, router: :address } do
+  function :lastZap, :public, :view, returns: { factory: :address, tokenA: :address, tokenB: :address, pair: :address, router: :address } do
     return {
       factory: s.factories[s.factories.length - 1],
       tokenA: s.tokenAs[s.tokenAs.length - 1],
