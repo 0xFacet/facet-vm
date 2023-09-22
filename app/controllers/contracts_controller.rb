@@ -56,8 +56,18 @@ class ContractsController < ApplicationController
       return
     end
 
+    cooked_result = if result.is_a?(Integer)
+      result.to_s
+    elsif result.is_a?(Hash)
+      result.as_json.deep_transform_values do |value|
+        value.is_a?(Integer) ? value.to_s : value
+      end
+    else
+      result
+    end
+    
     render json: {
-      result: result.is_a?(Integer) ? result.to_s : result
+      result: cooked_result
     }
   end
 
