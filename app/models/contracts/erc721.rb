@@ -67,9 +67,11 @@ class Contracts::ERC721 < ContractImplementation
     s._ownerOf[id] = to;
     
     s.getApproved[id] = address(0);
+    
+    return nil
   end
   
-  function :_exists, { id: :uint256 }, :internal, :virtual do
+  function :_exists, { id: :uint256 }, :internal, :virtual, returns: :bool do
     return s._ownerOf[id] != address(0)
   end
   

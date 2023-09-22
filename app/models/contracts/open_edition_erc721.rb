@@ -27,7 +27,7 @@ class Contracts::OpenEditionERC721 < ContractImplementation
     s.mintEnd = mintEnd
   }
   
-  function :mint, { amount: :uint256 }, :public do
+  function :mint, { amount: :uint256 }, :public, returns: :uint256 do
     require(amount > 0, 'Amount must be positive')
     require(amount + s._balanceOf[msg.sender] <= s.maxPerAddress, 'Exceeded mint limit')
     require(block.timestamp >= s.mintStart, 'Minting has not started')

@@ -25,7 +25,7 @@ class Contracts::GenerativeERC721 < ContractImplementation
     s.generativeScript = generativeScript
   }
   
-  function :mint, { amount: :uint256 }, :public do
+  function :mint, { amount: :uint256 }, :public, returns: :uint256 do
     require(amount > 0, 'Amount must be positive')
     require(amount + s._balanceOf[msg.sender] <= s.maxPerAddress, 'Exceeded mint limit')
     require(amount + s.totalSupply <= s.maxSupply, 'Exceeded max supply')

@@ -128,6 +128,8 @@ class Contracts::UniswapV2Router < ContractImplementation
 
       UniswapV2Pair(pairFor(factory, input, output)).swap(amount0Out, amount1Out, to, "")
     end
+    
+    return nil
   end
   
   function :_safeTransferFrom, { token: :address, from: :address, to: :address, value: :uint256 }, :private do

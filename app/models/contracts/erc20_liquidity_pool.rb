@@ -7,7 +7,7 @@ class Contracts::ERC20LiquidityPool < ContractImplementation
     s.token1 = token1
   end
   
-  function :addLiquidity, {token0Amount: :uint256, token1Amount: :uint256}, :public do
+  function :addLiquidity, {token0Amount: :uint256, token1Amount: :uint256}, :public, returns: :bool do
     ERC20(s.token0).transferFrom(
       from: msg.sender,
       to: address(this),

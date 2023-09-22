@@ -217,8 +217,18 @@ class AbiProxy
     end
     
     def convert_return_to_typed_variable(ret_val)
-      return ret_val if ret_val.nil? || returns.nil?
+      return nil if constructor?
+      
+      if returns.nil?
+        return nil if ret_val.nil?
+        
+        raise ContractError, "Function #{func_location} returned #{ret_val.inspect}, but expected nil"
+      end
     
+      if ret_val.nil?
+        raise ContractError, "Function #{func_location} returned nil, but expected #{returns}"
+      end
+      
       if returns.is_a?(Hash)
         ret_val.each.with_object({}) do |(key, value), acc|
           acc[key.to_sym] = TypedVariable.create_or_validate(returns[key], value)

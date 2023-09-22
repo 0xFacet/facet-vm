@@ -34,7 +34,7 @@ class Contracts::Receiver < ContractImplementation
   
   constructor() {}
   
-  function :sayHi, {}, :public, :view do
+  function :sayHi, {}, :public, :view, returns: :string do
     return "hi"
   end
   
@@ -70,7 +70,7 @@ class Contracts::Caller < ContractImplementation
     Receiver(receiver).internalCall()
   end
   
-  function :testImplements, { receiver: :address }, :public do
+  function :testImplements, { receiver: :address }, :public, returns: :string do
     ERC20(receiver).name()
   end
 end
@@ -128,7 +128,7 @@ end
 class Contracts::MultiDeployer < ContractImplementation
   constructor() {}
 
-  function :deployContracts, { deployerAddress: :address }, :public do
+  function :deployContracts, { deployerAddress: :address }, :public, returns: :address do
     contract = new CallerTwo(deployerAddress)
     
     testNoArgs = new MultiDeployer()
@@ -144,7 +144,7 @@ class Contracts::CallerTwo < ContractImplementation
     s.deployerAddress = deployerAddress
   }
   
-  function :callDeployer, {}, :public do
+  function :callDeployer, {}, :public, returns: :address do
     deployer = Deployer(s.deployerAddress)
 
     deployer.createERC20Minimal("myToken", "MTK", 18)

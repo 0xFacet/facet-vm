@@ -17,8 +17,8 @@ RSpec.describe AbiProxy, type: :model do
         }
         
         function :_mint, { to: :address, amount: :uint256 }, :public, :virtual, :override do
-          ERC20._mint(to: to, amount: amount)
           s.definedInTest = "definedInTest"
+          ERC20._mint(to: to, amount: amount)
         end
         
         function :nonVirtual, {}, :public do
@@ -49,8 +49,8 @@ RSpec.describe AbiProxy, type: :model do
         event :Greet, { greeting: :string }
         
         function :_mint, { to: :address, amount: :uint256 }, :public, :virtual do
-          emit :Greet, greeting: "Hello"
           s.definedInNonToken = "definedInNonToken"
+          emit :Greet, greeting: "Hello"
         end
       end
     end

@@ -77,7 +77,7 @@ class Contracts::EtherBridge < ContractImplementation
     return s.pendingUserWithdrawalIds[user]
   end
   
-  function :_removeFirstOccurenceOfValueFromArray, { arr: array(:bytes32), value: :bytes32 }, :internal do
+  function :_removeFirstOccurenceOfValueFromArray, { arr: array(:bytes32), value: :bytes32 }, :internal, returns: :bool do
     for i in 0...arr.length
       if arr[i] == value
         return _removeItemAtIndex(arr: arr, indexToRemove: i)

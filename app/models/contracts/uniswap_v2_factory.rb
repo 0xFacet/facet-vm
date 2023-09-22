@@ -45,11 +45,15 @@ class Contracts::UniswapV2Factory < ContractImplementation
     require(msg.sender == feeToSetter, "Scribeswap: FORBIDDEN")
     
     s.feeTo = _feeTo
+    
+    return nil
   end
 
   function :setFeeToSetter, { _feeToSetter: :address }, :public do
     require(msg.sender == feeToSetter, "Scribeswap: FORBIDDEN")
     
     s.feeToSetter = _feeToSetter
+    
+    return nil
   end
 end
