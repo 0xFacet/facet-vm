@@ -229,19 +229,33 @@ class Contracts::UniswapV2Router < ContractImplementation
   }, :public, :view, returns: {
     userTokenABalance: :uint256,
     userTokenBBalance: :uint256,
+    tokenAName: :string,
+    tokenBName: :string,
     tokenAReserves: :uint256,
     tokenBReserves: :uint256,
-    userLPBalance: :uint256
+    userLPBalance: :uint256,
+    pairAddress: :address
   } do
-    tokenAReserves, tokenBReserves = getReserves(s.factory, tokenA, tokenB)
-    pair = UniswapV2Factory(s.factory).getPair(tokenA, tokenB)
+    tokenAReserves = 0
+    tokenBReserves = 0
+    userLPBalance = 0
+    
+    if UniswapV2Factory(s.factory).getPair(tokenA, tokenB) != address(0)
+      tokenAReserves, tokenBReserves = getReserves(s.factory, tokenA, tokenB)
+      
+      pair = UniswapV2Factory(s.factory).getPair(tokenA, tokenB)
+      userLPBalance = UniswapV2ERC20(pair).balanceOf(user)
+    end
     
     return {
       userTokenABalance: ERC20(tokenA).balanceOf(user),
       userTokenBBalance: ERC20(tokenB).balanceOf(user),
+      tokenAName: ERC20(tokenA).name(),
+      tokenBName: ERC20(tokenB).name(),
       tokenAReserves: tokenAReserves,
       tokenBReserves: tokenBReserves,
-      userLPBalance: UniswapV2ERC20(pair).balanceOf(user)
+      userLPBalance: userLPBalance,
+      pairAddress: pair
     }
   end
 end
