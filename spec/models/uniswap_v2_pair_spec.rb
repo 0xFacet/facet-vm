@@ -23,7 +23,7 @@ class Contracts::UniswapV2CalleeTester < ContractImplementation
     amount0: :uint256,
     amount1: :uint256,
     data: :bytes
-  }, :override, :external do
+  }, :override, :external, returns: :bool do
     balance0 = ERC20(s.token0).balanceOf(address(this))
     balance1 = ERC20(s.token1).balanceOf(address(this))
     

@@ -59,6 +59,8 @@ class Contracts::UniswapV2Pair < ContractImplementation
 
     s.token0 = _token0
     s.token1 = _token1
+    
+    return nil
   end
   
   function :_update, {
@@ -146,6 +148,8 @@ class Contracts::UniswapV2Pair < ContractImplementation
     s.kLast = s.reserve0 * s.reserve1 if feeOn
     
     emit :Mint, sender: msg.sender, amount0: amount0, amount1: amount1
+    
+    return liquidity
   end
   
   function :burn, { to: :address }, :external, :lock, returns: { amount0: :uint256, amount1: :uint256 } do
