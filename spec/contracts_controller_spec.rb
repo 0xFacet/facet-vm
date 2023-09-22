@@ -100,14 +100,22 @@ RSpec.describe ContractsController, type: :controller do
     end
 
     context 'when the result is a hash' do
-      let(:result) { { key1: 123, key2: 456, key3: [222], key4: {key5: 123} } }
+      let(:result) { {
+        key1: 123,
+        key2: 456,
+        key3: [222],
+        key4: {key5: 123},
+        k5: [{k6: 100}]
+      } }
 
       it 'returns the result with integer values converted to strings' do
         expect(JSON.parse(response.body)['result']).to eq(
           {"key1"=>"123",
           "key2"=>"456",
           "key3"=>["222"],
-          "key4"=>{"key5"=>"123"}}
+          "key4"=>{"key5"=>"123"},
+          "k5" => [{"k6" => "100"}]
+        }
         )
       end
     end
