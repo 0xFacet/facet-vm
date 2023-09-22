@@ -191,7 +191,12 @@ class ContractImplementation
       raise ContractDefinitionError.new(error_messages.join(' '), self)
     end
 
-    log_event({ address: contract_record.address, event: event_name, data: args })
+    log_event({
+      contractType: contract_record.type,
+      contractAddress: contract_record.address,
+      event: event_name,
+      data: args
+    })
   end
 
   def self.define_state_variable(type, args)
