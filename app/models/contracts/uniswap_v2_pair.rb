@@ -44,6 +44,7 @@ class Contracts::UniswapV2Pair < ContractImplementation
     to: :address 
   }
   event :Sync, { reserve0: :uint112, reserve1: :uint112 }
+  event :PreSwapReserves, { reserve0: :uint112, reserve1: :uint112 }
   
   constructor() {
     s.factory = msg.sender
@@ -76,6 +77,8 @@ class Contracts::UniswapV2Pair < ContractImplementation
       s.price0CumulativeLast += uint256(uqdiv(encode(_reserve1), _reserve0)) * timeElapsed
       s.price1CumulativeLast += uint256(uqdiv(encode(_reserve0), _reserve1)) * timeElapsed
     end
+    
+    emit :PreSwapReserves, reserve0: s.reserve0, reserve1: s.reserve1
     
     s.reserve0 = uint112(balance0)
     s.reserve1 = uint112(balance1)
