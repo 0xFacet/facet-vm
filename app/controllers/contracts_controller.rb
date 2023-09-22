@@ -7,11 +7,7 @@ class ContractsController < ApplicationController
     contracts = Contract.all.order(created_at: :desc).page(page).per(per_page)
 
     render json: {
-      result: contracts.map do |i|
-        i.as_json.deep_transform_values do |value|
-          value.is_a?(Integer) ? value.to_s : value
-        end
-      end
+      result: convert_int_to_string(contracts)
     }
   end
 
@@ -32,9 +28,7 @@ class ContractsController < ApplicationController
     end
 
     render json: {
-      result: contract.as_json.deep_transform_values do |value|
-        value.is_a?(Integer) ? value.to_s : value
-      end
+      result: convert_int_to_string(contract)
     }
   end
 
@@ -56,18 +50,8 @@ class ContractsController < ApplicationController
       return
     end
 
-    cooked_result = if result.is_a?(Integer)
-      result.to_s
-    elsif result.is_a?(Hash)
-      result.as_json.deep_transform_values do |value|
-        value.is_a?(Integer) ? value.to_s : value
-      end
-    else
-      result
-    end
-    
     render json: {
-      result: cooked_result
+      result: convert_int_to_string(result)
     }
   end
 
@@ -80,9 +64,7 @@ class ContractsController < ApplicationController
       }
     else
       render json: {
-        result: receipt.as_json.deep_transform_values do |value|
-          value.is_a?(Integer) ? value.to_s : value
-        end
+        result: convert_int_to_string(receipt)
       }
     end
   end
@@ -101,11 +83,7 @@ class ContractsController < ApplicationController
     end
 
     render json: {
-      result: receipts.map do |i|
-        i.as_json.deep_transform_values do |value|
-          value.is_a?(Integer) ? value.to_s : value
-        end
-      end
+      result: convert_int_to_string(receipts)
     }
   end
   
@@ -122,6 +100,23 @@ class ContractsController < ApplicationController
       return
     end
   
-    render json: { result: receipt }
+    render json: { result: convert_int_to_string(receipt) }
+  end
+  
+  private
+  
+  def convert_int_to_string(result)
+    result = result.as_json
+  
+    case result
+    when Numeric
+      result.to_s
+    when Hash
+      result.deep_transform_values { |value| convert_int_to_string(value) }
+    when Array
+      result.map { |value| convert_int_to_string(value) }
+    else
+      result
+    end
   end
 end
