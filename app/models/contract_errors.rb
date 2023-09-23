@@ -32,4 +32,5 @@ module ContractErrors
   class FunctionAlreadyDefinedError < StandardError; end
   class InvalidEthscriptionError < StandardError; end
   class InvalidDestructuringError < StandardError; end
+  class ReadOnlyFunctionChangedStateError < StandardError; end
 end

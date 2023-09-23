@@ -53,10 +53,12 @@ class Contract < ApplicationRecord
   end
   
   def with_state_management
+    state_changed = false
+    
     implementation.state_proxy.load(current_state.state.deep_dup)
     initial_state = implementation.state_proxy.serialize
     
-    yield.tap do
+    result = yield.tap do
       final_state = implementation.state_proxy.serialize
       
       if final_state != initial_state
@@ -67,8 +69,12 @@ class Contract < ApplicationRecord
           internal_transaction_index: TransactionContext.current_call.internal_transaction_index,
           state: final_state
         )
+        
+        state_changed = true
       end
     end
+    
+    { result: result, state_changed: state_changed }
   end
   
   def self.all_abis(deployable_only: false)
