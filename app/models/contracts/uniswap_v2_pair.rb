@@ -47,6 +47,8 @@ class Contracts::UniswapV2Pair < ContractImplementation
   event :PreSwapReserves, { reserve0: :uint112, reserve1: :uint112 }
   
   constructor() {
+    UniswapV2ERC20.constructor()
+    
     s.factory = msg.sender
     
     s.MINIMUM_LIQUIDITY = 10 ** 3
