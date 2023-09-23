@@ -3,9 +3,19 @@ require 'rails_helper'
 class Contracts::StubERC20B < ContractImplementation
   is :ERC20
   
+  uint256 :public, :unsafeReadOnlyCounter
+  
   constructor() {
     ERC20.constructor(name: "name", symbol: "symbol", decimals: 18)
   }
+  
+  function :unsafeReadOnly, :public, :view do
+    s.unsafeReadOnlyCounter += 1
+  end
+  
+  function :callOwnUnsafeReadOnly, :public do
+    unsafeReadOnly()
+  end
 end
 
 RSpec.describe ContractCall, type: :model do
@@ -121,5 +131,36 @@ RSpec.describe ContractCall, type: :model do
     test_call.contract_transaction = contract_transaction
     
     expect(test_call.contract_nonce).to eq(2)
+  end
+  
+  it 'fails on read only write' do
+    receipt = trigger_contract_interaction_and_expect_success(
+      from: from_address,
+      payload: {
+        to: nil,
+        data: {
+          type: "StubERC20B"
+        }
+      }
+    )
+    
+    deployed = receipt.contract_address
+    
+    expect {
+      ContractTransaction.make_static_call(
+        contract: deployed,
+        function_name: "unsafeReadOnly"
+      )
+    }.to raise_error(Contract::StaticCallError)
+    
+    trigger_contract_interaction_and_expect_error(
+      from: from_address,
+      payload: {
+        to: deployed,
+        data: {
+          function: "callOwnUnsafeReadOnly"
+        }
+      }
+    )
   end
 end
