@@ -8,6 +8,9 @@ Rails.application.routes.draw do
       
       get "/all-abis", to: "contracts#all_abis"
       get "/deployable-contracts", to: "contracts#deployable_contracts"
+      
+      
+      get "/pairs_with_tokens/:factory", to: "contracts#pairs_with_tokens"
     end
   end
   

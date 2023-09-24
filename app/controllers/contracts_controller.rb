@@ -103,7 +103,53 @@ class ContractsController < ApplicationController
     render json: { result: convert_int_to_string(receipt) }
   end
   
+  def pairs_with_tokens
+    pair_ary = make_static_call(
+      contract: params[:factory],
+      function_name: "getAllPairs"
+    )
+  
+    token_address = params[:token_address]
+  
+    pairs = pair_ary.each_with_object({}) do |pair, hash|
+      token_info0 = token_info(pair, "token0")
+      token_info1 = token_info(pair, "token1")
+  
+      if token_address.nil? || token_info0[:address] == token_address || token_info1[:address] == token_address
+        hash[pair] = {
+          token0: token_info0,
+          token1: token_info1
+        }
+      end
+    end
+  
+    render json: { result: pairs }
+  end
+  
   private
+  
+  def token_info(pair, token_function)
+    token_addr = make_static_call(
+      contract: pair,
+      function_name: token_function
+    )
+  
+    {
+      address: token_addr,
+      name: make_static_call(
+        contract: token_addr,
+        function_name: "name"
+      ),
+      symbol: make_static_call(
+        contract: token_addr,
+        function_name: "symbol"
+      )
+    }
+  end
+  
+  def make_static_call(**kwargs)
+    ContractTransaction.make_static_call(**kwargs)
+  end
   
   def convert_int_to_string(result)
     result = result.as_json
