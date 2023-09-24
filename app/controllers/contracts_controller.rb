@@ -110,10 +110,11 @@ class ContractsController < ApplicationController
     )
   
     token_address = params[:token_address]
-  
+    user_address = params[:user_address]
+
     pairs = pair_ary.each_with_object({}) do |pair, hash|
-      token_info0 = token_info(pair, "token0")
-      token_info1 = token_info(pair, "token1")
+      token_info0 = token_info(pair, "token0", user_address)
+      token_info1 = token_info(pair, "token1", user_address)
   
       if token_address.nil? || token_info0[:address] == token_address || token_info1[:address] == token_address
         hash[pair] = {
@@ -123,18 +124,18 @@ class ContractsController < ApplicationController
       end
     end
   
-    render json: { result: pairs }
+    render json: { result: convert_int_to_string(pairs) }
   end
   
   private
   
-  def token_info(pair, token_function)
+  def token_info(pair, token_function, user_address)
     token_addr = make_static_call(
       contract: pair,
       function_name: token_function
     )
   
-    {
+    token_info = {
       address: token_addr,
       name: make_static_call(
         contract: token_addr,
@@ -145,6 +146,16 @@ class ContractsController < ApplicationController
         function_name: "symbol"
       )
     }
+  
+    if user_address.present?
+      token_info[:userBalance] = make_static_call(
+        contract: token_addr,
+        function_name: "balanceOf",
+        function_args: user_address
+      )
+    end
+  
+    token_info
   end
   
   def make_static_call(**kwargs)
