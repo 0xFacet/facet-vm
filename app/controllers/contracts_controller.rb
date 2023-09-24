@@ -104,8 +104,14 @@ class ContractsController < ApplicationController
   end
   
   def pairs_with_tokens
+    router = params[:router]
+    factory = make_static_call(
+      contract: router,
+      function_name: "factory"
+    )
+  
     pair_ary = make_static_call(
-      contract: params[:factory],
+      contract: factory,
       function_name: "getAllPairs"
     )
   
@@ -113,8 +119,8 @@ class ContractsController < ApplicationController
     user_address = params[:user_address]
 
     pairs = pair_ary.each_with_object({}) do |pair, hash|
-      token_info0 = token_info(pair, "token0", user_address)
-      token_info1 = token_info(pair, "token1", user_address)
+      token_info0 = token_info(pair, "token0", user_address, router)
+      token_info1 = token_info(pair, "token1", user_address, router)
   
       if token_address.nil? || token_info0[:address] == token_address || token_info1[:address] == token_address
         hash[pair] = {
@@ -129,7 +135,7 @@ class ContractsController < ApplicationController
   
   private
   
-  def token_info(pair, token_function, user_address)
+  def token_info(pair, token_function, user_address, router)
     token_addr = make_static_call(
       contract: pair,
       function_name: token_function
@@ -152,6 +158,11 @@ class ContractsController < ApplicationController
         contract: token_addr,
         function_name: "balanceOf",
         function_args: user_address
+      )
+      token_info[:allowance] = make_static_call(
+        contract: token_addr,
+        function_name: "allowance",
+        function_args: [user_address, router]
       )
     end
   
