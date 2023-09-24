@@ -136,7 +136,12 @@ class ContractImplementation
   
   def self.implements?(contract)
     class_name = "Contracts::#{contract}".constantize
-    parent_contracts.include?(class_name) || self == class_name
+  
+    return true if self == class_name
+  
+    parent_contracts.any? do |parent_contract|
+      parent_contract == class_name || parent_contract.implements?(contract)
+    end
   end
   
   def self.linearize_contracts(contract, processed = [])
