@@ -51,16 +51,18 @@ class EthscriptionSync
         ethscription_id: ethscriptions.first[:ethscription_id]
       )
       
-      server_blockhash = ethscriptions.first[:block_blockhash]
-      our_blockhash = starting_ethscription&.block_blockhash
-      
-      Ethscription.transaction do
-        starting_ethscription&.later_ethscriptions&.delete_all
+      if starting_ethscription
+        server_blockhash = ethscriptions.first[:block_blockhash]
+        our_blockhash = starting_ethscription.block_blockhash
         
-        if server_blockhash != our_blockhash
-          starting_ethscription&.delete
-        else
-          ethscriptions.shift
+        Ethscription.transaction do
+          starting_ethscription.later_ethscriptions.delete_all
+          
+          if server_blockhash != our_blockhash
+            starting_ethscription.delete
+          else
+            ethscriptions.shift
+          end
         end
       end
       
