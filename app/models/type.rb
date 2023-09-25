@@ -1,7 +1,7 @@
 class Type
   include ContractErrors
   
-  attr_accessor :name, :metadata, :key_type, :value_type
+  attr_accessor :name, :metadata, :key_type, :value_type, :initial_length
   
   INTEGER_TYPES = (8..256).step(8).flat_map do |num|
     ["uint#{num}", "int#{num}"]
@@ -67,6 +67,7 @@ class Type
   def metadata=(metadata)
     self.key_type = metadata[:key_type]
     self.value_type = metadata[:value_type]
+    self.initial_length = metadata[:initial_length] if metadata[:initial_length]
   end
   
   def can_be_assigned_from?(other_type)
@@ -93,7 +94,7 @@ class Type
   end
   
   def metadata
-    { key_type: key_type, value_type: value_type }
+    { key_type: key_type, value_type: value_type, initial_length: initial_length }
   end
   
   def to_s
@@ -117,7 +118,7 @@ class Type
     when mapping?
       MappingType::Proxy.new(key_type: key_type, value_type: value_type)
     when array?
-      ArrayType::Proxy.new(value_type: value_type)
+      ArrayType::Proxy.new(value_type: value_type, initial_length: initial_length)
     when is_contract_type?
       ContractType::Proxy.new(contract_type: name, address: nil, caller_address: nil)
     else
@@ -244,7 +245,7 @@ class Type
         TypedVariable.create(value_type, value)
       end
     
-      proxy = ArrayType::Proxy.new(data, value_type: value_type)
+      proxy = ArrayType::Proxy.new(data, value_type: value_type, initial_length: initial_length)
       
       return proxy
     elsif is_contract_type?
@@ -275,7 +276,7 @@ class Type
   def ==(other)
     other.is_a?(self.class) &&
     other.name == name &&
-    other.metadata == metadata
+    other.metadata.except(:initial_length) == metadata.except(:initial_length)
   end
   
   def !=(other)

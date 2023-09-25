@@ -114,6 +114,27 @@ class Contracts::UniswapV2Router < ContractImplementation
     return amounts
   end
   
+  function :swapTokensForExactTokens, {
+    amountOut: :uint256,
+    amountInMax: :uint256,
+    path: [:address],
+    to: :address,
+    deadline: :uint256
+  }, :public, :virtual, returns: [:uint256] do
+    require(deadline >= block.timestamp, 'UniswapV2Router: EXPIRED');
+    
+    amounts = getAmountsIn(factory, amountOut, path)
+    require(amounts[0] <= amountInMax, 'UniswapV2Router: EXCESSIVE_INPUT_AMOUNT')
+  
+    _safeTransferFrom(
+      path[0], msg.sender, pairFor(factory, path[0], path[1]), amounts[0]
+    )
+  
+    _swap(amounts, path, to)
+  
+    return amounts
+  end
+  
   function :_swap, {
     amounts: [:uint256],
     path: [:address],
@@ -145,7 +166,7 @@ class Contracts::UniswapV2Router < ContractImplementation
   }, :public, :view, returns: [:uint256] do
     require(path.length >= 2, 'UniswapV2Library: INVALID_PATH')
     
-    amounts = array(:uint256)
+    amounts = array(:uint256, path.length)
     amounts[0] = amountIn
     
     for i in 0...(path.length - 1)
@@ -170,6 +191,39 @@ class Contracts::UniswapV2Router < ContractImplementation
     amountOut = numerator.div(denominator)
     
     return amountOut
+  end
+  
+  function :getAmountsIn, {
+    factory: :address,
+    amountOut: :uint256,
+    path: [:address]
+  }, :public, :view, returns: [:uint256] do
+    require(path.length >= 2, 'UniswapV2Library: INVALID_PATH')
+  
+    amounts = array(:uint256, path.length)
+    amounts[amounts.length - 1] = amountOut
+    
+    for i in (path.length - 1).downto(1)
+      reserveIn, reserveOut = getReserves(factory, path[i - 1], path[i])
+      amounts[i - 1] = getAmountIn(amounts[i], reserveIn, reserveOut)
+    end
+  
+    return amounts
+  end
+  
+  function :getAmountIn, {
+    amountOut: :uint256,
+    reserveIn: :uint256,
+    reserveOut: :uint256
+  }, :public, :view, returns: :uint256 do
+    require(amountOut > 0, 'UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT')
+    require(reserveIn > 0 && reserveOut > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY')
+  
+    numerator = reserveIn * amountOut * 1000
+    denominator = (reserveOut - amountOut) * 997
+    amountIn = (numerator.div(denominator)) + 1
+  
+    return amountIn
   end
   
   function :quote, {
