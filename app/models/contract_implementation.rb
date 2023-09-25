@@ -146,6 +146,16 @@ class ContractImplementation
     end
   end
   
+  def self.types_that_implement(base_type)
+    Contracts.constants.select do |contract|
+      klass = "Contracts::#{contract}".constantize
+      
+      klass.implements?(base_type.to_sym) && !klass.is_abstract_contract
+    end.map do |c|
+      c.name.demodulize
+    end
+  end
+  
   def self.linearize_contracts(contract, processed = [])
     return [] if processed.include?(contract)
   

@@ -3,8 +3,16 @@ class ContractsController < ApplicationController
     page = (params[:page] || 1).to_i
     per_page = (params[:per_page] || 100).to_i
     per_page = 100 if per_page > 100
-
-    contracts = Contract.all.order(created_at: :desc).page(page).per(per_page)
+    
+    scope = Contract.all.order(created_at: :desc)
+    
+    if params[:base_type]
+      scope = scope.where(
+        type: ContractImplementation.types_that_implement(params[:base_type])
+      )
+    end
+    
+    contracts = scope.page(page).per(per_page)
 
     render json: {
       result: convert_int_to_string(contracts)
