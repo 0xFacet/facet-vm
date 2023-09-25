@@ -22,13 +22,6 @@ class Ethscription < ApplicationRecord
     )
   end
   
-  def delete_with_later_ethscriptions
-    Ethscription.transaction do
-      delete
-      later_ethscriptions.delete_all
-    end
-  end
-  
   def content
     content_uri[/.*?,(.*)/, 1]
   end
