@@ -88,8 +88,10 @@ class ContractImplementation
     end
   end
   
-  def array(value_type)
-    metadata = {value_type: value_type}
+  def array(value_type, initial_length = nil)
+    metadata = { value_type: value_type }
+    metadata.merge!(initial_length: initial_length) if initial_length
+    
     type = Type.create(:array, metadata)
     TypedVariable.create(type)
   end

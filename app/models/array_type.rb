@@ -17,13 +17,21 @@ class ArrayType < TypedVariable
       other.data == data
     end
   
-    def initialize(initial_value = [], value_type:)
+    def initialize(initial_value = [], value_type:, initial_length: nil)
       unless value_type.is_value_type?
         raise VariableTypeError.new("Only value types can me array elements")
       end
       
       self.value_type = value_type
       self.data = initial_value
+      
+      if initial_length
+        amount_to_pad = initial_length - data.size
+        
+        amount_to_pad.times do
+          data << TypedVariable.create(value_type) 
+        end
+      end
     end
   
     def [](index)

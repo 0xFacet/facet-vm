@@ -44,6 +44,17 @@ describe 'UniswapV2Router contract' do
       }
     )
     
+    # trigger_contract_interaction_and_expect_success(
+    #   from: "0xc2172a6315c1d7f6855768f843c420ebb36eda97",
+    #   payload: {
+    #     to: zap.contract_address,
+    #     data: {
+    #       function: "zap2",
+    #       args: {}
+    #     }
+    #   }
+    # )
+    
     res = ContractTransaction.make_static_call(
       contract: zap.contract_address,
       function_name: "lastZap"
@@ -367,5 +378,67 @@ describe 'UniswapV2Router contract' do
     
     token_b_diff = token_b_balance_after - token_b_balance_before
     expect(token_b_diff).to eq(expectedOut)
+    
+    token_a_balance_before = ContractTransaction.make_static_call(
+      contract: token_a_address,
+      function_name: "balanceOf",
+      function_args: user_address
+    )
+    
+    token_b_balance_before = ContractTransaction.make_static_call(
+      contract: token_b_address,
+      function_name: "balanceOf",
+      function_args: user_address
+    )
+    
+    reserves = ContractTransaction.make_static_call(
+      contract: router_address,
+      function_name: "getReserves",
+      function_args: [factory_address, token_a_address, token_b_address]
+    )
+  
+    reserveA, reserveB = reserves.values_at(:reserveA, :reserveB)
+  
+    amountOut = 300.ether
+    amountInMax = 3_000.ether
+  
+    numerator = reserveA * amountOut * 1000
+    denominator = (reserveB - amountOut) * 997
+    expectedIn = (numerator.div(denominator)) + 1
+  
+    swap_receipt = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: router_address,
+        data: {
+          function: "swapTokensForExactTokens",
+          args: {
+            amountOut: amountOut,
+            amountInMax: amountInMax,
+            path: [token_a_address, token_b_address],
+            to: user_address,
+            deadline: Time.now.to_i + 300
+          }
+        }
+      }
+    )
+  
+    token_a_balance_after = ContractTransaction.make_static_call(
+      contract: token_a_address,
+      function_name: "balanceOf",
+      function_args: user_address
+    )
+  
+    token_b_balance_after = ContractTransaction.make_static_call(
+      contract: token_b_address,
+      function_name: "balanceOf",
+      function_args: user_address
+    )
+  
+    token_a_diff = token_a_balance_before - token_a_balance_after
+    expect(token_a_diff).to eq(expectedIn)
+  
+    token_b_diff = token_b_balance_after - token_b_balance_before
+    expect(token_b_diff).to eq(amountOut)
   end
 end
