@@ -51,7 +51,18 @@ class EthscriptionSync
         ethscription_id: ethscriptions.first[:ethscription_id]
       )
       
-      starting_ethscription&.delete_with_later_ethscriptions
+      server_blockhash = ethscriptions.first[:block_blockhash]
+      our_blockhash = starting_ethscription&.block_blockhash
+      
+      Ethscription.transaction do
+        starting_ethscription&.later_ethscriptions&.delete_all
+        
+        if server_blockhash != our_blockhash
+          starting_ethscription&.delete
+        else
+          ethscriptions.shift
+        end
+      end
       
       sorted_response = ethscriptions.sort_by do |e|
         [e[:block_number], e[:transaction_index]]
