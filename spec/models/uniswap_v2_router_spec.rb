@@ -10,6 +10,10 @@ class Contracts::StubERC20 < ContractImplementation
   function :mint, { amount: :uint256 }, :public do
     _mint(to: msg.sender, amount: amount)
   end
+  
+  function :airdrop, { to: :address, amount: :uint256 }, :public do
+    _mint(to: to, amount: amount)
+  end
 end
 
 
@@ -38,22 +42,44 @@ describe 'UniswapV2Router contract' do
       payload: {
         to: zap.contract_address,
         data: {
-          function: "doZap",
+          function: "doZapOld",
           args: {}
         }
       }
     )
     
-    # trigger_contract_interaction_and_expect_success(
-    #   from: "0xc2172a6315c1d7f6855768f843c420ebb36eda97",
-    #   payload: {
-    #     to: zap.contract_address,
-    #     data: {
-    #       function: "zap2",
-    #       args: {}
-    #     }
-    #   }
-    # )
+     ether = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: nil,
+        data: {
+          type: "StubERC20",
+          args: { name: "Ether" }
+        }
+      }
+    )
+    
+    res = trigger_contract_interaction_and_expect_success(
+      from: "0xc2172a6315c1d7f6855768f843c420ebb36eda97",
+      payload: {
+        to: ether.contract_address,
+        data: {
+          function: "airdrop",
+          args: [zap.contract_address, 100.ether]
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: zap.contract_address,
+        data: {
+          function: "zapDumbSwap",
+          args: [ether.contract_address, "0x720Ea6E5FB47d69744559063b4a3aDcD903932B6"]
+        }
+      }
+    )
     
     res = ContractTransaction.make_static_call(
       contract: zap.contract_address,
