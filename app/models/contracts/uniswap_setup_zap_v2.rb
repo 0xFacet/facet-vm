@@ -1,4 +1,4 @@
-class Contracts::UniswapSetupZap < ContractImplementation
+class Contracts::UniswapSetupZapV2 < ContractImplementation
   array :address, :public, :factories
   array :address, :public, :tokenAs
   array :address, :public, :tokenBs
@@ -10,7 +10,7 @@ class Contracts::UniswapSetupZap < ContractImplementation
   event :ZapOneSetup, { factory: :address, tokenA: :address, tokenB: :address, pair: :address, router: :address }
   
   constructor() {
-    s.name = 'UniswapSetupZap'
+    s.name = 'UniswapSetupZapV2'
   }
   
   function :zapDumbSwap, { etherAddress: :address, admin: :address }, :public do

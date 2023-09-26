@@ -32,7 +32,7 @@ describe 'UniswapV2Router contract' do
       payload: {
         to: nil,
         data: {
-          type: "UniswapSetupZap"
+          type: "UniswapSetupZapV2"
         }
       }
     )
