@@ -16,6 +16,8 @@ module EthscriptionsVm
     
     config.autoload_paths << Rails.root.join('lib')
     
+    config.active_record.schema_format = :sql
+    
     config.api_only = true
   end
 end
