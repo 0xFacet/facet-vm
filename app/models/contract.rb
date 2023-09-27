@@ -4,6 +4,8 @@ class Contract < ApplicationRecord
   include ContractErrors
     
   has_many :states, primary_key: 'address', foreign_key: 'contract_address', class_name: "ContractState"
+  has_one :newest_state, -> { newest_first }, class_name: 'ContractState', primary_key: 'address',
+    foreign_key: 'contract_address'
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
 
   belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
@@ -31,7 +33,7 @@ class Contract < ApplicationRecord
   end
   
   def current_state
-    states.newest_first.first || ContractState.new
+    newest_state || ContractState.new
   end
   
   def self.type_abstract?(type)
