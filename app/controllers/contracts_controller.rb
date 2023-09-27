@@ -12,10 +12,15 @@ class ContractsController < ApplicationController
       )
     end
     
-    contracts = scope.page(page).per(per_page)
-
+    cache_key = ["contracts_index", scope, page, per_page]
+  
+    result = Rails.cache.fetch(cache_key) do
+      contracts = scope.page(page).per(per_page).to_a
+      convert_int_to_string(contracts)
+    end
+  
     render json: {
-      result: convert_int_to_string(contracts)
+      result: result
     }
   end
 
@@ -142,7 +147,7 @@ class ContractsController < ApplicationController
       
       token_contracts = Contract.where(address: token_addresses.map(&:to_s)).index_by(&:address)
   
-      contracts.each_with_object({}) do |contract, hash|
+      result = contracts.each_with_object({}) do |contract, hash|
         ["token0", "token1"].each do |token_function|
           token_addr = contract.fresh_implementation_with_latest_state.public_send(token_function)
           contract_implementation = token_contracts[token_addr.to_s].fresh_implementation_with_latest_state
@@ -162,9 +167,11 @@ class ContractsController < ApplicationController
           hash[contract.address][token_function] = token_info
         end
       end
+      
+      convert_int_to_string(result)
     end
   
-    render json: { result: convert_int_to_string(pairs) }
+    render json: { result: pairs }
   end
   
   def make_static_call(**kwargs)
