@@ -81,56 +81,61 @@ class ContractTransaction < ApplicationRecord
     )
   end
   
-  def self.simulate_transaction(
-    from:,
-    tx_payload:
-  )
-    mimetype = ContractTransaction.required_mimetype
-    uri = %{#{mimetype},#{tx_payload.to_json}}
+  def self.simulate_transaction(from:, tx_payload:)
+    cache_key = [:simulate_transaction, ContractState.all, from, tx_payload]
   
-    ethscription_attrs = {
-      ethscription_id: "0x" + SecureRandom.hex(32),
-      block_number: 1e15.to_i,
-      block_blockhash: "0x" + SecureRandom.hex(32),
-      current_owner: from.downcase,
-      creator: from.downcase,
-      creation_timestamp: Time.zone.now,
-      initial_owner: "0x" + "0" * 40,
-      transaction_index: 0,
-      content_uri: uri,
-      content_sha: Digest::SHA256.hexdigest(uri),
-      mimetype: mimetype,
-      mock_for_simulate_transaction: true
-    }
-    
-    transaction_receipt = nil
+    Rails.cache.fetch(cache_key) do
+      mimetype = ContractTransaction.required_mimetype
+      uri = %{#{mimetype},#{tx_payload.to_json}}
   
-    ActiveRecord::Base.transaction do
-      eth = Ethscription.create!(ethscription_attrs)
-      transaction_receipt = eth.contract_transaction.contract_transaction_receipt
+      ethscription_attrs = {
+        ethscription_id: "0x" + SecureRandom.hex(32),
+        block_number: 1e15.to_i,
+        block_blockhash: "0x" + SecureRandom.hex(32),
+        current_owner: from.downcase,
+        creator: from.downcase,
+        creation_timestamp: Time.zone.now,
+        initial_owner: "0x" + "0" * 40,
+        transaction_index: 0,
+        content_uri: uri,
+        content_sha: Digest::SHA256.hexdigest(uri),
+        mimetype: mimetype,
+        mock_for_simulate_transaction: true
+      }
   
-      raise ActiveRecord::Rollback
+      transaction_receipt = nil
+  
+      ActiveRecord::Base.transaction do
+        eth = Ethscription.create!(ethscription_attrs)
+        transaction_receipt = eth.contract_transaction.contract_transaction_receipt
+  
+        raise ActiveRecord::Rollback
+      end
+  
+      transaction_receipt
     end
-  
-    transaction_receipt
   end
   
   def self.make_static_call(contract:, function_name:, function_args: {}, msgSender: nil)
-    record = new(
-      tx_origin: msgSender,
-      initial_call_info: {
-        type: :static_call,
-        function: function_name,
-        args: function_args,
-        to_contract_address: contract,
-      }
-    )
+    cache_key = [:make_static_call, ContractState.all, contract, function_name, function_args, msgSender]
     
-    record.with_global_context do
-      begin
-        record.make_initial_call.as_json
-      rescue ContractError => e
-        raise StaticCallError.new("Static Call error #{e.message}")
+    Rails.cache.fetch(cache_key) do
+      record = new(
+        tx_origin: msgSender,
+        initial_call_info: {
+          type: :static_call,
+          function: function_name,
+          args: function_args,
+          to_contract_address: contract,
+        }
+      )
+  
+      record.with_global_context do
+        begin
+          record.make_initial_call.as_json
+        rescue ContractError => e
+          raise StaticCallError.new("Static Call error #{e.message}")
+        end
       end
     end
   end

@@ -113,28 +113,32 @@ class ContractsController < ApplicationController
   
   def pairs_with_tokens
     router = params[:router]
-    factory = make_static_call(
-      contract: router,
-      function_name: "factory"
-    )
-  
-    pair_ary = make_static_call(
-      contract: factory,
-      function_name: "getAllPairs"
-    )
-  
     token_address = params[:token_address]
     user_address = params[:user_address]
-
-    pairs = pair_ary.each_with_object({}) do |pair, hash|
-      token_info0 = token_info(pair, "token0", user_address, router)
-      token_info1 = token_info(pair, "token1", user_address, router)
   
-      if token_address.nil? || token_info0[:address] == token_address || token_info1[:address] == token_address
-        hash[pair] = {
-          token0: token_info0,
-          token1: token_info1
-        }
+    cache_key = [:pairs_with_tokens, ContractState.all, router, token_address, user_address]
+  
+    pairs = Rails.cache.fetch(cache_key) do
+      factory = make_static_call(
+        contract: router,
+        function_name: "factory"
+      )
+  
+      pair_ary = make_static_call(
+        contract: factory,
+        function_name: "getAllPairs"
+      )
+  
+      pair_ary.each_with_object({}) do |pair, hash|
+        token_info0 = token_info(pair, "token0", user_address, router)
+        token_info1 = token_info(pair, "token1", user_address, router)
+  
+        if token_address.nil? || token_info0[:address] == token_address || token_info1[:address] == token_address
+          hash[pair] = {
+            token0: token_info0,
+            token1: token_info1
+          }
+        end
       end
     end
   
