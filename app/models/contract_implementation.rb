@@ -97,8 +97,10 @@ class ContractImplementation
   end
   
   def require(condition_or_block, message)
-    caller_location = caller_locations.detect { |l| l.path.include?('/app/models/contracts') }
-    file = caller_location.path.gsub(%r{.*app/models/contracts/}, '')
+    path = Rails.env.test? ? '/spec/models' : '/app/models/contracts'
+    
+    caller_location = caller_locations.detect { |l| l.path.include?(path) }
+    file = caller_location.path.gsub(%r{.*#{path}/}, '')
     line = caller_location.lineno
   
     if condition_or_block.is_a?(Proc)
