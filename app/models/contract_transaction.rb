@@ -133,7 +133,7 @@ class ContractTransaction < ApplicationRecord
       record.with_global_context do
         begin
           record.make_initial_call.as_json
-        rescue ContractError => e
+        rescue ContractError, CallingNonExistentContractError => e
           raise StaticCallError.new("Static Call error #{e.message}")
         end
       end
