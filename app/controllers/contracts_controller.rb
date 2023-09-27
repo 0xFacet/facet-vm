@@ -1,8 +1,8 @@
 class ContractsController < ApplicationController
   def index
     page = (params[:page] || 1).to_i
-    per_page = (params[:per_page] || 100).to_i
-    per_page = 100 if per_page > 100
+    per_page = (params[:per_page] || 50).to_i
+    per_page = 50 if per_page > 50
     
     scope = Contract.all.order(created_at: :desc)
     
@@ -129,56 +129,42 @@ class ContractsController < ApplicationController
         function_name: "getAllPairs"
       )
   
-      pair_ary.each_with_object({}) do |pair, hash|
-        token_info0 = token_info(pair, "token0", user_address, router)
-        token_info1 = token_info(pair, "token1", user_address, router)
+      # Load pair_ary into memory
+      contracts = Contract.where(address: pair_ary)
   
-        if token_address.nil? || token_info0[:address] == token_address || token_info1[:address] == token_address
-          hash[pair] = {
-            token0: token_info0,
-            token1: token_info1
+      # Fetch all token contracts in bulk
+      token_addresses = contracts.map do |contract|
+        [
+          contract.fresh_implementation_with_latest_state.token0,
+          contract.fresh_implementation_with_latest_state.token1
+        ]
+      end.flatten
+      
+      token_contracts = Contract.where(address: token_addresses.map(&:to_s)).index_by(&:address)
+  
+      contracts.each_with_object({}) do |contract, hash|
+        ["token0", "token1"].each do |token_function|
+          token_addr = contract.fresh_implementation_with_latest_state.public_send(token_function)
+          contract_implementation = token_contracts[token_addr.to_s].fresh_implementation_with_latest_state
+  
+          token_info = {
+            address: token_addr,
+            name: contract_implementation.name,
+            symbol: contract_implementation.symbol
           }
+  
+          if user_address.present?
+            token_info[:userBalance] = contract_implementation.balanceOf(user_address)
+            token_info[:allowance] = contract_implementation.allowance(user_address, router)
+          end
+  
+          hash[contract.address] ||= {}
+          hash[contract.address][token_function] = token_info
         end
       end
     end
   
     render json: { result: convert_int_to_string(pairs) }
-  end
-  
-  private
-  
-  def token_info(pair, token_function, user_address, router)
-    token_addr = make_static_call(
-      contract: pair,
-      function_name: token_function
-    )
-  
-    token_info = {
-      address: token_addr,
-      name: make_static_call(
-        contract: token_addr,
-        function_name: "name"
-      ),
-      symbol: make_static_call(
-        contract: token_addr,
-        function_name: "symbol"
-      )
-    }
-  
-    if user_address.present?
-      token_info[:userBalance] = make_static_call(
-        contract: token_addr,
-        function_name: "balanceOf",
-        function_args: user_address
-      )
-      token_info[:allowance] = make_static_call(
-        contract: token_addr,
-        function_name: "allowance",
-        function_args: [user_address, router]
-      )
-    end
-  
-    token_info
   end
   
   def make_static_call(**kwargs)

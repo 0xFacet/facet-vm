@@ -32,10 +32,6 @@ class Contract < ApplicationRecord
     "Contracts::#{type}".constantize
   end
   
-  def current_state
-    newest_state || ContractState.new
-  end
-  
   def self.type_abstract?(type)
     "Contracts::#{type}".constantize.is_abstract_contract
   end
@@ -57,7 +53,7 @@ class Contract < ApplicationRecord
   def with_state_management
     state_changed = false
     
-    implementation.state_proxy.load(current_state.state.deep_dup)
+    implementation.state_proxy.load(latest_state.deep_dup)
     initial_state = implementation.state_proxy.serialize
     
     result = yield.tap do
@@ -77,6 +73,12 @@ class Contract < ApplicationRecord
     end
     
     { result: result, state_changed: state_changed }
+  end
+  
+  def fresh_implementation_with_latest_state
+    implementation_class.new(self).tap do |implementation|
+      implementation.state_proxy.load(latest_state.deep_dup)
+    end
   end
   
   def self.all_abis(deployable_only: false)
@@ -104,7 +106,7 @@ class Contract < ApplicationRecord
         [name, func.as_json.except('implementation')]
       end.to_h
       
-      json['current_state'] = current_state.state
+      json['current_state'] = latest_state
       json['current_state']['contract_type'] = type.demodulize
       
       klass = implementation.class
