@@ -8,6 +8,7 @@ class CreateEthBlocks < ActiveRecord::Migration[7.0]
       t.datetime :imported_at, null: false
 
       t.index :blockhash, unique: true
+      t.index :parent_blockhash, unique: true
       t.index :block_number, unique: true
       t.index :imported_at
       
