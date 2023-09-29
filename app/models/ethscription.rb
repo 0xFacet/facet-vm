@@ -15,13 +15,6 @@ class Ethscription < ApplicationRecord
   
   attr_accessor :mock_for_simulate_transaction
 
-  def self.temp_tester
-    server = JSON.parse(IO.read(Rails.root.join('output.json')));nil
-    
-    us_but_not_them = Ethscription.where.not(ethscription_id: server.map{|i| i['ethscription_id']}).to_a; nil
-    them_but_not_us = server.map{|i| i['ethscription_id']}.to_set - Ethscription.pluck(:ethscription_id).to_set.to_a; nil
-  end
-  
   def content
     content_uri[/.*?,(.*)/, 1]
   end
