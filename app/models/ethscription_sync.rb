@@ -49,7 +49,7 @@ class EthscriptionSync
       
       if our_previous_block
         if our_previous_block.blockhash != api_first_block['parent_blockhash']
-          our_previous_block.destroy
+          our_previous_block.destroy!
           Rails.logger.warn "Deleted block #{our_previous_block.block_number} because it had a different parent blockhash"
           return
         end
@@ -72,7 +72,7 @@ class EthscriptionSync
           eth_block.import_ethscriptions(block['ethscriptions'])
         end
       end
-      pp response['total_future_ethscriptions']
+      
       if Integer(response['total_future_ethscriptions']) == 0
         break
       end

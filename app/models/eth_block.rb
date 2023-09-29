@@ -11,6 +11,8 @@ class EthBlock < ApplicationRecord
     end
   end
   
+  private
+  
   def transform_server_response(server_data)
     {
       ethscription_id: server_data['transaction_hash'],
