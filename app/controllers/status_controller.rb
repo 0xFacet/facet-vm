@@ -8,9 +8,7 @@ class StatusController < ApplicationController
       return
     end
     
-    resp = EthscriptionSync.fetch_ethscriptions(EthBlock.maximum(:block_number) || 0 + 1)
-    
-    total_newer_ethscriptions = resp['total_newer_ethscriptions'].to_i
+    total_newer_ethscriptions = Rails.cache.read("future_ethscriptions").to_i
         
     resp = {
       oldest_known_ethscription: oldest_ethscription,

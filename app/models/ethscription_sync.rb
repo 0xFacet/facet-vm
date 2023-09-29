@@ -73,7 +73,11 @@ class EthscriptionSync
         end
       end
       
-      if Integer(response['total_future_ethscriptions']) == 0
+      future_ethscriptions = Integer(response['total_future_ethscriptions'])
+      
+      Rails.cache.write("future_ethscriptions", future_ethscriptions)
+      
+      if future_ethscriptions == 0
         break
       end
       
