@@ -82,11 +82,9 @@ class EthscriptionSync
       
       Rails.cache.write("future_ethscriptions", future_ethscriptions)
       
-      if future_ethscriptions == 0
-        break
-      end
+      puts "Imported #{response['blocks'].length} blocks, #{response['blocks'].sum{|i| i['ethscriptions'].length}} ethscriptions. #{future_ethscriptions} future ethscriptions remain"
       
-      sleep(0.5)
+      break if future_ethscriptions == 0
     end
   end
   
