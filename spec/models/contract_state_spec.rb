@@ -2,9 +2,23 @@ require 'rails_helper'
 
 RSpec.describe Contract, type: :model do
   before do
+    block = EthBlock.order(imported_at: :desc).first
+    
+    block_number = block&.block_number.to_i + 1
+    
+    blockhash = "0x" + SecureRandom.hex(32)
+
+    EthBlock.create!(
+      block_number: block_number,
+      blockhash: blockhash,
+      parent_blockhash: blockhash,
+      timestamp: Time.zone.now.to_i,
+      imported_at: Time.zone.now
+    )
+    
     @ethscription = Ethscription.create!(
       ethscription_id: '0x' + SecureRandom.hex(32),
-      block_number: 1,
+      block_number: block_number,
       block_blockhash: '0x' + SecureRandom.hex(32),
       transaction_index: 1,
       creator: '0x' + SecureRandom.hex(20),

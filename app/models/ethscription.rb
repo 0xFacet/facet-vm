@@ -1,4 +1,6 @@
 class Ethscription < ApplicationRecord
+  belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, touch: true
+  
   has_many :contracts, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
   has_one :contract_transaction_receipt, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
   has_one :contract_transaction, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
@@ -13,13 +15,11 @@ class Ethscription < ApplicationRecord
   
   attr_accessor :mock_for_simulate_transaction
 
-  def later_ethscriptions
-    Ethscription.where(
-      'block_number > :block_number OR ' +
-      '(block_number = :block_number AND transaction_index > :transaction_index)',
-      block_number: block_number, 
-      transaction_index: transaction_index
-    )
+  def self.temp_tester
+    server = JSON.parse(IO.read(Rails.root.join('output.json')));nil
+    
+    us_but_not_them = Ethscription.where.not(ethscription_id: server.map{|i| i['ethscription_id']}).to_a; nil
+    them_but_not_us = server.map{|i| i['ethscription_id']}.to_set - Ethscription.pluck(:ethscription_id).to_set.to_a; nil
   end
   
   def content

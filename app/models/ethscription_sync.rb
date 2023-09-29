@@ -11,13 +11,15 @@ class EthscriptionSync
     HTTParty.get(url, query: query, headers: headers)
   end
   
-  def self.fetch_newer_ethscriptions(latest_ethscription_id, per_page = 25)
+  def self.fetch_ethscriptions(new_block_number)
     url = ENV.fetch("INDEXER_API_BASE_URI") + "/ethscriptions/newer_ethscriptions"
     
     query = {
-      ethscription_id: latest_ethscription_id,
+      block_number: new_block_number,
       mimetypes: [ContractTransaction.required_mimetype],
-      per_page: per_page
+      # initial_owner: "0x" + "0" * 40,
+      max_ethscriptions: 1000,
+      max_blocks: 10_000
     }
     
     headers = {
@@ -29,52 +31,51 @@ class EthscriptionSync
     response.parsed_response
   end
 
-  def self.local_latest_ethscription
-    Ethscription.newest_first.first
-  end
-  
   def self.sync
-    per_page = 50
-    
     loop do
-      parsed_response = fetch_newer_ethscriptions(
-        local_latest_ethscription&.ethscription_id, per_page
-      )
+      latest_block_number = EthBlock.maximum(:block_number) || 0
+      next_block_number = latest_block_number + 1
       
-      ethscriptions = parsed_response['ethscriptions'].map do |eth|
-        transform_server_response(eth)
+      response = fetch_ethscriptions(next_block_number)
+      
+      if response.dig('error', 'resolution') == 'retry'
+        return
+      elsif response['error']
+        raise "Unexpected error: #{response['error']}"
       end
       
-      break if ethscriptions.empty?
+      api_first_block = response['blocks'].first
+      our_previous_block = EthBlock.find_by(block_number: api_first_block['block_number'] - 1)
       
-      starting_ethscription = Ethscription.find_by(
-        ethscription_id: ethscriptions.first[:ethscription_id]
-      )
-      
-      if starting_ethscription
-        server_blockhash = ethscriptions.first[:block_blockhash]
-        our_blockhash = starting_ethscription.block_blockhash
-        
-        Ethscription.transaction do
-          starting_ethscription.later_ethscriptions.delete_all
-          
-          if server_blockhash != our_blockhash
-            starting_ethscription.delete
-          else
-            ethscriptions.shift
-          end
+      if our_previous_block
+        if our_previous_block.blockhash != api_first_block['parent_blockhash']
+          our_previous_block.destroy
+          Rails.logger.warn "Deleted block #{our_previous_block.block_number} because it had a different parent blockhash"
+          return
+        end
+      else
+        if EthBlock.count > 0
+          raise "Missing previous block"
         end
       end
       
-      sorted_response = ethscriptions.sort_by do |e|
-        [e[:block_number], e[:transaction_index]]
-      end
-
-      sorted_response.each do |ethscription_data|
-        Ethscription.create!(ethscription_data)
-      end
+      response['blocks'].each do |block|
+        EthBlock.transaction do
+          eth_block = EthBlock.create!(
+            block_number: block['block_number'],
+            blockhash: block['blockhash'],
+            parent_blockhash: block['parent_blockhash'],
+            timestamp: block['timestamp'],
+            imported_at: Time.current
+          )
       
-      break if parsed_response['total_newer_ethscriptions'].to_i == 0
+          eth_block.import_ethscriptions(block['ethscriptions'])
+        end
+      end
+      pp response['total_future_ethscriptions']
+      if Integer(response['total_future_ethscriptions']) == 0
+        break
+      end
       
       sleep(0.5)
     end
