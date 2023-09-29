@@ -70,6 +70,11 @@ class EthscriptionSync
           )
       
           eth_block.import_ethscriptions(block['ethscriptions'])
+          
+          if block['ethscriptions'].length > 0
+            remaining = Rails.cache.read("future_ethscriptions").to_i
+            Rails.cache.write("future_ethscriptions", [remaining - block['ethscriptions'].length, 0].max)
+          end
         end
       end
       
