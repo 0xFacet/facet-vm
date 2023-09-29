@@ -712,6 +712,13 @@ CREATE INDEX index_eth_blocks_on_imported_at ON public.eth_blocks USING btree (i
 
 
 --
+-- Name: index_eth_blocks_on_parent_blockhash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_eth_blocks_on_parent_blockhash ON public.eth_blocks USING btree (parent_blockhash);
+
+
+--
 -- Name: index_ethscriptions_on_block_number_and_transaction_index; Type: INDEX; Schema: public; Owner: -
 --
 

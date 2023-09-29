@@ -8,7 +8,7 @@ class StatusController < ApplicationController
       return
     end
     
-    resp = EthscriptionSync.fetch_newer_ethscriptions(newest_ethscription.ethscription_id, 1)
+    resp = EthscriptionSync.fetch_ethscriptions(EthBlock.maximum(:block_number) || 0 + 1)
     
     total_newer_ethscriptions = resp['total_newer_ethscriptions'].to_i
         
