@@ -18,7 +18,7 @@ class EthscriptionSync
       block_number: new_block_number,
       mimetypes: [ContractTransaction.required_mimetype],
       # initial_owner: "0x" + "0" * 40,
-      max_ethscriptions: 1000,
+      max_ethscriptions: 100,
       max_blocks: 10_000
     }
     
