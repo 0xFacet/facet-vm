@@ -1,4 +1,6 @@
 class Ethscription < ApplicationRecord
+  belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, touch: true
+  
   has_many :contracts, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
   has_one :contract_transaction_receipt, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
   has_one :contract_transaction, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
@@ -13,15 +15,6 @@ class Ethscription < ApplicationRecord
   
   attr_accessor :mock_for_simulate_transaction
 
-  def later_ethscriptions
-    Ethscription.where(
-      'block_number > :block_number OR ' +
-      '(block_number = :block_number AND transaction_index > :transaction_index)',
-      block_number: block_number, 
-      transaction_index: transaction_index
-    )
-  end
-  
   def content
     content_uri[/.*?,(.*)/, 1]
   end

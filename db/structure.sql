@@ -10,6 +10,22 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
+-- Name: check_block_order(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.check_block_order() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+      BEGIN
+        IF (SELECT MAX(block_number) FROM eth_blocks) IS NOT NULL AND (NEW.block_number <> (SELECT MAX(block_number) + 1 FROM eth_blocks) OR NEW.parent_blockhash <> (SELECT blockhash FROM eth_blocks WHERE block_number = NEW.block_number - 1)) THEN
+          RAISE EXCEPTION 'New block number must be equal to max block number + 1, or this must be the first block';
+        END IF;
+        RETURN NEW;
+      END;
+      $$;
+
+
+--
 -- Name: check_ethscription_order(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -21,6 +37,20 @@ CREATE FUNCTION public.check_ethscription_order() RETURNS trigger
           RAISE EXCEPTION 'New ethscription must be later in order';
         END IF;
         RETURN NEW;
+      END;
+      $$;
+
+
+--
+-- Name: delete_later_blocks(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.delete_later_blocks() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+      BEGIN
+        DELETE FROM eth_blocks WHERE block_number > OLD.block_number;
+        RETURN OLD;
       END;
       $$;
 
@@ -63,6 +93,7 @@ CREATE FUNCTION public.update_latest_state() RETURNS trigger
             SELECT state
             FROM contract_states
             WHERE contract_address = OLD.contract_address
+              AND id != OLD.id
             ORDER BY block_number DESC, transaction_index DESC, internal_transaction_index DESC
             LIMIT 1
           )
@@ -297,6 +328,43 @@ ALTER SEQUENCE public.contracts_id_seq OWNED BY public.contracts.id;
 
 
 --
+-- Name: eth_blocks; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.eth_blocks (
+    id bigint NOT NULL,
+    block_number bigint NOT NULL,
+    "timestamp" bigint NOT NULL,
+    blockhash character varying NOT NULL,
+    parent_blockhash character varying NOT NULL,
+    imported_at timestamp(6) without time zone NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_rails_1c105acdac CHECK (((parent_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_7e9881ece2 CHECK (((blockhash)::text ~ '^0x[a-f0-9]{64}$'::text))
+);
+
+
+--
+-- Name: eth_blocks_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.eth_blocks_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: eth_blocks_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.eth_blocks_id_seq OWNED BY public.eth_blocks.id;
+
+
+--
 -- Name: ethscriptions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -309,7 +377,7 @@ CREATE TABLE public.ethscriptions (
     creator character varying NOT NULL,
     initial_owner character varying NOT NULL,
     current_owner character varying NOT NULL,
-    creation_timestamp timestamp(6) without time zone NOT NULL,
+    creation_timestamp bigint NOT NULL,
     previous_owner character varying,
     content_uri text NOT NULL,
     content_sha character varying NOT NULL,
@@ -390,6 +458,13 @@ ALTER TABLE ONLY public.contracts ALTER COLUMN id SET DEFAULT nextval('public.co
 
 
 --
+-- Name: eth_blocks id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.eth_blocks ALTER COLUMN id SET DEFAULT nextval('public.eth_blocks_id_seq'::regclass);
+
+
+--
 -- Name: ethscriptions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -442,6 +517,14 @@ ALTER TABLE ONLY public.contract_transactions
 
 ALTER TABLE ONLY public.contracts
     ADD CONSTRAINT contracts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: eth_blocks eth_blocks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.eth_blocks
+    ADD CONSTRAINT eth_blocks_pkey PRIMARY KEY (id);
 
 
 --
@@ -608,6 +691,27 @@ CREATE INDEX index_contracts_on_type ON public.contracts USING btree (type);
 
 
 --
+-- Name: index_eth_blocks_on_block_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_eth_blocks_on_block_number ON public.eth_blocks USING btree (block_number);
+
+
+--
+-- Name: index_eth_blocks_on_blockhash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_eth_blocks_on_blockhash ON public.eth_blocks USING btree (blockhash);
+
+
+--
+-- Name: index_eth_blocks_on_imported_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_eth_blocks_on_imported_at ON public.eth_blocks USING btree (imported_at);
+
+
+--
 -- Name: index_ethscriptions_on_block_number_and_transaction_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -629,10 +733,24 @@ CREATE UNIQUE INDEX index_ethscriptions_on_ethscription_id ON public.ethscriptio
 
 
 --
+-- Name: eth_blocks trigger_check_block_order; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trigger_check_block_order BEFORE INSERT ON public.eth_blocks FOR EACH ROW EXECUTE FUNCTION public.check_block_order();
+
+
+--
 -- Name: ethscriptions trigger_check_ethscription_order; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER trigger_check_ethscription_order BEFORE INSERT ON public.ethscriptions FOR EACH ROW EXECUTE FUNCTION public.check_ethscription_order();
+
+
+--
+-- Name: eth_blocks trigger_delete_later_blocks; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trigger_delete_later_blocks AFTER DELETE ON public.eth_blocks FOR EACH ROW EXECUTE FUNCTION public.delete_later_blocks();
 
 
 --
@@ -647,6 +765,14 @@ CREATE TRIGGER trigger_delete_later_ethscriptions AFTER DELETE ON public.ethscri
 --
 
 CREATE TRIGGER update_latest_state AFTER INSERT OR DELETE ON public.contract_states FOR EACH ROW EXECUTE FUNCTION public.update_latest_state();
+
+
+--
+-- Name: ethscriptions fk_rails_104cee2b3d; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.ethscriptions
+    ADD CONSTRAINT fk_rails_104cee2b3d FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
 
 
 --
@@ -714,6 +840,7 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20230911150931'),
 ('20230911151706'),
 ('20230914181546'),
-('20230927152725');
+('20230927152725'),
+('20230928185853');
 
 

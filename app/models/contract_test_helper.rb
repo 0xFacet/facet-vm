@@ -84,16 +84,28 @@ module ContractTestHelper
     
     existing = Ethscription.newest_first.first
     
-    block_number = existing&.block_number.to_i + 1
+    block = EthBlock.order(imported_at: :desc).first
+    
+    block_number = block&.block_number.to_i + 1
     transaction_index = existing&.transaction_index.to_i + 1
+    
+    blockhash = "0x" + SecureRandom.hex(32)
+    
+    EthBlock.create!(
+      block_number: block_number,
+      blockhash: blockhash,
+      parent_blockhash: block&.blockhash || "0x" + SecureRandom.hex(32),
+      timestamp: Time.zone.now.to_i,
+      imported_at: Time.zone.now
+    )
     
     ethscription_attrs = {
       "ethscription_id"=>tx_hash,
       "block_number"=> block_number,
-      "block_blockhash"=> "0x" + SecureRandom.hex(32),
+      "block_blockhash"=> blockhash,
       "current_owner"=>from.downcase,
       "creator"=>from.downcase,
-      creation_timestamp: Time.zone.now,
+      creation_timestamp: Time.zone.now.to_i,
       "initial_owner"=>'0x0000000000000000000000000000000000000000',
       "transaction_index"=>transaction_index,
       "content_uri"=> uri,

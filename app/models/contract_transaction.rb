@@ -48,7 +48,7 @@ class ContractTransaction < ApplicationRecord
     
     assign_attributes(
       block_blockhash: ethscription.block_blockhash,
-      block_timestamp: ethscription.creation_timestamp.to_i,
+      block_timestamp: ethscription.creation_timestamp,
       block_number: ethscription.block_number,
       transaction_index: ethscription.transaction_index,
       tx_origin: ethscription.creator,
@@ -88,24 +88,32 @@ class ContractTransaction < ApplicationRecord
       mimetype = ContractTransaction.required_mimetype
       uri = %{#{mimetype},#{tx_payload.to_json}}
   
-      ethscription_attrs = {
-        ethscription_id: "0x" + SecureRandom.hex(32),
-        block_number: 1e15.to_i,
-        block_blockhash: "0x" + SecureRandom.hex(32),
-        current_owner: from.downcase,
-        creator: from.downcase,
-        creation_timestamp: Time.zone.now,
-        initial_owner: "0x" + "0" * 40,
-        transaction_index: 0,
-        content_uri: uri,
-        content_sha: Digest::SHA256.hexdigest(uri),
-        mimetype: mimetype,
-        mock_for_simulate_transaction: true
-      }
-  
       transaction_receipt = nil
   
       ActiveRecord::Base.transaction do
+        block = EthBlock.order(imported_at: :desc).first || EthBlock.create!(
+          block_number: 1,
+          blockhash: "0x" + SecureRandom.hex(32),
+          parent_blockhash: "0x" + SecureRandom.hex(32),
+          timestamp: Time.zone.now.to_i,
+          imported_at: Time.zone.now
+        )
+        
+        ethscription_attrs = {
+          ethscription_id: "0x" + SecureRandom.hex(32),
+          block_number: block.block_number,
+          block_blockhash: "0x" + SecureRandom.hex(32),
+          current_owner: from.downcase,
+          creator: from.downcase,
+          creation_timestamp: Time.zone.now.to_i,
+          initial_owner: "0x" + "0" * 40,
+          transaction_index: Ethscription.pluck(:transaction_index).last.to_i + 1,
+          content_uri: uri,
+          content_sha: Digest::SHA256.hexdigest(uri),
+          mimetype: mimetype,
+          mock_for_simulate_transaction: true
+        }
+        
         eth = Ethscription.create!(ethscription_attrs)
         transaction_receipt = eth.contract_transaction.contract_transaction_receipt
   
