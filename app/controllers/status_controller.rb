@@ -8,7 +8,7 @@ class StatusController < ApplicationController
       return
     end
     
-    total_newer_ethscriptions = Rails.cache.read("future_ethscriptions").to_i
+    total_newer_ethscriptions = Rails.cache.read("total_ethscriptions_behind").to_i
         
     resp = {
       oldest_known_ethscription: oldest_ethscription,

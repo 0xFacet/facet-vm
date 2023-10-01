@@ -18,7 +18,7 @@ class EthscriptionSync
       block_number: new_block_number,
       mimetypes: [ContractTransaction.required_mimetype],
       # initial_owner: "0x" + "0" * 40,
-      max_ethscriptions: 100,
+      max_ethscriptions: 2500,
       max_blocks: 10_000
     }
     
@@ -31,9 +31,9 @@ class EthscriptionSync
     response.parsed_response
   end
 
-  def self.sync
+  def self.import_eth_blocks_until_done
     loop do
-      future_ethscriptions = import_block_batch
+      future_ethscriptions = import_eth_block_batch
       
       Rails.cache.write("future_ethscriptions", future_ethscriptions)
       
@@ -41,7 +41,7 @@ class EthscriptionSync
     end
   end
   
-  def self.import_block_batch
+  def self.import_eth_block_batch
     EthBlock.transaction do
       start_time = Time.current
       
@@ -68,29 +68,43 @@ class EthscriptionSync
       
       api_first_block = response['blocks'].first
       
-      if previous_block.blockhash != api_first_block['parent_blockhash']
+      if previous_block && (previous_block.blockhash != api_first_block['parent_blockhash'])
         previous_block.destroy!
         Rails.logger.warn "Deleted block #{previous_block.block_number} because it had a different parent blockhash"
         return
       end
 
+      new_blocks = []
+      new_ethscriptions = []
+  
       response['blocks'].each do |block|
-        eth_block = EthBlock.create!(
+        state = block['ethscriptions'].empty? ? 'no_ethscriptions' : 'pending'
+
+        new_block = EthBlock.new(
           block_number: block['block_number'],
           blockhash: block['blockhash'],
           parent_blockhash: block['parent_blockhash'],
           timestamp: block['timestamp'],
-          imported_at: Time.current
+          imported_at: Time.current,
+          processing_state: state
         )
-    
-        eth_block.import_ethscriptions(block['ethscriptions'])
-        
-        if block['ethscriptions'].length > 0
-          remaining = Rails.cache.read("future_ethscriptions").to_i
-          Rails.cache.write("future_ethscriptions", [remaining - block['ethscriptions'].length, 0].max)
+  
+        new_blocks << new_block
+  
+        sorted_ethscriptions_data = block['ethscriptions'].sort_by do |ethscription_data|
+          Integer(ethscription_data['transaction_index'])
+        end
+  
+        sorted_ethscriptions_data.each do |ethscription_data|
+          new_ethscription = new_block.build_new_ethscription(ethscription_data)
+          
+          new_ethscriptions << new_ethscription
         end
       end
-      
+  
+      EthBlock.import!(new_blocks)
+      Ethscription.import!(new_ethscriptions)
+  
       future_ethscriptions = Integer(response['total_future_ethscriptions'])
       
       puts "Imported #{response['blocks'].length} blocks, #{response['blocks'].sum{|i| i['ethscriptions'].length}} ethscriptions. #{future_ethscriptions} future ethscriptions remain (#{Time.current - start_time}s))"

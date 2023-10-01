@@ -18,12 +18,21 @@ class ContractTransaction < ApplicationRecord
     "application/vnd.esc"
   end
   
-  def self.on_ethscription_created(ethscription)
+  def self.create_from_ethscription!(ethscription)
+    return unless ENV.fetch('ETHEREUM_NETWORK') == "eth-goerli" || Rails.env.development?
+    
     begin
       new_from_ethscription(ethscription).execute_transaction
     rescue InvalidEthscriptionError => e
-      Rails.logger.info(e.message)
+      Rails.logger.info "Invalid ethscription: #{e.message}"
     end
+    
+    end_time = Time.current
+    
+    ethscription.update_columns(
+      contract_actions_processed_at: end_time,
+      updated_at: end_time
+    )
   end
   
   def self.new_from_ethscription(ethscription)
