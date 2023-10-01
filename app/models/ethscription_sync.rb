@@ -71,31 +71,30 @@ class EthscriptionSync
       if previous_block.blockhash != api_first_block['parent_blockhash']
         previous_block.destroy!
         Rails.logger.warn "Deleted block #{previous_block.block_number} because it had a different parent blockhash"
-        return
-      end
-
-      response['blocks'].each do |block|
-        eth_block = EthBlock.create!(
-          block_number: block['block_number'],
-          blockhash: block['blockhash'],
-          parent_blockhash: block['parent_blockhash'],
-          timestamp: block['timestamp'],
-          imported_at: Time.current
-        )
-    
-        eth_block.import_ethscriptions(block['ethscriptions'])
-        
-        if block['ethscriptions'].length > 0
-          remaining = Rails.cache.read("future_ethscriptions").to_i
-          Rails.cache.write("future_ethscriptions", [remaining - block['ethscriptions'].length, 0].max)
+      else
+        response['blocks'].each do |block|
+          eth_block = EthBlock.create!(
+            block_number: block['block_number'],
+            blockhash: block['blockhash'],
+            parent_blockhash: block['parent_blockhash'],
+            timestamp: block['timestamp'],
+            imported_at: Time.current
+          )
+      
+          eth_block.import_ethscriptions(block['ethscriptions'])
+          
+          if block['ethscriptions'].length > 0
+            remaining = Rails.cache.read("future_ethscriptions").to_i
+            Rails.cache.write("future_ethscriptions", [remaining - block['ethscriptions'].length, 0].max)
+          end
         end
+        
+        future_ethscriptions = Integer(response['total_future_ethscriptions'])
+        
+        puts "Imported #{response['blocks'].length} blocks, #{response['blocks'].sum{|i| i['ethscriptions'].length}} ethscriptions. #{future_ethscriptions} future ethscriptions remain (#{Time.current - start_time}s))"
+        
+        future_ethscriptions
       end
-      
-      future_ethscriptions = Integer(response['total_future_ethscriptions'])
-      
-      puts "Imported #{response['blocks'].length} blocks, #{response['blocks'].sum{|i| i['ethscriptions'].length}} ethscriptions. #{future_ethscriptions} future ethscriptions remain (#{Time.current - start_time}s))"
-      
-      future_ethscriptions
     end
   end
   
