@@ -105,7 +105,8 @@ class ContractTransaction < ApplicationRecord
           blockhash: "0x" + SecureRandom.hex(32),
           parent_blockhash: "0x" + SecureRandom.hex(32),
           timestamp: Time.zone.now.to_i,
-          imported_at: Time.zone.now
+          imported_at: Time.zone.now,
+          processing_state: "complete"
         )
         
         ethscription_attrs = {
@@ -124,8 +125,9 @@ class ContractTransaction < ApplicationRecord
         }
         
         eth = Ethscription.create!(ethscription_attrs)
-        transaction_receipt = eth.contract_transaction.contract_transaction_receipt
-  
+        ContractTransaction.create_from_ethscription!(eth)
+        transaction_receipt = eth.contract_transaction_receipt
+        
         raise ActiveRecord::Rollback
       end
   

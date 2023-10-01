@@ -96,7 +96,8 @@ module ContractTestHelper
       blockhash: blockhash,
       parent_blockhash: block&.blockhash || "0x" + SecureRandom.hex(32),
       timestamp: Time.zone.now.to_i,
-      imported_at: Time.zone.now
+      imported_at: Time.zone.now,
+      processing_state: "complete"
     )
     
     ethscription_attrs = {
@@ -114,6 +115,8 @@ module ContractTestHelper
     }
     
     eth = Ethscription.create!(ethscription_attrs)
+    ContractTransaction.create_from_ethscription!(eth)
+    
     eth.contract_transaction_receipt
   end
   
