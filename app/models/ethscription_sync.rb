@@ -71,46 +71,49 @@ class EthscriptionSync
       if previous_block && (previous_block.blockhash != api_first_block['parent_blockhash'])
         previous_block.destroy!
         Rails.logger.warn "Deleted block #{previous_block.block_number} because it had a different parent blockhash"
-        return
+      else
+        import_block_batch_without_reorg_check(response)
       end
-
-      new_blocks = []
-      new_ethscriptions = []
-  
-      response['blocks'].each do |block|
-        state = block['ethscriptions'].empty? ? 'no_ethscriptions' : 'pending'
-
-        new_block = EthBlock.new(
-          block_number: block['block_number'],
-          blockhash: block['blockhash'],
-          parent_blockhash: block['parent_blockhash'],
-          timestamp: block['timestamp'],
-          imported_at: Time.current,
-          processing_state: state
-        )
-  
-        new_blocks << new_block
-  
-        sorted_ethscriptions_data = block['ethscriptions'].sort_by do |ethscription_data|
-          Integer(ethscription_data['transaction_index'])
-        end
-  
-        sorted_ethscriptions_data.each do |ethscription_data|
-          new_ethscription = new_block.build_new_ethscription(ethscription_data)
-          
-          new_ethscriptions << new_ethscription
-        end
-      end
-  
-      EthBlock.import!(new_blocks)
-      Ethscription.import!(new_ethscriptions)
-  
-      future_ethscriptions = Integer(response['total_future_ethscriptions'])
       
+      future_ethscriptions = Integer(response['total_future_ethscriptions'])
+
       puts "Imported #{response['blocks'].length} blocks, #{response['blocks'].sum{|i| i['ethscriptions'].length}} ethscriptions. #{future_ethscriptions} future ethscriptions remain (#{Time.current - start_time}s))"
       
       future_ethscriptions
     end
+  end
+  
+  def self.import_block_batch_without_reorg_check(response)
+    new_blocks = []
+    new_ethscriptions = []
+
+    response['blocks'].each do |block|
+      state = block['ethscriptions'].empty? ? 'no_ethscriptions' : 'pending'
+
+      new_block = EthBlock.new(
+        block_number: block['block_number'],
+        blockhash: block['blockhash'],
+        parent_blockhash: block['parent_blockhash'],
+        timestamp: block['timestamp'],
+        imported_at: Time.current,
+        processing_state: state
+      )
+
+      new_blocks << new_block
+
+      sorted_ethscriptions_data = block['ethscriptions'].sort_by do |ethscription_data|
+        Integer(ethscription_data['transaction_index'])
+      end
+
+      sorted_ethscriptions_data.each do |ethscription_data|
+        new_ethscription = new_block.build_new_ethscription(ethscription_data)
+        
+        new_ethscriptions << new_ethscription
+      end
+    end
+
+    EthBlock.import!(new_blocks)
+    Ethscription.import!(new_ethscriptions)
   end
   
   def self.test_findEthscriptionById
