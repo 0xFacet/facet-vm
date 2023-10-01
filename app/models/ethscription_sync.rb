@@ -33,8 +33,30 @@ class EthscriptionSync
 
   def self.sync
     loop do
-      latest_block_number = EthBlock.maximum(:block_number) || 0
-      next_block_number = latest_block_number + 1
+      future_ethscriptions = import_block_batch
+      
+      Rails.cache.write("future_ethscriptions", future_ethscriptions)
+      
+      break if future_ethscriptions == 0
+    end
+  end
+  
+  def self.import_block_batch
+    EthBlock.transaction do
+      start_time = Time.current
+      
+      previous_block_scope = EthBlock.order(block_number: :desc).limit(1)
+      
+      locked_previous_block = previous_block_scope.lock("FOR UPDATE SKIP LOCKED").first
+      previous_block = previous_block_scope.first
+      
+      return unless previous_block == locked_previous_block
+      
+      if !previous_block && EthBlock.count > 0
+        raise "Missing previous block"
+      end
+      
+      next_block_number = (previous_block&.block_number || 0) + 1
       
       response = fetch_ethscriptions(next_block_number)
       
@@ -45,46 +67,35 @@ class EthscriptionSync
       end
       
       api_first_block = response['blocks'].first
-      our_previous_block = EthBlock.find_by(block_number: api_first_block['block_number'] - 1)
       
-      if our_previous_block
-        if our_previous_block.blockhash != api_first_block['parent_blockhash']
-          our_previous_block.destroy!
-          Rails.logger.warn "Deleted block #{our_previous_block.block_number} because it had a different parent blockhash"
-          return
-        end
-      else
-        if EthBlock.count > 0
-          raise "Missing previous block"
-        end
+      if previous_block.blockhash != api_first_block['parent_blockhash']
+        previous_block.destroy!
+        Rails.logger.warn "Deleted block #{previous_block.block_number} because it had a different parent blockhash"
+        return
       end
-      
+
       response['blocks'].each do |block|
-        EthBlock.transaction do
-          eth_block = EthBlock.create!(
-            block_number: block['block_number'],
-            blockhash: block['blockhash'],
-            parent_blockhash: block['parent_blockhash'],
-            timestamp: block['timestamp'],
-            imported_at: Time.current
-          )
-      
-          eth_block.import_ethscriptions(block['ethscriptions'])
-          
-          if block['ethscriptions'].length > 0
-            remaining = Rails.cache.read("future_ethscriptions").to_i
-            Rails.cache.write("future_ethscriptions", [remaining - block['ethscriptions'].length, 0].max)
-          end
+        eth_block = EthBlock.create!(
+          block_number: block['block_number'],
+          blockhash: block['blockhash'],
+          parent_blockhash: block['parent_blockhash'],
+          timestamp: block['timestamp'],
+          imported_at: Time.current
+        )
+    
+        eth_block.import_ethscriptions(block['ethscriptions'])
+        
+        if block['ethscriptions'].length > 0
+          remaining = Rails.cache.read("future_ethscriptions").to_i
+          Rails.cache.write("future_ethscriptions", [remaining - block['ethscriptions'].length, 0].max)
         end
       end
       
       future_ethscriptions = Integer(response['total_future_ethscriptions'])
       
-      Rails.cache.write("future_ethscriptions", future_ethscriptions)
+      puts "Imported #{response['blocks'].length} blocks, #{response['blocks'].sum{|i| i['ethscriptions'].length}} ethscriptions. #{future_ethscriptions} future ethscriptions remain (#{Time.current - start_time}s))"
       
-      puts "Imported #{response['blocks'].length} blocks, #{response['blocks'].sum{|i| i['ethscriptions'].length}} ethscriptions. #{future_ethscriptions} future ethscriptions remain"
-      
-      break if future_ethscriptions == 0
+      future_ethscriptions
     end
   end
   
