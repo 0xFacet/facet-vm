@@ -3,8 +3,8 @@ class Contracts::EthscriptionBridge < ContractImplementation
   
   is :ERC20
 
-  event :InitiateWithdrawal, { from: :address, escrowedId: :ethscriptionId }
-  event :WithdrawalComplete, { to: :address, escrowedId: :ethscriptionId }
+  event :InitiateWithdrawal, { from: :address, escrowedId: :ethscriptionId, withdrawalId: :bytes32 }
+  event :WithdrawalComplete, { to: :address, escrowedIds: [:ethscriptionId], withdrawalIds: [:bytes32] }
 
   string :public, :ethscriptionsTicker
   uint256 :public, :ethscriptionMintAmount
@@ -14,6 +14,7 @@ class Contracts::EthscriptionBridge < ContractImplementation
   address :public, :trustedSmartContract
   mapping ({ ethscriptionId: :address }), :public, :pendingWithdrawalEthscriptionToOwner
   mapping ({ ethscriptionId: :address }), :public, :bridgedEthscriptionToOwner
+  mapping ({ address: array(:bytes32) }), :public, :pendingUserWithdrawalIds
   
   constructor(
     name: :string,
@@ -93,25 +94,72 @@ class Contracts::EthscriptionBridge < ContractImplementation
     
     _burn(from: msg.sender, amount: s.ethscriptionMintAmount * (10 ** decimals))
     
+    withdrawalId = TransactionContext.transaction_hash
+    
     s.bridgedEthscriptionToOwner[escrowedId] = address(0)
     s.pendingWithdrawalEthscriptionToOwner[escrowedId] = msg.sender
+    s.pendingUserWithdrawalIds[msg.sender].push(withdrawalId)
     
-    emit :InitiateWithdrawal, from: msg.sender, escrowedId: :ethscriptionId
+    emit :InitiateWithdrawal, from: msg.sender, escrowedId: :ethscriptionId, withdrawalId: withdrawalId
   end
   
-  function :markWithdrawalComplete, { to: :address, escrowedId: :ethscriptionId }, :public do
+  function :markWithdrawalComplete, {
+    to: :address,
+    escrowedIds: [:ethscriptionId],
+    withdrawalIds: [:bytes32]
+  }, :public do
     require(
       msg.sender == s.trustedSmartContract,
       'Only the trusted smart contract can mark withdrawals as complete'
     )
     
-    require(
-      s.pendingWithdrawalEthscriptionToOwner[escrowedId] == to,
-      "Withdrawal not initiated"
-    )
+    for i in 0...withdrawalIds.length
+      withdrawalId = withdrawalIds[i]
+      escrowedId = escrowedIds[i]
+
+      require(
+        s.pendingWithdrawalEthscriptionToOwner[escrowedId] == to,
+        "Withdrawal not initiated"
+      )
+        
+      require(
+        _removeFirstOccurenceOfValueFromArray(
+          s.pendingUserWithdrawalIds[to],
+          withdrawalId
+        ),
+        "Withdrawal id not found"
+      )
+      
+      s.pendingWithdrawalEthscriptionToOwner[escrowedId] = address(0)
+    end
     
-    s.pendingWithdrawalEthscriptionToOwner[escrowedId] = address(0)
+    emit :WithdrawalComplete, to: to, escrowedIds: escrowedIds, withdrawalIds: withdrawalIds
+  end
+  
+  function :getPendingWithdrawalsForUser, { user: :address }, :public, :view, returns: [:bytes32] do
+    return s.pendingUserWithdrawalIds[user]
+  end
+  
+  function :_removeFirstOccurenceOfValueFromArray, { arr: array(:bytes32), value: :bytes32 }, :internal, returns: :bool do
+    for i in 0...arr.length
+      if arr[i] == value
+        return _removeItemAtIndex(arr: arr, indexToRemove: i)
+      end
+    end
     
-    emit :WithdrawalComplete, to: to, escrowedId: :ethscriptionId
+    return false
+  end
+  
+  function :_removeItemAtIndex, { arr: array(:bytes32), indexToRemove: :uint256 }, :internal, returns: :bool do
+    lastIndex = arr.length - 1
+    
+    if lastIndex != indexToRemove
+      lastItem = arr[lastIndex]
+      arr[indexToRemove] = lastItem
+    end
+    
+    arr.pop
+    
+    return true
   end
 end
