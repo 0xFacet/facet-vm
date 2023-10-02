@@ -11,15 +11,19 @@ class EthscriptionSync
     HTTParty.get(url, query: query, headers: headers)
   end
   
-  def self.fetch_ethscriptions(new_block_number)
+  def self.fetch_ethscriptions(
+    new_block_number,
+    max_ethscriptions: 2500,
+    max_blocks: 10_000
+  )
     url = ENV.fetch("INDEXER_API_BASE_URI") + "/ethscriptions/newer_ethscriptions"
     
     query = {
       block_number: new_block_number,
       mimetypes: [ContractTransaction.required_mimetype],
       # initial_owner: "0x" + "0" * 40,
-      max_ethscriptions: 2500,
-      max_blocks: 10_000
+      max_ethscriptions: max_ethscriptions,
+      max_blocks: max_blocks
     }
     
     headers = {
@@ -38,6 +42,26 @@ class EthscriptionSync
       Rails.cache.write("future_ethscriptions", future_ethscriptions)
       
       break if future_ethscriptions == 0
+    end
+  end
+  
+  def self.check_for_reorgs
+    EthBlock.transaction do
+      db_blocks = EthBlock.order(block_number: :desc).limit(100)
+  
+      api_blocks = fetch_ethscriptions(db_blocks.last.block_number, max_blocks: 101)['blocks']
+      
+      db_block_hash_map = db_blocks.each_with_object({}) { |block, hash| hash[block.block_number] = block.blockhash }
+      api_block_hash_map = api_blocks.each_with_object({}) { |block, hash| hash[block['block_number']] = block['blockhash'] }
+      
+      reorged_blocks = db_block_hash_map.keys.select do |block_number|
+        db_block_hash_map[block_number] != api_block_hash_map[block_number]
+      end
+      
+      unless reorged_blocks.empty?
+        EthBlock.where(block_number: reorged_blocks).each(&:destroy!)
+        Rails.logger.warn "Deleted blocks due to reorg: #{reorged_blocks.join(', ')}"
+      end
     end
   end
   
