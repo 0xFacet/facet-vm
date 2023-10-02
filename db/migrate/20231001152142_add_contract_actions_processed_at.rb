@@ -1,5 +1,7 @@
 class AddContractActionsProcessedAt < ActiveRecord::Migration[7.0]
   def up
+    EthBlock.delete_all
+    
     add_column :ethscriptions, :contract_actions_processed_at, :datetime
     add_column :eth_blocks, :processing_state, :string, null: false
     

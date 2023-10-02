@@ -50,6 +50,21 @@ class EthBlock < ApplicationRecord
     end
   end
   
+  def self.production_tester
+    # heroku run rails runner "puts ContractTransaction.all.to_json" > ct.json
+    
+    j = JSON.parse(IO.read("ct.json"))
+    
+    max_block = j.map{|i| i['block_number']}.max
+    
+    them = j.map{|i| i['transaction_hash']}.to_set
+    
+    in_us_not_them = ContractTransaction.where("block_number >= ?", max_block).where.not(transaction_hash: them).to_set; nil
+    in_them_not_us = them.to_set - ContractTransaction.pluck(:transaction_hash).to_set; nil
+    
+    in_us_not_them.length.zero? && in_them_not_us.length.zero?
+  end
+  
   def self.process_contract_actions_for_next_block_with_ethscriptions
     EthBlock.transaction do
       next_number = EthBlock.where(processing_state: 'pending').order(:block_number).limit(1).select(:block_number)

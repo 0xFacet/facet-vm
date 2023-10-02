@@ -50,8 +50,6 @@ class ContractTransaction < ApplicationRecord
       return
     end
     
-    return unless mimetype_and_to_valid?
-    
     assign_attributes(
       block_blockhash: ethscription.block_blockhash,
       block_timestamp: ethscription.creation_timestamp,
@@ -181,6 +179,8 @@ class ContractTransaction < ApplicationRecord
   end
   
   def execute_transaction
+    return unless mimetype_and_to_valid?
+    
     begin
       make_initial_call
     rescue ContractError, TransactionError => e
