@@ -45,15 +45,13 @@ class EthscriptionSync
     EthBlock.transaction do
       start_time = Time.current
       
-      previous_block_scope = EthBlock.order(block_number: :desc).limit(1)
-      
-      locked_previous_block = previous_block_scope.lock("FOR UPDATE SKIP LOCKED").first
-      previous_block = previous_block_scope.first
-      
-      return unless previous_block == locked_previous_block
-      
-      if !previous_block && EthBlock.count > 0
-        raise "Missing previous block"
+      previous_block = EthBlock.where(block_number: EthBlock.select("MAX(block_number)"))
+                                  .limit(1)
+                                  .lock("FOR UPDATE SKIP LOCKED")
+                                  .first
+
+      unless previous_block || EthBlock.count == 0
+        return
       end
       
       next_block_number = (previous_block&.block_number || 0) + 1
