@@ -51,11 +51,6 @@ class EthBlock < ApplicationRecord
         puts " > Ethscriptions / s: #{ethscriptions_per_second}"
         puts " > Ethscriptions left: #{total_remaining}"
         
-        unprocessed_ethscriptions = Ethscription.where(contract_actions_processed_at: nil).count
-        unimported_ethscriptions = Rails.cache.read("future_ethscriptions").to_i
-        
-        total_remaining = unprocessed_ethscriptions + unimported_ethscriptions
-        
         Rails.cache.write("total_ethscriptions_behind", total_remaining)
         
         batch_start_time = curr_time
