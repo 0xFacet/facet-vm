@@ -67,7 +67,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
       end
       
       proxy.define_singleton_method(:findEthscriptionById) do |id|
-        id = TypedVariable.create_or_validate(:ethscriptionId, id).value
+        id = TypedVariable.create_or_validate(:bytes32, id).value
 
         begin
           Ethscription.esc_findEthscriptionById(id, as_of)

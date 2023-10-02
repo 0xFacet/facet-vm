@@ -119,9 +119,13 @@ class Contracts::EthscriptionERC20Bridge < ContractImplementation
       'Only the trusted smart contract can mark withdrawals as complete'
     )
     
+    escrowedIds = array(:bytes32, withdrawalIds.length)
+
     for i in 0...withdrawalIds.length
       withdrawalId = withdrawalIds[i]
-      escrowedId = withdrawalIdToEscrowedId[withdrawalId]
+      escrowedId = s.withdrawalIdToEscrowedId[withdrawalId]
+
+      escrowedIds[i] = escrowedId
 
       require(
         s.pendingWithdrawalEthscriptionToOwner[escrowedId] == to,
