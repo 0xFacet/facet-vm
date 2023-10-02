@@ -54,7 +54,9 @@ class EthscriptionSync
       db_block_hash_map = db_blocks.each_with_object({}) { |block, hash| hash[block.block_number] = block.blockhash }
       api_block_hash_map = api_blocks.each_with_object({}) { |block, hash| hash[block['block_number']] = block['blockhash'] }
       
-      reorged_blocks = db_block_hash_map.keys.select do |block_number|
+      common_block_numbers = db_block_hash_map.keys & api_block_hash_map.keys
+
+      reorged_blocks = common_block_numbers.select do |block_number|
         db_block_hash_map[block_number] != api_block_hash_map[block_number]
       end
       
@@ -123,11 +125,7 @@ class EthscriptionSync
 
       new_blocks << new_block
 
-      sorted_ethscriptions_data = block['ethscriptions'].sort_by do |ethscription_data|
-        Integer(ethscription_data['transaction_index'])
-      end
-
-      sorted_ethscriptions_data.each do |ethscription_data|
+      block['ethscriptions'].each do |ethscription_data|
         new_ethscription = new_block.build_new_ethscription(ethscription_data)
         
         new_ethscriptions << new_ethscription

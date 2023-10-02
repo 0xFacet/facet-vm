@@ -1,16 +1,6 @@
 class EthBlock < ApplicationRecord
   has_many :ethscriptions, foreign_key: :block_number, primary_key: :block_number
   
-  def import_ethscriptions(ethscriptions_data)
-    sorted_ethscriptions_data = ethscriptions_data.sort_by do |ethscription_data|
-      Integer(ethscription_data['transaction_index'])
-    end
-    
-    sorted_ethscriptions_data.each do |ethscription_data|
-      ethscriptions.create!(transform_server_response(ethscription_data))
-    end
-  end
-  
   def self.process_contract_actions_until_done
     unprocessed_ethscriptions = Ethscription.where(contract_actions_processed_at: nil).count
     unimported_ethscriptions = Rails.cache.read("future_ethscriptions").to_i
@@ -40,7 +30,6 @@ class EthBlock < ApplicationRecord
         curr_time = Time.current
         
         batch_elapsed_time = curr_time - batch_start_time
-        elapsed_time = curr_time - start_time
         
         ethscriptions_per_second = batch_ethscriptions_processed.zero? ? 0 : batch_ethscriptions_processed / batch_elapsed_time.to_f
         

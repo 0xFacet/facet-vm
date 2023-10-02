@@ -56,7 +56,6 @@ class AddContractActionsProcessedAt < ActiveRecord::Migration[7.0]
       BEFORE UPDATE OF contract_actions_processed_at ON ethscriptions
       FOR EACH ROW EXECUTE FUNCTION check_ethscription_sequence();
     SQL
-    
   end
   
   def down
