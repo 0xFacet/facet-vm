@@ -1,4 +1,4 @@
-class Contracts::EthscriptionBridge < ContractImplementation
+class Contracts::EthscriptionERC20Bridge < ContractImplementation
   pragma :rubidity, "1.0.0"
   
   is :ERC20
