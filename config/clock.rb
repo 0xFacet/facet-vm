@@ -25,7 +25,7 @@ module Clockwork
     EthscriptionSync.import_eth_blocks_until_done
   end
   
-  every(5.minutes, 'check_for_reorgs') do
+  every(2.minutes, 'check_for_reorgs') do
     EthscriptionSync.check_for_reorgs
   end
 end
