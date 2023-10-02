@@ -18,11 +18,18 @@ class ContractTransaction < ApplicationRecord
     "application/vnd.esc"
   end
   
-  def self.on_ethscription_created(ethscription)
-    begin
+  def self.create_from_ethscription!(ethscription)
+    return unless ENV.fetch('ETHEREUM_NETWORK') == "eth-goerli" || Rails.env.development?
+    
+    ContractTransaction.transaction do
       new_from_ethscription(ethscription).execute_transaction
-    rescue InvalidEthscriptionError => e
-      Rails.logger.info(e.message)
+    
+      end_time = Time.current
+      
+      ethscription.update_columns(
+        contract_actions_processed_at: end_time,
+        updated_at: end_time
+      )
     end
   end
   
@@ -39,12 +46,11 @@ class ContractTransaction < ApplicationRecord
       self.payload = JSON.parse(ethscription.content)
       data = payload['data']
     rescue JSON::ParserError => e
-      raise InvalidEthscriptionError.new(
-        "JSON parse error: #{e.message}"
-      )
+      Rails.logger.info "JSON parse error: #{e.message}"
+      return
     end
     
-    validate_mimetype_and_to!
+    return unless mimetype_and_to_valid?
     
     assign_attributes(
       block_blockhash: ethscription.block_blockhash,
@@ -96,7 +102,8 @@ class ContractTransaction < ApplicationRecord
           blockhash: "0x" + SecureRandom.hex(32),
           parent_blockhash: "0x" + SecureRandom.hex(32),
           timestamp: Time.zone.now.to_i,
-          imported_at: Time.zone.now
+          imported_at: Time.zone.now,
+          processing_state: "complete"
         )
         
         ethscription_attrs = {
@@ -107,7 +114,7 @@ class ContractTransaction < ApplicationRecord
           creator: from.downcase,
           creation_timestamp: Time.zone.now.to_i,
           initial_owner: "0x" + "0" * 40,
-          transaction_index: Ethscription.pluck(:transaction_index).last.to_i + 1,
+          transaction_index: Ethscription.newest_first.first&.transaction_index.to_i + 1,
           content_uri: uri,
           content_sha: Digest::SHA256.hexdigest(uri),
           mimetype: mimetype,
@@ -115,8 +122,9 @@ class ContractTransaction < ApplicationRecord
         }
         
         eth = Ethscription.create!(ethscription_attrs)
-        transaction_receipt = eth.contract_transaction.contract_transaction_receipt
-  
+        ContractTransaction.create_from_ethscription!(eth)
+        transaction_receipt = eth.contract_transaction_receipt
+        
         raise ActiveRecord::Rollback
       end
   
@@ -192,17 +200,17 @@ class ContractTransaction < ApplicationRecord
   
   private
   
-  def validate_mimetype_and_to!
+  def mimetype_and_to_valid?
     unless ethscription.initial_owner == ("0x" + "0" * 40) && ethscription.mimetype == ContractTransaction.required_mimetype
-      raise InvalidEthscriptionError.new(
-        "#{ethscription.inspect} does not trigger contract interaction"
-      )
+      Rails.logger.info("#{ethscription.inspect} does not trigger contract interaction")
+      return false
     end
     
     if payload['to'] && !payload['to'].to_s.match(/\A0x[a-f0-9]{40}\z/i)
-      raise InvalidEthscriptionError.new(
-        "#{ethscription.inspect} does not trigger contract interaction"
-      )
+      Rails.logger.info("#{ethscription.inspect} does not trigger contract interaction")
+      return false
     end
+    
+    true
   end
 end

@@ -13,7 +13,8 @@ RSpec.describe Contract, type: :model do
       blockhash: blockhash,
       parent_blockhash: blockhash,
       timestamp: Time.zone.now.to_i,
-      imported_at: Time.zone.now
+      imported_at: Time.zone.now,
+      processing_state: "complete"
     )
     
     @ethscription = Ethscription.create!(

@@ -1,3 +1,4 @@
 web: bundle exec puma -C config/puma.rb
 release: rake db:migrate
-clock: bundle exec clockwork config/clock.rb
+get_ethscriptions: bundle exec clockwork config/clock.rb
+process_ethscriptions: bundle exec clockwork config/processor_clock.rb
