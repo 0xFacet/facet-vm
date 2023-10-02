@@ -114,7 +114,7 @@ class ContractTransaction < ApplicationRecord
           creator: from.downcase,
           creation_timestamp: Time.zone.now.to_i,
           initial_owner: "0x" + "0" * 40,
-          transaction_index: Ethscription.pluck(:transaction_index).last.to_i + 1,
+          transaction_index: Ethscription.newest_first.first&.transaction_index.to_i + 1,
           content_uri: uri,
           content_sha: Digest::SHA256.hexdigest(uri),
           mimetype: mimetype,
