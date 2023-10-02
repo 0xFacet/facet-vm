@@ -83,7 +83,7 @@ class EthscriptionSync
       response = fetch_ethscriptions(next_block_number)
       
       if response.dig('error', 'resolution') == 'retry'
-        return
+        return 0
       elsif response['error']
         raise "Unexpected error: #{response['error']}"
       end
