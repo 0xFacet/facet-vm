@@ -2,11 +2,31 @@ class MappingType < TypedVariable
   def initialize(type, value = nil, **options)
     super
   end
-  
-  def serialize
-    value.data_defaults_pruned.each.with_object({}) do |(key, value), h|
-      h[key.serialize] = value.serialize
+  def deep_clean(hash)
+    hash.each_with_object({}) do |(k, v), new_hash|
+      if v.is_a?(Hash)
+        nested_hash = deep_clean(v)
+        new_hash[k] = nested_hash unless nested_hash.empty?
+      else
+        new_hash[k] = v
+      end
     end
+  end
+  def serialize(*)
+    res = value.data_defaults_pruned.each.with_object({}) do |(key, value), h|
+      # h[key.serialize] = value.serialize
+      
+      if value.respond_to?(:value)
+        next if value.value == value.type.default_value
+      end
+      
+      key = key.respond_to?(:serialize) ? key.serialize : key
+      val = value.respond_to?(:serialize) ? value.serialize : value
+      
+      h[key] = val
+    end
+    
+    deep_clean(res)
   end
   
   class Proxy
@@ -21,7 +41,7 @@ class MappingType < TypedVariable
     end
     
     def data_defaults_pruned
-      data.reject { |key, value| value.value == value.type.default_value }
+      data#.reject { |key, value| value.value == value.type.default_value }
     end
     
     def initialize(initial_value = {}, key_type:, value_type:)
@@ -36,7 +56,7 @@ class MappingType < TypedVariable
       value = data[key_var]
 
       if value.nil?
-        data[key_var] = TypedVariable.create_or_validate(value_type)
+        data[key_var] = TypedVariable.create_or_validate(value_type, data.delete(key_var.value&.to_s))
       end
       
       data[key_var]

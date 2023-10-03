@@ -182,7 +182,7 @@ RSpec.describe AbiProxy, type: :model do
     expect(call_receipt.logs.map{|i| i['event']}.sort)
     .to eq(['Greet', 'Transfer', 'Transfer'].sort)
     
-    expect(call_receipt.contract.latest_state['totalSupply']).to eq(10)
+    expect(call_receipt.contract.latest_state['totalSupply']).to eq("10")
     
     expect(call_receipt.contract.latest_state.
       slice('definedHere', 'definedInTest', 'definedInNonToken').values.sort).to eq(

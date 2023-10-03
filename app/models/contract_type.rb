@@ -3,7 +3,7 @@ class ContractType < TypedVariable
     super
   end
   
-  def serialize
+  def serialize(...)
     value.address
   end
   

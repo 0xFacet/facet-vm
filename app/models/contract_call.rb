@@ -23,11 +23,13 @@ class ContractCall < ApplicationRecord
       else
         find_and_validate_existing_contract!(to_contract_address)
       end
-      
+      result, state_changed =nil
+      TransactionContext.set(function_object: function_object) do
       result, state_changed = to_contract.execute_function(
         function,
         args
       ).values_at(:result, :state_changed)
+    end
       
       if function_object.read_only? && state_changed
         raise ReadOnlyFunctionChangedStateError, "Invalid change in read-only function: #{function}, #{args.inspect}, to address: #{to_contract.address}"

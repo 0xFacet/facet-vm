@@ -60,13 +60,15 @@ class Contract < ApplicationRecord
       final_state = implementation.state_proxy.serialize
       
       if final_state != initial_state
+        binding.pry if TransactionContext.function_object.read_only?
+        
         states.create!(
           transaction_hash: TransactionContext.transaction_hash,
           block_number: TransactionContext.block_number,
           transaction_index: TransactionContext.transaction_index,
           internal_transaction_index: TransactionContext.current_call.internal_transaction_index,
           state: final_state
-        )
+        ) rescue binding.pry
         
         state_changed = true
       end

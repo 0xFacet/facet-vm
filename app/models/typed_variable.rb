@@ -35,11 +35,15 @@ class TypedVariable
   end
   
   def as_json(args = {})
-    serialize
+    serialize(convert_ints_to_strings: false)
   end
   
-  def serialize
-    value
+  def serialize(convert_ints_to_strings: true)
+    if value.is_a?(Integer) && convert_ints_to_strings
+      value.to_s
+    else
+      value
+    end
   end
   
   def to_s

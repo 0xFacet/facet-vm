@@ -222,12 +222,14 @@ class Type
         raise VariableTypeError.new("invalid #{literal}")
       end
       
-      data = literal.map do |key, value|
-        [
-          TypedVariable.create(key_type, key),
-          TypedVariable.create(value_type, value)
-        ]
-      end.to_h
+      # data = literal.map do |key, value|
+      #   [
+      #     TypedVariable.create(key_type, key),
+      #     TypedVariable.create(value_type, value)
+      #   ]
+      # end.to_h
+      
+      data = literal
     
       proxy = MappingType::Proxy.new(data, key_type: key_type, value_type: value_type)
       

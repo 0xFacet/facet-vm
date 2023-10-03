@@ -3,7 +3,7 @@ class ArrayType < TypedVariable
     super
   end
   
-  def serialize
+  def serialize(*)
     value.data.map(&:serialize)
   end
   

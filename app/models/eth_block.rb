@@ -90,6 +90,25 @@ class EthBlock < ApplicationRecord
     end
   end
   
+  def self.process_ethscriptions(num)
+    b = find_by_block_number(num)
+    
+    EthBlock.transaction do
+      ethscriptions = b.ethscriptions.order(:transaction_index)
+  
+      ethscriptions.each do |e|
+        ContractTransaction.create_from_ethscription!(e)
+      end
+  
+      b.update_columns(
+        processing_state: "complete",
+        updated_at: Time.current
+      )
+  
+      ethscriptions.length
+    end
+  end
+  
   def build_new_ethscription(server_data)
     Ethscription.new(transform_server_response(server_data))
   end
