@@ -1,24 +1,23 @@
 class ContractImplementation
   include ContractErrors
-    
-  attr_reader :contract_record
-  
   class << self
     attr_accessor :state_variable_definitions, :parent_contracts,
     :events, :is_abstract_contract, :valid_contract_types
   end
   
-  delegate :block, :blockhash, :tx, :esc, :msg, :log_event, :this, to: TransactionContext
-  delegate :implements?, to: :class
+  delegate :block, :blockhash, :tx, :esc, :msg, :log_event,
+           :current_address, to: :current_context
+  delegate :implements?, :state_variable_definitions, to: :class
   
-  def initialize(contract_record)
-    @state_proxy = StateProxy.new(
-      contract_record,
-      contract_record.implementation_class.state_variable_definitions
-    )
-    
-    @contract_record = contract_record
+  attr_reader :current_context
+  
+  def initialize(current_context: TransactionContext)
+    @current_context = current_context || raise("Must provide current context")
   end
+  
+  # def attach_contract_record(address = nil)
+  #   @contract_record = Contract.new(address: address, type: self.class.name.demodulize)
+  # end
   
   def self.mock
     Contract.new(type: self.name.demodulize).implementation
@@ -41,7 +40,7 @@ class ContractImplementation
   end
   
   def state_proxy
-    @state_proxy
+    @state_proxy ||= StateProxy.new(state_variable_definitions)
   end
   
   def self.const_missing(name)
@@ -97,12 +96,24 @@ class ContractImplementation
   end
   
   def require(condition_or_block, message)
-    path = Rails.env.test? ? '/spec/models' : '/app/models/contracts'
+    contract_path = '/app/models/contracts'
+    spec_path = '/spec/models'
     
-    caller_location = caller_locations.detect { |l| l.path.include?(path) }
-    file = caller_location.path.gsub(%r{.*#{path}/}, '')
+    possible_paths = Rails.env.test? ? [contract_path, spec_path] : [contract_path]
+    
+    caller_location = nil
+    possible_paths.each do |path|
+      caller_location = caller_locations.detect { |location| location.path.include?(path) }
+      break if caller_location
+    end
+  # binding.pry
+    if caller_location.path.include?("rubidity_interpreter_spec")
+      caller_location = caller_locations.detect { |location| location.path.include?(self.class.name)}
+    end
+    
+    file = caller_location.path.gsub(%r{.*/}, '') 
     line = caller_location.lineno
-  
+    # binding.pry
     if condition_or_block.is_a?(Proc)
       begin
         condition_result = condition_or_block.call
@@ -211,8 +222,8 @@ class ContractImplementation
     end
 
     log_event({
-      contractType: contract_record.type,
-      contractAddress: contract_record.address,
+      contractType: self.class.name,
+      contractAddress: current_address,
       event: event_name,
       data: args
     })
@@ -244,6 +255,10 @@ class ContractImplementation
     "0x" + Digest::Keccak256.new.hexdigest(str.value)
   end
   
+  def self.available_contracts
+    @available_contracts ||= {}.with_indifferent_access
+  end
+  
   protected
 
   def abi
@@ -266,8 +281,12 @@ class ContractImplementation
   end
   
   def address(i)
-    if i.is_a?(ContractImplementation) && i == self
-      return TypedVariable.create(:address, contract_record.address)
+    if i.is_a?(TypedVariable) && i.type.is_contract_type?
+      return TypedVariable.create(:address, i.value.address)
+    end
+    
+    if i.is_a?(TypedVariable) && i.type.contract?
+      return TypedVariable.create(:address, i.value.address)
     end
     
     if i.is_a?(Integer) && i == 0
@@ -331,6 +350,7 @@ class ContractImplementation
       **contract_initializer.merge(type: :create)
     )
     
+    # TODO
     addr = TransactionContext.current_transaction.contract_calls.last.created_contract_address
     
     handle_contract_type_cast(
@@ -362,8 +382,9 @@ class ContractImplementation
   def self.inherited(subclass)
     super
     
+    return unless subclass.name
     method_name = subclass.name.demodulize.to_sym
-    
+    # pp available_contracts
     if Contracts.constants.include?(method_name)
       define_method(method_name) do |*args, **kwargs|
         if args.many? || kwargs.present? || (args.one? && args.first.is_a?(Hash))
@@ -379,13 +400,50 @@ class ContractImplementation
       Type::TYPES << method_name unless Type::TYPES.include?(method_name)
     end
   end
+  
+  def method_missing(method_name, *args, &block)
+    return super unless self.class.available_contracts.include?(method_name)
+    
+    if args.many? || args.last.is_a?(Hash) || (args.one? && !args.first.is_a?(Hash))
+      create_contract_initializer(method_name, args.last)
+    elsif args.one?
+      handle_contract_type_cast(method_name, args.first)
+    else
+      contract_instance = self
+      parent = self.class.available_contracts[method_name]
+      
+      # pp "hi"
+      Object.new.tap do |proxy|
+        parent.abi.data.each do |name, _|
+          proxy.define_singleton_method(name) do |*args, **kwargs|
+            contract_instance.send("__#{parent.name.demodulize}__#{name}", *args, **kwargs)
+          end
+        end
+      end
+    end
+  end
 
+  def self.respond_to_missing?(method_name, include_private = false)
+    available_contracts.include?(method_name) || super
+  end
+
+  def this
+    handle_contract_type_cast(self.class.name.demodulize, current_address)
+  end
+  
   def handle_contract_type_cast(contract_type, other_address)
+    # proxy = ContractType::Proxy.new(
+    #   contract_type: contract_type,
+    #   address: other_address
+    # )
+    
+    # TypedVariable.create(contract_type, proxy)
+    
     proxy = ContractType::Proxy.new(
       contract_type: contract_type,
       address: other_address
     )
     
-    TypedVariable.create(contract_type, proxy)
+    TypedVariable.create(:contract, proxy)
   end
 end

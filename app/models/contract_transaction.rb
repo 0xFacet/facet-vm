@@ -22,6 +22,10 @@ class ContractTransaction < ApplicationRecord
     return unless ENV.fetch('ETHEREUM_NETWORK') == "eth-goerli" || Rails.env.development?
     
     ContractTransaction.transaction do
+      if ethscription.contract_actions_processed_at.present?
+        raise "ContractTransaction already created for #{ethscription.inspect}"
+      end
+      
       new_from_ethscription(ethscription).execute_transaction
     
       end_time = Time.current
@@ -164,7 +168,7 @@ class ContractTransaction < ApplicationRecord
       block_blockhash: block_blockhash,
       transaction_hash: transaction_hash,
       transaction_index: transaction_index,
-      ethscription: ethscription
+      ethscription: ethscription # Do we need this?
     ) do
       yield
     end
@@ -181,6 +185,7 @@ class ContractTransaction < ApplicationRecord
   def execute_transaction
     return unless mimetype_and_to_valid?
     
+    # TODO: this should be a transaction?
     begin
       make_initial_call
     rescue ContractError, TransactionError => e

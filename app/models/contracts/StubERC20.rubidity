@@ -1,0 +1,17 @@
+pragma :rubidity, "1.0.0"
+
+import './ERC20.rubidity'
+
+contract StubERC20, is: [ERC20] do
+  constructor(name: :string) {
+    ERC20.constructor(name: name, symbol: "symbol", decimals: 18)
+  }
+  
+  function :mint, { amount: :uint256 }, :public do
+    _mint(to: msg.sender, amount: amount)
+  end
+  
+  function :sayName, :public, returns: :string do
+    ERC20(address(this)).name()
+  end
+end

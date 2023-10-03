@@ -15,7 +15,7 @@ class TypedVariable
       MappingType.new(type, value, **options)
     elsif type.array?
       ArrayType.new(type, value, **options)
-    elsif type.is_contract_type?
+    elsif type.is_contract_type? || type.contract?
       ContractType.new(type, value, **options)
     else
       new(type, value, **options)

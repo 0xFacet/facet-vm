@@ -20,24 +20,34 @@ class Contract < ApplicationRecord
   
   delegate :implements?, to: :implementation
   
+  def get_implementation_from_code_string(code_string)
+    RubidityInterpreter.build_implementation_class_from_code_string(type, code_string)
+  end
+  
   class << self
     delegate :valid_contract_types, to: ContractImplementation
   end
   
   def implementation
-    @implementation ||= implementation_class.new(self)
+    @implementation ||= implementation_class.new
   end
   
   def implementation_class
-    "Contracts::#{type}".constantize
+    # binding.pry
+
+    "Contracts::#{type}".safe_constantize ||
+      get_implementation_from_code_string(TransactionContext.valid_contracts.send(type))
   end
   
   def self.type_abstract?(type)
-    "Contracts::#{type}".constantize.is_abstract_contract
+    # TODO
+    "Contracts::#{type}".safe_constantize&.is_abstract_contract || false
   end
   
   def self.type_valid?(type)
-    Contract.valid_contract_types.include?(type.to_sym)
+    # binding.pry
+    Contract.valid_contract_types.include?(type.to_sym) ||
+    TransactionContext.valid_contracts.send(type).present?
   end
   
   def execute_function(function_name, args)

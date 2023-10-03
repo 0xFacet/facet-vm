@@ -2,7 +2,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
   attribute :call_stack, :ethscription, :current_call,
-  :transaction_hash, :transaction_index, :current_transaction
+  :transaction_hash, :transaction_index, :current_transaction, :valid_contracts
   
   STRUCT_DETAILS = {
     msg:    { attributes: { sender: :address } },
@@ -39,15 +39,16 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def current_contract
-    current_call.to_contract
+    current_call&.to_contract
   end
   
-  def this
-    current_contract.implementation
+  def current_address
+    current_contract.address
   end
   
   def blockhash(input_block_number)
     unless input_block_number == block_number
+      # TODO: implement
       raise "Not implemented"
     end
     

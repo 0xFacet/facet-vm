@@ -35,25 +35,25 @@ class AbiProxy
         define_function_method(prefixed_name, func, contract_class)
       end
   
-      contract_class.class_eval do
-        method_name = parent.name.demodulize.to_sym
-        old_method = instance_method(method_name) if method_defined?(method_name)
+      # contract_class.class_eval do
+      #   method_name = parent.name.demodulize.to_sym
+      #   old_method = instance_method(method_name) if method_defined?(method_name)
         
-        define_method(method_name) do |*args|
-          if args.present? && old_method
-            return old_method.bind(self).call(*args)
-          end
+      #   define_method(method_name) do |*args|
+      #     if args.present? && old_method
+      #       return old_method.bind(self).call(*args)
+      #     end
           
-          contract_instance = self
-          Object.new.tap do |proxy|
-            parent.abi.data.each do |name, _|
-              proxy.define_singleton_method(name) do |*args, **kwargs|
-                contract_instance.send("__#{parent.name.demodulize}__#{name}", *args, **kwargs)
-              end
-            end
-          end
-        end
-      end
+      #     contract_instance = self
+      #     Object.new.tap do |proxy|
+      #       parent.abi.data.each do |name, _|
+      #         proxy.define_singleton_method(name) do |*args, **kwargs|
+      #           contract_instance.send("__#{parent.name.demodulize}__#{name}", *args, **kwargs)
+      #         end
+      #       end
+      #     end
+      #   end
+      # end
     end
     
     closest_parent = contract_class.linearized_parents.first
