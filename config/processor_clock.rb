@@ -21,11 +21,7 @@ module Clockwork
     end
   end
 
-  every(3.seconds, 'Sync ethscriptions') do
-    EthscriptionSync.import_eth_blocks_until_done
-  end
-  
-  every(2.minutes, 'check_for_reorgs') do
-    EthscriptionSync.check_for_reorgs
+  every(1.seconds, 'EthBlock.process_contract_actions_until_done') do
+    EthBlock.process_contract_actions_until_done
   end
 end

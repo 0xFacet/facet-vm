@@ -26,6 +26,30 @@ CREATE FUNCTION public.check_block_order() RETURNS trigger
 
 
 --
+-- Name: check_block_sequence(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.check_block_sequence() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+      BEGIN
+        IF NEW.processing_state = 'complete' THEN
+          IF EXISTS (
+            SELECT 1
+            FROM eth_blocks
+            WHERE block_number < NEW.block_number
+              AND processing_state = 'pending'
+            LIMIT 1
+          ) THEN
+            RAISE EXCEPTION 'Previous block not yet processed';
+          END IF;
+        END IF;
+        RETURN NEW;
+      END;
+      $$;
+
+
+--
 -- Name: check_ethscription_order(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -35,6 +59,32 @@ CREATE FUNCTION public.check_ethscription_order() RETURNS trigger
       BEGIN
         IF NEW.block_number < (SELECT MAX(block_number) FROM ethscriptions) OR (NEW.block_number = (SELECT MAX(block_number) FROM ethscriptions) AND NEW.transaction_index <= (SELECT MAX(transaction_index) FROM ethscriptions WHERE block_number = NEW.block_number)) THEN
           RAISE EXCEPTION 'New ethscription must be later in order';
+        END IF;
+        RETURN NEW;
+      END;
+      $$;
+
+
+--
+-- Name: check_ethscription_sequence(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.check_ethscription_sequence() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+      BEGIN
+        IF NEW.contract_actions_processed_at IS NOT NULL THEN
+          IF EXISTS (
+            SELECT 1
+            FROM ethscriptions
+            WHERE 
+              (block_number < NEW.block_number AND contract_actions_processed_at IS NULL)
+              OR 
+              (block_number = NEW.block_number AND transaction_index < NEW.transaction_index AND contract_actions_processed_at IS NULL)
+            LIMIT 1
+          ) THEN
+            RAISE EXCEPTION 'Previous ethscription with either a lower block number or a lower transaction index in the same block not yet processed';
+          END IF;
         END IF;
         RETURN NEW;
       END;
@@ -340,6 +390,7 @@ CREATE TABLE public.eth_blocks (
     imported_at timestamp(6) without time zone NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    processing_state character varying NOT NULL,
     CONSTRAINT chk_rails_1c105acdac CHECK (((parent_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_7e9881ece2 CHECK (((blockhash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
@@ -384,6 +435,7 @@ CREATE TABLE public.ethscriptions (
     mimetype character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    contract_actions_processed_at timestamp(6) without time zone,
     CONSTRAINT ethscriptions_block_blockhash_format CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT ethscriptions_content_sha_format CHECK (((content_sha)::text ~ '^[a-f0-9]{64}$'::text)),
     CONSTRAINT ethscriptions_creator_format CHECK (((creator)::text ~ '^0x[a-f0-9]{40}$'::text)),
@@ -698,6 +750,20 @@ CREATE UNIQUE INDEX index_eth_blocks_on_block_number ON public.eth_blocks USING 
 
 
 --
+-- Name: index_eth_blocks_on_block_number_completed; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_eth_blocks_on_block_number_completed ON public.eth_blocks USING btree (block_number) WHERE ((processing_state)::text = 'complete'::text);
+
+
+--
+-- Name: index_eth_blocks_on_block_number_pending; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_eth_blocks_on_block_number_pending ON public.eth_blocks USING btree (block_number) WHERE ((processing_state)::text = 'pending'::text);
+
+
+--
 -- Name: index_eth_blocks_on_blockhash; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -719,6 +785,13 @@ CREATE UNIQUE INDEX index_eth_blocks_on_parent_blockhash ON public.eth_blocks US
 
 
 --
+-- Name: index_eth_blocks_on_processing_state; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_eth_blocks_on_processing_state ON public.eth_blocks USING btree (processing_state);
+
+
+--
 -- Name: index_ethscriptions_on_block_number_and_transaction_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -737,6 +810,20 @@ CREATE INDEX index_ethscriptions_on_content_sha ON public.ethscriptions USING bt
 --
 
 CREATE UNIQUE INDEX index_ethscriptions_on_ethscription_id ON public.ethscriptions USING btree (ethscription_id);
+
+
+--
+-- Name: eth_blocks check_block_sequence_trigger; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER check_block_sequence_trigger BEFORE UPDATE OF processing_state ON public.eth_blocks FOR EACH ROW EXECUTE FUNCTION public.check_block_sequence();
+
+
+--
+-- Name: ethscriptions check_ethscription_sequence_trigger; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER check_ethscription_sequence_trigger BEFORE UPDATE OF contract_actions_processed_at ON public.ethscriptions FOR EACH ROW EXECUTE FUNCTION public.check_ethscription_sequence();
 
 
 --
@@ -848,6 +935,7 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20230911151706'),
 ('20230914181546'),
 ('20230927152725'),
-('20230928185853');
+('20230928185853'),
+('20231001152142');
 
 

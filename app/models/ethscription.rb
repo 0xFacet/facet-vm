@@ -6,8 +6,6 @@ class Ethscription < ApplicationRecord
   has_one :contract_transaction, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
   has_many :contract_states, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
 
-  after_create :process_contract_actions
-  
   before_validation :downcase_hex_fields
   
   scope :newest_first, -> { order(block_number: :desc, transaction_index: :desc) }
@@ -29,12 +27,6 @@ class Ethscription < ApplicationRecord
   end
   
   private
-  
-  def process_contract_actions
-    return unless ENV.fetch('ETHEREUM_NETWORK') == "eth-goerli" || Rails.env.development?
-    
-    ContractTransaction.on_ethscription_created(self)
-  end
   
   def downcase_hex_fields
     self.ethscription_id = ethscription_id.downcase
