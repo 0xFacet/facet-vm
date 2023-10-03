@@ -27,36 +27,24 @@ RSpec.describe RubidityInterpreter, type: :module do
     end
 
     it 'returns an instance' do
-      base = IO.read('/Users/tom/Dropbox (Personal)/db-src/ethscriptions-vm-server/app/models/contracts/ERC20V2.rubidity')
-      minter = IO.read('/Users/tom/Dropbox (Personal)/db-src/ethscriptions-vm-server/app/models/contracts/PublicMintERC20New.rubidity')
-            
       deploy_receipt = nil
       
-      valid = OpenStruct.new(
-        ERC20V2: base,
-        PublicMintERC20New: minter
-      )
-        
-      TransactionContext.set(
-        valid_contracts: valid,
-      ) do
-        deploy_receipt = trigger_contract_interaction_and_expect_success(
-          from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-          payload: {
-            to: nil,
-            data: {
-              type: "PublicMintERC20New",
-              args: {
-                name: "Token1",
-                symbol: "TK1",
-                maxSupply: 21e24.to_d.to_i,
-                perMintLimit: 21e24.to_d.to_i,
-                decimals: 18
-              }
+      deploy_receipt = trigger_contract_interaction_and_expect_success(
+        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+        payload: {
+          to: nil,
+          data: {
+            type: "PublicMintERC20New",
+            args: {
+              name: "Token1",
+              symbol: "TK1",
+              maxSupply: 21e24.to_d.to_i,
+              perMintLimit: 21e24.to_d.to_i,
+              decimals: 18
             }
           }
-        )
-      end
+        }
+      )
 
       pp deploy_receipt
       

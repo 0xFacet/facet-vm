@@ -1,3 +1,5 @@
+pragma :rubidity, "1.0.0"
+
 contract :ERC20V2 do
   abstract
   

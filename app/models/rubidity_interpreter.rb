@@ -5,6 +5,36 @@ module RubidityInterpreter
     Builder.new.instance_eval(code_string, filename + ".rubidity", 1)
   end
   
+  def self.build_implementation_class_from_file(filename)
+    filename = filename.sub(/\.rubidity$/, "") + ".rubidity"
+    
+    full_name = Rails.root.join("app/models/contracts_rubidity/", filename)
+    
+    code_string = IO.read(full_name)
+
+    Builder.new.instance_eval(code_string, filename, 1)
+  end
+  
+  def self.build_valid_contracts
+    files = Dir.glob(Rails.root.join("app/models/contracts_rubidity/*"))
+    
+    files.each.with_object({}) do |file, hsh|
+      klass = build_implementation_class_from_file(file)
+      hsh[klass.name] = klass
+    end.with_indifferent_access
+  end
+  
+  def self.normalize_code
+    file_path = "/Users/tom/Dropbox (Personal)/db-src/ethscriptions-vm-server/app/models/contracts_rubidity/ERC20V2.rubidity"
+  
+    code = File.read(file_path)
+    tree = Unparser.parse(code)
+  
+    normalized_code = Unparser.unparse(tree)
+  
+    normalized_code
+  end
+  
   class Builder < BasicObject
     def initialize
       @available_contracts = {}.with_indifferent_access
@@ -43,7 +73,7 @@ module RubidityInterpreter
     end
     
     def import(file_path)
-      base_dir = "app/models/contracts/"
+      base_dir = "app/models/contracts_rubidity/"
 
       absolute_path = file_path.start_with?("./") ? ::File.join(base_dir, file_path[2..]) : file_path
     
@@ -91,7 +121,7 @@ module RubidityInterpreter
           ::TransactionContext.current_contract.implementation.send(name)
         else
           # name.to_sym
-          super
+          super(name)
         end
       end
     end
