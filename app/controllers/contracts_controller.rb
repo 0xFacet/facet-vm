@@ -4,7 +4,7 @@ class ContractsController < ApplicationController
     per_page = (params[:per_page] || 200).to_i
     per_page = 200 if per_page > 200
     
-    scope = Contract.all.order(created_at: :desc)
+    scope = Contract.where(type: Contract.valid_contract_types).order(created_at: :desc)
     
     if params[:base_type]
       scope = scope.where(
