@@ -206,7 +206,7 @@ class ContractTransaction < ApplicationRecord
       return false
     end
     
-    if payload['to'] && !payload['to'].to_s.match(/\A0x[a-f0-9]{40}\z/i)
+    if !payload || payload['to'] && !payload['to'].to_s.match(/\A0x[a-f0-9]{40}\z/i)
       Rails.logger.info("#{ethscription.inspect} does not trigger contract interaction")
       return false
     end
