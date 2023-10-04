@@ -161,10 +161,14 @@ class EthscriptionSync
     maximum_attempts = 3 
     attempts = 0
     
+    latest_block = EthBlock.order(block_number: :desc).where.not(imported_at: nil).first
+    
     begin
       response = query_api("ethscription_as_of",
         ethscription_id: ethscription_id,
-        as_of_ethscription: as_of
+        as_of_ethscription: as_of,
+        latest_block_number: latest_block&.block_number,
+        latest_block_hash: latest_block&.blockhash
       )
   
       case response.code
