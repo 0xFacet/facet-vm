@@ -1,8 +1,8 @@
 class ContractsController < ApplicationController
   def index
     page = (params[:page] || 1).to_i
-    per_page = (params[:per_page] || 100).to_i
-    per_page = 100 if per_page > 100
+    per_page = (params[:per_page] || 200).to_i
+    per_page = 200 if per_page > 200
     
     scope = Contract.all.order(created_at: :desc)
     
