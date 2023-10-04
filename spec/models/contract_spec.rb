@@ -348,7 +348,7 @@ RSpec.describe Contract, type: :model do
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "protocol": "EthscriptionBridge",
+          "protocol": "EthscriptionERC20Bridge",
           constructorArgs: {
             name: "Bridge Native 1",
             symbol: "PT1",
@@ -395,7 +395,7 @@ RSpec.describe Contract, type: :model do
       
       expect(balance).to eq(1000 * (10 ** 18))
       
-      trigger_contract_interaction_and_expect_success(
+      bridge_out_res = trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: dc_token_recipient,
         data: {
@@ -425,7 +425,7 @@ RSpec.describe Contract, type: :model do
           functionName: "markWithdrawalComplete",
           args: {
             to: dc_token_recipient,
-            escrowedId: "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6",
+            withdrawalIds: [bridge_out_res.transaction_hash],
           }
         }
       )

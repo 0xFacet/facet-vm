@@ -18,12 +18,15 @@ class EthscriptionSync
   )
     url = ENV.fetch("INDEXER_API_BASE_URI") + "/ethscriptions/newer_ethscriptions"
     
+    our_count = Ethscription.where("block_number < ?", new_block_number).count
+    
     query = {
       block_number: new_block_number,
       mimetypes: [ContractTransaction.required_mimetype],
       # initial_owner: "0x" + "0" * 40,
       max_ethscriptions: max_ethscriptions,
-      max_blocks: max_blocks
+      max_blocks: max_blocks,
+      past_ethscriptions_count: our_count
     }
     
     headers = {
@@ -161,10 +164,21 @@ class EthscriptionSync
     maximum_attempts = 3 
     attempts = 0
     
+    latest_block = if Rails.env.test?
+      EthBlock.new(
+        block_number: 9808217,
+        blockhash: "0x915b5850f596a717b0634d722728e3ee7befde2d0b1ad89fdd55c6921c49ed06",
+      )
+    else
+      EthBlock.order(block_number: :desc).where.not(imported_at: nil).first
+    end
+    
     begin
       response = query_api("ethscription_as_of",
         ethscription_id: ethscription_id,
-        as_of_ethscription: as_of
+        as_of_ethscription: as_of,
+        latest_block_number: latest_block&.block_number,
+        latest_block_hash: latest_block&.blockhash
       )
   
       case response.code

@@ -1,25 +1,27 @@
-class Contracts::EthscriptionBridge < ContractImplementation
+class Contracts::EthscriptionERC20Bridge < ContractImplementation
   pragma :rubidity, "1.0.0"
   
   is :ERC20
 
-  event :InitiateWithdrawal, { from: :address, escrowedId: :ethscriptionId }
-  event :WithdrawalComplete, { to: :address, escrowedId: :ethscriptionId }
+  event :InitiateWithdrawal, { from: :address, escrowedId: :bytes32, withdrawalId: :bytes32 }
+  event :WithdrawalComplete, { to: :address, escrowedIds: [:bytes32], withdrawalIds: [:bytes32] }
 
   string :public, :ethscriptionsTicker
   uint256 :public, :ethscriptionMintAmount
   uint256 :public, :ethscriptionMaxSupply
-  ethscriptionId :public, :ethscriptionDeployId
+  bytes32 :public, :ethscriptionDeployId
   
   address :public, :trustedSmartContract
-  mapping ({ ethscriptionId: :address }), :public, :pendingWithdrawalEthscriptionToOwner
-  mapping ({ ethscriptionId: :address }), :public, :bridgedEthscriptionToOwner
+  mapping ({ bytes32: :address }), :public, :pendingWithdrawalEthscriptionToOwner
+  mapping ({ bytes32: :address }), :public, :bridgedEthscriptionToOwner
+  mapping ({ address: array(:bytes32) }), :public, :pendingUserWithdrawalIds
+  mapping ({ bytes32: :bytes32 }), :public, :withdrawalIdToEscrowedId
   
   constructor(
     name: :string,
     symbol: :string,
     trustedSmartContract: :address,
-    ethscriptionDeployId: :ethscriptionId
+    ethscriptionDeployId: :bytes32
   ) {
     ERC20.constructor(name: name, symbol: symbol, decimals: 18)
     
@@ -38,7 +40,7 @@ class Contracts::EthscriptionBridge < ContractImplementation
     s.ethscriptionMaxSupply = parsed['max']
   }
   
-  function :bridgeIn, { to: :address, escrowedId: :ethscriptionId }, :public do
+  function :bridgeIn, { to: :address, escrowedId: :bytes32 }, :public do
     require(
       msg.sender == s.trustedSmartContract,
       "Only the trusted smart contract can bridge in tokens"
@@ -70,7 +72,7 @@ class Contracts::EthscriptionBridge < ContractImplementation
     require(tick == s.ethscriptionsTicker, "Invalid ethscription ticker")
     require(amt == s.ethscriptionMintAmount, "Invalid ethscription mint amount")
 
-    maxId = s.ethscriptionMaxSupply / s.ethscriptionMintAmount
+    maxId = s.ethscriptionMaxSupply.div(s.ethscriptionMintAmount)
     
     require(id > 0 && id <= maxId, "Invalid token id")
     
@@ -88,30 +90,87 @@ class Contracts::EthscriptionBridge < ContractImplementation
     _mint(to: to, amount: s.ethscriptionMintAmount * (10 ** decimals))
   end
   
-  function :bridgeOut, { escrowedId: :ethscriptionId }, :public do
+  function :bridgeOut, { escrowedId: :bytes32 }, :public do
     require(s.bridgedEthscriptionToOwner[escrowedId] == msg.sender, "Ethscription not owned by sender")
     
     _burn(from: msg.sender, amount: s.ethscriptionMintAmount * (10 ** decimals))
     
+    withdrawalId = TransactionContext.transaction_hash
+    
+    require(
+      s.withdrawalIdToEscrowedId[withdrawalId] == TypedVariable.create(:bytes32),
+      "Withdrawal already started"
+    )
+
     s.bridgedEthscriptionToOwner[escrowedId] = address(0)
     s.pendingWithdrawalEthscriptionToOwner[escrowedId] = msg.sender
+    s.pendingUserWithdrawalIds[msg.sender].push(withdrawalId)
+    s.withdrawalIdToEscrowedId[withdrawalId] = escrowedId
     
-    emit :InitiateWithdrawal, from: msg.sender, escrowedId: :ethscriptionId
+    emit :InitiateWithdrawal, from: msg.sender, escrowedId: escrowedId, withdrawalId: withdrawalId
   end
   
-  function :markWithdrawalComplete, { to: :address, escrowedId: :ethscriptionId }, :public do
+  function :markWithdrawalComplete, {
+    to: :address,
+    withdrawalIds: [:bytes32]
+  }, :public do
     require(
       msg.sender == s.trustedSmartContract,
       'Only the trusted smart contract can mark withdrawals as complete'
     )
     
-    require(
-      s.pendingWithdrawalEthscriptionToOwner[escrowedId] == to,
-      "Withdrawal not initiated"
-    )
+    escrowedIds = array(:bytes32, withdrawalIds.length)
+
+    for i in 0...withdrawalIds.length
+      withdrawalId = withdrawalIds[i]
+      escrowedId = s.withdrawalIdToEscrowedId[withdrawalId]
+
+      escrowedIds[i] = escrowedId
+
+      require(
+        s.pendingWithdrawalEthscriptionToOwner[escrowedId] == to,
+        "Withdrawal not initiated"
+      )
+        
+      require(
+        _removeFirstOccurenceOfValueFromArray(
+          s.pendingUserWithdrawalIds[to],
+          withdrawalId
+        ),
+        "Withdrawal id not found"
+      )
+      
+      s.pendingWithdrawalEthscriptionToOwner[escrowedId] = address(0)
+      s.withdrawalIdToEscrowedId[withdrawalId] = TypedVariable.create(:bytes32)
+    end
     
-    s.pendingWithdrawalEthscriptionToOwner[escrowedId] = address(0)
+    emit :WithdrawalComplete, to: to, escrowedIds: escrowedIds, withdrawalIds: withdrawalIds
+  end
+  
+  function :getPendingWithdrawalsForUser, { user: :address }, :public, :view, returns: [:bytes32] do
+    return s.pendingUserWithdrawalIds[user]
+  end
+  
+  function :_removeFirstOccurenceOfValueFromArray, { arr: array(:bytes32), value: :bytes32 }, :internal, returns: :bool do
+    for i in 0...arr.length
+      if arr[i] == value
+        return _removeItemAtIndex(arr: arr, indexToRemove: i)
+      end
+    end
     
-    emit :WithdrawalComplete, to: to, escrowedId: :ethscriptionId
+    return false
+  end
+  
+  function :_removeItemAtIndex, { arr: array(:bytes32), indexToRemove: :uint256 }, :internal, returns: :bool do
+    lastIndex = arr.length - 1
+    
+    if lastIndex != indexToRemove
+      lastItem = arr[lastIndex]
+      arr[indexToRemove] = lastItem
+    end
+    
+    arr.pop
+    
+    return true
   end
 end
