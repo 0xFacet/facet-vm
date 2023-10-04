@@ -1,8 +1,10 @@
 class ContractImplementation
   include ContractErrors
   class << self
+    attr_reader :is_abstract_contract
+    
     attr_accessor :state_variable_definitions, :parent_contracts,
-    :events, :is_abstract_contract, :valid_contract_types
+    :events, :valid_contract_types
   end
   
   delegate :block, :blockhash, :tx, :esc, :msg, :log_event,

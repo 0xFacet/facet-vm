@@ -15,8 +15,59 @@ module RubidityInterpreter
     Builder.new.instance_eval(code_string, filename, 1)
   end
   
+  def self.migrate
+    Dir.glob(Rails.root.join("app/models/contracts/*.rb")).each do |file_path|
+      old_content = File.read(file_path)
+    
+      # Extract class name
+      class_name = old_content.match(/class Contracts::(\w+)/)[1]
+    
+      # Extract dependencies
+      dependencies = old_content.scan(/is :(\w+)/).flatten
+      
+      is_statement = nil
+      
+      if dependencies.one?
+        is_statement = "is: :#{dependencies.first}"
+      elsif dependencies.many?
+        is_statement = "is: [#{dependencies.join(', ')}]"
+      end
+        
+      is_abstract = old_content.match(/\s*abstract$/)
+      
+      old_content = old_content.gsub(/\n.*abstract\n.*/, '')
+      abstract_string = is_abstract ? "abstract: true" : nil
+      
+      modifiers = [
+        ":#{class_name}",
+        is_statement,
+        abstract_string,
+      ].compact
+      
+      old_content = old_content.gsub(/\n.*pragma.*\n.*/, '')
+      
+      new_content = old_content
+        .gsub(/\n\s*is.*\n*/, '')
+        # .gsub(/class Contracts::#{class_name}.*$/, "contract :#{class_name}#{is_statement}#{abstract_string}do")
+        .gsub(/class Contracts::#{class_name}.*$/, "contract #{modifiers.join(', ')} do")
+        
+        # .gsub(/function :(\w+), \{(.+?)\}, :public/, 'function :\1, {\2}, :public')
+        # .gsub(/constructor\(/, 'constructor(')
+    
+      # Add pragma and import statements
+      new_content = "pragma :rubidity, \"1.0.0\"\n\n" + dependencies.map { |dep| "import './#{dep}.rubidity'" }.join("\n") + "\n\n" + new_content
+    
+      new_content = new_content.gsub("\n\n\n", "\n")
+      
+      # Write new content to new file
+      new_file_path = Rails.root.join('app/models/contracts_rubidity/', "#{class_name}.rubidity")
+      File.write(new_file_path, new_content)
+    end
+    
+  end
+  
   def self.build_valid_contracts
-    files = Dir.glob(Rails.root.join("app/models/contracts_rubidity/*"))
+    files = Dir.glob(Rails.root.join("app/models/contracts_rubidity/*.rubidity"))
     
     files.each.with_object({}) do |file, hsh|
       klass = build_implementation_class_from_file(file)
@@ -42,7 +93,7 @@ module RubidityInterpreter
       define_const_missing_for_instance
     end
     
-    def contract(name, is: [], &block)
+    def contract(name, is: [], abstract: false, &block)
       unless @pragma_set
         raise "You must set a pragma before defining a contract."
       end
@@ -57,6 +108,10 @@ module RubidityInterpreter
           self.parent_contracts << dep_obj
         end
         self.parent_contracts = self.parent_contracts.uniq
+        
+        if abstract
+          @is_abstract_contract = true
+        end
         
         define_singleton_method(:name) do
           name.to_s

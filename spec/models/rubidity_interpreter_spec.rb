@@ -34,7 +34,7 @@ RSpec.describe RubidityInterpreter, type: :module do
         payload: {
           to: nil,
           data: {
-            type: "PublicMintERC20New",
+            type: "PublicMintERC20",
             args: {
               name: "Token1",
               symbol: "TK1",
