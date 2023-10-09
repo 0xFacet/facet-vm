@@ -5,6 +5,7 @@ class Contracts::EthscriptionERC20Bridge < ContractImplementation
 
   event :InitiateWithdrawal, { from: :address, escrowedIds: [:bytes32], withdrawalIds: [:bytes32] }
   event :WithdrawalComplete, { to: :address, escrowedIds: [:bytes32], withdrawalIds: [:bytes32] }
+  event :BridgedIn, { to: :address, escrowedIds: [:bytes32] }
 
   string :public, :ethscriptionsTicker
   uint256 :public, :ethscriptionMintAmount
@@ -96,11 +97,12 @@ class Contracts::EthscriptionERC20Bridge < ContractImplementation
     end
     
     _mint(to: to, amount: totalAmount)
+    emit :BridgedIn, to: to, escrowedIds: escrowedIds
   end
   
   function :bridgeOut, { escrowedIds: [:bytes32] }, :public do
     totalAmount = 0
-    withdrawalIds = []
+    withdrawalIds = array(:bytes32, escrowedIds.length)
 
     for i in 0...escrowedIds.length
       escrowedId = escrowedIds[i]
