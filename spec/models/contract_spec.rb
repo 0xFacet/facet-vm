@@ -367,7 +367,7 @@ RSpec.describe Contract, type: :model do
           functionName: "bridgeIn",
           args: {
             to: dc_token_recipient,
-            escrowedId: "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6",
+            escrowedIds: ["0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6"],
           }
         }
       )
@@ -380,7 +380,7 @@ RSpec.describe Contract, type: :model do
           functionName: "bridgeIn",
           args: {
             to: dc_token_recipient,
-            escrowedId: "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6",
+            escrowedIds: ["0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6"],
           }
         }
       )
@@ -402,7 +402,7 @@ RSpec.describe Contract, type: :model do
           "contract": deploy.address,
           functionName: "bridgeOut",
           args: {
-            escrowedId: "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6",
+            escrowedIds: ["0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6"],
           }
         }
       )
