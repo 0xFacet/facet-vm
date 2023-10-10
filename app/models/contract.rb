@@ -106,7 +106,12 @@ class Contract < ApplicationRecord
         [name, func.as_json.except('implementation')]
       end.to_h
       
-      json['current_state'] = latest_state
+      json['current_state'] = if options[:include_current_state]
+        latest_state
+      else
+        {}
+      end
+      
       json['current_state']['contract_type'] = type.demodulize
       
       klass = implementation.class

@@ -41,7 +41,7 @@ class ContractsController < ApplicationController
     end
 
     render json: {
-      result: convert_int_to_string(contract)
+      result: convert_int_to_string(contract.as_json(include_current_state: true))
     }
   end
 
