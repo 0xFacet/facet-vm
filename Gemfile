@@ -67,3 +67,5 @@ gem "keccak256", "~> 2.0"
 gem "eth", "~> 0.5.11"
 
 gem "activerecord-import", "~> 1.5"
+
+gem "scout_apm", "~> 5.3"

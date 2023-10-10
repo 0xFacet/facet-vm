@@ -72,6 +72,7 @@ GEM
       airbrake-ruby (~> 6.0)
     airbrake-ruby (6.2.1)
       rbtree3 (~> 0.6)
+    ast (2.4.2)
     bootsnap (1.16.0)
       msgpack (~> 1.2)
     builder (3.2.4)
@@ -157,6 +158,9 @@ GEM
     nokogiri (1.15.4-x86_64-linux)
       racc (~> 1.4)
     openssl (3.1.0)
+    parser (3.2.2.4)
+      ast (~> 2.4.1)
+      racc
     pg (1.5.3)
     pkg-config (1.5.5)
     pry (0.14.2)
@@ -222,6 +226,8 @@ GEM
       rspec-support (~> 3.12)
     rspec-support (3.12.1)
     rubyzip (2.3.2)
+    scout_apm (5.3.5)
+      parser
     scrypt (3.0.7)
       ffi-compiler (>= 1.0, < 2.0)
     thor (1.2.2)
@@ -256,6 +262,7 @@ DEPENDENCIES
   rack-cors (~> 2.0)
   rails (~> 7.0.7, >= 7.0.7.2)
   rspec-rails
+  scout_apm (~> 5.3)
   tzinfo-data
 
 RUBY VERSION
