@@ -79,7 +79,7 @@ class EthscriptionSync
                                   .lock("FOR UPDATE SKIP LOCKED")
                                   .first
 
-      unless previous_block || EthBlock.count == 0
+      unless previous_block || !EthBlock.exists?
         return
       end
       
