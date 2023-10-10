@@ -21,7 +21,7 @@ module Clockwork
     end
   end
 
-  every(1.seconds, 'EthBlock.process_contract_actions_until_done') do
+  every(3.seconds, 'EthBlock.process_contract_actions_until_done') do
     EthBlock.process_contract_actions_until_done
   end
 end
