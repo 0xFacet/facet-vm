@@ -1,0 +1,9 @@
+pragma :rubidity, "1.0.0"
+
+import './TestContract.rubidity'
+
+contract :TestContractOverrideNonVirtual, is: :TestContract do
+  function :nonVirtual, {}, :public, :override do
+    ERC20._mint(to: to, amount: amount)
+  end
+end

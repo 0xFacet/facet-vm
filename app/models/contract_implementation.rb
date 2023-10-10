@@ -2,7 +2,7 @@ class ContractImplementation
   include ContractErrors
   class << self
     attr_accessor :state_variable_definitions, :parent_contracts,
-    :events, :is_abstract_contract, :valid_contract_types
+    :events, :is_abstract_contract, :valid_contract_types, :source_code
   end
   
   delegate :block, :blockhash, :tx, :esc, :msg, :log_event,
@@ -466,6 +466,10 @@ class ContractImplementation
     )
     
     TypedVariable.create(:contract, proxy)
+  end
+  
+  def self.inspect
+    "#<#{name.demodulize}:#{object_id}>"
   end
   
   VALID_CONTRACTS = RubidityInterpreter.build_valid_contracts

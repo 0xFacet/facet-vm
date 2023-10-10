@@ -125,7 +125,7 @@ module RubidityInterpreter
   # end
   
   def self.build_valid_contracts
-    files = Dir.glob(Rails.root.join("app/models/contracts_rubidity/*.rubidity"))
+    files = Dir.glob(Rails.root.join("app/models/contracts/*.rubidity"))
     
     map = files.each.with_object({}) do |file, hsh|
 
@@ -138,6 +138,35 @@ module RubidityInterpreter
         new_val
       end
     end.with_indifferent_access
+  end
+  
+  def self.add_valid_contracts(new_path)
+    new_path = new_path.to_s
+    # Determine if the new path is a file or a directory
+    if File.directory?(new_path)
+      # If it's a directory, get all .rubidity files in it
+      new_files = Dir.glob(File.join(new_path, "*.rubidity"))
+    else
+      # If it's a file, just use it
+      new_files = [new_path]
+    end
+  
+    # Get the existing contracts
+    # Process each new file
+    new_files.each do |file|
+      new_contracts = ContractBuilder.new(file).process_file.output_contracts
+  
+      # Merge the new contracts into the existing contracts
+      ContractImplementation::VALID_CONTRACTS.merge!(new_contracts) do |key, old_val, new_val|
+        if old_val && old_val != new_val
+          raise "Duplicate key detected for #{key}: points to both #{old_val} and #{new_val}"
+        end
+        new_val
+      end
+    end
+  
+    # Return the updated contracts
+    ContractImplementation::VALID_CONTRACTS
   end
   
   # def self.normalize_code

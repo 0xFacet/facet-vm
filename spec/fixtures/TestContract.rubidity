@@ -1,0 +1,68 @@
+pragma :rubidity, "1.0.0"
+
+import '/app/models/contracts/ERC20.rubidity'
+
+contract :TestContract, is: :ERC20 do
+  string :public, :definedInTest
+
+  constructor(
+    name: :string,
+    symbol: :string,
+    decimals: :uint8
+  ) {
+    ERC20.constructor(name: name, symbol: symbol, decimals: decimals)
+  }
+  
+  function :_mint, { to: :address, amount: :uint256 }, :public, :virtual, :override do
+    s.definedInTest = "definedInTest"
+    ERC20._mint(to: to, amount: amount)
+  end
+  
+  function :nonVirtual, {}, :public do
+  end
+end
+
+contract :TestContractNoOverride, is: :ERC20 do
+  constructor(
+    name: :string,
+    symbol: :string,
+    decimals: :uint8
+  ) {
+    ERC20.constructor(name: name, symbol: symbol, decimals: decimals)
+  }
+end
+
+contract :NonToken do
+  string :public, :definedInNonToken
+  
+  constructor() {}
+  
+  event :Greet, { greeting: :string }
+  
+  function :_mint, { to: :address, amount: :uint256 }, :public, :virtual do
+    s.definedInNonToken = "definedInNonToken"
+    emit :Greet, greeting: "Hello"
+  end
+end
+
+contract :TestContractMultipleInheritance, is: [:TestContract, :NonToken] do
+  string :public, :definedHere
+
+  constructor(
+    name: :string,
+    symbol: :string,
+    decimals: :uint8
+  ) {
+    
+    TestContract.constructor(name: name, symbol: symbol, decimals: decimals)
+    NonToken.constructor()
+    
+    s.definedHere = "definedHere"
+  }
+
+  function :_mint, { to: :address, amount: :uint256 }, :public, :override do
+    TestContract._mint(to: to, amount: amount)
+    NonToken._mint(to: to, amount: amount)
+    ERC20._mint(to: to, amount: amount)
+  end
+end

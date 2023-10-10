@@ -11,8 +11,6 @@ class ContractBuilder
     @unparsed_asts[ast] ||= Unparser.unparse(ast)
   end
   
-  BASE_DIR = Rails.root.join("app/models/contracts_rubidity/")
-  
   attr_reader :available_contracts, :contracts_source_code,
     :hashed_contracts, :current_file
   
@@ -23,8 +21,12 @@ class ContractBuilder
     
     @current_file = Struct.new(:absolute_path, :filename, :source, :source_hash, :ast).new.tap do |file|
       file.filename = filename
-      # binding.pry
-      file.absolute_path = filename.start_with?("./") ? File.join(BASE_DIR, filename[2..]) : filename
+      if filename.start_with?("./")
+        base_dir = File.dirname(filename)
+        filename = File.join(base_dir, filename[2..])
+      end
+    
+      file.absolute_path = filename
     end
     
     # binding.pry if current_file.absolute_path == './ERC20.rubidity'
@@ -68,7 +70,7 @@ class ContractBuilder
 
       copy = builder.instance_eval(Unparser.unparse(ast))
 
-      replacer = ContractReplacer.new(copy.parent_contracts.map(&:name))
+      replacer = ContractReplacer.new(copy.linearized_parents.map(&:name))
       new_ast = replacer.process(ast)
       
       line_number = new_ast.loc.line

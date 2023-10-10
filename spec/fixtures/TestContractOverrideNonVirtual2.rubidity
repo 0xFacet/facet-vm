@@ -1,0 +1,8 @@
+pragma :rubidity, "1.0.0"
+
+import './TestContract.rubidity'
+
+contract :TestContractOverrideNonVirtual2 do
+  function :_mint, {}, :public, :override do
+  end
+end

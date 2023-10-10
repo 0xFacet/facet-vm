@@ -1,6 +1,4 @@
 class AstPipeline
-  BASE_DIR = Rails.root.join("app/models/contracts_rubidity/")
-  
   @ast_cache = {}
 
   class << self
@@ -12,17 +10,22 @@ class AstPipeline
   end
 
   def process_file(filename)
-    ast = AstPipeline.parse_file(filename)
+    ast = AstPipeline.parse_file(filename, filename)
     @processors.each do |processor|
-      ast = processor.new.process(ast)
+      ast = processor.new(filename).process(ast)
     end
     ast
   end
 
-  def self.parse_file(filename)
-    filename = filename.start_with?("./") ? File.join(BASE_DIR, filename[2..]) : filename
+  def self.parse_file(filename, top)
+    if filename.start_with?("./")
+      base_dir = File.dirname(top)
+      filename = File.join(base_dir, filename[2..])
+    elsif filename.start_with?("/") && filename != top
+      filename = Rails.root.join(filename[1..]).to_s
+    end
     
-    code = IO.read(filename)
+    code = IO.read(filename) rescue binding.pry
     code_to_ast(code)
   end
   
@@ -45,12 +48,13 @@ class ImportResolver
   # PRAGMA_LANG = :rubidity
   # PRAGMA_VERSION = "1.0.0"
 
-  def initialize
+  def initialize(top_level_filename)
     @known_pragma = nil
+    @top_level_filename = top_level_filename
   end
 
   def process_file(filename)
-    ast = AstPipeline.parse_file(filename)
+    ast = AstPipeline.parse_file(filename, @top_level_filename)
     process(ast)
   end
   
@@ -99,57 +103,10 @@ class ImportResolver
   end
   
   def parse_file(filename)
-    AstPipeline.parse_file(filename)
+    AstPipeline.parse_file(filename, @top_level_filename)
     # filename = filename.start_with?("./") ? File.join(AstPipeline::BASE_DIR, filename[2..]) : filename
 
     # code = IO.read(filename)
     # Unparser.parse(code)
   end
 end
-
-
-# class ImportResolver
-#   include AST::Processor::Mixin
-
-#   def process_file(filename)
-#     ast = parse_file(filename)
-#     processed_ast = process(ast)
-#   end
-  
-#   def on_begin(node)
-#     node.updated(nil, process_all(node.children).flatten, nil)
-#   end
-  
-#   def on_send(node)
-#     receiver, method_name, *args = *node
-
-#     if receiver.nil? && method_name == :import
-#       import_filename = args.first.children.first
-#       imported_ast = parse_file(import_filename)
-
-#       imported_ast.children
-#     end
-#   end
-  
-#   private
-  
-#   def parse_file(filename)
-#     code = IO.read(filename)
-#     Unparser.parse(code)
-#   end
-# end
-
-# class PragmaNormalizer
-#   include AST::Processor::Mixin
-
-#   def on_begin(node)
-#     is_pragma = lambda{|n| n.type == :send && n.children[1] == :pragma }
-#     first_idx = node.children.index(&is_pragma)
-    
-#     new_kids = node.children.reject.with_index do |n, idx|
-#       is_pragma.call(n) && idx != first_idx
-#     end
-    
-#     node.updated(nil, new_kids, nil)
-#   end
-# end
