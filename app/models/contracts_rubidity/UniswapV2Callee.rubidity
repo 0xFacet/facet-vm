@@ -1,0 +1,11 @@
+pragma :rubidity, "1.0.0"
+
+contract :UniswapV2Callee, abstract: true do
+  function :uniswapV2Call, {
+    sender: :address,
+    amount0: :uint256,
+    amount1: :uint256,
+    data: :bytes
+  }, :virtual, :external do
+  end
+end

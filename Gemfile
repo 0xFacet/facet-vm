@@ -70,3 +70,5 @@ gem "activerecord-import", "~> 1.5"
 
 
 gem "unparser", "~> 0.6.8"
+
+gem "rubocop-ast", "~> 1.29"

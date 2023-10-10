@@ -30,6 +30,16 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     end
   end
   
+  def type_valid?(type)
+    return false if valid_contracts.blank?
+    valid_contracts.transform_keys{|i| i.split("-").first}[type].present?
+  end
+  
+  def latest_implementation_of(type)
+    return false if valid_contracts.blank?
+    valid_contracts.transform_keys{|i| i.split("-").first}[type]
+  end
+  
   def log_event(event)
     current_call.log_event(event)
   end

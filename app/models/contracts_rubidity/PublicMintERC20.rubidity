@@ -1,8 +1,10 @@
 pragma :rubidity, "1.0.0"
 
-import './ERC20V2.rubidity'
+import './ERC20.rubidity'
 
-contract :PublicMintERC20New, is: :ERC20V2 do
+contract :PublicMintERC20, is: :ERC20 do
+
+  
   uint256 :public, :maxSupply
   uint256 :public, :perMintLimit
   
@@ -13,10 +15,9 @@ contract :PublicMintERC20New, is: :ERC20V2 do
     perMintLimit: :uint256,
     decimals: :uint8
   ) {
-    ERC20V2.constructor(name: name, symbol: symbol, decimals: decimals)
+    ERC20.constructor(name: name, symbol: symbol, decimals: decimals)
     s.maxSupply = maxSupply
     s.perMintLimit = perMintLimit
-    # require(false, "hi")
   }
   
   function :mint, { amount: :uint256 }, :public do

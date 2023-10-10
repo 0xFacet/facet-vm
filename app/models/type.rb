@@ -163,6 +163,7 @@ class Type
       end
         
       if literal.is_a?(Integer) && literal.between?(0, 2 ** extract_integer_bits - 1)
+        # TODO: make the value a decimal?
         return literal
       end
       
@@ -296,6 +297,6 @@ class Type
   end
   
   def is_contract_type?
-    ContractImplementation.valid_contract_types.include?(name)
+    TransactionContext.type_valid?(name)
   end
 end

@@ -149,13 +149,21 @@ class ContractImplementation
     self.parent_contracts = self.parent_contracts.uniq
   end
   
-  def self.implements?(contract)
-    class_name = "Contracts::#{contract}".constantize
+  # def self.implements?(contract)
+  #   contract_class = TransactionContext.valid_contracts.transform_keys{|i| i.split("-").first}[contract]
+  #   pp parent_contracts
+  #   return true if self.class == contract_class
+    
+  #   parent_contracts.any? do |parent_contract|
+  #     parent_contract == contract_class || parent_contract.implements?(contract)
+  #   end
+  # end
   
-    return true if self == class_name
-  
+  def self.implements?(interface_name)
+    return true if self.name == interface_name
+
     parent_contracts.any? do |parent_contract|
-      parent_contract == class_name || parent_contract.implements?(contract)
+      parent_contract.implements?(interface_name)
     end
   end
   
@@ -340,9 +348,20 @@ class ContractImplementation
   
   def new(contract_initializer)
     if contract_initializer.is_a?(TypedVariable)
+      contract_initializer = if contract_initializer.type.contract?
+        {
+          to_contract_type: contract_initializer.contract_type,
+          args: contract_initializer.uncast_address,
+        }
+      else
+        {
+          to_contract_type: contract_initializer.type.name,
+          args: contract_initializer.uncast_address,
+        }
+      end
+    elsif contract_initializer.respond_to?("__proxy_name__")
       contract_initializer = {
-        to_contract_type: contract_initializer.type.name,
-        args: contract_initializer.uncast_address,
+        to_contract_type: contract_initializer.__proxy_name__
       }
     end
     
@@ -379,41 +398,43 @@ class ContractImplementation
     }
   end
   
-  def self.inherited(subclass)
-    super
+  # def self.inherited(subclass)
+  #   return super
     
-    return unless subclass.name
-    method_name = subclass.name.demodulize.to_sym
-    # pp available_contracts
-    if Contracts.constants.include?(method_name)
-      define_method(method_name) do |*args, **kwargs|
-        if args.many? || kwargs.present? || (args.one? && args.first.is_a?(Hash))
-          return create_contract_initializer(method_name, args.presence || kwargs)
-        end
+  #   return unless subclass.name
+  #   method_name = subclass.name.demodulize.to_sym
+  #   # pp available_contracts
+  #   if Contracts.constants.include?(method_name)
+  #     define_method(method_name) do |*args, **kwargs|
+  #       if args.many? || kwargs.present? || (args.one? && args.first.is_a?(Hash))
+  #         return create_contract_initializer(method_name, args.presence || kwargs)
+  #       end
         
-        handle_contract_type_cast(method_name, args.first)
-      end
+  #       handle_contract_type_cast(method_name, args.first)
+  #     end
       
-      self.valid_contract_types ||= []
-      self.valid_contract_types << method_name
+  #     self.valid_contract_types ||= []
+  #     self.valid_contract_types << method_name
       
-      Type::TYPES << method_name unless Type::TYPES.include?(method_name)
-    end
-  end
+  #     Type::TYPES << method_name unless Type::TYPES.include?(method_name)
+  #   end
+  # end
   
-  def method_missing(method_name, *args, &block)
+  def method_missing(method_name, *args, **kwargs, &block)
     return super unless self.class.available_contracts.include?(method_name)
-    
-    if args.many? || args.last.is_a?(Hash) || (args.one? && !args.first.is_a?(Hash))
-      create_contract_initializer(method_name, args.last)
+    if args.many? || args.last.is_a?(Hash) || (args.one? && args.first.is_a?(Hash))
+      create_contract_initializer(method_name, args.presence || kwargs)
     elsif args.one?
       handle_contract_type_cast(method_name, args.first)
     else
       contract_instance = self
       parent = self.class.available_contracts[method_name]
       
-      # pp "hi"
       Object.new.tap do |proxy|
+        proxy.define_singleton_method("__proxy_name__") do
+          method_name
+        end
+        
         parent.abi.data.each do |name, _|
           proxy.define_singleton_method(name) do |*args, **kwargs|
             contract_instance.send("__#{parent.name.demodulize}__#{name}", *args, **kwargs)
@@ -446,4 +467,6 @@ class ContractImplementation
     
     TypedVariable.create(:contract, proxy)
   end
+  
+  VALID_CONTRACTS = RubidityInterpreter.build_valid_contracts
 end

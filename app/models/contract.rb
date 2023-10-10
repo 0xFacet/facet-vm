@@ -33,21 +33,15 @@ class Contract < ApplicationRecord
   end
   
   def implementation_class
-    # binding.pry
-
-    "Contracts::#{type}".safe_constantize ||
-    TransactionContext.valid_contracts[type]
+    TransactionContext.latest_implementation_of(type)
   end
   
   def self.type_abstract?(type)
-    # TODO
-    "Contracts::#{type}".safe_constantize&.is_abstract_contract || false
+    TransactionContext.latest_implementation_of(type)&.is_abstract_contract
   end
   
   def self.type_valid?(type)
-    # binding.pry
-    Contract.valid_contract_types.include?(type.to_sym) ||
-    TransactionContext.valid_contracts[type].present?
+    TransactionContext.type_valid?(type)
   end
   
   def execute_function(function_name, args)
