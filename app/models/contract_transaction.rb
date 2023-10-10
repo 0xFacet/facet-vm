@@ -160,7 +160,7 @@ class ContractTransaction < ApplicationRecord
   
   def with_global_context
     TransactionContext.set(
-      valid_contracts: RubidityInterpreter.build_valid_contracts,
+      valid_contracts: ContractImplementation::VALID_CONTRACTS,
       call_stack: CallStack.new,
       current_transaction: self,
       tx_origin: tx_origin,
