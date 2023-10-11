@@ -46,8 +46,6 @@ class Contracts::EthscriptionERC20Bridge < ContractImplementation
       msg.sender == s.trustedSmartContract,
       "Only the trusted smart contract can bridge in tokens"
     )
-
-    totalAmount = 0
     
     for i in 0...escrowedIds.length
       escrowedId = escrowedIds[i]
@@ -93,15 +91,13 @@ class Contracts::EthscriptionERC20Bridge < ContractImplementation
       )
       
       s.bridgedEthscriptionToOwner[escrowedId] = to
-      totalAmount += s.ethscriptionMintAmount * (10 ** decimals)
     end
     
-    _mint(to: to, amount: totalAmount)
+    _mint(to: to, amount: s.ethscriptionMintAmount * escrowedIds.length * (10 ** decimals))
     emit :BridgedIn, to: to, escrowedIds: escrowedIds
   end
   
   function :bridgeOut, { escrowedIds: [:bytes32] }, :public do
-    totalAmount = 0
     withdrawalIds = array(:bytes32, escrowedIds.length)
 
     for i in 0...escrowedIds.length
@@ -120,11 +116,9 @@ class Contracts::EthscriptionERC20Bridge < ContractImplementation
       s.pendingWithdrawalEthscriptionToOwner[escrowedId] = msg.sender
       s.pendingUserWithdrawalIds[msg.sender].push(withdrawalId)
       s.withdrawalIdToEscrowedId[withdrawalId] = escrowedId
-
-      totalAmount += s.ethscriptionMintAmount * (10 ** decimals)
     end
       
-    _burn(from: msg.sender, amount: totalAmount)
+    _burn(from: msg.sender, amount: s.ethscriptionMintAmount * escrowedIds.length * (10 ** decimals))
     emit :InitiateWithdrawal, from: msg.sender, escrowedIds: escrowedIds, withdrawalIds: withdrawalIds
   end
   
