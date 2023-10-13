@@ -7,6 +7,7 @@ class ImportResolver
     @known_pragma = nil
     @current_filename = initial_filename
     @imported_files = Set.new
+    @import_stack = []
   end
   
   def self.process(initial_filename)
@@ -47,12 +48,19 @@ class ImportResolver
     code = IO.read(filename)
     ast = Unparser.parse(code)
     
+    if @import_stack.include?(filename)
+      raise "Circular dependency detected: #{@import_stack.join(' -> ')} -> #{filename}"
+    end
+    
     return if @imported_files.include?(filename)
     
-    @imported_files.add(filename)
-    
+    @import_stack.push(filename)
+
     with_current_filename(filename) do
       process(ast)
+    end.tap do
+      @import_stack.pop
+      @imported_files.add(filename)
     end
   end
   

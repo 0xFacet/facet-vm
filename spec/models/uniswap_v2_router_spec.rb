@@ -1,23 +1,10 @@
 require 'rails_helper'
 
-class Contracts::StubERC20 < ContractImplementation
-  is :ERC20
-  
-  constructor(name: :string) {
-    ERC20.constructor(name: name, symbol: "symbol", decimals: 18)
-  }
-  
-  function :mint, { amount: :uint256 }, :public do
-    _mint(to: msg.sender, amount: amount)
-  end
-  
-  function :airdrop, { to: :address, amount: :uint256 }, :public do
-    _mint(to: to, amount: amount)
-  end
-end
-
-
 describe 'UniswapV2Router contract' do
+  before(:all) do
+    RubidityInterpreter.add_valid_contracts(Rails.root.join('spec/fixtures/StubERC20.rubidity'))
+  end
+  
   def sqrt(integer)
     integer = TypedVariable.create_or_validate(:uint256, integer)
 

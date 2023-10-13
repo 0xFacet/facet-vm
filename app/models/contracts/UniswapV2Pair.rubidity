@@ -1,5 +1,9 @@
 pragma :rubidity, "1.0.0"
 
+contract :IUniswapV2Factory do
+  function :feeTo, :external, :view, returns: :address
+end
+
 import './UniswapV2ERC20.rubidity'
 
 contract :UniswapV2Pair, is: :UniswapV2ERC20 do
@@ -102,7 +106,7 @@ contract :UniswapV2Pair, is: :UniswapV2ERC20 do
   end
   
   function :_mintFee, { _reserve0: :uint112, _reserve1: :uint112 }, :private, returns: :bool do
-    feeTo = UniswapV2Factory(s.factory).feeTo
+    feeTo = IUniswapV2Factory(s.factory).feeTo
     feeOn = feeTo != address(0)
     _kLast = s.kLast
     

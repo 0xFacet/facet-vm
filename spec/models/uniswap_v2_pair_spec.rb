@@ -1,40 +1,10 @@
 require 'rails_helper'
 
-class Contracts::UniswapV2CalleeTester < ContractImplementation
-  is :UniswapV2Callee
-  
-  address :public, :pair
-  
-  address :public, :token0
-  address :public, :token1
-  
-  uint256 :public, :extraAmount
-  
-  constructor(pair: :address, extraAmount: :uint256) {
-    s.pair = pair
-    s.token0 = UniswapV2Pair(pair).token0();
-    s.token1 = UniswapV2Pair(pair).token1();
-    
-    s.extraAmount = extraAmount
-  }
-  
-  function :uniswapV2Call, {
-    sender: :address,
-    amount0: :uint256,
-    amount1: :uint256,
-    data: :bytes
-  }, :override, :external, returns: :bool do
-    balance0 = ERC20(s.token0).balanceOf(address(this))
-    balance1 = ERC20(s.token1).balanceOf(address(this))
-    
-    require(balance0 == amount0, 'Amount0 is incorrect')
-    require(balance1 == amount1, 'Amount1 is incorrect')
-    
-    ERC20(s.token0).transfer(s.pair, s.extraAmount)
+RSpec.describe "UniswapV2Pair", type: :model do
+  before(:all) do
+    RubidityInterpreter.add_valid_contracts(Rails.root.join('spec/fixtures/UniswapV2CalleeTester.rubidity'))
   end
-end
-
-RSpec.describe Contracts::UniswapV2Pair, type: :model do
+  
   it 'executes the Uniswap V2 process' do
     # Deploy the ERC20 tokens
     tokenA_deploy_receipt = trigger_contract_interaction_and_expect_success(

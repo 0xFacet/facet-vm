@@ -13,6 +13,7 @@ RSpec.describe ImportResolver do
       
       # processed_ast = resolver.process_file(initial_filename)
       processed_ast = ImportResolver.process(initial_filename)
+      # processed_ast = ImportResolver.process('/Users/tom/Dropbox (Personal)/db-src/ethscriptions-vm-server/app/models/contracts/UniswapV2Pair.rubidity')
       
       # puts Unparser.unparse(processed_ast)
       

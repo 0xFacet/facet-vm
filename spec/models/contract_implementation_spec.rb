@@ -100,7 +100,7 @@ RSpec.describe ContractImplementation, type: :model do
       }
     )
   
-    trigger_contract_interaction_and_expect_call_error(
+    trigger_contract_interaction_and_expect_success(
       command: 'call',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {

@@ -59,10 +59,6 @@ class ContractCall < ApplicationRecord
       raise CallingNonExistentContractError.new("Contract not found: #{to_contract_address}")
     end
     
-    if to_contract_type && !to_contract.implements?(to_contract_type.to_s)
-      raise ContractError.new("Contract doesn't implement interface: #{to_contract_address}, #{to_contract_type}", to_contract)
-    end
-      
     if !function_object
       raise ContractError.new("Call to unknown function #{function}", to_contract)
     end

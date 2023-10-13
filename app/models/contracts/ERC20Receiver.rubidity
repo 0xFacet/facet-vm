@@ -4,7 +4,6 @@ import './ERC20.rubidity'
 
 contract :ERC20Receiver, is: :ERC20 do
   constructor() {
-    # ::Kernel.binding.pry
     ERC20.constructor(name: "bye", symbol: "B", decimals: 18)
   }
 end
@@ -57,7 +56,6 @@ contract :Caller do
   constructor() {}
   
   function :makeCall, { receiver: :address }, :public, returns: :string do
-    # ::Kernel.binding.pry
     resp = Receiver(receiver).receiveCall()
     
     emit :BlockNumber, number: block.number
@@ -71,7 +69,6 @@ contract :Caller do
   end
   
   function :testImplements, { receiver: :address }, :public, returns: :string do
-    # ::Kernel.binding.pry
     ERC20(receiver).name()
   end
 end
@@ -100,9 +97,7 @@ contract :Deployer do
   end
   
   function :createAddressArgContract, { testAddress: :address }, :public, returns: :address do
-
     contract = new AddressArg(testAddress)
-    # ::Kernel.binding.pry
 
     emit :ReceiverCreated, contract: contract.address
 

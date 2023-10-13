@@ -144,29 +144,6 @@ class ContractImplementation
     self.class.public_abi
   end
   
-  def self.is(*constants)
-    self.parent_contracts += constants.map{|i| "Contracts::#{i}".constantize}
-    self.parent_contracts = self.parent_contracts.uniq
-  end
-  
-  # def self.implements?(contract)
-  #   contract_class = TransactionContext.valid_contracts.transform_keys{|i| i.split("-").first}[contract]
-  #   pp parent_contracts
-  #   return true if self.class == contract_class
-    
-  #   parent_contracts.any? do |parent_contract|
-  #     parent_contract == contract_class || parent_contract.implements?(contract)
-  #   end
-  # end
-  
-  def self.implements?(interface_name)
-    return true if self.name == interface_name
-
-    parent_contracts.any? do |parent_contract|
-      parent_contract.implements?(interface_name)
-    end
-  end
-  
   def self.types_that_implement(base_type)
     Contracts.constants.select do |contract|
       klass = "Contracts::#{contract}".constantize
@@ -429,8 +406,11 @@ class ContractImplementation
   # end
   
   def method_missing(method_name, *args, **kwargs, &block)
-    return super unless self.class.available_contracts.include?(method_name)
-    if args.many? || args.last.is_a?(Hash) || (args.one? && args.first.is_a?(Hash))
+    unless self.class.available_contracts.include?(method_name)
+      raise NoMethodError.new("undefined method `#{method_name}' for #{self.class.name}", method_name)
+    end
+    
+    if args.many? || (args.blank? && kwargs.present?) || args.last.is_a?(Hash) || (args.one? && args.first.is_a?(Hash))
       create_contract_initializer(method_name, args.presence || kwargs)
     elsif args.one?
       handle_contract_type_cast(method_name, args.first)
@@ -470,6 +450,7 @@ class ContractImplementation
     
     proxy = ContractType::Proxy.new(
       contract_type: contract_type,
+      contract_interface: self.class.available_contracts[contract_type],
       address: other_address
     )
     
