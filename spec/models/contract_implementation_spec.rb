@@ -1,6 +1,10 @@
 require 'rails_helper'
 
 RSpec.describe ContractImplementation, type: :model do
+  before(:all) do
+    RubidityInterpreter.add_valid_contracts(Rails.root.join('spec/fixtures/ERC20Receiver.rubidity'))
+  end
+  
   it "sets msg.sender correctly when one contract calls another" do
     caller_deploy_receipt = trigger_contract_interaction_and_expect_success(
       command: 'deploy',
