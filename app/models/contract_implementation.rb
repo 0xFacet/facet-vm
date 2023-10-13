@@ -308,6 +308,14 @@ class ContractImplementation
     raise "Not implemented"
   end
   
+  def bytes32(i)
+    if i == 0
+      return TypedVariable.create(:bytes32)
+    else
+      raise "Not implemented"
+    end
+  end
+  
   def self.calculate_new_contract_address_with_salt(salt, from_address, to_contract_type)
     unless Contract.type_valid?(to_contract_type)
       raise TransactionError.new("Invalid contract type: #{to_contract_type}")

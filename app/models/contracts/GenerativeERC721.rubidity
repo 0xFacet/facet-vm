@@ -3,8 +3,6 @@ pragma :rubidity, "1.0.0"
 import './ERC721.rubidity'
 
 contract :GenerativeERC721, is: :ERC721 do
-
-  
   string :public, :generativeScript
   mapping ({ uint256: :uint256 }), :public, :tokenIdToSeed
   
@@ -53,7 +51,7 @@ contract :GenerativeERC721, is: :ERC721 do
     
     html = getHTML(seed: s.tokenIdToSeed[id])
     
-    html_as_base_64_data_uri = "data:text/html;base64,#{Base64.strict_encode64(html)}"
+    html_as_base_64_data_uri = "data:text/html;base64," + esc.base64Encode(html)
     
     json_data = {
       name: "#{s.name} ##{string(id)}",

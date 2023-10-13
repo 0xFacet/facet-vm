@@ -1,8 +1,8 @@
-class Contracts::EthscriptionERC20Bridge < ContractImplementation
-  pragma :rubidity, "1.0.0"
-  
-  is :ERC20
+pragma :rubidity, "1.0.0"
 
+import './ERC20.rubidity'
+
+contract :EthscriptionERC20Bridge, is: :ERC20 do
   event :InitiateWithdrawal, { from: :address, escrowedIds: [:bytes32], withdrawalIds: [:bytes32] }
   event :WithdrawalComplete, { to: :address, escrowedIds: [:bytes32], withdrawalIds: [:bytes32] }
   event :BridgedIn, { to: :address, escrowedIds: [:bytes32] }
@@ -31,7 +31,7 @@ class Contracts::EthscriptionERC20Bridge < ContractImplementation
     
     deploy = esc.findEthscriptionById(ethscriptionDeployId)
     uri = deploy.contentUri
-    parsed = JSON.parse(uri.split("data:,").last)
+    parsed = ::JSON.parse(uri.split("data:,").last)
     
     require(parsed['op'] == 'deploy', "Invalid ethscription deploy id")
     require(parsed['p'] == 'erc-20', "Invalid protocol")
@@ -104,11 +104,11 @@ class Contracts::EthscriptionERC20Bridge < ContractImplementation
       escrowedId = escrowedIds[i]
       require(s.bridgedEthscriptionToOwner[escrowedId] == msg.sender, "Ethscription not owned by sender")
       
-      withdrawalId = TransactionContext.transaction_hash
+      withdrawalId = esc.currentTransactionHash
       withdrawalIds.push(withdrawalId)
       
       require(
-        s.withdrawalIdToEscrowedId[withdrawalId] == TypedVariable.create(:bytes32),
+        s.withdrawalIdToEscrowedId[withdrawalId] == bytes32(0),
         "Withdrawal already started"
       )
 
@@ -153,7 +153,7 @@ class Contracts::EthscriptionERC20Bridge < ContractImplementation
       )
       
       s.pendingWithdrawalEthscriptionToOwner[escrowedId] = address(0)
-      s.withdrawalIdToEscrowedId[withdrawalId] = TypedVariable.create(:bytes32)
+      s.withdrawalIdToEscrowedId[withdrawalId] = bytes32(0)
     end
     
     emit :WithdrawalComplete, to: to, escrowedIds: escrowedIds, withdrawalIds: withdrawalIds

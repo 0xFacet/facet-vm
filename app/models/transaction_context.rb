@@ -89,8 +89,12 @@ class TransactionContext < ActiveSupport::CurrentAttributes
         end
       end
       
-      proxy.define_singleton_method(:current_transaction_hash) do
+      proxy.define_singleton_method(:currentTransactionHash) do
         TransactionContext.transaction_hash
+      end
+      
+      proxy.define_singleton_method(:base64Encode) do |str|
+        Base64.strict_encode64(str)
       end
     end
   end

@@ -32,7 +32,7 @@ contract :EtherBridge, is: :ERC20 do
   function :bridgeOut, { amount: :uint256 }, :public do
     _burn(from: msg.sender, amount: amount)
     
-    withdrawalId = esc.current_transaction_hash
+    withdrawalId = esc.currentTransactionHash
     
     s.pendingWithdrawalAmounts[msg.sender] += amount
     s.pendingUserWithdrawalIds[msg.sender].push(withdrawalId)

@@ -1,6 +1,10 @@
 require 'rails_helper'
 
 RSpec.describe Contract, type: :model do
+  before(:all) do
+    RubidityInterpreter.add_valid_contracts(Rails.root.join('spec/fixtures/ERC20LiquidityPool.rubidity'))
+  end
+  
   before do
     ENV['INDEXER_API_BASE_URI'] = "http://goerli-api.ethscriptions.com/api"
     
