@@ -68,7 +68,8 @@ gem "eth", "~> 0.5.11"
 
 gem "activerecord-import", "~> 1.5"
 
-
 gem "unparser", "~> 0.6.8"
 
 gem "rubocop-ast", "~> 1.29"
+
+gem "scout_apm", "~> 5.3"

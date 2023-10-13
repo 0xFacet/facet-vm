@@ -3,7 +3,7 @@ class ContractTransaction < ApplicationRecord
 
   include ContractErrors
   
-  belongs_to :ethscription, primary_key: :ethscription_id, foreign_key: :transaction_hash
+  belongs_to :ethscription, primary_key: :ethscription_id, foreign_key: :transaction_hash, optional: true
   has_one :contract_transaction_receipt, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_states, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_calls, foreign_key: :transaction_hash, primary_key: :transaction_hash, inverse_of: :contract_transaction
@@ -99,24 +99,29 @@ class ContractTransaction < ApplicationRecord
       transaction_receipt = nil
   
       ActiveRecord::Base.transaction do
-        block = EthBlock.order(imported_at: :desc).first || EthBlock.create!(
-          block_number: 1,
-          blockhash: "0x" + SecureRandom.hex(32),
-          parent_blockhash: "0x" + SecureRandom.hex(32),
-          timestamp: Time.zone.now.to_i,
-          imported_at: Time.zone.now,
-          processing_state: "complete"
-        )
+        if !EthBlock.exists?
+          EthBlock.create!(
+            block_number: 1,
+            blockhash: "0x" + SecureRandom.hex(32),
+            parent_blockhash: "0x" + SecureRandom.hex(32),
+            timestamp: Time.zone.now.to_i,
+            imported_at: Time.zone.now,
+            processing_state: "complete"
+          )
+        end
+        
+        block_number = EthBlock.where(processing_state: :complete).
+          order(imported_at: :desc).limit(1).pluck(:block_number).first
         
         ethscription_attrs = {
           ethscription_id: "0x" + SecureRandom.hex(32),
-          block_number: block.block_number,
+          block_number: block_number,
           block_blockhash: "0x" + SecureRandom.hex(32),
           current_owner: from.downcase,
           creator: from.downcase,
           creation_timestamp: Time.zone.now.to_i,
           initial_owner: "0x" + "0" * 40,
-          transaction_index: Ethscription.newest_first.first&.transaction_index.to_i + 1,
+          transaction_index: Time.zone.now.to_i,
           content_uri: uri,
           content_sha: Digest::SHA256.hexdigest(uri),
           mimetype: mimetype,

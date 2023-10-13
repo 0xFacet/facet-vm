@@ -3,7 +3,7 @@ class ContractState < ApplicationRecord
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
   belongs_to :ethscription,
   primary_key: 'ethscription_id', foreign_key: 'transaction_hash',
-  touch: true
+  touch: true, optional: true
   
   scope :newest_first, -> {
     order(block_number: :desc, transaction_index: :desc, internal_transaction_index: :desc) 

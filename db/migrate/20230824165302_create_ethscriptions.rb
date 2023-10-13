@@ -4,6 +4,7 @@ class CreateEthscriptions < ActiveRecord::Migration[7.0]
       t.string :ethscription_id, null: false
       t.bigint :block_number, null: false
       t.string :block_blockhash, null: false
+      # TODO: change to bigint
       t.integer :transaction_index, null: false
       t.string :creator, null: false
       t.string :initial_owner, null: false

@@ -778,6 +778,13 @@ CREATE INDEX index_eth_blocks_on_imported_at ON public.eth_blocks USING btree (i
 
 
 --
+-- Name: index_eth_blocks_on_imported_at_and_processing_state; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_eth_blocks_on_imported_at_and_processing_state ON public.eth_blocks USING btree (imported_at, processing_state);
+
+
+--
 -- Name: index_eth_blocks_on_parent_blockhash; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -936,6 +943,7 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20230914181546'),
 ('20230927152725'),
 ('20230928185853'),
-('20231001152142');
+('20231001152142'),
+('20231010142505');
 
 

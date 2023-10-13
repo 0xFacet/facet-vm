@@ -8,7 +8,7 @@ class Contract < ApplicationRecord
     foreign_key: 'contract_address'
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
 
-  belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
+  belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'transaction_hash', optional: true
   
   has_many :contract_calls, foreign_key: :effective_contract_address, primary_key: :address
   has_many :contract_transactions, through: :contract_calls
@@ -110,7 +110,12 @@ class Contract < ApplicationRecord
         [name, func.as_json.except('implementation')]
       end.to_h
       
-      json['current_state'] = latest_state
+      json['current_state'] = if options[:include_current_state]
+        latest_state
+      else
+        {}
+      end
+      
       json['current_state']['contract_type'] = type.demodulize
       
       klass = implementation.class

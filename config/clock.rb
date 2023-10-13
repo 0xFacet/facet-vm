@@ -21,7 +21,7 @@ module Clockwork
     end
   end
 
-  every(3.seconds, 'Sync ethscriptions') do
+  every(6.seconds, 'Sync ethscriptions') do
     EthscriptionSync.import_eth_blocks_until_done
   end
   
