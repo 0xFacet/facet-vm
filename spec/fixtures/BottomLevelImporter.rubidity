@@ -1,0 +1,15 @@
+pragma :rubidity, "1.0.0"
+
+import '/app/models/contracts/UniswapV2Pair.rubidity'
+import '/app/models/contracts/ERC20.rubidity'
+import './HigherLevelImporter.rubidity'
+import './TestContract.rubidity'
+
+contract :BottomLevelImporter do
+  constructor() {
+  }
+  
+  function :hi, :public, :view, returns: :string do
+    "hi"
+  end
+end

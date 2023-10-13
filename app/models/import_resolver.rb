@@ -1,61 +1,59 @@
-class AstPipeline
-  @ast_cache = {}
-
-  class << self
-    attr_accessor :ast_cache
-  end
-  
-  def initialize(*processors)
-    @processors = processors
-  end
-
-  def process_file(filename)
-    ast = AstPipeline.parse_file(filename, filename)
-    @processors.each do |processor|
-      ast = processor.new(filename).process(ast)
-    end
-    ast
-  end
-
-  def self.parse_file(filename, top)
-    if filename.start_with?("./")
-      base_dir = File.dirname(top)
-      filename = File.join(base_dir, filename[2..])
-    elsif filename.start_with?("/") && filename != top
-      filename = Rails.root.join(filename[1..]).to_s
-    end
-    
-    code = IO.read(filename) rescue binding.pry
-    code_to_ast(code)
-  end
-  
-  def self.code_to_ast(code)
-    self.ast_cache[code] ||= Unparser.parse(code)
-  end
-end
-
 class ImportResolver
   include AST::Processor::Mixin
+  
+  attr_accessor :known_pragma, :current_filename, :imported_files
 
-  @ast_cache = {}
-
-  class << self
-    attr_accessor :ast_cache
+  def initialize(initial_filename)
+    @known_pragma = nil
+    @current_filename = initial_filename
+    @imported_files = Set.new
   end
   
-  attr_accessor :known_pragma
+  def self.process(initial_filename)
+    obj = new(initial_filename)
+    ast = obj.process_file(initial_filename)
+    
+    new_kids = ast.children.reject do |node|
+      next false unless node.type == :send
+      
+      receiver, method_name, *args = *node
+      receiver.nil? && method_name == :import
+    end
+    
+    ast.updated(nil, new_kids, nil)
+  end
   
-  # PRAGMA_LANG = :rubidity
-  # PRAGMA_VERSION = "1.0.0"
-
-  def initialize(top_level_filename)
-    @known_pragma = nil
-    @top_level_filename = top_level_filename
+  def compute_path(filename)
+    return filename if filename == @current_filename
+    
+    if filename.start_with?("./")
+      base_dir = File.dirname(@current_filename)
+      filename = File.join(base_dir, filename[2..])
+    elsif filename.start_with?("/")
+      filename = Rails.root.join(filename[1..]).to_s
+    end
+  end
+  
+  def with_current_filename(filename)
+    old = @current_filename
+    @current_filename = filename
+    yield.tap do
+      @current_filename = old
+    end
   end
 
   def process_file(filename)
-    ast = AstPipeline.parse_file(filename, @top_level_filename)
-    process(ast)
+    filename = compute_path(filename)
+    code = IO.read(filename)
+    ast = Unparser.parse(code)
+    
+    return if @imported_files.include?(filename)
+    
+    @imported_files.add(filename)
+    
+    with_current_filename(filename) do
+      process(ast)
+    end
   end
   
   def on_begin(node)
@@ -71,11 +69,12 @@ class ImportResolver
 
     if receiver.nil? && method_name == :import
       import_filename = args.first.children.first
+      
       imported_ast = process_file(import_filename)
       
+      return if imported_ast.blank?
+      
       check_and_remove_pragma(imported_ast.children)
-    else
-      node
     end
   end
   
@@ -100,13 +99,5 @@ class ImportResolver
     end
     
     new_children = children.reject { |n| n == pragma_node }
-  end
-  
-  def parse_file(filename)
-    AstPipeline.parse_file(filename, @top_level_filename)
-    # filename = filename.start_with?("./") ? File.join(AstPipeline::BASE_DIR, filename[2..]) : filename
-
-    # code = IO.read(filename)
-    # Unparser.parse(code)
   end
 end

@@ -30,8 +30,8 @@ class ContractBuilder
     end
     
     # binding.pry if current_file.absolute_path == './ERC20.rubidity'
-    @ast_pipeline = AstPipeline.new(ImportResolver)
-    ast = @ast_pipeline.process_file(@current_file.absolute_path)
+    
+    ast = ImportResolver.process(@current_file.absolute_path)
     
     @current_file.ast = ast
     

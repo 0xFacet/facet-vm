@@ -1,0 +1,19 @@
+pragma :rubidity, "1.0.0"
+
+import '/app/models/contracts/ERC20.rubidity'
+
+contract :StubERC20B, is: :ERC20 do
+  uint256 :public, :unsafeReadOnlyCounter
+  
+  constructor() {
+    ERC20.constructor(name: "name", symbol: "symbol", decimals: 18)
+  }
+  
+  function :unsafeReadOnly, :public, :view do
+    s.unsafeReadOnlyCounter += 1
+  end
+  
+  function :callOwnUnsafeReadOnly, :public do
+    unsafeReadOnly()
+  end
+end

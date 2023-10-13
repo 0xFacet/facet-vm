@@ -77,7 +77,7 @@ class Type
       return extract_integer_bits >= other_type.extract_integer_bits
     end
     
-    if address? && other_type.is_contract_type?
+    if address? && (other_type.is_contract_type? || other_type.contract?)
       return true
     end
 
