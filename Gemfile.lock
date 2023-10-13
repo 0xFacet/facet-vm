@@ -268,7 +268,7 @@ DEPENDENCIES
   rails (~> 7.0.7, >= 7.0.7.2)
   rspec-rails
   rubocop-ast (~> 1.29)
-scout_apm (~> 5.3)
+  scout_apm (~> 5.3)
   tzinfo-data
   unparser (~> 0.6.8)
 
