@@ -88,6 +88,10 @@ class TransactionContext < ActiveSupport::CurrentAttributes
           )
         end
       end
+      
+      proxy.define_singleton_method(:current_transaction_hash) do
+        TransactionContext.transaction_hash
+      end
     end
   end
 end

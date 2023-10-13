@@ -3,8 +3,6 @@ pragma :rubidity, "1.0.0"
 import './UniswapV2ERC20.rubidity'
 
 contract :UniswapV2Pair, is: :UniswapV2ERC20 do
-
-  
   uint256 :public, :MINIMUM_LIQUIDITY
 
   address :public, :factory
