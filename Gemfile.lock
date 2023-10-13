@@ -135,6 +135,7 @@ GEM
       net-pop
       net-smtp
     marcel (1.0.2)
+    memoist (0.16.2)
     method_source (1.0.0)
     mini_mime (1.1.5)
     mini_portile2 (2.8.4)
@@ -261,6 +262,7 @@ DEPENDENCIES
   httpparty (~> 0.2.0)
   kaminari (~> 1.2)
   keccak256 (~> 2.0)
+  memoist (~> 0.16.2)
   pg (~> 1.1)
   pry
   puma (~> 5.0)

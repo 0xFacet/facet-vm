@@ -73,3 +73,5 @@ gem "unparser", "~> 0.6.8"
 gem "rubocop-ast", "~> 1.29"
 
 gem "scout_apm", "~> 5.3"
+
+gem "memoist", "~> 0.16.2"

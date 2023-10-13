@@ -1,14 +1,19 @@
 class ContractBuilder
+  extend Memoist
   include AST::Processor::Mixin
   
-  @unparsed_asts = {}
-
   class << self
-    attr_accessor :unparsed_asts
-  end
-  
-  def self.unparsed_ast(ast)
-    @unparsed_asts[ast] ||= Unparser.unparse(ast)
+    extend Memoist
+
+    def resolve(absolute_path)
+      ImportResolver.process(absolute_path)
+    end
+    memoize :resolve
+    
+    def unparsed_ast(ast)
+      Unparser.unparse(ast)
+    end
+    memoize :unparsed_ast
   end
   
   attr_reader :available_contracts, :contracts_source_code,
@@ -29,9 +34,8 @@ class ContractBuilder
       file.absolute_path = filename
     end
     
-    # binding.pry if current_file.absolute_path == './ERC20.rubidity'
-    
-    ast = ImportResolver.process(@current_file.absolute_path)
+    # ast = ImportResolver.process(@current_file.absolute_path)
+    ast = ContractBuilder.resolve(@current_file.absolute_path)
     
     @current_file.ast = ast
     
@@ -42,7 +46,6 @@ class ContractBuilder
   def process_file
     extract_contract_definitions_from_ast
     construct_contract_classes
-    @available_contracts
     self
   end
   
@@ -58,10 +61,6 @@ class ContractBuilder
     end
   end
   
-  # def normalize_file_name
-  #   @current_file.filename = @current_file.filename.sub(/\.rubidity$/, ".rb")
-  # end
-  
   def construct_contract_classes
     filename = current_file.filename
     
@@ -70,12 +69,10 @@ class ContractBuilder
 
       copy = builder.instance_eval(Unparser.unparse(ast))
 
-      replacer = ContractReplacer.new(copy.linearized_parents.map(&:name))
-      new_ast = replacer.process(ast)
+      new_ast = ContractReplacer.process(copy.linearized_parents.map(&:name), ast)
       
       line_number = new_ast.loc.line
       
-      # source = Unparser.unparse(new_ast)
       source = self.class.unparsed_ast(new_ast)
       
       filename = filename.split("/").last

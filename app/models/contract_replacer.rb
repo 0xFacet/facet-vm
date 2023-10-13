@@ -1,6 +1,15 @@
 class ContractReplacer
   include AST::Processor::Mixin
   
+  class << self
+    extend Memoist
+
+    def process(parent_contracts, ast)
+      new(parent_contracts).process(ast)
+    end
+    memoize :process
+  end
+  
   def initialize(parent_contracts)
     @parent_contracts = parent_contracts.map(&:to_sym)
   end

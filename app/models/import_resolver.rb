@@ -10,18 +10,29 @@ class ImportResolver
     @import_stack = []
   end
   
-  def self.process(initial_filename)
-    obj = new(initial_filename)
-    ast = obj.process_file(initial_filename)
-    
-    new_kids = ast.children.reject do |node|
-      next false unless node.type == :send
+  class << self
+    extend Memoist
+
+    def process(initial_filename)
+      obj = new(initial_filename)
+      ast = obj.process_file(initial_filename)
       
-      receiver, method_name, *args = *node
-      receiver.nil? && method_name == :import
+      new_kids = ast.children.reject do |node|
+        next false unless node.type == :send
+        
+        receiver, method_name, *args = *node
+        receiver.nil? && method_name == :import
+      end
+      
+      ast.updated(nil, new_kids, nil)
     end
+    memoize :process
     
-    ast.updated(nil, new_kids, nil)
+    def parse_code_in_file(filename)
+      code = IO.read(filename)
+      Unparser.parse(code)
+    end
+    memoize :parse_code_in_file
   end
   
   def compute_path(filename)
@@ -45,8 +56,7 @@ class ImportResolver
 
   def process_file(filename)
     filename = compute_path(filename)
-    code = IO.read(filename)
-    ast = Unparser.parse(code)
+    ast = self.class.parse_code_in_file(filename)
     
     if @import_stack.include?(filename)
       raise "Circular dependency detected: #{@import_stack.join(' -> ')} -> #{filename}"
