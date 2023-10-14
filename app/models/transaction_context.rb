@@ -54,6 +54,8 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     type:,
     include_abstract:
   )
+    return unless implementation_version.present?
+    
     contract_files[implementation_version].detect do |contract|
       contract.name == type.to_s && (include_abstract || !contract.is_abstract_contract)
     end
@@ -79,10 +81,6 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   
       if matching_contracts.size == 1
         implementation_version, _ = matching_contracts.first
-      elsif matching_contracts.size > 1
-        raise "Ambiguous match: found multiple contracts with name #{type.to_s}"
-      else
-        raise "No matching contracts found for #{type.to_s}"
       end
     end
   
