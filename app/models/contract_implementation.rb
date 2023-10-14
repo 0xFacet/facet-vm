@@ -388,13 +388,6 @@ class ContractImplementation
   end
   
   def handle_contract_type_cast(contract_type, other_address)
-    # proxy = ContractType::Proxy.new(
-    #   contract_type: contract_type,
-    #   address: other_address
-    # )
-    
-    # TypedVariable.create(contract_type, proxy)
-    
     proxy = ContractType::Proxy.new(
       contract_type: contract_type,
       contract_interface: self.class.available_contracts[contract_type],
