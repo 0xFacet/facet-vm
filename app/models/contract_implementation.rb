@@ -75,24 +75,11 @@ class ContractImplementation
   end
   
   def require(condition_or_block, message)
-    contract_path = '/app/models/contracts'
-    spec_path = '/spec/models'
-    
-    possible_paths = Rails.env.test? ? [contract_path, spec_path] : [contract_path]
-    
-    caller_location = nil
-    possible_paths.each do |path|
-      caller_location = caller_locations.detect { |location| location.path.include?(path) }
-      break if caller_location
-    end
-  # binding.pry
-    if caller_location.path.include?("rubidity_interpreter_spec")
-      caller_location = caller_locations.detect { |location| location.path.include?(self.class.name)}
-    end
+    caller_location = caller_locations.detect { |location| location.path.ends_with?(".rubidity") }
     
     file = caller_location.path.gsub(%r{.*/}, '') 
     line = caller_location.lineno
-    # binding.pry
+    
     if condition_or_block.is_a?(Proc)
       begin
         condition_result = condition_or_block.call

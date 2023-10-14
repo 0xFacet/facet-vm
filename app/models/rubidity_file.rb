@@ -100,12 +100,11 @@ class RubidityFile
       new_ast = ContractReplacer.process(copy.linearized_parents.map(&:name), obj.ast)
       new_source = Unparser.unparse(new_ast)
       
-      line_number = new_ast.loc.line
-
-      new_klass = builder.instance_eval(new_source, normalized_filename, line_number)
+      new_klass = builder.instance_eval(new_source, normalized_filename, 1)
       
       new_klass.instance_variable_set(:@source_code, new_source)
       new_klass.instance_variable_set(:@file_source_code, file_source)
+      # TODO: should this be the processed ast?
       new_klass.instance_variable_set(:@implementation_version, ast_hash)
       
       if new_klass.name + ".rubidity" == normalized_filename
