@@ -312,11 +312,6 @@ class ContractImplementation
           to_contract_type: contract_initializer.contract_type,
           args: contract_initializer.uncast_address,
         }
-      else
-        {
-          to_contract_type: contract_initializer.type.name,
-          args: contract_initializer.uncast_address,
-        }
       end
     elsif contract_initializer.respond_to?("__proxy_name__")
       contract_initializer = {
