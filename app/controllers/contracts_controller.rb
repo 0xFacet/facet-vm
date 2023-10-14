@@ -4,11 +4,11 @@ class ContractsController < ApplicationController
     per_page = (params[:per_page] || 50).to_i
     per_page = 50 if per_page > 50
     
-    scope = Contract.where(type: ContractImplementation.deployable_contracts.map(&:name)).order(created_at: :desc)
+    scope = Contract.where(type: TransactionContext.deployable_contracts.map(&:name)).order(created_at: :desc)
     
     if params[:base_type]
       scope = scope.where(
-        type: ContractImplementation.types_that_implement(params[:base_type])
+        type: TransactionContext.types_that_implement(params[:base_type]).map(&:name)
       )
     end
     

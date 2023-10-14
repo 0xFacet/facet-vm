@@ -2,7 +2,8 @@ class ContractImplementation
   include ContractErrors
   class << self
     attr_accessor :state_variable_definitions, :parent_contracts,
-    :events, :is_abstract_contract, :source_code, :is_main_contract, :file_source_code
+    :events, :is_abstract_contract, :source_code, :is_main_contract, :file_source_code,
+    :implementation_version
   end
   
   delegate :block, :blockhash, :tx, :esc, :msg, :log_event,
@@ -122,13 +123,6 @@ class ContractImplementation
     self.class.public_abi
   end
   
-  def self.types_that_implement(base_type)
-    impl = ContractImplementation.main_contracts.detect{|i| i.name == base_type.to_s}
-    deployable_contracts.select do |contract|
-      contract.implements?(impl)
-    end.map(&:name)
-  end
-  
   def self.implements?(interface)
     return false unless interface
     
@@ -137,14 +131,6 @@ class ContractImplementation
       actual && (actual.constructor? || actual.args == details.args)
     end
   end  
-  
-  def self.main_contracts
-    VALID_CONTRACTS.select{|k,v| v.is_main_contract }.values
-  end
-  
-  def self.deployable_contracts
-    main_contracts.reject(&:is_abstract_contract)
-  end
   
   def self.linearize_contracts(contract, processed = [])
     return [] if processed.include?(contract)

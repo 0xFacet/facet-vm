@@ -93,7 +93,7 @@ class RubidityFile
     available_contracts = {}.with_indifferent_access
     
     contract_asts_and_sources.map do |obj|
-      builder = ContractBuilder::Builder.new(available_contracts)
+      builder = ContractBuilder.new(available_contracts)
 
       copy = builder.instance_eval(obj.source)
       
@@ -106,6 +106,7 @@ class RubidityFile
       
       new_klass.instance_variable_set(:@source_code, new_source)
       new_klass.instance_variable_set(:@file_source_code, file_source)
+      new_klass.instance_variable_set(:@implementation_version, ast_hash)
       
       if new_klass.name + ".rubidity" == normalized_filename
         new_klass.instance_variable_set(:@is_main_contract, true)

@@ -75,14 +75,14 @@ class Contract < ApplicationRecord
   
   def self.all_abis(deployable_only: false)
     contract_classes = if deployable_only
-      ContractImplementation.deployable_contracts
+      TransactionContext.deployable_contracts
     else
-      ContractImplementation.main_contracts
+      TransactionContext.main_contracts
     end
     
     contract_classes.each_with_object({}) do |contract_class, hash|
       hash[contract_class.name] = contract_class.public_abi
-    end.transform_keys(&:demodulize)
+    end
   end
   
   def as_json(options = {})

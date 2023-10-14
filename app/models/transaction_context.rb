@@ -34,8 +34,19 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     end
   end
   
-  def valid_contract_classes
-    valid_contracts&.values
+  def main_contracts
+    contract_files.values.flatten.select(&:is_main_contract)
+  end
+  
+  def deployable_contracts
+    main_contracts.reject(&:is_abstract_contract)
+  end
+  
+  def types_that_implement(base_type)
+    impl = main_contracts.detect{|i| i.name == base_type.to_s}
+    deployable_contracts.select do |contract|
+      contract.implements?(impl)
+    end
   end
   
   def contract_from_version_and_type(
