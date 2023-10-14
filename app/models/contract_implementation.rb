@@ -2,7 +2,7 @@ class ContractImplementation
   include ContractErrors
   class << self
     attr_accessor :state_variable_definitions, :parent_contracts,
-    :events, :is_abstract_contract, :valid_contract_types, :source_code
+    :events, :is_abstract_contract, :source_code, :is_main_contract, :file_source_code
   end
   
   delegate :block, :blockhash, :tx, :esc, :msg, :log_event,
@@ -19,13 +19,9 @@ class ContractImplementation
   #   @contract_record = Contract.new(address: address, type: self.class.name.demodulize)
   # end
   
-  def self.mock
-    Contract.new(type: self.name.demodulize).implementation
-  end
-  
-  def self.abstract
-    @is_abstract_contract = true
-  end
+  # def self.mock
+  #   Contract.new(type: self.name.demodulize).implementation
+  # end
   
   def self.state_variable_definitions
     @state_variable_definitions ||= {}
@@ -145,13 +141,27 @@ class ContractImplementation
   end
   
   def self.types_that_implement(base_type)
-    Contracts.constants.select do |contract|
-      klass = "Contracts::#{contract}".constantize
-      
-      klass.implements?(base_type.to_sym) && !klass.is_abstract_contract
-    end.map do |c|
-      c.name.demodulize
+    impl = ContractImplementation.main_contracts.detect{|i| i.name == base_type.to_s}
+    deployable_contracts.select do |contract|
+      contract.implements?(impl)
+    end.map(&:name)
+  end
+  
+  def self.implements?(interface)
+    return false unless interface
+    
+    interface.public_abi.all? do |function_name, details|
+      actual = public_abi[function_name]
+      actual && (actual.constructor? || actual.args == details.args)
     end
+  end  
+  
+  def self.main_contracts
+    VALID_CONTRACTS.select{|k,v| v.is_main_contract }.values
+  end
+  
+  def self.deployable_contracts
+    main_contracts.reject(&:is_abstract_contract)
   end
   
   def self.linearize_contracts(contract, processed = [])
@@ -226,10 +236,6 @@ class ContractImplementation
     
     state_var = StateVariable.create(name, type, args)
     state_var.create_public_getter_function(self)
-  end
-  
-  def self.pragma(*args)
-    # Do nothing for now
   end
   
   def keccak256(input)
@@ -382,28 +388,6 @@ class ContractImplementation
       salt: input_salt
     }
   end
-  
-  # def self.inherited(subclass)
-  #   return super
-    
-  #   return unless subclass.name
-  #   method_name = subclass.name.demodulize.to_sym
-  #   # pp available_contracts
-  #   if Contracts.constants.include?(method_name)
-  #     define_method(method_name) do |*args, **kwargs|
-  #       if args.many? || kwargs.present? || (args.one? && args.first.is_a?(Hash))
-  #         return create_contract_initializer(method_name, args.presence || kwargs)
-  #       end
-        
-  #       handle_contract_type_cast(method_name, args.first)
-  #     end
-      
-  #     self.valid_contract_types ||= []
-  #     self.valid_contract_types << method_name
-      
-  #     Type::TYPES << method_name unless Type::TYPES.include?(method_name)
-  #   end
-  # end
   
   def method_missing(method_name, *args, **kwargs, &block)
     unless self.class.available_contracts.include?(method_name)

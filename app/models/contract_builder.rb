@@ -19,7 +19,7 @@ class ContractBuilder
   attr_reader :available_contracts, :contracts_source_code,
     :hashed_contracts, :current_file
   
-  def initialize(filename = '/Users/tom/Dropbox (Personal)/db-src/ethscriptions-vm-server/app/models/contracts_rubidity/ERC20Receiver.rubidity')
+  def initialize(filename)
     @available_contracts = {}.with_indifferent_access
     @hashed_contracts = {}.with_indifferent_access
     @contract_asts = []
@@ -34,7 +34,6 @@ class ContractBuilder
       file.absolute_path = filename
     end
     
-    # ast = ImportResolver.process(@current_file.absolute_path)
     ast = ContractBuilder.resolve(@current_file.absolute_path)
     
     @current_file.ast = ast
@@ -62,8 +61,6 @@ class ContractBuilder
   end
   
   def construct_contract_classes
-    filename = current_file.filename
-    
     @contract_asts.each do |ast|
       builder = Builder.new(available_contracts)
 
@@ -74,15 +71,24 @@ class ContractBuilder
       line_number = new_ast.loc.line
       
       source = self.class.unparsed_ast(new_ast)
-      
-      filename = filename.split("/").last
-      filename = filename.sub(/\.rubidity$/, "") + ".rubidity"
-      new_klass = builder.instance_eval(source, filename, line_number)
+
+      new_klass = builder.instance_eval(source, normalized_filename, line_number)
 
       new_klass.instance_variable_set(:@source_code, source)
+      new_klass.instance_variable_set(:@file_source_code, @current_file.source)
+      
+      if new_klass.name + ".rubidity" == normalized_filename
+        new_klass.instance_variable_set(:@is_main_contract, true)
+      end
       
       @available_contracts[new_klass.name] = new_klass
     end
+  end
+  
+  def normalized_filename
+    filename = current_file.filename
+    filename = filename.split("/").last
+    filename.sub(/\.rubidity$/, "") + ".rubidity"
   end
   
   def output_contracts

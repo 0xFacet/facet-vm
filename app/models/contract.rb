@@ -20,14 +20,6 @@ class Contract < ApplicationRecord
   
   delegate :implements?, to: :implementation
   
-  # def get_implementation_from_code_string(code_string)
-  #   RubidityInterpreter.build_implementation_class_from_code_string(type, code_string)
-  # end
-  
-  class << self
-    delegate :valid_contract_types, to: ContractImplementation
-  end
-  
   def implementation
     @implementation ||= implementation_class.new
   end
@@ -80,19 +72,19 @@ class Contract < ApplicationRecord
   end
   
   def fresh_implementation_with_latest_state
-    implementation_class.new(self).tap do |implementation|
+    implementation_class.new.tap do |implementation|
       implementation.state_proxy.load(latest_state.deep_dup)
     end
   end
   
   def self.all_abis(deployable_only: false)
-    contract_classes = valid_contract_types
-
-    contract_classes.each_with_object({}) do |name, hash|
-      contract_class = "Contracts::#{name}".constantize
-
-      next if deployable_only && contract_class.is_abstract_contract
-
+    contract_classes = if deployable_only
+      ContractImplementation.deployable_contracts
+    else
+      ContractImplementation.main_contracts
+    end
+    
+    contract_classes.each_with_object({}) do |contract_class, hash|
       hash[contract_class.name] = contract_class.public_abi
     end.transform_keys(&:demodulize)
   end
@@ -119,14 +111,16 @@ class Contract < ApplicationRecord
       json['current_state']['contract_type'] = type.demodulize
       
       klass = implementation.class
-      tree = [klass, klass.linearized_parents].flatten
+      # tree = [klass, klass.linearized_parents].flatten
       
-      json['source_code'] = tree.map do |k|
-        {
-          language: 'ruby',
-          code: source_code(k)
-        }
-      end
+      # json['source_code'] = tree.map do |k|
+      #   {
+      #     language: 'ruby',
+      #     code: source_code(k)
+      #   }
+      # end
+      
+      json['source_code'] = klass.file_source_code
     end
   end
   
@@ -138,17 +132,17 @@ class Contract < ApplicationRecord
     )
   end
 
-  def source_file(type)
-    ActiveSupport::Dependencies.autoload_paths.each do |base_folder|
-      relative_path = "#{type.to_s.underscore}.rb"
-      absolute_path = File.join(base_folder, relative_path)
+  # def source_file(type)
+  #   ActiveSupport::Dependencies.autoload_paths.each do |base_folder|
+  #     relative_path = "#{type.to_s.underscore}.rb"
+  #     absolute_path = File.join(base_folder, relative_path)
 
-      return absolute_path if File.file?(absolute_path)
-    end
-    nil
-  end
+  #     return absolute_path if File.file?(absolute_path)
+  #   end
+  #   nil
+  # end
 
-  def source_code(type)
-    File.read(source_file(type)) if source_file(type)
-  end
+  # def source_code(type)
+  #   File.read(source_file(type)) if source_file(type)
+  # end
 end

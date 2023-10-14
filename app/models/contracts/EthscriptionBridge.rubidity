@@ -3,7 +3,6 @@ pragma :rubidity, "1.0.0"
 import './ERC20.rubidity'
 
 contract :EthscriptionBridge, is: :ERC20 do
-  pragma :rubidity, "1.0.0"
   event :InitiateWithdrawal, { from: :address, escrowedId: :ethscriptionId }
   event :WithdrawalComplete, { to: :address, escrowedId: :ethscriptionId }
 

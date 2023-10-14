@@ -154,7 +154,9 @@ module RubidityInterpreter
     # Get the existing contracts
     # Process each new file
     new_files.each do |file|
-      new_contracts = ContractBuilder.new(file).process_file.output_contracts
+      new_contracts = ContractBuilder.new(file).process_file.output_contracts.tap do |c|
+        c.instance_variable_set(:@is_main_contract, true)
+      end
   
       # Merge the new contracts into the existing contracts
       ContractImplementation::VALID_CONTRACTS.merge!(new_contracts) do |key, old_val, new_val|

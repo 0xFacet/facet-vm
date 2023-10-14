@@ -4,6 +4,12 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   attribute :call_stack, :ethscription, :current_call,
   :transaction_hash, :transaction_index, :current_transaction, :valid_contracts
   
+  # def valid_contracts
+  #   if defined?(ContractImplementation::VALID_CONTRACTS)
+  #     ContractImplementation::VALID_CONTRACTS
+  #   end
+  # end
+  
   STRUCT_DETAILS = {
     msg:    { attributes: { sender: :address } },
     tx:     { attributes: { origin: :address } },
@@ -30,13 +36,20 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     end
   end
   
+  def valid_contract_classes
+    valid_contracts&.values
+  end
+  
   def type_valid?(type)
     return false if valid_contracts.blank?
+    valid_contract_classes.map(&:name).include?(type) ||
     valid_contracts.transform_keys{|i| i.split("-").first}[type].present?
+
   end
   
   def latest_implementation_of(type)
     return false if valid_contracts.blank?
+    valid_contract_classes.select(&:is_main_contract).detect{|i| i.name == type} ||
     valid_contracts.transform_keys{|i| i.split("-").first}[type]
   end
   
