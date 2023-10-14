@@ -63,6 +63,7 @@ class ContractTransaction < ApplicationRecord
       
       initial_call_info: {
         to_contract_type: data['type'],
+        to_contract_implementation_version: data['implementation_version'],
         to_contract_address: payload['to']&.downcase,
         function: data['function'],
         args: data['args'],
@@ -165,7 +166,7 @@ class ContractTransaction < ApplicationRecord
   
   def with_global_context
     TransactionContext.set(
-      valid_contracts: ContractImplementation::VALID_CONTRACTS,
+      contract_files: RubidityFile.registry.deep_dup,
       call_stack: CallStack.new,
       current_transaction: self,
       tx_origin: tx_origin,
@@ -174,7 +175,7 @@ class ContractTransaction < ApplicationRecord
       block_blockhash: block_blockhash,
       transaction_hash: transaction_hash,
       transaction_index: transaction_index,
-      ethscription: ethscription # Do we need this?
+      ethscription: ethscription # TODO: Do we need this?
     ) do
       yield
     end

@@ -2,7 +2,7 @@ require 'rails_helper'
 
 describe 'UniswapV2Router contract' do
   before(:all) do
-    RubidityInterpreter.add_valid_contracts(Rails.root.join('spec/fixtures/StubERC20.rubidity'))
+    RubidityFile.add_to_registry('spec/fixtures/StubERC20.rubidity')
   end
   
   def sqrt(integer)

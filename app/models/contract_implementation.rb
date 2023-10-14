@@ -15,14 +15,6 @@ class ContractImplementation
     @current_context = current_context || raise("Must provide current context")
   end
   
-  # def attach_contract_record(address = nil)
-  #   @contract_record = Contract.new(address: address, type: self.class.name.demodulize)
-  # end
-  
-  # def self.mock
-  #   Contract.new(type: self.name.demodulize).implementation
-  # end
-  
   def self.state_variable_definitions
     @state_variable_definitions ||= {}
   end
@@ -37,16 +29,6 @@ class ContractImplementation
   
   def state_proxy
     @state_proxy ||= StateProxy.new(state_variable_definitions)
-  end
-  
-  def self.const_missing(name)
-    return super unless TransactionContext.current_contract
-    
-    TransactionContext.current_contract.implementation.tap do |impl|
-      valid_methods = impl.class.linearized_parents.map{|p| p.name.demodulize.to_sym }
-      
-      return valid_methods.include?(name) ? impl.send(name) : super
-    end
   end
   
   def self.abi
@@ -272,10 +254,6 @@ class ContractImplementation
   end
   
   def address(i)
-    if i.is_a?(TypedVariable) && i.type.is_contract_type?
-      return TypedVariable.create(:address, i.value.address)
-    end
-    
     if i.is_a?(TypedVariable) && i.type.contract?
       return TypedVariable.create(:address, i.value.address)
     end
@@ -300,13 +278,30 @@ class ContractImplementation
   end
   
   def self.calculate_new_contract_address_with_salt(salt, from_address, to_contract_type)
-    unless Contract.type_valid?(to_contract_type)
+    from_contract = Contract.find_by!(address: from_address.to_s)
+    from_impl_version = from_contract.implementation_version
+    
+    target_implementation = TransactionContext.contract_from_version_and_type(
+      implementation_version: from_impl_version,
+      type: to_contract_type,
+      include_abstract: false
+    )
+    
+    unless target_implementation.present?
       raise TransactionError.new("Invalid contract type: #{to_contract_type}")
     end
     
     salt_hex = Integer(salt, 16).to_s(16)
     padded_from = from_address.to_s[2..-1].rjust(64, "0")
     bytecode_simulation = Eth::Util.hex_to_bin(Digest::Keccak256.new.hexdigest(to_contract_type))
+    
+    # TODO: Turn this on when we can blow everything away
+    if false
+      bytecode_simulation = Eth::Util.hex_to_bin(
+        Digest::Keccak256.new.hexdigest([to_contract_type, from_impl_version].join(":")
+        )
+      )
+    end
     
     data = "0xff" + padded_from + salt_hex + Digest::Keccak256.new.hexdigest(bytecode_simulation)
 
@@ -444,6 +439,4 @@ class ContractImplementation
   def self.inspect
     "#<#{name.demodulize}:#{object_id}>"
   end
-  
-  VALID_CONTRACTS = RubidityInterpreter.build_valid_contracts
 end

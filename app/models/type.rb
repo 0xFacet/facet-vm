@@ -77,7 +77,7 @@ class Type
       return extract_integer_bits >= other_type.extract_integer_bits
     end
     
-    if address? && (other_type.is_contract_type? || other_type.contract?)
+    if address? && other_type.contract?
       return true
     end
 
@@ -249,7 +249,7 @@ class Type
       proxy = ArrayType::Proxy.new(data, value_type: value_type, initial_length: initial_length)
       
       return proxy
-    elsif is_contract_type? || contract?
+    elsif contract?
       if literal.is_a?(ContractType::Proxy)
         return literal
       else
@@ -294,9 +294,5 @@ class Type
   
   def is_value_type?
     !mapping? && !array?
-  end
-  
-  def is_contract_type?
-    TransactionContext.type_valid?(name)
   end
 end

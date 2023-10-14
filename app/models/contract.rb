@@ -25,15 +25,11 @@ class Contract < ApplicationRecord
   end
   
   def implementation_class
-    TransactionContext.latest_implementation_of(type)
-  end
-  
-  def self.type_abstract?(type)
-    TransactionContext.latest_implementation_of(type)&.is_abstract_contract
-  end
-  
-  def self.type_valid?(type)
-    TransactionContext.type_valid?(type)
+    TransactionContext.contract_from_version_and_type(
+      type: type,
+      implementation_version: implementation_version,
+      include_abstract: false
+    )
   end
   
   def execute_function(function_name, args)
@@ -111,14 +107,6 @@ class Contract < ApplicationRecord
       json['current_state']['contract_type'] = type.demodulize
       
       klass = implementation.class
-      # tree = [klass, klass.linearized_parents].flatten
-      
-      # json['source_code'] = tree.map do |k|
-      #   {
-      #     language: 'ruby',
-      #     code: source_code(k)
-      #   }
-      # end
       
       json['source_code'] = klass.file_source_code
     end
@@ -131,18 +119,4 @@ class Contract < ApplicationRecord
       function_args: args
     )
   end
-
-  # def source_file(type)
-  #   ActiveSupport::Dependencies.autoload_paths.each do |base_folder|
-  #     relative_path = "#{type.to_s.underscore}.rb"
-  #     absolute_path = File.join(base_folder, relative_path)
-
-  #     return absolute_path if File.file?(absolute_path)
-  #   end
-  #   nil
-  # end
-
-  # def source_code(type)
-  #   File.read(source_file(type)) if source_file(type)
-  # end
 end

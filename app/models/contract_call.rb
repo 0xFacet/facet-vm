@@ -4,7 +4,7 @@ class ContractCall < ApplicationRecord
   enum :call_type, [ :call, :static_call, :create ], prefix: :is
   enum :status, [ :failure, :success ]
   
-  attr_accessor :to_contract, :salt, :pending_logs
+  attr_accessor :to_contract, :salt, :pending_logs, :to_contract_implementation_version
   
   belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true, inverse_of: :contract_calls
@@ -72,16 +72,26 @@ class ContractCall < ApplicationRecord
     end
   end
   
+  def to_contract_implementation_version
+    @to_contract_implementation_version ||= TransactionContext.guess_implementation_version_for(type: to_contract_type)
+  end
+  
   def create_and_validate_new_contract!(to_contract_type)
+    target_implementation = TransactionContext.contract_from_version_and_type(
+      implementation_version: to_contract_implementation_version,
+      type: to_contract_type,
+      include_abstract: true
+    )
+    
     if function
       raise ContractError.new("Cannot call function on contract creation")
     end
     
-    unless Contract.type_valid?(to_contract_type)
+    unless target_implementation.present?
       raise TransactionError.new("Invalid contract type: #{to_contract_type}")
     end
     
-    if Contract.type_abstract?(to_contract_type)
+    if target_implementation.is_abstract_contract
       raise TransactionError.new("Cannot deploy abstract contract: #{to_contract_type}")
     end
     
@@ -89,6 +99,7 @@ class ContractCall < ApplicationRecord
       transaction_hash: TransactionContext.transaction_hash,
       address: calculate_new_contract_address,
       type: to_contract_type,
+      implementation_version: to_contract_implementation_version,
     )
     
     self.function = :constructor

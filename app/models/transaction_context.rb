@@ -2,13 +2,11 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
   attribute :call_stack, :ethscription, :current_call,
-  :transaction_hash, :transaction_index, :current_transaction, :valid_contracts
+  :transaction_hash, :transaction_index, :current_transaction, :contract_files
   
-  # def valid_contracts
-  #   if defined?(ContractImplementation::VALID_CONTRACTS)
-  #     ContractImplementation::VALID_CONTRACTS
-  #   end
-  # end
+  def contract_files
+    @contract_files ||= RubidityFile.registry
+  end
   
   STRUCT_DETAILS = {
     msg:    { attributes: { sender: :address } },
@@ -40,17 +38,44 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     valid_contracts&.values
   end
   
-  def type_valid?(type)
-    return false if valid_contracts.blank?
-    valid_contract_classes.map(&:name).include?(type) ||
-    valid_contracts.transform_keys{|i| i.split("-").first}[type].present?
-
+  def contract_from_version_and_type(
+    implementation_version:,
+    type:,
+    include_abstract:
+  )
+    contract_files[implementation_version].detect do |contract|
+      contract.name == type.to_s && (include_abstract || !contract.is_abstract_contract)
+    end
   end
   
-  def latest_implementation_of(type)
-    return false if valid_contracts.blank?
-    valid_contract_classes.select(&:is_main_contract).detect{|i| i.name == type} ||
-    valid_contracts.transform_keys{|i| i.split("-").first}[type]
+  def type_valid_for_deploy?(implementation_version:, type:)
+    contract_from_version_and_type(
+      implementation_version: implementation_version,
+      type: type,
+      include_abstract: false
+    ).present?
+  end
+  
+  def guess_implementation_version_for(type:)
+    implementation_version, _ = contract_files.find do |file_hash, contracts|
+      contracts.any? { |c| c.name == type.to_s && c.is_main_contract }
+    end
+  
+    if implementation_version.nil?
+      matching_contracts = contract_files.select do |file_hash, contracts|
+        contracts.any? { |c| c.name == type.to_s }
+      end
+  
+      if matching_contracts.size == 1
+        implementation_version, _ = matching_contracts.first
+      elsif matching_contracts.size > 1
+        raise "Ambiguous match: found multiple contracts with name #{type.to_s}"
+      else
+        raise "No matching contracts found for #{type.to_s}"
+      end
+    end
+  
+    implementation_version
   end
   
   def log_event(event)

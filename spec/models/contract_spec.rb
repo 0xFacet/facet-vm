@@ -2,7 +2,7 @@ require 'rails_helper'
 
 RSpec.describe Contract, type: :model do
   before(:all) do
-    RubidityInterpreter.add_valid_contracts(Rails.root.join('spec/fixtures/ERC20LiquidityPool.rubidity'))
+    RubidityFile.add_to_registry('spec/fixtures/ERC20LiquidityPool.rubidity')
   end
   
   before do

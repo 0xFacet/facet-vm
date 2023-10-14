@@ -353,7 +353,9 @@ CREATE TABLE public.contracts (
     updated_at timestamp(6) without time zone NOT NULL,
     address character varying NOT NULL,
     latest_state jsonb DEFAULT '{}'::jsonb NOT NULL,
+    implementation_version character varying NOT NULL,
     CONSTRAINT chk_rails_6d0039a684 CHECK (((address)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_90a118eccd CHECK (((implementation_version)::text ~ '^[a-f0-9]{32}$'::text)),
     CONSTRAINT chk_rails_c653bcbc93 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
@@ -729,6 +731,13 @@ CREATE UNIQUE INDEX index_contracts_on_address ON public.contracts USING btree (
 
 
 --
+-- Name: index_contracts_on_implementation_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contracts_on_implementation_version ON public.contracts USING btree (implementation_version);
+
+
+--
 -- Name: index_contracts_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -944,6 +953,7 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20230927152725'),
 ('20230928185853'),
 ('20231001152142'),
-('20231010142505');
+('20231010142505'),
+('20231014154537');
 
 
