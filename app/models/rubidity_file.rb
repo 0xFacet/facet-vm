@@ -49,7 +49,6 @@ class RubidityFile
       filename
     end
   end
-  memoize :absolute_path
   
   def file_source
     Unparser.unparse(file_ast)
@@ -86,7 +85,6 @@ class RubidityFile
       node.children.first.children.third.children.first
     end
   end
-  memoize :contract_names
   
   def contract_classes
     unless contract_names == contract_names.uniq
@@ -96,24 +94,27 @@ class RubidityFile
     available_contracts = {}.with_indifferent_access
     
     contract_asts_and_sources.map do |obj|
-      builder = ContractBuilder.new(available_contracts)
-
-      new_ast = ContractReplacer.process(available_contracts.keys, obj.ast)
+      new_ast = ContractAstPreprocessor.process(available_contracts.keys, obj.ast)
       new_source = Unparser.unparse(new_ast)
       
-      new_klass = builder.instance_eval(new_source, normalized_filename, 1)
+      contract_class = ContractBuilder.build_contract_class(
+        available_contracts: available_contracts,
+        source: new_source,
+        filename: normalized_filename,
+        line_number: 1,
+      )
       
-      new_klass.instance_variable_set(:@source_code, new_source)
-      new_klass.instance_variable_set(:@file_source_code, file_source)
-      new_klass.instance_variable_set(:@implementation_version, ast_hash(new_ast))
+      contract_class.instance_variable_set(:@source_code, new_source)
+      contract_class.instance_variable_set(:@file_source_code, file_source)
+      contract_class.instance_variable_set(:@implementation_version, ast_hash(new_ast))
       
-      if new_klass.name + ".rubidity" == normalized_filename
-        new_klass.instance_variable_set(:@is_main_contract, true)
+      if contract_class.name + ".rubidity" == normalized_filename
+        contract_class.instance_variable_set(:@is_main_contract, true)
       end
       
-      available_contracts[new_klass.name] = new_klass
+      available_contracts[contract_class.name] = contract_class
 
-      new_klass
+      contract_class
     end
   end
   memoize :contract_classes

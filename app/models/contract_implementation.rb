@@ -1,14 +1,16 @@
 class ContractImplementation
   include ContractErrors
+  
   class << self
-    attr_accessor :state_variable_definitions, :parent_contracts,
-    :events, :is_abstract_contract, :source_code, :is_main_contract, :file_source_code,
-    :implementation_version
+    attr_reader :name, :is_abstract_contract, :source_code, :is_main_contract, :file_source_code, :implementation_version,
+    :parent_contracts
+    
+    attr_accessor :state_variable_definitions, :events
   end
   
   delegate :block, :blockhash, :tx, :esc, :msg, :log_event,
            :current_address, to: :current_context
-  delegate :implements?, :state_variable_definitions, to: :class
+  delegate :state_variable_definitions, to: :class
   
   attr_reader :current_context
   
@@ -17,11 +19,7 @@ class ContractImplementation
   end
   
   def self.state_variable_definitions
-    @state_variable_definitions ||= {}
-  end
-  
-  def self.parent_contracts
-    @parent_contracts ||= []
+    @state_variable_definitions ||= {}.with_indifferent_access
   end
   
   def s
