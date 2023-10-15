@@ -3,7 +3,7 @@ class ContractImplementation
   
   class << self
     attr_reader :name, :is_abstract_contract, :source_code, :is_main_contract, :file_source_code, :implementation_version,
-    :parent_contracts
+    :parent_contracts, :available_contracts
     
     attr_accessor :state_variable_definitions, :events
   end
@@ -115,7 +115,7 @@ class ContractImplementation
       actual = public_abi[function_name]
       actual && (actual.constructor? || actual.args == details.args)
     end
-  end  
+  end
   
   def self.linearize_contracts(contract, processed = [])
     return [] if processed.include?(contract)
@@ -197,10 +197,6 @@ class ContractImplementation
     str = TypedVariable.create(:string, input)
     
     "0x" + Digest::Keccak256.new.hexdigest(str.value)
-  end
-  
-  def self.available_contracts
-    @available_contracts ||= {}.with_indifferent_access
   end
   
   protected
