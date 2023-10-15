@@ -226,8 +226,6 @@ GEM
       rspec-mocks (~> 3.12)
       rspec-support (~> 3.12)
     rspec-support (3.12.1)
-    rubocop-ast (1.29.0)
-      parser (>= 3.2.1.0)
     rubyzip (2.3.2)
     scout_apm (5.3.5)
       parser
@@ -269,7 +267,6 @@ DEPENDENCIES
   rack-cors (~> 2.0)
   rails (~> 7.0.7, >= 7.0.7.2)
   rspec-rails
-  rubocop-ast (~> 1.29)
   scout_apm (~> 5.3)
   tzinfo-data
   unparser (~> 0.6.8)
