@@ -163,7 +163,6 @@ class Type
       end
         
       if literal.is_a?(Integer) && literal.between?(0, 2 ** extract_integer_bits - 1)
-        # TODO: make the value a decimal?
         return literal
       end
       

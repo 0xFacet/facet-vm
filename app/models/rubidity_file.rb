@@ -26,6 +26,10 @@ class RubidityFile
       
       registry
     end
+    
+    def clear_registry
+      @registry = nil
+    end
   end
   
   def initialize(filename)
@@ -52,10 +56,9 @@ class RubidityFile
   end
   memoize :file_source
   
-  def ast_hash
-    Digest::SHA256.hexdigest(file_ast.to_sexp).first(32)
+  def ast_hash(ast = file_ast)
+    Digest::SHA256.hexdigest(ast.inspect).first(32)
   end
-  memoize :ast_hash
   
   def contract_asts
     file_ast.children.select do |node|
@@ -95,17 +98,14 @@ class RubidityFile
     contract_asts_and_sources.map do |obj|
       builder = ContractBuilder.new(available_contracts)
 
-      copy = builder.instance_eval(obj.source)
-      
-      new_ast = ContractReplacer.process(copy.linearized_parents.map(&:name), obj.ast)
+      new_ast = ContractReplacer.process(available_contracts.keys, obj.ast)
       new_source = Unparser.unparse(new_ast)
       
       new_klass = builder.instance_eval(new_source, normalized_filename, 1)
       
       new_klass.instance_variable_set(:@source_code, new_source)
       new_klass.instance_variable_set(:@file_source_code, file_source)
-      # TODO: should this be the processed ast?
-      new_klass.instance_variable_set(:@implementation_version, ast_hash)
+      new_klass.instance_variable_set(:@implementation_version, ast_hash(new_ast))
       
       if new_klass.name + ".rubidity" == normalized_filename
         new_klass.instance_variable_set(:@is_main_contract, true)

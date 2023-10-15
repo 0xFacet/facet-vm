@@ -166,7 +166,7 @@ class ContractTransaction < ApplicationRecord
   
   def with_global_context
     TransactionContext.set(
-      contract_files: RubidityFile.registry.deep_dup,
+      contract_files: RubidityFile.registry,
       call_stack: CallStack.new,
       current_transaction: self,
       tx_origin: tx_origin,

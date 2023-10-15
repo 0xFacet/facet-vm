@@ -710,6 +710,13 @@ CREATE UNIQUE INDEX index_contract_transaction_receipts_on_transaction_hash ON p
 
 
 --
+-- Name: index_contract_transaction_receipts_on_tx_hash_and_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contract_transaction_receipts_on_tx_hash_and_created_at ON public.contract_transaction_receipts USING btree (transaction_hash, created_at);
+
+
+--
 -- Name: index_contract_transactions_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -954,6 +961,7 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20230928185853'),
 ('20231001152142'),
 ('20231010142505'),
-('20231014154537');
+('20231014154537'),
+('20231015132041');
 
 
