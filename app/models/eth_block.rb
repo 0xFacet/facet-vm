@@ -65,6 +65,46 @@ class EthBlock < ApplicationRecord
     in_us_not_them.length.zero? && in_them_not_us.length.zero?
   end
   
+  def self.__pt2
+    them = JSON.parse(IO.read("ctr.json")).sort_by{|i| [i['block_number'], i['transaction_index']]}
+    max_block = them.map{|i| i['block_number']}.max
+    
+    us = ContractTransactionReceipt.includes(:contract_transaction).all.map(&:as_json).
+      select{|i| i['block_number'] <= max_block}.sort_by{|i| [i['block_number'], i['transaction_index']]}; nil
+    
+    different_values = them.select do |theirs|
+      ours = us.detect{|i| i['transaction_hash'] == theirs['transaction_hash']}
+      ours != theirs
+    end; nil
+  end
+  
+  def self.__pt2
+    them = JSON.parse(IO.read("ctr2.json")).index_by { |i| i['transaction_hash'] }
+    max_block = them.values.map { |i| i['block_number'] }.max
+  
+    us = ContractTransactionReceipt.includes(:contract_transaction).all.map(&:as_json).
+      select{|i| i['block_number'] <= max_block}.sort_by{|i| [i['block_number'], i['transaction_index']]}.index_by { |i| i['transaction_hash'] }; nil
+    
+      different_values = {}
+
+      them.each do |tx_hash, theirs|
+        ours = us[tx_hash]
+        if ours != theirs
+          differences = {}
+    
+          ours.keys.each do |key|
+            if ours[key] != theirs[key]
+              differences[key] = { 'us' => ours[key], 'them' => theirs[key] }
+            end
+          end
+    
+          different_values[tx_hash] = { 'us' => ours, 'them' => theirs, 'differences' => differences }
+        end
+      end
+    
+      different_values
+  end
+  
   def self.process_contract_actions_for_next_block_with_ethscriptions
     EthBlock.transaction do
       next_number = EthBlock.where(processing_state: 'pending').order(:block_number).limit(1).select(:block_number)

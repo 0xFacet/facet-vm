@@ -139,7 +139,7 @@ class AbiProxy
     end
     
     def func_location
-      implementation.to_s.gsub(%r(.*/app/models/contracts/), '').chop
+      implementation.source_location.join(":")
     end
     
     def validate_arg_names(other_args)
