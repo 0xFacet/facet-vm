@@ -13,6 +13,9 @@ class ContractBuilder < BasicObject
     @available_contracts = available_contracts
   end
   
+  def pragma(...)
+  end
+  
   def contract(name, is: [], abstract: false, &block)
     available_contracts = @available_contracts
     
@@ -20,7 +23,7 @@ class ContractBuilder < BasicObject
       @parent_contracts = []
       
       ::Array.wrap(is).each do |dep|
-        unless parent = available_contracts[dep.name]
+        unless parent = available_contracts[dep]
           raise "Dependency #{dep} is not available."
         end
         

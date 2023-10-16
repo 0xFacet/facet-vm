@@ -1,0 +1,6 @@
+pragma :rubidity, "1.0.0"
+
+import '/app/models/contracts/ERC20.rubidity'
+
+contract :TestUnusedReference do
+end

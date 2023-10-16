@@ -60,29 +60,35 @@ class RubidityFile
   end
   
   def contract_asts
-    file_ast.children.select do |node|
-      next unless node.type == :block
-      
-      first_child = node.children.first
+    contract_nodes = []
     
-      first_child.type == :send && first_child.children.second == :contract
+    file_ast.children.each_with_object([]).with_index do |(node, contract_ary), index|
+      next unless node.type == :block
+  
+      first_child = node.children.first
+  
+      if first_child.type == :send && first_child.children.second == :contract
+        contract_nodes << node
+        ast = Parser::AST::Node.new(:begin, contract_nodes.dup)
+        contract_ary << ast
+      end
     end
   end
   memoize :contract_asts
+
+  def pragma_node
+    file_ast.children.first
+  end
   
-  def contract_asts_and_sources
-    contract_asts.map do |ast|
-      OpenStruct.new({
-        ast: ast,
-        source: Unparser.unparse(ast)
-      })
+  def contract_names
+    contract_asts.map{|i| i.children.last}.map do |node|
+      node.children.first.children.third.children.first
     end
   end
-  memoize :contract_asts_and_sources
-
-  def contract_names
-    contract_asts.map do |node|
-      node.children.first.children.third.children.first
+  
+  def preprocessed_contract_asts
+    contract_asts.map do |contract_ast|
+      ContractAstPreprocessor.process(contract_ast)
     end
   end
   
@@ -92,9 +98,11 @@ class RubidityFile
     end
     
     available_contracts = {}.with_indifferent_access
-    
-    contract_asts_and_sources.map do |obj|
-      new_ast = ContractAstPreprocessor.process(available_contracts.keys, obj.ast)
+
+    classes = preprocessed_contract_asts.map do |contract_ast|
+      new_ast = Parser::AST::Node.new(:begin, [pragma_node, *contract_ast.children])
+      
+      # TODO fix round trip issues
       new_source = Unparser.unparse(new_ast)
       
       contract_class = ContractBuilder.build_contract_class(
@@ -105,7 +113,7 @@ class RubidityFile
       )
       
       contract_class.instance_variable_set(:@source_code, new_source)
-      contract_class.instance_variable_set(:@file_source_code, file_source)
+      contract_class.instance_variable_set(:@creation_code, new_ast.inspect)
       contract_class.instance_variable_set(:@implementation_version, ast_hash(new_ast))
       
       if contract_class.name + ".rubidity" == normalized_filename

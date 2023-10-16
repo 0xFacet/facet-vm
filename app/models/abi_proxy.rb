@@ -27,7 +27,7 @@ class AbiProxy
   
     contract_class.linearized_parents.each do |parent|
       parent.abi.data.each do |name, func|
-        prefixed_name = "__#{parent.name.demodulize}__#{name}"
+        prefixed_name = "__#{parent.name}__#{name}"
         define_function_method(prefixed_name, func, contract_class)
       end
     end

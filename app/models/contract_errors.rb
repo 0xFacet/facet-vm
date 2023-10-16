@@ -13,7 +13,7 @@ module ContractErrors
       
       trace = !Rails.env.production? ? backtrace.join("\n") : ''
       
-      "#{contract.class.name.demodulize} error: " + super
+      "#{contract.class.name} error: " + super
     end
   end
   

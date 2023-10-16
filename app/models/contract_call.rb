@@ -77,6 +77,7 @@ class ContractCall < ApplicationRecord
   end
   
   def create_and_validate_new_contract!(to_contract_type)
+    # TODO use just implementation hash
     target_implementation = TransactionContext.contract_from_version_and_type(
       implementation_version: to_contract_implementation_version,
       type: to_contract_type,

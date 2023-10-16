@@ -2,25 +2,12 @@ require 'rails_helper'
 
 RSpec.describe ImportResolver do
   let(:initial_filename) { File.expand_path('../../fixtures/BottomLevelImporter.rubidity', __FILE__) }
-  # let(:higher_level_filename) { File.expand_path('../../fixtures/HigherLevelImporter.rubidity', __FILE__) }
-  # let(:resolver) { ImportResolver.new(initial_filename) }
+  let(:unused_reference) { File.expand_path('../../fixtures/TestUnusedReference.rubidity', __FILE__) }
 
   describe '#process_file' do
     it 'correctly processes file with imports' do
-      # Read initial file
       
-      # resolver = ImportResolver.new(initial_filename)
-      
-      # processed_ast = resolver.process_file(initial_filename)
       processed_ast = ImportResolver.process(initial_filename)
-      # processed_ast = ImportResolver.process('/Users/tom/Dropbox (Personal)/db-src/ethscriptions-vm-server/app/models/contracts/UniswapV2Pair.rubidity')
-      
-      # puts Unparser.unparse(processed_ast)
-      
-      # pp processed_ast.children.map(&:type)
-      # pp processed_ast.children.map{|i| i.children.first.children.third rescue nil}
-      
-      # binding.pry
       
       first_node = processed_ast.children.first
       expect(first_node.type).to eq(:send)
@@ -35,9 +22,9 @@ RSpec.describe ImportResolver do
       expect(pragma_count).to eq(1)
     end
     
-    it "respects import order and avoids duplicate imports" do
-      # resolver = ImportResolver.new(higher_level_filename)
-      # processed_ast = resolver.process_file(higher_level_filename)
+    it "excludes unused imports" do
+       classes = RubidityFile.new(unused_reference).contract_classes
+       expect(classes.last.source_code.split.length).to be < 20
     end
   end
 end

@@ -104,7 +104,7 @@ class Contract < ApplicationRecord
         {}
       end
       
-      json['current_state']['contract_type'] = type.demodulize
+      json['current_state']['contract_type'] = type
       
       klass = implementation.class
       

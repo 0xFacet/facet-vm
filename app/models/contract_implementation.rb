@@ -3,14 +3,14 @@ class ContractImplementation
   
   class << self
     attr_reader :name, :is_abstract_contract, :source_code, :is_main_contract, :file_source_code, :implementation_version,
-    :parent_contracts, :available_contracts
+    :parent_contracts, :available_contracts, :creation_code
     
     attr_accessor :state_variable_definitions, :events
   end
   
   delegate :block, :blockhash, :tx, :esc, :msg, :log_event,
            :current_address, to: :current_context
-  delegate :state_variable_definitions, to: :class
+  delegate :state_variable_definitions, :available_contracts, to: :class
   
   attr_reader :current_context
   
@@ -246,27 +246,26 @@ class ContractImplementation
   
   def self.calculate_new_contract_address_with_salt(salt, from_address, to_contract_type)
     from_contract = Contract.find_by!(address: from_address.to_s)
-    from_impl_version = from_contract.implementation_version
     
-    target_implementation = TransactionContext.contract_from_version_and_type(
-      implementation_version: from_impl_version,
-      type: to_contract_type,
-      include_abstract: false
-    )
-    
+    target_implementation = from_contract.implementation.available_contracts[to_contract_type]
+
     unless target_implementation.present?
       raise TransactionError.new("Invalid contract type: #{to_contract_type}")
     end
     
     salt_hex = Integer(salt, 16).to_s(16)
+    
+    if salt_hex.length != 64
+      raise TransactionError.new("Salt must be 32 bytes")
+    end
+
     padded_from = from_address.to_s[2..-1].rjust(64, "0")
     bytecode_simulation = Eth::Util.hex_to_bin(Digest::Keccak256.new.hexdigest(to_contract_type))
     
     # TODO: Turn this on when we can blow everything away
-    if false
+    if Rails.env.test?
       bytecode_simulation = Eth::Util.hex_to_bin(
-        Digest::Keccak256.new.hexdigest([to_contract_type, from_impl_version].join(":")
-        )
+        Digest::Keccak256.new.hexdigest(target_implementation.creation_code)
       )
     end
     
@@ -366,7 +365,7 @@ class ContractImplementation
         
         parent.abi.data.each do |name, _|
           proxy.define_singleton_method(name) do |*args, **kwargs|
-            contract_instance.send("__#{parent.name.demodulize}__#{name}", *args, **kwargs)
+            contract_instance.send("__#{parent.name}__#{name}", *args, **kwargs)
           end
         end
       end
@@ -378,7 +377,7 @@ class ContractImplementation
   end
 
   def this
-    handle_contract_type_cast(self.class.name.demodulize, current_address)
+    handle_contract_type_cast(self.class.name, current_address)
   end
   
   def handle_contract_type_cast(contract_type, other_address)
@@ -392,6 +391,6 @@ class ContractImplementation
   end
   
   def self.inspect
-    "#<#{name.demodulize}:#{object_id}>"
+    "#<#{name}:#{object_id}>"
   end
 end
