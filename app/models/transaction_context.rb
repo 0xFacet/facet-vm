@@ -64,11 +64,13 @@ class TransactionContext < ActiveSupport::CurrentAttributes
       contract.name == type.to_s
     end
 
+    matching_contracts.first&.implementation_version
+    
     # if matching_contracts.size == 1
-      return matching_contracts.first.implementation_version
+      # return matching_contracts.first.implementation_version
     # end
   
-    implementation_version
+    # implementation_version
   end
   
   def log_event(event)
