@@ -34,55 +34,39 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     end
   end
   
-  def main_contracts
-    contract_files.values.flatten.select(&:is_main_contract)
-  end
-  
-  def deployable_contracts
-    main_contracts.reject(&:is_abstract_contract)
-  end
-  
   def types_that_implement(base_type)
-    impl = main_contracts.detect{|i| i.name == base_type.to_s}
+    impl = contract_files.values.reject(&:is_abstract_contract).detect{|i| i.name == base_type.to_s}
     deployable_contracts.select do |contract|
       contract.implements?(impl)
     end
   end
   
-  def contract_from_version_and_type(
-    implementation_version:,
-    type:,
-    include_abstract:
-  )
-    return unless implementation_version.present?
-    
-    contract_files[implementation_version].detect do |contract|
-      contract.name == type.to_s && (include_abstract || !contract.is_abstract_contract)
-    end
-  end
-  
-  def type_valid_for_deploy?(implementation_version:, type:)
-    contract_from_version_and_type(
-      implementation_version: implementation_version,
-      type: type,
-      include_abstract: false
-    ).present?
+  def implementation_from_version(implementation_version)
+    contract_files[implementation_version]
   end
   
   def guess_implementation_version_for(type:)
-    implementation_version, _ = contract_files.find do |file_hash, contracts|
-      contracts.any? { |c| c.name == type.to_s && c.is_main_contract }
-    end
+    # implementation_version = contract_files.values.detect do |contract|
+    #   contract.name == type.to_s && contract.externally_deployable
+    # end&.implementation_version
   
-    if implementation_version.nil?
-      matching_contracts = contract_files.select do |file_hash, contracts|
-        contracts.any? { |c| c.name == type.to_s }
-      end
+    # if implementation_version.nil?
+    #   matching_contracts = contract_files.values.select do |contract|
+    #     contract.name == type.to_s
+    #   end
   
-      if matching_contracts.size == 1
-        implementation_version, _ = matching_contracts.first
-      end
+    #   if matching_contracts.size == 1
+    #     return matching_contracts.first.implementation_version
+    #   end
+    # end
+    
+    matching_contracts = contract_files.values.select do |contract|
+      contract.name == type.to_s
     end
+
+    # if matching_contracts.size == 1
+      return matching_contracts.first.implementation_version
+    # end
   
     implementation_version
   end

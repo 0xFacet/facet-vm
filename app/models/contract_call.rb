@@ -19,7 +19,7 @@ class ContractCall < ApplicationRecord
     
     ActiveRecord::Base.transaction(requires_new: true) do
       if is_create?
-        create_and_validate_new_contract!(to_contract_type)
+        create_and_validate_new_contract!
       else
         find_and_validate_existing_contract!(to_contract_address)
       end
@@ -76,30 +76,27 @@ class ContractCall < ApplicationRecord
     @to_contract_implementation_version ||= TransactionContext.guess_implementation_version_for(type: to_contract_type)
   end
   
-  def create_and_validate_new_contract!(to_contract_type)
-    # TODO use just implementation hash
-    target_implementation = TransactionContext.contract_from_version_and_type(
-      implementation_version: to_contract_implementation_version,
-      type: to_contract_type,
-      include_abstract: true
-    )
-    
+  def to_contract_implementation
+    TransactionContext.implementation_from_version(to_contract_implementation_version)
+  end
+  
+  def create_and_validate_new_contract!
     if function
       raise ContractError.new("Cannot call function on contract creation")
     end
     
-    unless target_implementation.present?
-      raise TransactionError.new("Invalid contract type: #{to_contract_type}")
+    unless to_contract_implementation.present?
+      raise TransactionError.new("Invalid contract version: #{to_contract_implementation_version}")
     end
     
-    if target_implementation.is_abstract_contract
-      raise TransactionError.new("Cannot deploy abstract contract: #{to_contract_type}")
+    if to_contract_implementation.is_abstract_contract
+      raise TransactionError.new("Cannot deploy abstract contract: #{to_contract_implementation.name}")
     end
     
     self.to_contract = Contract.create!(
       transaction_hash: TransactionContext.transaction_hash,
       address: calculate_new_contract_address,
-      type: to_contract_type,
+      type: to_contract_implementation.name,
       implementation_version: to_contract_implementation_version,
     )
     
@@ -126,7 +123,7 @@ class ContractCall < ApplicationRecord
   
   def calculate_new_contract_address_with_salt
     address = ContractImplementation.calculate_new_contract_address_with_salt(
-      salt, from_address, to_contract_type
+      salt, from_address, to_contract_implementation_version
     )
     
     if Contract.where(address: address).exists?

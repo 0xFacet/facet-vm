@@ -2,15 +2,13 @@ class ContractImplementation
   include ContractErrors
   
   class << self
-    attr_reader :name, :is_abstract_contract, :source_code, :is_main_contract, :file_source_code, :implementation_version,
-    :parent_contracts, :available_contracts, :creation_code
+    attr_reader :name, :is_abstract_contract, :source_code, :implementation_version, :parent_contracts, :available_contracts, :creation_code, :source_file
     
     attr_accessor :state_variable_definitions, :events
   end
   
   delegate :block, :blockhash, :tx, :esc, :msg, :log_event,
            :current_address, to: :current_context
-  delegate :state_variable_definitions, :available_contracts, to: :class
   
   attr_reader :current_context
   
@@ -27,7 +25,7 @@ class ContractImplementation
   end
   
   def state_proxy
-    @state_proxy ||= StateProxy.new(state_variable_definitions)
+    @state_proxy ||= StateProxy.new(self.class.state_variable_definitions)
   end
   
   def self.abi
@@ -244,15 +242,15 @@ class ContractImplementation
     end
   end
   
-  def self.calculate_new_contract_address_with_salt(salt, from_address, to_contract_type)
-    from_contract = Contract.find_by!(address: from_address.to_s)
+  def self.calculate_new_contract_address_with_salt(salt, from_address, to_contract_implementation_version)
+    target_implementation = TransactionContext.implementation_from_version(to_contract_implementation_version)
     
-    target_implementation = from_contract.implementation.available_contracts[to_contract_type]
-
     unless target_implementation.present?
-      raise TransactionError.new("Invalid contract type: #{to_contract_type}")
+      raise TransactionError.new("Invalid contract version: #{to_contract_implementation_version}")
     end
     
+    to_contract_type = target_implementation.name
+
     salt_hex = Integer(salt, 16).to_s(16)
     
     if salt_hex.length != 64
@@ -277,7 +275,9 @@ class ContractImplementation
   end
   
   def create2_address(salt:, deployer:, contract_type:)
-    self.class.calculate_new_contract_address_with_salt(salt, deployer, contract_type)
+    to_contract_implementation_version = self.class.available_contracts[contract_type].implementation_version
+    
+    self.class.calculate_new_contract_address_with_salt(salt, deployer, to_contract_implementation_version)
   end
   
   def downcast_integer(integer, target_bits)
@@ -299,28 +299,32 @@ class ContractImplementation
   end
   
   def new(contract_initializer)
-    if contract_initializer.is_a?(TypedVariable)
-      contract_initializer = if contract_initializer.type.contract?
-        {
+    if contract_initializer.is_a?(TypedVariable) && contract_initializer.type.contract?
+      contract_initializer = {
           to_contract_type: contract_initializer.contract_type,
           args: contract_initializer.uncast_address,
         }
-      end
     elsif contract_initializer.respond_to?("__proxy_name__")
       contract_initializer = {
         to_contract_type: contract_initializer.__proxy_name__
       }
     end
     
+    to_contract_type = contract_initializer.delete(:to_contract_type)
+    target_implementation = self.class.available_contracts[to_contract_type]
+    
     TransactionContext.call_stack.execute_in_new_frame(
-      **contract_initializer.merge(type: :create)
+      **contract_initializer.merge(
+        type: :create,
+        to_contract_implementation_version: target_implementation.implementation_version,
+      )
     )
     
     # TODO
     addr = TransactionContext.current_transaction.contract_calls.last.created_contract_address
     
     handle_contract_type_cast(
-      contract_initializer[:to_contract_type].to_sym,
+      to_contract_type,
       addr
     )
   end

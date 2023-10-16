@@ -20,8 +20,9 @@ class RubidityFile
       
       Array.wrap(files).each do |file|
         file = Rails.root.join(file) unless File.exist?(file)
-        obj = new(file)
-        registry[obj.ast_hash] ||= obj.contract_classes
+        new(file).contract_classes.each do |klass|
+          registry[klass.implementation_version] = klass
+        end
       end
       
       registry
@@ -113,12 +114,9 @@ class RubidityFile
       )
       
       contract_class.instance_variable_set(:@source_code, new_source)
+      contract_class.instance_variable_set(:@source_file, normalized_filename)
       contract_class.instance_variable_set(:@creation_code, new_ast.inspect)
       contract_class.instance_variable_set(:@implementation_version, ast_hash(new_ast))
-      
-      if contract_class.name + ".rubidity" == normalized_filename
-        contract_class.instance_variable_set(:@is_main_contract, true)
-      end
       
       available_contracts[contract_class.name] = contract_class
 

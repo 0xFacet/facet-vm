@@ -25,11 +25,7 @@ class Contract < ApplicationRecord
   end
   
   def implementation_class
-    TransactionContext.contract_from_version_and_type(
-      type: type,
-      implementation_version: implementation_version,
-      include_abstract: false
-    )
+    TransactionContext.implementation_from_version(implementation_version)
   end
   
   def execute_function(function_name, args)
@@ -108,7 +104,7 @@ class Contract < ApplicationRecord
       
       klass = implementation.class
       
-      json['source_code'] = klass.file_source_code
+      json['source_code'] = klass.source_code
     end
   end
   
