@@ -6,9 +6,43 @@ RSpec.describe ContractAstPreprocessor do
   def test_preprocessor(code, expected_output)
     contract_ast = Unparser.parse(code)
     ast = ContractAstPreprocessor.process(contract_ast)
-    code = Unparser.unparse(ast)
+    code = ast.unparse
     
     expect(code).to eq(expected_output)
+  end
+  
+  it "rewrites constants" do
+    code = <<~RUBY
+      contract :A do
+      end
+      contract :D do
+      end
+      contract :B, is: :D do
+        function :test do
+          B.constructor
+          A._mint
+          C.blah
+          D.fun
+        end
+      end
+    RUBY
+    
+    output = <<~RUBY
+      contract(:A) {
+      }
+      contract(:D) {
+      }
+      contract(:B, is: :D) {
+        function(:test) {
+          self.B.constructor
+          self.A._mint
+          C.blah
+          self.D.fun
+        }
+      }
+    RUBY
+    
+    test_preprocessor(code, output)
   end
   
   it "works on files" do
