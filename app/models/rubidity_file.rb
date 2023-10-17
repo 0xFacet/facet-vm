@@ -52,7 +52,7 @@ class RubidityFile
   end
   
   def file_source
-    Unparser.unparse(file_ast)
+    file_ast.unparse
   end
   memoize :file_source
   
@@ -103,8 +103,7 @@ class RubidityFile
     classes = preprocessed_contract_asts.map do |contract_ast|
       new_ast = Parser::AST::Node.new(:begin, [pragma_node, *contract_ast.children])
       
-      # TODO fix round trip issues
-      new_source = Unparser.unparse(new_ast)
+      new_source = new_ast.unparse
       
       contract_class = ContractBuilder.build_contract_class(
         available_contracts: available_contracts,

@@ -63,32 +63,33 @@ contract :GenerativeERC721, is: :ERC721 do
   end
   
   function :getHTML, { seed: :uint256 }, :public, :view, returns: :string do
-    %{<!DOCTYPE html>
-    <html>
-      <head>
-        <style>
-          body,
-          html {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            display: block;
-          }
+    <<~HTML
+      <html>
+        <head>
+          <style>
+            body,
+            html {
+              width: 100%;
+              height: 100%;
+              margin: 0;
+              padding: 0;
+              overflow: hidden;
+              display: block;
+            }
 
-          #canvas {
-            position: absolute;
-          }
-        </style>
-      </head>
-      <body>
-        <canvas id="canvas"></canvas>
-      </body>
-      <script>
-        window.SEED = #{string(seed)};
-        #{s.generativeScript}
-      </script>
-    </html>}
+            #canvas {
+              position: absolute;
+            }
+          </style>
+        </head>
+        <body>
+          <canvas id="canvas"></canvas>
+        </body>
+        <script>
+          window.SEED = #{string(seed)};
+          #{s.generativeScript}
+        </script>
+      </html>
+    HTML
   end
 end
