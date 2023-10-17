@@ -104,7 +104,7 @@ class EthscriptionSync
       
       future_ethscriptions = Integer(response['total_future_ethscriptions'])
 
-      puts "Imported #{response['blocks'].length} blocks, #{response['blocks'].sum{|i| i['ethscriptions'].length}} ethscriptions. #{future_ethscriptions} future ethscriptions remain (#{Time.current - start_time}s))"
+      puts "Imported #{response['blocks'].length} blocks, #{response['blocks'].sum{|i| i['ethscriptions'].length}} ethscriptions. #{future_ethscriptions} future ethscriptions remain (#{Time.current - start_time}s)"
       
       future_ethscriptions
     end

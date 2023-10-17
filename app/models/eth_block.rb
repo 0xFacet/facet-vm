@@ -79,7 +79,7 @@ class EthBlock < ApplicationRecord
   end
   
   def self.__pt2
-    them = JSON.parse(IO.read("ctr2.json")).index_by { |i| i['transaction_hash'] }
+    them = JSON.parse(IO.read("ct.json")).index_by { |i| i['transaction_hash'] }
     max_block = them.values.map { |i| i['block_number'] }.max
   
     us = ContractTransactionReceipt.includes(:contract_transaction).all.map(&:as_json).
@@ -102,7 +102,7 @@ class EthBlock < ApplicationRecord
         end
       end
     
-      different_values
+      different_values.to_a.map{|i| i.last['differences']}
   end
   
   def self.process_contract_actions_for_next_block_with_ethscriptions

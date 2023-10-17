@@ -86,7 +86,7 @@ class ContractCall < ApplicationRecord
     end
     
     unless to_contract_implementation.present?
-      raise TransactionError.new("Invalid contract version: #{to_contract_init_code_hash}")
+      raise TransactionError.new("Invalid contract: #{to_contract_init_code_hash || to_contract_type}")
     end
     
     if to_contract_implementation.is_abstract_contract
