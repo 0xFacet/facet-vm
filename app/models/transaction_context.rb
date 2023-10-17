@@ -30,36 +30,26 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     end
   end
   
-  def implementation_from_version(init_code_hash)
+  def contract_files=(new_files)
+    return super(new_files) unless new_files
+    
+    names = new_files.values.map(&:name)
+    
+    if names.uniq != names
+      raise "Duplicate contract names detected in contract_files"
+    end
+  
+    super(new_files)
+  end
+  
+  def implementation_from_init_code(init_code_hash)
     contract_files[init_code_hash]
   end
   
-  def guess_init_code_hash_for(type:)
-    # init_code_hash = contract_files.values.detect do |contract|
-    #   contract.name == type.to_s && contract.externally_deployable
-    # end&.init_code_hash
-  
-    # if init_code_hash.nil?
-    #   matching_contracts = contract_files.values.select do |contract|
-    #     contract.name == type.to_s
-    #   end
-  
-    #   if matching_contracts.size == 1
-    #     return matching_contracts.first.init_code_hash
-    #   end
-    # end
-    
-    matching_contracts = contract_files.values.select do |contract|
+  def implementation_from_type(type)
+    contract_files.values.detect do |contract|
       contract.name == type.to_s
     end
-
-    matching_contracts.first&.init_code_hash
-    
-    # if matching_contracts.size == 1
-      # return matching_contracts.first.init_code_hash
-    # end
-  
-    # init_code_hash
   end
   
   def log_event(event)
