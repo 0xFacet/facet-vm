@@ -109,7 +109,7 @@ class ContractsController < ApplicationController
         from: from, tx_payload: tx_payload
       )
     rescue => e
-      Airbrake.notify(e)
+      # Airbrake.notify(e)
       render json: { error: e.message }, status: 500
       return
     end
