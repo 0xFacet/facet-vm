@@ -57,7 +57,7 @@ class RubidityFile
   memoize :file_source
   
   def ast_hash(ast)
-    Digest::SHA256.hexdigest(ast.inspect).last(32)
+    Digest::Keccak256.hexdigest(ast.inspect)
   end
   
   def contract_asts

@@ -194,7 +194,7 @@ class ContractImplementation
     
     str = TypedVariable.create(:string, input)
     
-    "0x" + Digest::Keccak256.new.hexdigest(str.value)
+    "0x" + Digest::Keccak256.hexdigest(str.value)
   end
   
   protected
@@ -258,18 +258,16 @@ class ContractImplementation
     end
 
     padded_from = from_address.to_s[2..-1].rjust(64, "0")
-    bytecode_simulation = Eth::Util.hex_to_bin(Digest::Keccak256.new.hexdigest(to_contract_type))
+    bytecode_simulation = Digest::Keccak256.bindigest(to_contract_type)
     
     # TODO: Turn this on when we can blow everything away
     if Rails.env.test?
-      bytecode_simulation = Eth::Util.hex_to_bin(
-        Digest::Keccak256.new.hexdigest(target_implementation.creation_code)
-      )
+      bytecode_simulation = Digest::Keccak256.bindigest(target_implementation.creation_code)
     end
     
-    data = "0xff" + padded_from + salt_hex + Digest::Keccak256.new.hexdigest(bytecode_simulation)
+    data = "0xff" + padded_from + salt_hex + Digest::Keccak256.hexdigest(bytecode_simulation)
 
-    hash = Digest::Keccak256.new.hexdigest(Eth::Util.hex_to_bin(data))
+    hash = Digest::Keccak256.hexdigest(Eth::Util.hex_to_bin(data))
 
     "0x" + hash[24..-1]
   end

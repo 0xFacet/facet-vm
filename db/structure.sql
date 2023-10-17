@@ -355,7 +355,7 @@ CREATE TABLE public.contracts (
     latest_state jsonb DEFAULT '{}'::jsonb NOT NULL,
     implementation_version character varying NOT NULL,
     CONSTRAINT chk_rails_6d0039a684 CHECK (((address)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_90a118eccd CHECK (((implementation_version)::text ~ '^[a-f0-9]{32}$'::text)),
+    CONSTRAINT chk_rails_ad3e3c511e CHECK (((implementation_version)::text ~ '^[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_c653bcbc93 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 

@@ -116,8 +116,7 @@ class ContractCall < ApplicationRecord
     
     rlp_encoded = Eth::Rlp.encode([Integer(from_address, 16), current_nonce])
     
-    hash = Digest::Keccak256.new.hexdigest(rlp_encoded)
-    
+    hash = Digest::Keccak256.hexdigest(rlp_encoded)
     "0x" + hash[24..-1]
   end
   

@@ -3,6 +3,6 @@ class AddImplementationVersionToContracts < ActiveRecord::Migration[7.0]
     add_column :contracts, :implementation_version, :string, null: false
     add_index :contracts, :implementation_version
     
-    add_check_constraint :contracts, "implementation_version ~ '^[a-f0-9]{32}$'"
+    add_check_constraint :contracts, "implementation_version ~ '^[a-f0-9]{64}$'"
   end
 end
