@@ -73,7 +73,7 @@ class ContractCall < ApplicationRecord
   end
   
   def to_contract_init_code_hash
-    @to_contract_init_code_hash ||= TransactionContext.implementation_from_type(to_contract_type).init_code_hash
+    @to_contract_init_code_hash ||= TransactionContext.implementation_from_type(to_contract_type)&.init_code_hash
   end
   
   def to_contract_implementation
