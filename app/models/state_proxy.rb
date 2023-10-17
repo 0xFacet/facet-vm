@@ -1,11 +1,9 @@
 class StateProxy
   include ContractErrors
   
-  attr_reader :contract
   attr_reader :state_variables
   
-  def initialize(contract, definitions)
-    @contract = contract
+  def initialize(definitions)
     @state_variables = {}.with_indifferent_access
     
     definitions.each do |name, definition|

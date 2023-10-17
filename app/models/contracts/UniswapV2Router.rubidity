@@ -1,4 +1,8 @@
-class Contracts::UniswapV2Router < ContractImplementation
+pragma :rubidity, "1.0.0"
+
+import './UniswapV2Factory.rubidity'
+
+contract :UniswapV2Router do
   address :public, :factory
   address :public, :WETH
   

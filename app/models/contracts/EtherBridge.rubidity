@@ -1,8 +1,8 @@
-class Contracts::EtherBridge < ContractImplementation
-  pragma :rubidity, "1.0.0"
-  
-  is :ERC20
+pragma :rubidity, "1.0.0"
 
+import './ERC20.rubidity'
+
+contract :EtherBridge, is: :ERC20 do
   event :InitiateWithdrawal, { from: :address, amount: :uint256, withdrawalId: :bytes32 }
   event :WithdrawalComplete, { to: :address, amounts: [:uint256], withdrawalIds: [:bytes32] }
 
@@ -32,7 +32,7 @@ class Contracts::EtherBridge < ContractImplementation
   function :bridgeOut, { amount: :uint256 }, :public do
     _burn(from: msg.sender, amount: amount)
     
-    withdrawalId = TransactionContext.transaction_hash
+    withdrawalId = esc.currentTransactionHash
     
     s.pendingWithdrawalAmounts[msg.sender] += amount
     s.pendingUserWithdrawalIds[msg.sender].push(withdrawalId)

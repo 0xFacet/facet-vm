@@ -1,0 +1,6 @@
+pragma :rubidity, "1.0.0"
+
+contract :TestContractDuplicateFunction do
+  function(:_mint, { to: :address, amount: :uint256 }, :public) {}
+  function(:_mint, { to: :address, amount: :uint256 }, :public) {}
+end

@@ -1,6 +1,13 @@
-class Contracts::UniswapV2Pair < ContractImplementation
-  is :UniswapV2ERC20
-  
+pragma :rubidity, "1.0.0"
+
+import './UniswapV2Callee.rubidity'
+import './UniswapV2ERC20.rubidity'
+
+contract :IUniswapV2Factory, abstract: true do
+  function :feeTo, :external, :view, returns: :address
+end
+
+contract :UniswapV2Pair, is: :UniswapV2ERC20 do
   uint256 :public, :MINIMUM_LIQUIDITY
 
   address :public, :factory
@@ -100,7 +107,7 @@ class Contracts::UniswapV2Pair < ContractImplementation
   end
   
   function :_mintFee, { _reserve0: :uint112, _reserve1: :uint112 }, :private, returns: :bool do
-    feeTo = UniswapV2Factory(s.factory).feeTo
+    feeTo = IUniswapV2Factory(s.factory).feeTo
     feeOn = feeTo != address(0)
     _kLast = s.kLast
     

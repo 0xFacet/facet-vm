@@ -16,8 +16,6 @@ class ContractTransactionReceipt < ApplicationRecord
     error: 6
   }
   
-  before_validation :clear_logs_if_error#, :ensure_status
-  
   validate :status_or_errors_check#, :no_contract_on_deploy_error
   
   def contract
@@ -66,9 +64,5 @@ class ContractTransactionReceipt < ApplicationRecord
     if !success? && error_message.blank?
       errors.add(:base, "Status must be success or errors must be non-empty")
     end
-  end
-  
-  def clear_logs_if_error
-    self.logs = [] if !success?
   end
 end

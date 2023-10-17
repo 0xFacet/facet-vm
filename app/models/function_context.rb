@@ -16,6 +16,10 @@ class FunctionContext < BasicObject
     @args.respond_to?(name, include_private) || @contract.respond_to?(name, include_private)
   end
   
+  def require(...)
+    @contract.send(:require, ...)
+  end
+  
   def self.define_and_call_function_method(contract, args, &block)
     context = new(contract, args)
     

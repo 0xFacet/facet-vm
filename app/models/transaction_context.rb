@@ -2,7 +2,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
   attribute :call_stack, :ethscription, :current_call,
-  :transaction_hash, :transaction_index, :current_transaction
+  :transaction_hash, :transaction_index, :current_transaction, :contract_files
   
   STRUCT_DETAILS = {
     msg:    { attributes: { sender: :address } },
@@ -30,6 +30,28 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     end
   end
   
+  def contract_files=(new_files)
+    return super(new_files) unless new_files
+    
+    names = new_files.values.map(&:name)
+    
+    if names.uniq != names
+      raise "Duplicate contract names detected in contract_files"
+    end
+  
+    super(new_files)
+  end
+  
+  def implementation_from_init_code(init_code_hash)
+    contract_files[init_code_hash]
+  end
+  
+  def implementation_from_type(type)
+    contract_files.values.detect do |contract|
+      contract.name == type.to_s
+    end
+  end
+  
   def log_event(event)
     current_call.log_event(event)
   end
@@ -42,12 +64,13 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     current_call.to_contract
   end
   
-  def this
-    current_contract.implementation
+  def current_address
+    current_contract.address
   end
   
   def blockhash(input_block_number)
     unless input_block_number == block_number
+      # TODO: implement
       raise "Not implemented"
     end
     
@@ -76,6 +99,14 @@ class TransactionContext < ActiveSupport::CurrentAttributes
             "findEthscriptionById: unknown ethscription: #{id}"
           )
         end
+      end
+      
+      proxy.define_singleton_method(:currentTransactionHash) do
+        TransactionContext.transaction_hash
+      end
+      
+      proxy.define_singleton_method(:base64Encode) do |str|
+        Base64.strict_encode64(str)
       end
     end
   end

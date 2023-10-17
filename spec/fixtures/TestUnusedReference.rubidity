@@ -1,0 +1,16 @@
+pragma :rubidity, "1.0.0"
+
+contract :Dep1 do
+end
+
+contract :Dep2 do
+end
+
+contract :Random do
+end
+
+import '/app/models/contracts/ERC20.rubidity'
+import '/app/models/contracts/ERC721.rubidity'
+
+contract :TestUnusedReference, is: [:Dep1, :Dep2] do
+end

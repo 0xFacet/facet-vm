@@ -18,7 +18,7 @@ class ContractType < TypedVariable
   class Proxy
     include ContractErrors
 
-    attr_accessor :contract_type, :address, :uncast_address
+    attr_accessor :contract_type, :address, :uncast_address, :contract_interface
 
     def ==(other)
       return false unless other.is_a?(self.class)
@@ -27,27 +27,34 @@ class ContractType < TypedVariable
       other.address == address
     end
     
-    def initialize(contract_type:, address:)
+    def initialize(contract_type:, address:, contract_interface:)
       self.uncast_address = address
       address = TypedVariable.create_or_validate(:address, address).value
     
       self.contract_type = contract_type
       self.address = address
+      self.contract_interface = contract_interface
     end
     
     def method_missing(name, *args, **kwargs, &block)
+      computed_args = args.presence || kwargs
+      
+      known_function = contract_interface.public_abi[name]
+      
+      unless known_function && known_function.args.length == computed_args.length
+        raise ContractError.new("Contract doesn't implement interface: #{contract_type}, #{name}")
+      end
+      
       TransactionContext.call_stack.execute_in_new_frame(
         to_contract_address: address,
-        to_contract_type: contract_type,
         function: name,
-        args: args.presence || kwargs,
+        args: computed_args,
         type: :call
       )
     end
     
     def respond_to_missing?(name, include_private = false)
-      # It would be annoying to compute this and I don't think we need it
-      super
-    end
+      !!contract_interface.public_abi[name] || super
+    end    
   end
 end

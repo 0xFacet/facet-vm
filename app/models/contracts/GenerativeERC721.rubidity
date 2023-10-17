@@ -1,6 +1,8 @@
-class Contracts::GenerativeERC721 < ContractImplementation
-  is :ERC721
-  
+pragma :rubidity, "1.0.0"
+
+import './ERC721.rubidity'
+
+contract :GenerativeERC721, is: :ERC721 do
   string :public, :generativeScript
   mapping ({ uint256: :uint256 }), :public, :tokenIdToSeed
   
@@ -49,7 +51,7 @@ class Contracts::GenerativeERC721 < ContractImplementation
     
     html = getHTML(seed: s.tokenIdToSeed[id])
     
-    html_as_base_64_data_uri = "data:text/html;base64,#{Base64.strict_encode64(html)}"
+    html_as_base_64_data_uri = "data:text/html;base64," + esc.base64Encode(html)
     
     json_data = {
       name: "#{s.name} ##{string(id)}",
@@ -61,32 +63,33 @@ class Contracts::GenerativeERC721 < ContractImplementation
   end
   
   function :getHTML, { seed: :uint256 }, :public, :view, returns: :string do
-    %{<!DOCTYPE html>
-    <html>
-      <head>
-        <style>
-          body,
-          html {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            display: block;
-          }
+    <<~HTML
+      <html>
+        <head>
+          <style>
+            body,
+            html {
+              width: 100%;
+              height: 100%;
+              margin: 0;
+              padding: 0;
+              overflow: hidden;
+              display: block;
+            }
 
-          #canvas {
-            position: absolute;
-          }
-        </style>
-      </head>
-      <body>
-        <canvas id="canvas"></canvas>
-      </body>
-      <script>
-        window.SEED = #{string(seed)};
-        #{s.generativeScript}
-      </script>
-    </html>}
+            #canvas {
+              position: absolute;
+            }
+          </style>
+        </head>
+        <body>
+          <canvas id="canvas"></canvas>
+        </body>
+        <script>
+          window.SEED = #{string(seed)};
+          #{s.generativeScript}
+        </script>
+      </html>
+    HTML
   end
 end

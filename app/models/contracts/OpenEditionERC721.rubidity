@@ -1,6 +1,8 @@
-class Contracts::OpenEditionERC721 < ContractImplementation
-  is :ERC721
-  
+pragma :rubidity, "1.0.0"
+
+import './ERC721.rubidity'
+
+contract :OpenEditionERC721, is: :ERC721 do
   string :public, :contentURI
   uint256 :public, :maxPerAddress
   uint256 :public, :totalSupply

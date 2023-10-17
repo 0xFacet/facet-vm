@@ -1,84 +1,8 @@
 require 'rails_helper'
 
 RSpec.describe AbiProxy, type: :model do
-  before do
-    unless defined?(Contracts::TestContract)
-      class Contracts::TestContract < ContractImplementation
-        is :ERC20
-        
-        string :public, :definedInTest
-
-        constructor(
-          name: :string,
-          symbol: :string,
-          decimals: :uint8
-        ) {
-          ERC20.constructor(name: name, symbol: symbol, decimals: decimals)
-        }
-        
-        function :_mint, { to: :address, amount: :uint256 }, :public, :virtual, :override do
-          s.definedInTest = "definedInTest"
-          ERC20._mint(to: to, amount: amount)
-        end
-        
-        function :nonVirtual, {}, :public do
-        end
-      end
-    end
-
-    unless defined?(Contracts::TestContractNoOverride)
-      class Contracts::TestContractNoOverride < ContractImplementation
-        is :ERC20
-        
-        constructor(
-          name: :string,
-          symbol: :string,
-          decimals: :uint8
-        ) {
-          ERC20.constructor(name: name, symbol: symbol, decimals: decimals)
-        }
-      end
-    end
-    
-    unless defined?(Contracts::TestContractMultipleInheritance)
-      class Contracts::NonToken < ContractImplementation
-        string :public, :definedInNonToken
-        
-        constructor() {}
-        
-        event :Greet, { greeting: :string }
-        
-        function :_mint, { to: :address, amount: :uint256 }, :public, :virtual do
-          s.definedInNonToken = "definedInNonToken"
-          emit :Greet, greeting: "Hello"
-        end
-      end
-    end
-    
-    unless defined?(Contracts::TestContractMultipleInheritance)
-      class Contracts::TestContractMultipleInheritance < ContractImplementation
-        is :TestContract, :NonToken
-        
-        string :public, :definedHere
-  
-        constructor(
-          name: :string,
-          symbol: :string,
-          decimals: :uint8
-        ) {
-          TestContract.constructor(name: name, symbol: symbol, decimals: decimals)
-          NonToken.constructor()
-          
-          s.definedHere = "definedHere"
-        }
-  
-        function :_mint, { to: :address, amount: :uint256 }, :public, :override do
-          TestContract._mint(to: to, amount: amount)
-          NonToken._mint(to: to, amount: amount)
-          ERC20._mint(to: to, amount: amount)
-        end
-      end
-    end
+  before(:all) do
+    RubidityFile.add_to_registry('spec/fixtures/TestContract.rubidity')
   end
   
   it "won't deploy abstract contract" do
@@ -192,43 +116,25 @@ RSpec.describe AbiProxy, type: :model do
   
   it "raises an error when declaring override without overriding anything" do
     expect {
-      class Contracts::TestContractOverrideNonVirtual < ContractImplementation
-        function :_mint, {}, :public, :override do
-        end
-      end
+      RubidityFile.add_to_registry('spec/fixtures/TestContractOverrideNonVirtual2.rubidity')
     }.to raise_error(ContractErrors::InvalidOverrideError)
   end
   
   it "raises an error when trying to override a non-virtual function" do
     expect {
-      class Contracts::TestContractOverrideNonVirtual < ContractImplementation
-        is :TestContract
-  
-        function :nonVirtual, {}, :public, :override do
-          ERC20._mint(to: to, amount: amount)
-        end
-      end
+      RubidityFile.add_to_registry('spec/fixtures/TestContractOverrideNonVirtual.rubidity')
     }.to raise_error(ContractErrors::InvalidOverrideError)
   end
   
   it "raises an error when trying to override a virtual function without the override modifier" do
     expect {
-      class Contracts::TestContractOverrideWithoutModifier < ContractImplementation
-        is :TestContract
-  
-        function :_mint, { to: :address, amount: :uint256 }, :public do
-          _TestContract._mint(to: to, amount: amount)
-        end
-      end
+      RubidityFile.add_to_registry('spec/fixtures/TestContractOverrideWithoutModifier.rubidity')
     }.to raise_error(ContractErrors::InvalidOverrideError)
   end
   
   it "raises an error when defining the same function twice in a contract" do
     expect {
-      class Contracts::TestContractDuplicateFunction < ContractImplementation
-        function(:_mint, { to: :address, amount: :uint256 }, :public) {}
-        function(:_mint, { to: :address, amount: :uint256 }, :public) {}
-      end
+      RubidityFile.add_to_registry('spec/fixtures/TestContractDuplicateFunction.rubidity')
     }.to raise_error(ContractErrors::FunctionAlreadyDefinedError)
   end
 end

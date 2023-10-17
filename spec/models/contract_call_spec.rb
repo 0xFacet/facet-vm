@@ -1,24 +1,10 @@
 require 'rails_helper'
 
-class Contracts::StubERC20B < ContractImplementation
-  is :ERC20
-  
-  uint256 :public, :unsafeReadOnlyCounter
-  
-  constructor() {
-    ERC20.constructor(name: "name", symbol: "symbol", decimals: 18)
-  }
-  
-  function :unsafeReadOnly, :public, :view do
-    s.unsafeReadOnlyCounter += 1
-  end
-  
-  function :callOwnUnsafeReadOnly, :public do
-    unsafeReadOnly()
-  end
-end
-
 RSpec.describe ContractCall, type: :model do
+  before(:all) do
+    RubidityFile.add_to_registry('spec/fixtures/StubERC20B.rubidity')
+  end
+  
   let(:from_address) { '0xc2172a6315c1d7f6855768f843c420ebb36eda97' }
 
   it 'calculates eoa_nonce correctly' do

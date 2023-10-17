@@ -22,6 +22,10 @@ class ContractTransaction < ApplicationRecord
     return unless ENV.fetch('ETHEREUM_NETWORK') == "eth-goerli" || Rails.env.development?
     
     ContractTransaction.transaction do
+      if ethscription.contract_actions_processed_at.present?
+        raise "ContractTransaction already created for #{ethscription.inspect}"
+      end
+      
       new_from_ethscription(ethscription).execute_transaction
     
       end_time = Time.current
@@ -59,6 +63,7 @@ class ContractTransaction < ApplicationRecord
       
       initial_call_info: {
         to_contract_type: data['type'],
+        to_contract_init_code_hash: data['init_code_hash'],
         to_contract_address: payload['to']&.downcase,
         function: data['function'],
         args: data['args'],
@@ -161,6 +166,7 @@ class ContractTransaction < ApplicationRecord
   
   def with_global_context
     TransactionContext.set(
+      contract_files: RubidityFile.registry,
       call_stack: CallStack.new,
       current_transaction: self,
       tx_origin: tx_origin,
@@ -169,7 +175,7 @@ class ContractTransaction < ApplicationRecord
       block_blockhash: block_blockhash,
       transaction_hash: transaction_hash,
       transaction_index: transaction_index,
-      ethscription: ethscription
+      ethscription: ethscription # TODO: Do we need this?
     ) do
       yield
     end
@@ -186,6 +192,7 @@ class ContractTransaction < ApplicationRecord
   def execute_transaction
     return unless mimetype_and_to_valid?
     
+    # TODO: this should be a transaction?
     begin
       make_initial_call
     rescue ContractError, TransactionError => e

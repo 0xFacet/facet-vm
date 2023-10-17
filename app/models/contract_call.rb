@@ -4,7 +4,7 @@ class ContractCall < ApplicationRecord
   enum :call_type, [ :call, :static_call, :create ], prefix: :is
   enum :status, [ :failure, :success ]
   
-  attr_accessor :to_contract, :salt, :pending_logs
+  attr_accessor :to_contract, :salt, :pending_logs, :to_contract_init_code_hash
   
   belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true, inverse_of: :contract_calls
@@ -19,7 +19,7 @@ class ContractCall < ApplicationRecord
     
     ActiveRecord::Base.transaction(requires_new: true) do
       if is_create?
-        create_and_validate_new_contract!(to_contract_type)
+        create_and_validate_new_contract!
       else
         find_and_validate_existing_contract!(to_contract_address)
       end
@@ -59,10 +59,6 @@ class ContractCall < ApplicationRecord
       raise CallingNonExistentContractError.new("Contract not found: #{to_contract_address}")
     end
     
-    if to_contract_type && !to_contract.implements?(to_contract_type.to_s)
-      raise ContractError.new("Contract doesn't implement interface: #{to_contract_address}, #{to_contract_type}", to_contract)
-    end
-      
     if !function_object
       raise ContractError.new("Call to unknown function #{function}", to_contract)
     end
@@ -76,23 +72,32 @@ class ContractCall < ApplicationRecord
     end
   end
   
-  def create_and_validate_new_contract!(to_contract_type)
+  def to_contract_init_code_hash
+    @to_contract_init_code_hash ||= TransactionContext.implementation_from_type(to_contract_type)&.init_code_hash
+  end
+  
+  def to_contract_implementation
+    TransactionContext.implementation_from_init_code(to_contract_init_code_hash)
+  end
+  
+  def create_and_validate_new_contract!
     if function
       raise ContractError.new("Cannot call function on contract creation")
     end
     
-    unless Contract.type_valid?(to_contract_type)
-      raise TransactionError.new("Invalid contract type: #{to_contract_type}")
+    unless to_contract_implementation.present?
+      raise TransactionError.new("Invalid contract: #{to_contract_init_code_hash || to_contract_type}")
     end
     
-    if Contract.type_abstract?(to_contract_type)
-      raise TransactionError.new("Cannot deploy abstract contract: #{to_contract_type}")
+    if to_contract_implementation.is_abstract_contract
+      raise TransactionError.new("Cannot deploy abstract contract: #{to_contract_implementation.name}")
     end
     
     self.to_contract = Contract.create!(
       transaction_hash: TransactionContext.transaction_hash,
       address: calculate_new_contract_address,
-      type: to_contract_type,
+      type: to_contract_implementation.name,
+      init_code_hash: to_contract_init_code_hash,
     )
     
     self.function = :constructor
@@ -111,14 +116,13 @@ class ContractCall < ApplicationRecord
     
     rlp_encoded = Eth::Rlp.encode([Integer(from_address, 16), current_nonce])
     
-    hash = Digest::Keccak256.new.hexdigest(rlp_encoded)
-    
+    hash = Digest::Keccak256.hexdigest(rlp_encoded)
     "0x" + hash[24..-1]
   end
   
   def calculate_new_contract_address_with_salt
     address = ContractImplementation.calculate_new_contract_address_with_salt(
-      salt, from_address, to_contract_type
+      salt, from_address, to_contract_init_code_hash
     )
     
     if Contract.where(address: address).exists?

@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe Contracts::UniswapV2Factory, type: :model do
+RSpec.describe "UniswapV2Factory", type: :model do
   it 'creates a new pair successfully' do
     factory_deploy_receipt = trigger_contract_interaction_and_expect_success(
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",

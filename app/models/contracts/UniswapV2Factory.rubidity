@@ -1,4 +1,8 @@
-class Contracts::UniswapV2Factory < ContractImplementation
+pragma :rubidity, "1.0.0"
+
+import './UniswapV2Pair.rubidity'
+
+contract :UniswapV2Factory do
   address :public, :feeTo
   address :public, :feeToSetter
 

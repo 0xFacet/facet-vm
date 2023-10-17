@@ -12,10 +12,6 @@ class AbiProxy
     merge_parent_events
   end
   
-  def parent_contracts
-    contract_class.parent_contracts
-  end
-  
   def merge_parent_events
     parent_events = contract_class.linearized_parents.map(&:events).reverse
     contract_class.events = parent_events.reduce({}, :merge).merge(contract_class.events)
@@ -31,28 +27,8 @@ class AbiProxy
   
     contract_class.linearized_parents.each do |parent|
       parent.abi.data.each do |name, func|
-        prefixed_name = "__#{parent.name.demodulize}__#{name}"
+        prefixed_name = "__#{parent.name}__#{name}"
         define_function_method(prefixed_name, func, contract_class)
-      end
-  
-      contract_class.class_eval do
-        method_name = parent.name.demodulize.to_sym
-        old_method = instance_method(method_name) if method_defined?(method_name)
-        
-        define_method(method_name) do |*args|
-          if args.present? && old_method
-            return old_method.bind(self).call(*args)
-          end
-          
-          contract_instance = self
-          Object.new.tap do |proxy|
-            parent.abi.data.each do |name, _|
-              proxy.define_singleton_method(name) do |*args, **kwargs|
-                contract_instance.send("__#{parent.name.demodulize}__#{name}", *args, **kwargs)
-              end
-            end
-          end
-        end
       end
     end
     
@@ -163,7 +139,7 @@ class AbiProxy
     end
     
     def func_location
-      implementation.to_s.gsub(%r(.*/app/models/contracts/), '').chop
+      implementation.source_location.join(":")
     end
     
     def validate_arg_names(other_args)

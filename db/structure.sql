@@ -353,6 +353,8 @@ CREATE TABLE public.contracts (
     updated_at timestamp(6) without time zone NOT NULL,
     address character varying NOT NULL,
     latest_state jsonb DEFAULT '{}'::jsonb NOT NULL,
+    init_code_hash character varying NOT NULL,
+    CONSTRAINT chk_rails_566d6d0fef CHECK (((init_code_hash)::text ~ '^[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_6d0039a684 CHECK (((address)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_c653bcbc93 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
@@ -708,6 +710,13 @@ CREATE UNIQUE INDEX index_contract_transaction_receipts_on_transaction_hash ON p
 
 
 --
+-- Name: index_contract_transaction_receipts_on_tx_hash_and_created_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contract_transaction_receipts_on_tx_hash_and_created_at ON public.contract_transaction_receipts USING btree (transaction_hash, created_at);
+
+
+--
 -- Name: index_contract_transactions_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -726,6 +735,13 @@ CREATE UNIQUE INDEX index_contract_txs_on_block_number_and_tx_index ON public.co
 --
 
 CREATE UNIQUE INDEX index_contracts_on_address ON public.contracts USING btree (address);
+
+
+--
+-- Name: index_contracts_on_init_code_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contracts_on_init_code_hash ON public.contracts USING btree (init_code_hash);
 
 
 --
@@ -944,6 +960,8 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20230927152725'),
 ('20230928185853'),
 ('20231001152142'),
-('20231010142505');
+('20231010142505'),
+('20231014154537'),
+('20231015132041');
 
 

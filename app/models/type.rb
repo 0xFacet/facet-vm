@@ -7,7 +7,7 @@ class Type
     ["uint#{num}", "int#{num}"]
    end.map(&:to_sym)
   
-  TYPES = [:string, :mapping, :address, :ethscriptionId, :bytes32,
+  TYPES = [:string, :mapping, :address, :ethscriptionId, :bytes32, :contract,
           :bool, :address, :uint256, :int256, :array, :datetime, :bytes] + INTEGER_TYPES
   
   TYPES.each do |type|
@@ -77,7 +77,7 @@ class Type
       return extract_integer_bits >= other_type.extract_integer_bits
     end
     
-    if address? && other_type.is_contract_type?
+    if address? && other_type.contract?
       return true
     end
 
@@ -94,7 +94,7 @@ class Type
   end
   
   def metadata
-    { key_type: key_type, value_type: value_type, initial_length: initial_length }
+    (@metadata ||= {}).with_indifferent_access
   end
   
   def to_s
@@ -119,8 +119,8 @@ class Type
       MappingType::Proxy.new(key_type: key_type, value_type: value_type)
     when array?
       ArrayType::Proxy.new(value_type: value_type, initial_length: initial_length)
-    when is_contract_type?
-      ContractType::Proxy.new(contract_type: name, address: nil, caller_address: nil)
+    when contract?
+      ContractType::Proxy.new(interface: metadata[:interface], address: nil)
     else
       raise "Unknown default value for #{self.inspect}"
     end
@@ -248,7 +248,7 @@ class Type
       proxy = ArrayType::Proxy.new(data, value_type: value_type, initial_length: initial_length)
       
       return proxy
-    elsif is_contract_type?
+    elsif contract?
       if literal.is_a?(ContractType::Proxy)
         return literal
       else
@@ -293,9 +293,5 @@ class Type
   
   def is_value_type?
     !mapping? && !array?
-  end
-  
-  def is_contract_type?
-    ContractImplementation.valid_contract_types.include?(name)
   end
 end
