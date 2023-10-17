@@ -28,6 +28,14 @@ class Contract < ApplicationRecord
     TransactionContext.implementation_from_version(implementation_version)
   end
   
+  def self.types_that_implement(base_type)
+    impl = RubidityFile.registry.values.detect{|i| i.name == base_type.to_s}
+    
+    RubidityFile.registry.values.reject(&:is_abstract_contract).select do |contract|
+      contract.implements?(impl)
+    end
+  end
+  
   def execute_function(function_name, args)
     with_state_management do
       if args.is_a?(Hash)
@@ -69,12 +77,13 @@ class Contract < ApplicationRecord
     end
   end
   
+  def self.deployable_contracts
+    RubidityFile.registry.values.reject(&:is_abstract_contract)
+  end
+  
   def self.all_abis(deployable_only: false)
-    contract_classes = if deployable_only
-      TransactionContext.deployable_contracts
-    else
-      TransactionContext.main_contracts
-    end
+    contract_classes = RubidityFile.registry.values.dup
+    contract_classes.reject!(&:is_abstract_contract) if deployable_only
     
     contract_classes.each_with_object({}) do |contract_class, hash|
       hash[contract_class.name] = contract_class.public_abi

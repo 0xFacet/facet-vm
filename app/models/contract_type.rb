@@ -47,7 +47,6 @@ class ContractType < TypedVariable
       
       TransactionContext.call_stack.execute_in_new_frame(
         to_contract_address: address,
-        to_contract_type: contract_type,
         function: name,
         args: computed_args,
         type: :call

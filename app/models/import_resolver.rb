@@ -27,12 +27,6 @@ class ImportResolver
       ast.updated(nil, new_kids, nil)
     end
     memoize :process
-    
-    def parse_code_in_file(filename)
-      code = IO.read(filename)
-      Unparser.parse(code)
-    end
-    memoize :parse_code_in_file
   end
   
   def compute_path(filename)
@@ -56,7 +50,8 @@ class ImportResolver
 
   def process_file(filename)
     filename = compute_path(filename)
-    ast = self.class.parse_code_in_file(filename)
+    code = IO.read(filename)
+    ast = Unparser.parse(code)
     
     if @import_stack.include?(filename)
       raise "Circular dependency detected: #{@import_stack.join(' -> ')} -> #{filename}"

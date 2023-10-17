@@ -4,10 +4,6 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   attribute :call_stack, :ethscription, :current_call,
   :transaction_hash, :transaction_index, :current_transaction, :contract_files
   
-  def contract_files
-    @contract_files ||= RubidityFile.registry
-  end
-  
   STRUCT_DETAILS = {
     msg:    { attributes: { sender: :address } },
     tx:     { attributes: { origin: :address } },
@@ -31,13 +27,6 @@ class TransactionContext < ActiveSupport::CurrentAttributes
       struct_values = struct_params.map { |key| send("#{struct_name}_#{key}") }
     
       Struct.new(*struct_params).new(*struct_values)
-    end
-  end
-  
-  def types_that_implement(base_type)
-    impl = contract_files.values.reject(&:is_abstract_contract).detect{|i| i.name == base_type.to_s}
-    deployable_contracts.select do |contract|
-      contract.implements?(impl)
     end
   end
   
@@ -82,7 +71,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def current_contract
-    current_call&.to_contract
+    current_call.to_contract
   end
   
   def current_address

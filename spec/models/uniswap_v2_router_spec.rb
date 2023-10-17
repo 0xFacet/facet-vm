@@ -20,7 +20,7 @@ describe 'UniswapV2Router contract' do
         to: nil,
         data: {
           # type: "UniswapSetupZapV2"
-          implementation_version: "a01d1eb2185e3f786e799328687693a9"
+          implementation_version: "5b9b24ae8e28dadbc652ff6d00ca57da"
         }
       }
     )

@@ -3,8 +3,6 @@ pragma :rubidity, "1.0.0"
 import './ERC20.rubidity'
 
 contract :PublicMintERC20, is: :ERC20 do
-
-  
   uint256 :public, :maxSupply
   uint256 :public, :perMintLimit
   
