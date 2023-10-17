@@ -7,7 +7,7 @@ class ContractImplementation
     attr_accessor :state_variable_definitions, :events
   end
   
-  delegate :block, :blockhash, :tx, :esc, :msg, :log_event,
+  delegate :block, :blockhash, :tx, :esc, :msg, :log_event, :call_stack,
            :current_address, to: :current_context
   
   attr_reader :current_context
@@ -298,9 +298,9 @@ class ContractImplementation
   def new(contract_initializer)
     if contract_initializer.is_a?(TypedVariable) && contract_initializer.type.contract?
       contract_initializer = {
-          to_contract_type: contract_initializer.contract_type,
-          args: contract_initializer.uncast_address,
-        }
+        to_contract_type: contract_initializer.contract_type,
+        args: contract_initializer.uncast_address,
+      }
     elsif contract_initializer.respond_to?("__proxy_name__")
       contract_initializer = {
         to_contract_type: contract_initializer.__proxy_name__
@@ -310,7 +310,7 @@ class ContractImplementation
     to_contract_type = contract_initializer.delete(:to_contract_type)
     target_implementation = self.class.available_contracts[to_contract_type]
     
-    TransactionContext.call_stack.execute_in_new_frame(
+    call_stack.execute_in_new_frame(
       **contract_initializer.merge(
         type: :create,
         to_contract_init_code_hash: target_implementation.init_code_hash,
@@ -335,7 +335,7 @@ class ContractImplementation
     end
     
     input_args = args.select { |arg| !arg.is_a?(Hash) }
-    options = args.detect { |arg| arg.is_a?(Hash) } || {}
+    options = args.reverse.detect { |arg| arg.is_a?(Hash) } || {}
     
     input_salt = options[:salt]
     
@@ -351,22 +351,22 @@ class ContractImplementation
       raise NoMethodError.new("undefined method `#{method_name}' for #{self.class.name}", method_name)
     end
     
-    if args.many? || (args.blank? && kwargs.present?) || args.last.is_a?(Hash) || (args.one? && args.first.is_a?(Hash))
+    if args.many? || (args.blank? && kwargs.present?) || (args.one? && args.first.is_a?(Hash))
       create_contract_initializer(method_name, args.presence || kwargs)
     elsif args.one?
       handle_contract_type_cast(method_name, args.first)
     else
       contract_instance = self
-      parent = self.class.available_contracts[method_name]
+      potential_parent = self.class.available_contracts[method_name]
       
       Object.new.tap do |proxy|
         proxy.define_singleton_method("__proxy_name__") do
           method_name
         end
         
-        parent.abi.data.each do |name, _|
+        potential_parent.abi.data.each do |name, _|
           proxy.define_singleton_method(name) do |*args, **kwargs|
-            contract_instance.send("__#{parent.name}__#{name}", *args, **kwargs)
+            contract_instance.send("__#{potential_parent.name}__#{name}", *args, **kwargs)
           end
         end
       end
