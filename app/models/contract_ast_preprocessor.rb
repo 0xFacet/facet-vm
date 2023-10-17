@@ -17,7 +17,6 @@ class ContractAstPreprocessor
   
   def initialize
     @available_contracts = []
-    
     @contracts_referenced_by = {}.with_indifferent_access
   end
   
@@ -55,22 +54,7 @@ class ContractAstPreprocessor
   end
   
   def self.get_contract_ast(ast, contract_name)
-    return nil unless ast.is_a?(Parser::AST::Node)
-  
-    if ast.type == :block
-      first_child = ast.children.first
-      if first_child.type == :send && first_child.children.second == :contract &&
-        first_child.children[2].children.last.to_s == contract_name.to_s
-        return ast
-      end
-    end
-  
-    ast.children.each do |child|
-      result = get_contract_ast(child, contract_name)
-      return result if result
-    end
-  
-    nil
+    return find_matched_contracts(ast, [contract_name]).first
   end
 
   def on_send(node)
@@ -92,51 +76,95 @@ class ContractAstPreprocessor
   def post_process_references(ast)
     @available_contracts.each do |contract_name|
       @contracts_referenced_by[contract_name] = Set.new
-      @contracts_referenced_by[contract_name] << contract_name # a contract always references itself
     end
 
     @available_contracts.each do |contract_name|
       contract_ast = self.class.get_contract_ast(ast, contract_name)
       traverse_for_references(contract_ast, @contracts_referenced_by[contract_name])
     end
-    
+  
+    remaining_contracts = @available_contracts.dup
     to_remove = []
   
-    @available_contracts.each.with_index do |contract_name, index|
-      later_contracts = @available_contracts.drop(index + 1)
-      
-      is_referenced_by_later_contract = later_contracts.any? do |later_contract|
-        @contracts_referenced_by[later_contract].include?(contract_name)
+    loop do
+      to_remove.clear
+  
+      remaining_contracts.each.with_index do |contract_name, index|
+        later_contracts = remaining_contracts.drop(index + 1)
+  
+        is_referenced_by_later_contract = later_contracts.any? do |later_contract|
+          @contracts_referenced_by[later_contract].include?(contract_name)
+        end
+  
+        unless remaining_contracts.last == contract_name || is_referenced_by_later_contract
+          to_remove << contract_name
+        end
       end
       
-      unless @available_contracts.last == contract_name || is_referenced_by_later_contract
-        to_remove << contract_name
+      break if to_remove.empty?
+  
+      remaining_contracts -= to_remove
+    end
+    
+    sorted = topological_sort(remaining_contracts)
+    final = self.class.find_matched_contracts(ast, sorted)
+    
+    s(:begin, *final)
+  end
+  
+  def topological_sort(contracts)
+    visited = {}
+    stack = []
+    
+    contracts.sort.each do |contract|
+      visit(contract, visited, stack, contracts)
+    end
+    
+    stack
+  end
+  
+  def visit(contract, visited, stack, contracts)
+    return if visited[contract]
+    
+    visited[contract] = true
+  
+    if @contracts_referenced_by[contract]
+      sorted_deps = @contracts_referenced_by[contract].to_a.sort
+      sorted_deps.each do |dep|
+        if !contracts.include?(dep)
+          raise "Contract #{contract} references missing contract #{dep}"
+        end
+        visit(dep, visited, stack, contracts)
       end
     end
     
-    s(:begin, *find_unmatched_contracts(ast, to_remove))
+    stack.push(contract)
   end
   
-  def find_unmatched_contracts(ast, names)
+  def self.find_matched_contracts(ast, names)
     return [] unless ast.is_a?(Parser::AST::Node)
   
-    unmatched_contracts = []
+    matched_contracts = []
   
     if ast.type == :block
       first_child = ast.children.first
       if first_child.type == :send && first_child.children.second == :contract
         contract_name = first_child.children[2].children.last
-        unless names.include?(contract_name)
-          unmatched_contracts << ast
+        if names.include?(contract_name)
+          matched_contracts << ast
         end
       end
     end
   
     ast.children.each do |child|
-      unmatched_contracts.concat(find_unmatched_contracts(child, names))
+      matched_contracts.concat(find_matched_contracts(child, names))
     end
   
-    unmatched_contracts
+    matched_contracts.sort_by do |node|
+      first_child = node.children.first
+      contract_name = first_child.children[2].children.last
+      names.index(contract_name)
+    end
   end
   
   def traverse_for_references(ast, referenced_contracts_set)
@@ -152,7 +180,11 @@ class ContractAstPreprocessor
         
         return unless is
         
-        referenced_contracts_set.merge(is.children.second.children)
+        is_els = is.children.second.children.map do |el|
+          el.respond_to?(:children) ? el.children : el
+        end.flatten
+              
+        referenced_contracts_set.merge(is_els)
       end
       
       receiver, method_name, *args = *ast

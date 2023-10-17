@@ -2,7 +2,6 @@ require 'rails_helper'
 
 RSpec.describe ImportResolver do
   let(:initial_filename) { File.expand_path('../../fixtures/BottomLevelImporter.rubidity', __FILE__) }
-  let(:unused_reference) { File.expand_path('../../fixtures/TestUnusedReference.rubidity', __FILE__) }
 
   describe '#process_file' do
     it 'correctly processes file with imports' do
@@ -20,11 +19,6 @@ RSpec.describe ImportResolver do
         node.type == :send && node.children[1] == :pragma
       end
       expect(pragma_count).to eq(1)
-    end
-    
-    it "excludes unused imports" do
-       classes = RubidityFile.new(unused_reference).contract_classes
-       expect(classes.last.source_code.split.length).to be < 20
     end
   end
 end

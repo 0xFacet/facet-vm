@@ -19,7 +19,8 @@ describe 'UniswapV2Router contract' do
       payload: {
         to: nil,
         data: {
-          implementation_version: "8f4e54099f4281a42c619bc49544b436"
+          # type: "UniswapSetupZapV2"
+          implementation_version: "a01d1eb2185e3f786e799328687693a9"
         }
       }
     )
