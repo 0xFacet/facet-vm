@@ -43,6 +43,8 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def implementation_from_init_code(init_code_hash)
+    return unless contract_files.present?
+    
     contract_files[init_code_hash]
   end
   
