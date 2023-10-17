@@ -2,6 +2,7 @@ require 'rails_helper'
 
 RSpec.describe ContractAstPreprocessor do
   let(:unused_reference) { File.expand_path('../../fixtures/TestUnusedReference.rubidity', __FILE__) }
+  let(:dupe_contract) { File.expand_path('../../fixtures/TestDuplicateContract.rubidity', __FILE__) }
   
   def test_preprocessor(code, expected_output)
     contract_ast = Unparser.parse(code)
@@ -9,6 +10,10 @@ RSpec.describe ContractAstPreprocessor do
     code = ast.unparse
     
     expect(code).to eq(expected_output)
+  end
+  
+  it "disallows duplicate contract names" do
+    expect { RubidityFile.new(dupe_contract).contract_classes }.to raise_error(/Duplicate contract names.*/)
   end
   
   it "rewrites constants" do

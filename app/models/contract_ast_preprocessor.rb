@@ -183,7 +183,7 @@ class ContractAstPreprocessor
         is_els = is.children.second.children.map do |el|
           el.respond_to?(:children) ? el.children : el
         end.flatten
-              
+        
         referenced_contracts_set.merge(is_els)
       end
       

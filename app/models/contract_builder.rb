@@ -30,10 +30,6 @@ class ContractBuilder < BasicObject
         @parent_contracts << parent
       end
       
-      unless @parent_contracts == @parent_contracts.uniq
-        raise "Duplicate parent contracts."
-      end
-      
       @is_abstract_contract = abstract
       @name = name.to_s
       @available_contracts = available_contracts.merge(@name => self)
