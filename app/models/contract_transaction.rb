@@ -63,7 +63,7 @@ class ContractTransaction < ApplicationRecord
       
       initial_call_info: {
         to_contract_type: data['type'],
-        to_contract_implementation_version: data['implementation_version'],
+        to_contract_init_code_hash: data['init_code_hash'],
         to_contract_address: payload['to']&.downcase,
         function: data['function'],
         args: data['args'],

@@ -36,7 +36,7 @@ RSpec.describe Contract, type: :model do
     @contract = Contract.create!(
       transaction_hash: @ethscription.ethscription_id,
       type: 'SomeType',
-      implementation_version: SecureRandom.hex(32),
+      init_code_hash: SecureRandom.hex(32),
       created_at: Time.now,
       updated_at: Time.now,
       address: '0x' + SecureRandom.hex(20),

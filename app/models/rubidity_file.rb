@@ -21,7 +21,7 @@ class RubidityFile
       Array.wrap(files).each do |file|
         file = Rails.root.join(file) unless File.exist?(file)
         new(file).contract_classes.each do |klass|
-          registry[klass.implementation_version] = klass
+          registry[klass.init_code_hash] = klass
         end
       end
       
@@ -55,10 +55,6 @@ class RubidityFile
     file_ast.unparse
   end
   memoize :file_source
-  
-  def ast_hash(ast)
-    Digest::Keccak256.hexdigest(ast.inspect)
-  end
   
   def contract_asts
     contract_nodes = []
@@ -114,8 +110,9 @@ class RubidityFile
       
       contract_class.instance_variable_set(:@source_code, new_source)
       contract_class.instance_variable_set(:@source_file, normalized_filename)
-      contract_class.instance_variable_set(:@creation_code, new_ast.inspect)
-      contract_class.instance_variable_set(:@implementation_version, ast_hash(new_ast))
+      
+      init_code_hash = Digest::Keccak256.hexdigest(new_ast.inspect)
+      contract_class.instance_variable_set(:@init_code_hash, init_code_hash)
       
       available_contracts[contract_class.name] = contract_class
 

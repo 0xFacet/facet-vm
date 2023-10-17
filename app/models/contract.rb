@@ -25,7 +25,7 @@ class Contract < ApplicationRecord
   end
   
   def implementation_class
-    TransactionContext.implementation_from_version(implementation_version)
+    TransactionContext.implementation_from_version(init_code_hash)
   end
   
   def self.types_that_implement(base_type)

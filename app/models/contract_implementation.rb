@@ -2,7 +2,7 @@ class ContractImplementation
   include ContractErrors
   
   class << self
-    attr_reader :name, :is_abstract_contract, :source_code, :implementation_version, :parent_contracts, :available_contracts, :creation_code, :source_file
+    attr_reader :name, :is_abstract_contract, :source_code, :init_code_hash, :parent_contracts, :available_contracts,:source_file
     
     attr_accessor :state_variable_definitions, :events
   end
@@ -242,11 +242,11 @@ class ContractImplementation
     end
   end
   
-  def self.calculate_new_contract_address_with_salt(salt, from_address, to_contract_implementation_version)
-    target_implementation = TransactionContext.implementation_from_version(to_contract_implementation_version)
+  def self.calculate_new_contract_address_with_salt(salt, from_address, to_contract_init_code_hash)
+    target_implementation = TransactionContext.implementation_from_version(to_contract_init_code_hash)
     
     unless target_implementation.present?
-      raise TransactionError.new("Invalid contract version: #{to_contract_implementation_version}")
+      raise TransactionError.new("Invalid contract version: #{to_contract_init_code_hash}")
     end
     
     to_contract_type = target_implementation.name
@@ -258,14 +258,13 @@ class ContractImplementation
     end
 
     padded_from = from_address.to_s[2..-1].rjust(64, "0")
-    bytecode_simulation = Digest::Keccak256.bindigest(to_contract_type)
     
     # TODO: Turn this on when we can blow everything away
-    if Rails.env.test?
-      bytecode_simulation = Digest::Keccak256.bindigest(target_implementation.creation_code)
+    unless Rails.env.test?
+      to_contract_init_code_hash = Digest::Keccak256.hexdigest(Digest::Keccak256.bindigest(to_contract_type))
     end
     
-    data = "0xff" + padded_from + salt_hex + Digest::Keccak256.hexdigest(bytecode_simulation)
+    data = "0xff" + padded_from + salt_hex + to_contract_init_code_hash
 
     hash = Digest::Keccak256.hexdigest(Eth::Util.hex_to_bin(data))
 
@@ -273,9 +272,9 @@ class ContractImplementation
   end
   
   def create2_address(salt:, deployer:, contract_type:)
-    to_contract_implementation_version = self.class.available_contracts[contract_type].implementation_version
+    to_contract_init_code_hash = self.class.available_contracts[contract_type].init_code_hash
     
-    self.class.calculate_new_contract_address_with_salt(salt, deployer, to_contract_implementation_version)
+    self.class.calculate_new_contract_address_with_salt(salt, deployer, to_contract_init_code_hash)
   end
   
   def downcast_integer(integer, target_bits)
@@ -314,7 +313,7 @@ class ContractImplementation
     TransactionContext.call_stack.execute_in_new_frame(
       **contract_initializer.merge(
         type: :create,
-        to_contract_implementation_version: target_implementation.implementation_version,
+        to_contract_init_code_hash: target_implementation.init_code_hash,
       )
     )
     
