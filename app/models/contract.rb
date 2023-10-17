@@ -113,7 +113,12 @@ class Contract < ApplicationRecord
       
       klass = implementation.class
       
-      json['source_code'] = klass.source_code
+      json['source_code'] = [
+        {
+          language: 'ruby',
+          code: klass.source_code
+        }
+      ]
     end
   end
   
