@@ -146,7 +146,7 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
         
         require(
           s.bridgedEthscriptionToOwner[escrowedId] == to,
-          "Ethscription not owned by sender"
+          "Recipient is not the owner"
         )
 
         s.bridgedEthscriptionToOwner[escrowedId] = address(0)
