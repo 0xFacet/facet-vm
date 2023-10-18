@@ -58,7 +58,7 @@ class Contract < ApplicationRecord
     state_changed = false
     
     implementation.state_proxy.load(latest_state.deep_dup)
-    initial_state = implementation.state_proxy.serialize.deep_dup
+    initial_state = implementation.state_proxy.serialize
     
     result = yield.tap do
       final_state = implementation.state_proxy.serialize

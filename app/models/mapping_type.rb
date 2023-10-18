@@ -12,7 +12,7 @@ class MappingType < TypedVariable
     
     def serialize
       if @cached_serialized_value.present? && dirty_keys.length == 0
-        return @cached_serialized_value
+        return @cached_serialized_value.deep_dup
       end
       
       serialized_dirty_data = {}
@@ -29,7 +29,8 @@ class MappingType < TypedVariable
       dirty_keys.clear
       
       @cached_serialized_value = clean_data.merge(serialized_dirty_data)
-    end
+      @cached_serialized_value.deep_dup
+    end    
     
     def ==(other)
       return false unless other.is_a?(self.class)
