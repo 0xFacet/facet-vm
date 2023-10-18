@@ -82,7 +82,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   def esc
     Object.new.tap do |proxy|
       as_of = if Rails.env.test?
-        "0xc59f53896133b7eee71167f6dbf470bad27e0af2443d06c2dfdef604a6ddf13c"
+        "0xf5b2a0296d6be54483955e55c5f921f054e63c6ea6b3b5fc8f686d94f08b97e7"
       else
         if ethscription.mock_for_simulate_transaction
           Ethscription.newest_first.second.ethscription_id

@@ -295,7 +295,10 @@ RSpec.describe Contract, type: :model do
           functionName: "bridgeIn",
           args: {
             to: dc_token_recipient,
-            escrowedIds: ["0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6"],
+            escrowedIds: [
+              "0x1cceab90c59af76ed7315ce00d7703b41898409d7558f9af8932f69d24e9be49", # not bridged yet
+              "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6" # not bridged yet
+            ],
           }
         }
       )
@@ -308,7 +311,38 @@ RSpec.describe Contract, type: :model do
           functionName: "bridgeIn",
           args: {
             to: dc_token_recipient,
-            escrowedIds: ["0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6"],
+            escrowedIds: ["0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6"], # already bridged
+          }
+        }
+      )
+      
+      trigger_contract_interaction_and_expect_call_error(
+        command: 'call',
+        from: trusted_address,
+        data: {
+          "contract": deploy.address,
+          functionName: "bridgeIn",
+          args: {
+            to: dc_token_recipient,
+            escrowedIds: [
+              "0x233ff0088e80050867578938e6ca54e70c9123cad0da1342cf64cdf27c49d88f", # not bridged yet
+              "0x1cceab90c59af76ed7315ce00d7703b41898409d7558f9af8932f69d24e9be49" # already bridged id
+            ],
+          }
+        }
+      )
+
+      trigger_contract_interaction_and_expect_success(
+        command: 'call',
+        from: trusted_address,
+        data: {
+          "contract": deploy.address,
+          functionName: "bridgeIn",
+          args: {
+            to: dc_token_recipient,
+            escrowedIds: [
+              "0x233ff0088e80050867578938e6ca54e70c9123cad0da1342cf64cdf27c49d88f" # not bridged yet
+            ],
           }
         }
       )
@@ -321,7 +355,7 @@ RSpec.describe Contract, type: :model do
         ]
       )
       
-      expect(balance).to eq(1000 * (10 ** 18))
+      expect(balance).to eq(3000 * (10 ** 18))
       
       bridge_out_res = trigger_contract_interaction_and_expect_success(
         command: 'call',
@@ -330,7 +364,10 @@ RSpec.describe Contract, type: :model do
           "contract": deploy.address,
           functionName: "bridgeOut",
           args: {
-            escrowedIds: ["0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6"],
+            escrowedIds: [
+              "0x1cceab90c59af76ed7315ce00d7703b41898409d7558f9af8932f69d24e9be49",
+              "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6"
+            ],
           }
         }
       )
@@ -342,8 +379,18 @@ RSpec.describe Contract, type: :model do
           "0x3A3323d81e77f6a604314aE6278a7B6f4c580928"
         ]
       )
-      # binding.pry
+
       expect(balance).to eq(0)
+
+      balance = ContractTransaction.make_static_call(
+        contract: deploy.address,
+        function_name: "balanceOf",
+        function_args: [
+          dc_token_recipient
+        ]
+      )
+
+      expect(balance).to eq(1000 * (10 ** 18))
       
       trigger_contract_interaction_and_expect_success(
         command: 'call',
@@ -360,7 +407,7 @@ RSpec.describe Contract, type: :model do
       
       balance = ContractTransaction.make_static_call(
         contract: deploy.address,
-        function_name: "pendingWithdrawalEthscriptionToOwner",
+        function_name: "bridgedEthscriptionToOwner",
         function_args: [
           "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6"
         ]
