@@ -13,10 +13,15 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
   bytes32 :public, :ethscriptionDeployId
   
   address :public, :trustedSmartContract
-  mapping ({ bytes32: :address }), :public, :pendingWithdrawalEthscriptionToOwner
-  mapping ({ bytes32: :address }), :public, :bridgedEthscriptionToOwner
+
+  uint8 :internal, :NOT_BRIDGED_IN
+  uint8 :internal, :BRIDGED_IN
+  uint8 :internal, :PENDING_WITHDRAWAL
+  mapping ({ bytes32: :uint8 }), :public, :ethscriptionStatus
+  
   mapping ({ address: array(:bytes32) }), :public, :pendingUserWithdrawalIds
-  mapping ({ bytes32: array(:bytes32) }), :public, :withdrawalIdToEscrowedIds
+  mapping ({ bytes32: [:bytes32] }), :public, :withdrawalIdToEscrowedIds
+  mapping ({ bytes32: :address }), :public, :bridgedEthscriptionToOwner
   
   constructor(
     name: :string,
@@ -39,6 +44,9 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
     s.ethscriptionsTicker = parsed['tick']
     s.ethscriptionMintAmount = parsed['lim']
     s.ethscriptionMaxSupply = parsed['max']
+    s.NOT_BRIDGED_IN = 0
+    s.BRIDGED_IN = 1
+    s.PENDING_WITHDRAWAL = 2
   }
   
   function :bridgeIn, { to: :address, escrowedIds: [:bytes32] }, :public do
@@ -50,16 +58,8 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
     for i in 0...escrowedIds.length
       escrowedId = escrowedIds[i]
 
-      require(
-        s.bridgedEthscriptionToOwner[escrowedId] == address(0),
-        "Ethscription already bridged in"
-      )
-      
-      require(
-        s.pendingWithdrawalEthscriptionToOwner[escrowedId] == address(0),
-        "Ethscription withdrawal initiated"
-      )
-      
+      require(s.ethscriptionStatus[escrowedId] == s.NOT_BRIDGED_IN, 'Already bridged in')
+            
       ethscription = esc.findEthscriptionById(escrowedId)
       uri = ethscription.contentUri
       
@@ -91,6 +91,7 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
       )
       
       s.bridgedEthscriptionToOwner[escrowedId] = to
+      s.ethscriptionStatus[escrowedId] = s.BRIDGED_IN
     end
     
     _mint(to: to, amount: s.ethscriptionMintAmount * escrowedIds.length * (10 ** decimals))
@@ -110,10 +111,15 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
 
     for i in 0...escrowedIds.length
       escrowedId = escrowedIds[i]
-      require(s.bridgedEthscriptionToOwner[escrowedId] == msg.sender, "Ethscription not owned by sender")
-
-      s.bridgedEthscriptionToOwner[escrowedId] = address(0)
-      s.pendingWithdrawalEthscriptionToOwner[escrowedId] = msg.sender
+      
+      require(s.ethscriptionStatus[escrowedId] == s.BRIDGED_IN, "Not bridged in")
+      
+      require(
+        s.bridgedEthscriptionToOwner[escrowedId] == msg.sender,
+        "Ethscription not owned by sender"
+      )
+      
+      s.ethscriptionStatus[escrowedId] = s.PENDING_WITHDRAWAL
     end
       
     _burn(from: msg.sender, amount: s.ethscriptionMintAmount * escrowedIds.length * (10 ** decimals))
@@ -136,12 +142,15 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
       for ei in 0...escrowedIds.length
         escrowedId = escrowedIds[ei]
 
+        require(s.ethscriptionStatus[escrowedId] == s.PENDING_WITHDRAWAL, "Not pending withdrawal")
+        
         require(
-          s.pendingWithdrawalEthscriptionToOwner[escrowedId] == to,
-          "Withdrawal not initiated"
+          s.bridgedEthscriptionToOwner[escrowedId] == to,
+          "Ethscription not owned by sender"
         )
 
-        s.pendingWithdrawalEthscriptionToOwner[escrowedId] = address(0)
+        s.bridgedEthscriptionToOwner[escrowedId] = address(0)
+        s.ethscriptionStatus[escrowedId] = s.NOT_BRIDGED_IN
       end
 
       require(
