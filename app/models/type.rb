@@ -120,7 +120,7 @@ class Type
     when array?
       ArrayType::Proxy.new(value_type: value_type, initial_length: initial_length)
     when contract?
-      ContractType::Proxy.new(interface: metadata[:interface], address: nil)
+      ContractType::Proxy.new(contract_interface: metadata[:interface], address: nil, contract_type: nil)
     else
       raise "Unknown default value for #{self.inspect}"
     end
@@ -221,15 +221,8 @@ class Type
       unless literal.is_a?(Hash)
         raise VariableTypeError.new("invalid #{literal}")
       end
-      
-      data = literal.map do |key, value|
-        [
-          TypedVariable.create(key_type, key),
-          TypedVariable.create(value_type, value)
-        ]
-      end.to_h
     
-      proxy = MappingType::Proxy.new(data, key_type: key_type, value_type: value_type)
+      proxy = MappingType::Proxy.new(literal, key_type: key_type, value_type: value_type)
       
       return proxy
     elsif array?
