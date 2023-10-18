@@ -3,8 +3,8 @@ pragma :rubidity, "1.0.0"
 import './ERC20.rubidity'
 
 contract :EthscriptionERC20Bridge, is: :ERC20 do
-  event :InitiateWithdrawal, { from: :address, escrowedIds: [:bytes32], withdrawalIds: [:bytes32] }
-  event :WithdrawalComplete, { to: :address, escrowedIds: [:bytes32], withdrawalIds: [:bytes32] }
+  event :InitiateWithdrawal, { from: :address, escrowedIds: [:bytes32], withdrawalId: :bytes32 }
+  event :WithdrawalComplete, { to: :address, escrowedIds: [:bytes32], withdrawalId: :bytes32 }
   event :BridgedIn, { to: :address, escrowedIds: [:bytes32] }
 
   string :public, :ethscriptionsTicker
@@ -16,7 +16,7 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
   mapping ({ bytes32: :address }), :public, :pendingWithdrawalEthscriptionToOwner
   mapping ({ bytes32: :address }), :public, :bridgedEthscriptionToOwner
   mapping ({ address: array(:bytes32) }), :public, :pendingUserWithdrawalIds
-  mapping ({ bytes32: :bytes32 }), :public, :withdrawalIdToEscrowedId
+  mapping ({ bytes32: array(:bytes32) }), :public, :withdrawalIdToEscrowedIds
   
   constructor(
     name: :string,
@@ -98,28 +98,26 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
   end
   
   function :bridgeOut, { escrowedIds: [:bytes32] }, :public do
-    withdrawalIds = array(:bytes32, escrowedIds.length)
+    withdrawalId = esc.currentTransactionHash
+    
+    require(
+      s.withdrawalIdToEscrowedIds[withdrawalId].length == 0,
+      "Withdrawal already started"
+    )
+
+    s.withdrawalIdToEscrowedIds[withdrawalId] = escrowedIds
+    s.pendingUserWithdrawalIds[msg.sender].push(withdrawalId)
 
     for i in 0...escrowedIds.length
       escrowedId = escrowedIds[i]
       require(s.bridgedEthscriptionToOwner[escrowedId] == msg.sender, "Ethscription not owned by sender")
-      
-      withdrawalId = esc.currentTransactionHash
-      withdrawalIds.push(withdrawalId)
-      
-      require(
-        s.withdrawalIdToEscrowedId[withdrawalId] == bytes32(0),
-        "Withdrawal already started"
-      )
 
       s.bridgedEthscriptionToOwner[escrowedId] = address(0)
       s.pendingWithdrawalEthscriptionToOwner[escrowedId] = msg.sender
-      s.pendingUserWithdrawalIds[msg.sender].push(withdrawalId)
-      s.withdrawalIdToEscrowedId[withdrawalId] = escrowedId
     end
       
     _burn(from: msg.sender, amount: s.ethscriptionMintAmount * escrowedIds.length * (10 ** decimals))
-    emit :InitiateWithdrawal, from: msg.sender, escrowedIds: escrowedIds, withdrawalIds: withdrawalIds
+    emit :InitiateWithdrawal, from: msg.sender, escrowedIds: escrowedIds, withdrawalId: withdrawalId
   end
   
   function :markWithdrawalComplete, {
@@ -130,20 +128,22 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
       msg.sender == s.trustedSmartContract,
       'Only the trusted smart contract can mark withdrawals as complete'
     )
-    
-    escrowedIds = array(:bytes32, withdrawalIds.length)
 
-    for i in 0...withdrawalIds.length
-      withdrawalId = withdrawalIds[i]
-      escrowedId = s.withdrawalIdToEscrowedId[withdrawalId]
+    for wi in 0...withdrawalIds.length
+      withdrawalId = withdrawalIds[wi]
+      escrowedIds = s.withdrawalIdToEscrowedIds[withdrawalId]
 
-      escrowedIds[i] = escrowedId
+      for ei in 0...escrowedIds.length
+        escrowedId = escrowedIds[ei]
 
-      require(
-        s.pendingWithdrawalEthscriptionToOwner[escrowedId] == to,
-        "Withdrawal not initiated"
-      )
-        
+        require(
+          s.pendingWithdrawalEthscriptionToOwner[escrowedId] == to,
+          "Withdrawal not initiated"
+        )
+
+        s.pendingWithdrawalEthscriptionToOwner[escrowedId] = address(0)
+      end
+
       require(
         _removeFirstOccurenceOfValueFromArray(
           s.pendingUserWithdrawalIds[to],
@@ -152,11 +152,12 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
         "Withdrawal id not found"
       )
       
-      s.pendingWithdrawalEthscriptionToOwner[escrowedId] = address(0)
-      s.withdrawalIdToEscrowedId[withdrawalId] = bytes32(0)
+      s.withdrawalIdToEscrowedIds[withdrawalId] = []
+        
+      emit :WithdrawalComplete, to: to, escrowedIds: escrowedIds, withdrawalId: withdrawalId
     end
     
-    emit :WithdrawalComplete, to: to, escrowedIds: escrowedIds, withdrawalIds: withdrawalIds
+    return nil
   end
   
   function :getPendingWithdrawalsForUser, { user: :address }, :public, :view, returns: [:bytes32] do
