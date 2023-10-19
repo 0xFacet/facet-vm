@@ -372,6 +372,16 @@ RSpec.describe Contract, type: :model do
         }
       )
 
+      pending_withdraw = ContractTransaction.make_static_call(
+        contract: deploy.address,
+        function_name: "pendingUserWithdrawalIds",
+        function_args: [
+          dc_token_recipient, 0
+        ]
+      )
+      
+      expect(pending_withdraw).to eq(bridge_out_res.transaction_hash)
+
       balance = ContractTransaction.make_static_call(
         contract: deploy.address,
         function_name: "balanceOf",
