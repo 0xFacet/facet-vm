@@ -24,16 +24,8 @@ class Contract < ApplicationRecord
     @implementation ||= implementation_class.new
   end
   
-  # TODO this should always look to TransactionContext if in a transaction
-  # We need to give contracts a context
   def implementation_class
     klass = TransactionContext.implementation_from_init_code(init_code_hash) || RubidityFile.registry[init_code_hash]
-    
-    if !klass && Rails.env.development?
-      klass = TransactionContext.implementation_from_type(type)
-    end
-    
-    klass
   end
   
   def self.types_that_implement(base_type)

@@ -65,15 +65,6 @@ class MappingType < TypedVariable
         set_value(typed_key_var, value)
       end
     
-      # If still not found, try looking it up with the raw key
-      if value.nil? && data.key?(raw_key)
-        value = TypedVariable.create_or_validate(value_type, data[raw_key])
-    
-        # Replace the raw key with the typed key
-        data.delete(raw_key)
-        set_value(typed_key_var, value)
-      end
-    
       # If the value is still nil, it truly doesn't exist; create a new default value
       if value.nil?
         value = TypedVariable.create_or_validate(value_type)
