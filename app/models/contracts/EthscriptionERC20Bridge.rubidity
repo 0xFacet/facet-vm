@@ -20,7 +20,7 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
   mapping ({ bytes32: :uint8 }), :public, :ethscriptionStatus
   
   mapping ({ address: array(:bytes32) }), :public, :pendingUserWithdrawalIds
-  mapping ({ bytes32: [:bytes32] }), :public, :withdrawalIdToEscrowedIds
+  mapping ({ bytes32: array(:bytes32) }), :public, :withdrawalIdToEscrowedIds
   mapping ({ bytes32: :address }), :public, :bridgedEthscriptionToOwner
   
   constructor(
@@ -171,6 +171,10 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
   
   function :getPendingWithdrawalsForUser, { user: :address }, :public, :view, returns: [:bytes32] do
     return s.pendingUserWithdrawalIds[user]
+  end
+  
+  function :getWithdrawalIdToEscrowedIds, { withdrawalId: :bytes32 }, :public, :view, returns: [:bytes32] do
+    return s.withdrawalIdToEscrowedIds[withdrawalId]
   end
   
   function :_removeFirstOccurenceOfValueFromArray, { arr: array(:bytes32), value: :bytes32 }, :internal, returns: :bool do
