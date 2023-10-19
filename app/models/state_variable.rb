@@ -56,6 +56,8 @@ class StateVariable
   
     if current_type.array?
       arguments["arg#{index}".to_sym] = :uint256
+      current_type = current_type.value_type
+      index += 1
     end
   
     contract_class.class_eval do
