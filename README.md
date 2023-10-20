@@ -13,7 +13,7 @@ The VM is a Ruby on Rails app. To install it, follow these steps:
 Run this command inside the directory of your choice to clone the repository:
 
 ```!bash
-git clone https://github.com/ethscriptions-protocol/ethscriptions-vm
+git clone https://github.com/ethscriptions-protocol/ethscriptions-vm-server
 ```
 
 If you don't already have Ruby Version Manager installed, install it:
@@ -28,10 +28,10 @@ You might need to run this if there is an issue with gpg:
 gpg2 --keyserver keyserver.ubuntu.com --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB
 ```
 
-Now install ruby 3.1.4 which the VM uses:
+Now install ruby 3.2.2 which the VM uses:
 
 ```bash
-rvm install 3.1.4
+rvm install 3.2.2
 ```
 
 Install the gems (libraries) the app needs:
@@ -72,17 +72,23 @@ Now run the process to sync ethscriptions from the indexer to your local databas
 bundle exec clockwork config/clock.rb
 ```
 
-You'll want to keep this running in the background so your copy of the VM processes all new contract interactions.
-
-Now start the web server on a port of your choice:
+And then in another terminal:
 
 ```bash
-rails s -p PORT
+bundle exec clockwork config/processor_clock.rb
+```
+
+You'll want to keep these two running in the background so your copy of the VM processes all new contract interactions.
+
+Now start the web server on a port of your choice, for example 4000:
+
+```bash
+rails s -p 4000
 ```
 
 Now you can see all your contract interactions at `http://localhost:4000/contracts/:contract_id/call-receipts` and call contract static functions at `http://localhost:4000/contracts/:contract_id/static-call/:function_name`.
 
-If you want to debug your app you can run `rails c` to open up a console. Once in the console you can run things like `Ethscription.count` to see the total number of ethscriptions that have been processed and `ContractTransactionReceipt.all` to list all contract call receipts.
+If you want to debug your app you can run `rails c` to open up a console. Once in the console you can run things like `Ethscription.count` to see the total number of ethscriptions that have been processed and `ContractTransactionReceipt.all` to list all contract transaction receipts.
 
 ## Creating Dumb Contracts
 
