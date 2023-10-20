@@ -34,6 +34,12 @@ Now install ruby 3.2.2 which the VM uses:
 rvm install 3.2.2
 ```
 
+On a Mac you might run into an issue with openssl. If you do you might need to run something like this:
+
+```bash
+rvm install 3.2.2 --with-openssl-dir=$(brew --prefix openssl@1.1)
+```
+
 Install the gems (libraries) the app needs:
 
 ```bash
