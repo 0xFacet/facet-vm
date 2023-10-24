@@ -2,6 +2,25 @@
 
 pragma :rubidity, "1.0.0"
 
+contract :UpgradeableV3 do
+  uint256 :public, :version
+  address :public, :upgradeAdmin
+  
+  event :NotifyOfVersion, { version: :uint256, from: :string }
+
+  function :sayHi, { to: :string }, :public, :view, returns: :string do
+    return "Greetings " + to
+  end
+  
+  function :migration, :public do
+    require(msg.sender == address(this), "NOT_AUTHORIZED")
+    
+    s.version = 3
+    
+    emit :NotifyOfVersion, version: s.version, from: "v3"
+  end
+end
+
 contract :UpgradeableV2 do
   uint256 :public, :version
   address :public, :upgradeAdmin
@@ -16,6 +35,15 @@ contract :UpgradeableV2 do
     require(msg.sender == address(this), "NOT_AUTHORIZED")
     
     s.version = 2
+    
+    emit :NotifyOfVersion, version: s.version, from: "v2"
+  end
+  
+  function :upgradeFromV2, { newHash: :bytes32 }, :virtual, :public do
+    require(msg.sender == s.upgradeAdmin, "NOT_AUTHORIZED")
+    
+    esc.upgradeContract(newHash)
+    UpgradeableV3(this).migration
     
     emit :NotifyOfVersion, version: s.version, from: "v2"
   end
@@ -40,13 +68,36 @@ contract :UpgradeableV1 do
     return true
   end
   
-  function :upgradeFromV1, { newHash: :bytes32 }, :public do
+  function :upgradeFromV1, { newHash: :bytes32 }, :virtual, :public do
     require(msg.sender == s.upgradeAdmin, "NOT_AUTHORIZED")
     
     esc.upgradeContract(newHash)
     UpgradeableV2(this).migration
     
     emit :NotifyOfVersion, version: s.version, from: "v1"
+  end
+end
+
+contract :MaliciousReentrancy, is: :UpgradeableV1 do
+  bool :public, :reEntrancyTriggered
+
+  constructor() {
+    s.version = 1
+    s.upgradeAdmin = msg.sender
+    s.reEntrancyTriggered = false
+  }
+
+  function :attemptReentrancy, { newHash: :bytes32 }, :public do
+    require(!s.reEntrancyTriggered, "Re-entrancy already triggered!")
+    
+    s.reEntrancyTriggered = true
+    upgradeFromV1(newHash: newHash)
+  end
+
+  function :upgradeFromV1, { newHash: :bytes32 }, :override, :public do
+    require(!s.reEntrancyTriggered, "Re-entrancy already triggered!")
+
+    UpgradeableV1.upgradeFromV1(newHash: newHash)
   end
 end
 
@@ -63,6 +114,105 @@ end
 
 contract :callStackDepth2, is: :callStackDepth do
 end
+
+# Define abstract contracts for A and B with the expected interfaces
+contract :AbstractA, abstract: true do
+  function :migration, :virtual, :public
+end
+
+contract :AbstractB, abstract: true do
+  function :initiateUpgrade, :virtual, :public
+  function :migration, :virtual, :public
+end
+
+# Concrete implementations inherit from abstract contracts
+contract :A1, is: :AbstractA do
+  uint256 :public, :version
+  address :public, :relatedB
+  bytes32 :public, :nextUpgradeHash  # New state variable for storing the hash
+
+  constructor() {
+    s.version = 1
+  }
+  
+  function :setNextUpgradeHash, { hash: :bytes32 }, :public do
+    s.nextUpgradeHash = hash
+    nil
+  end
+
+  
+  function :setRelatedB, { addr: :address }, :public do
+    s.relatedB = addr
+    nil
+  end
+
+  function :triggerChain, :public do
+    AbstractB(s.relatedB).initiateUpgrade
+    nil
+  end
+
+  function :migration, :override, :public do
+    esc.upgradeContract(s.nextUpgradeHash)
+    s.version += 1
+    AbstractA(address(this)).migration
+    nil
+  end
+end
+
+contract :B1, is: :AbstractB do
+  address :public, :relatedA
+  bytes32 :public, :nextUpgradeHash  # New
+  uint256 :public, :bVersion
+  
+  constructor() {
+    s.bVersion = 1
+  }
+  
+  function :setRelatedA, { addr: :address }, :public do
+    s.relatedA = addr
+    nil
+  end
+
+  function :setNextUpgradeHash, { hash: :bytes32 }, :public do  # New
+    s.nextUpgradeHash = hash
+    nil
+  end
+
+  function :initiateUpgrade, :override, :public do
+    AbstractA(s.relatedA).migration
+    esc.upgradeContract(s.nextUpgradeHash)
+    AbstractB(address(this)).migration
+    nil
+  end
+end
+
+# Subsequent versions of A and B also inherit from the abstract contracts
+contract :A2, is: :AbstractA do
+  uint256 :public, :version
+  address :public, :relatedB
+  bytes32 :public, :nextUpgradeHash  # New state variable for storing the hash
+  
+  constructor() {}
+  
+  function :migration, :override, :public do
+    s.version += 1
+    nil
+  end
+end
+
+contract :B2, is: :AbstractB do
+  address :public, :relatedA
+  bytes32 :public, :nextUpgradeHash  # New
+  uint256 :public, :bVersion
+
+  constructor() {}
+
+  function :migration, :override, :public do
+    s.bVersion += 1
+    nil
+  end
+end
+
 
 contract :UpgradeableLoop do
   address :public, :target

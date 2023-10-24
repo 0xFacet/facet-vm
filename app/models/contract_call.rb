@@ -33,9 +33,12 @@ class ContractCall < ApplicationRecord
       logs: pending_logs
     )
     
-    self.created_contract = to_contract if is_create?
-    
-    result
+    if is_create?
+      self.created_contract = to_contract
+      to_contract.address
+    else
+      result
+    end
   rescue ContractError, TransactionError => e
     assign_attributes(error: e.message, status: :failure)
     raise

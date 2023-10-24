@@ -2,7 +2,8 @@ class ContractImplementation
   include ContractErrors
   
   class << self
-    attr_reader :name, :is_abstract_contract, :source_code, :init_code_hash, :parent_contracts, :available_contracts,:source_file
+    attr_reader :name, :is_abstract_contract, :source_code, :creation_code,
+    :init_code_hash, :parent_contracts, :available_contracts, :source_file
     
     attr_accessor :state_variable_definitions, :events
   end
@@ -198,6 +199,28 @@ class ContractImplementation
     "0x" + Digest::Keccak256.hexdigest(str.value)
   end
   
+  def type(var)
+    if var.is_a?(TypedVariable) && var.type.contract?
+      var = var.contract_type
+    end
+    
+    contract_class = self.class.available_contracts[var]
+    
+    unless contract_class
+      raise "Unknown contract"
+    end
+    
+    if contract_class.is_abstract_contract
+      raise "Cannot instantiate abstract contract"
+    end
+    
+    Object.new.tap do |proxy|
+      proxy.define_singleton_method(:creationCode) do
+        contract_class.creation_code
+      end
+    end
+  end
+  
   protected
 
   def abi
@@ -311,15 +334,12 @@ class ContractImplementation
     to_contract_type = contract_initializer.delete(:to_contract_type)
     target_implementation = self.class.available_contracts[to_contract_type]
     
-    call_stack.execute_in_new_frame(
+    addr = call_stack.execute_in_new_frame(
       **contract_initializer.merge(
         type: :create,
         to_contract_init_code_hash: target_implementation.init_code_hash,
       )
     )
-    
-    # TODO
-    addr = TransactionContext.current_transaction.contract_calls.last.created_contract_address
     
     handle_contract_type_cast(
       to_contract_type,

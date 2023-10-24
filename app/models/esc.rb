@@ -35,11 +35,26 @@ class Esc
   end
   
   def upgradeContract(new_init_code_hash)
-    # TODO: enforce bytes32
-    new_init_code_hash = new_init_code_hash.value.sub(/^0x/, '')
+    typed = TypedVariable.create_or_validate(:bytes32, new_init_code_hash)
     
-    target = TransactionContext.call_stack.current_frame.to_contract
+    new_init_code_hash = typed.value.sub(/^0x/, '')
+    
+    target = TransactionContext.current_contract
     new_implementation_class = TransactionContext.implementation_from_init_code(new_init_code_hash)
+    
+    unless new_implementation_class
+      raise ContractError.new(
+        "Implementation not found: #{new_init_code_hash}",
+        target
+      )
+    end
+    
+    new_state_vars = new_implementation_class.new.state_proxy.state_variables
+    old_state_vars = target.implementation_class.new.state_proxy.state_variables
+    
+    unless new_state_vars == old_state_vars
+      raise ContractError.new("Implementations have different storage layouts: old: #{old_state_vars.keys}, new: #{new_state_vars.keys}", target)
+    end
     
     target.implementation_versions.create!(
       transaction_hash: TransactionContext.transaction_hash,
