@@ -8,6 +8,8 @@ class Contract < ApplicationRecord
     foreign_key: 'contract_address'
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
 
+  has_many :implementation_versions, primary_key: 'address', foreign_key: 'contract_address', class_name: "ContractImplementationVersion"
+  
   belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'transaction_hash', optional: true
   
   has_many :contract_calls, foreign_key: :effective_contract_address, primary_key: :address
@@ -20,8 +22,8 @@ class Contract < ApplicationRecord
   
   delegate :implements?, to: :implementation
   
-  def implementation
-    @implementation ||= implementation_class.new
+  def init_code_hash
+    current_init_code_hash
   end
   
   def implementation_class
@@ -36,8 +38,17 @@ class Contract < ApplicationRecord
     end
   end
   
+  # def public_abi
+  #   # implementation_class.new.public_abi
+  #   implementation_class.new.public_abi
+  # end
+  
   def execute_function(function_name, args)
-    with_state_management do
+    with_correct_implementation(function_name) do
+      if !implementation.public_abi[function_name]
+        raise ContractError.new("Call to unknown function #{function_name}", self)
+      end
+      
       if args.is_a?(Hash)
         implementation.public_send(function_name, **args)
       else
@@ -46,34 +57,48 @@ class Contract < ApplicationRecord
     end
   end
   
-  def with_state_management
-    state_changed = false
+  def with_correct_implementation(function_name)
+    old_implementation = @implementation
+    @implementation = implementation_class.new
     
-    implementation.state_proxy.load(latest_state.deep_dup)
-    initial_state = implementation.state_proxy.serialize
-    
-    result = yield.tap do
-      final_state = implementation.state_proxy.serialize
-      
-      if final_state != initial_state
-        states.create!(
-          transaction_hash: TransactionContext.transaction_hash,
-          block_number: TransactionContext.block_number,
-          transaction_index: TransactionContext.transaction_index,
-          internal_transaction_index: TransactionContext.current_call.internal_transaction_index,
-          state: final_state
-        )
-        
-        state_changed = true
-      end
+    if old_implementation&.state_initialized
+      implementation.state_proxy.load(old_implementation.state_proxy.serialize)
+    else
+      implementation.init_from_saved_state(latest_state)
     end
     
-    { result: result, state_changed: state_changed }
+    result = yield
+    
+    is_read_only = implementation.public_abi[function_name].read_only?
+    
+    if implementation.state_changed?
+      if is_read_only
+        raise ReadOnlyFunctionChangedStateError
+      end
+      
+      final_state = implementation.state_proxy.serialize
+      
+      states.create!(
+        transaction_hash: TransactionContext.transaction_hash,
+        block_number: TransactionContext.block_number,
+        transaction_index: TransactionContext.transaction_index,
+        internal_transaction_index: TransactionContext.current_call.internal_transaction_index,
+        state: final_state
+      )
+      
+      update!(latest_state: final_state)
+    end
+    
+    @implementation = old_implementation
+    
+    implementation.state_proxy.load(final_state) if @implementation
+    
+    result
   end
   
   def fresh_implementation_with_latest_state
     implementation_class.new.tap do |implementation|
-      implementation.state_proxy.load(latest_state.deep_dup)
+      implementation.state_proxy.load(latest_state)
     end
   end
   

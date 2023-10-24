@@ -61,6 +61,8 @@ class ContractTransaction < ApplicationRecord
       transaction_index: ethscription.transaction_index,
       tx_origin: ethscription.creator,
       
+      # TODO: change this format?
+      # At least "data" at the top level should be a JSON-encoded string
       initial_call_info: {
         to_contract_type: data['type'],
         to_contract_init_code_hash: data['init_code_hash'],

@@ -11,10 +11,6 @@ class MappingType < TypedVariable
     attr_accessor :key_type, :value_type, :data, :dirty_keys
     
     def serialize
-      if @cached_serialized_value.present? && dirty_keys.length == 0
-        return @cached_serialized_value.deep_dup
-      end
-      
       serialized_dirty_data = {}
       
       dirty_keys.each do |key|
@@ -26,11 +22,8 @@ class MappingType < TypedVariable
       end
       
       clean_data = data.except(*dirty_keys)
-      dirty_keys.clear
-      
-      @cached_serialized_value = clean_data.merge(serialized_dirty_data)
-      @cached_serialized_value.deep_dup
-    end    
+      clean_data.merge(serialized_dirty_data).deep_dup
+    end
     
     def ==(other)
       return false unless other.is_a?(self.class)

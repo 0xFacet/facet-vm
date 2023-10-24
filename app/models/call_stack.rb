@@ -1,19 +1,11 @@
 class CallStack
   include ContractErrors
+  
+  MAX_CALL_COUNT = 100
 
   def initialize
     @frames = []
     @push_count = 0
-  end
-
-  def push(frame)
-    @frames.push(frame)
-    
-    @push_count += 1
-  end
-
-  def pop
-    @frames.pop
   end
 
   def current_frame
@@ -35,7 +27,10 @@ class CallStack
       TransactionContext.tx_origin :
       current_frame.to_contract.address
     
+    active_contract = find_active_contract(to_contract_address)
+      
     call = TransactionContext.current_transaction.contract_calls.build(
+      to_contract: active_contract,
       to_contract_address: to_contract_address,
       to_contract_type: to_contract_type,
       to_contract_init_code_hash: to_contract_init_code_hash,
@@ -52,13 +47,38 @@ class CallStack
     end
   end
   
+  private
+  
   def execute_in_frame(call)
     push(call)
     
-    begin
-      return current_frame.execute!
-    ensure
-      pop
+    if @push_count > MAX_CALL_COUNT
+      current_frame.assign_attributes(
+        error: "Too many internal transactions",
+        status: :failure
+      )
+      
+      raise ContractError.new("Too many internal transactions")
     end
+    
+    current_frame.execute!
+  ensure
+    pop
+  end
+  
+  def find_active_contract(address)
+    @frames.detect do |frame|
+      frame.to_contract&.address == address
+    end&.to_contract
+  end
+
+  def push(frame)
+    @frames.push(frame)
+    
+    @push_count += 1
+  end
+
+  def pop
+    @frames.pop
   end
 end

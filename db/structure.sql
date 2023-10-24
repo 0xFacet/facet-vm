@@ -120,6 +120,42 @@ CREATE FUNCTION public.delete_later_ethscriptions() RETURNS trigger
 
 
 --
+-- Name: update_current_init_code_hash(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.update_current_init_code_hash() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+      BEGIN
+        IF TG_OP = 'INSERT' THEN
+          UPDATE contracts
+          SET current_init_code_hash = (
+            SELECT init_code_hash
+            FROM contract_implementation_versions
+            WHERE contract_address = NEW.contract_address
+            ORDER BY block_number DESC, transaction_index DESC, internal_transaction_index DESC
+            LIMIT 1
+          )
+          WHERE address = NEW.contract_address;
+        ELSIF TG_OP = 'DELETE' THEN
+          UPDATE contracts
+          SET current_init_code_hash = (
+            SELECT init_code_hash
+            FROM contract_implementation_versions
+            WHERE contract_address = OLD.contract_address
+              AND id != OLD.id
+            ORDER BY block_number DESC, transaction_index DESC, internal_transaction_index DESC
+            LIMIT 1
+          )
+          WHERE address = OLD.contract_address;
+        END IF;
+      
+        RETURN NULL; -- result is ignored since this is an AFTER trigger
+      END;
+      $$;
+
+
+--
 -- Name: update_latest_state(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -222,6 +258,45 @@ CREATE SEQUENCE public.contract_calls_id_seq
 --
 
 ALTER SEQUENCE public.contract_calls_id_seq OWNED BY public.contract_calls.id;
+
+
+--
+-- Name: contract_implementation_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.contract_implementation_versions (
+    id bigint NOT NULL,
+    transaction_hash character varying NOT NULL,
+    init_code_hash character varying NOT NULL,
+    block_number bigint NOT NULL,
+    transaction_index integer NOT NULL,
+    internal_transaction_index integer NOT NULL,
+    contract_address character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_rails_721df0bd0e CHECK (((contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_8c2a7c26a1 CHECK (((init_code_hash)::text ~ '^[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_cabf67e584 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
+);
+
+
+--
+-- Name: contract_implementation_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.contract_implementation_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: contract_implementation_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.contract_implementation_versions_id_seq OWNED BY public.contract_implementation_versions.id;
 
 
 --
@@ -353,10 +428,10 @@ CREATE TABLE public.contracts (
     updated_at timestamp(6) without time zone NOT NULL,
     address character varying NOT NULL,
     latest_state jsonb DEFAULT '{}'::jsonb NOT NULL,
-    init_code_hash character varying NOT NULL,
-    CONSTRAINT chk_rails_566d6d0fef CHECK (((init_code_hash)::text ~ '^[a-f0-9]{64}$'::text)),
+    current_init_code_hash character varying NOT NULL,
     CONSTRAINT chk_rails_6d0039a684 CHECK (((address)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_c653bcbc93 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
+    CONSTRAINT chk_rails_c653bcbc93 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_cc2872e127 CHECK (((current_init_code_hash)::text ~ '^[a-f0-9]{64}$'::text))
 );
 
 
@@ -484,6 +559,13 @@ ALTER TABLE ONLY public.contract_calls ALTER COLUMN id SET DEFAULT nextval('publ
 
 
 --
+-- Name: contract_implementation_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_implementation_versions ALTER COLUMN id SET DEFAULT nextval('public.contract_implementation_versions_id_seq'::regclass);
+
+
+--
 -- Name: contract_states id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -539,6 +621,14 @@ ALTER TABLE ONLY public.ar_internal_metadata
 
 ALTER TABLE ONLY public.contract_calls
     ADD CONSTRAINT contract_calls_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: contract_implementation_versions contract_implementation_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_implementation_versions
+    ADD CONSTRAINT contract_implementation_versions_pkey PRIMARY KEY (id);
 
 
 --
@@ -598,6 +688,27 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: idx_on_block_number_transaction_index_828aa61295; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_block_number_transaction_index_828aa61295 ON public.contract_implementation_versions USING btree (block_number, transaction_index);
+
+
+--
+-- Name: idx_on_internal_transaction_index_472943a909; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_internal_transaction_index_472943a909 ON public.contract_implementation_versions USING btree (internal_transaction_index);
+
+
+--
+-- Name: idx_on_internal_transaction_index_transaction_hash_a8fbd7e814; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_internal_transaction_index_transaction_hash_a8fbd7e814 ON public.contract_implementation_versions USING btree (internal_transaction_index, transaction_hash);
+
+
+--
 -- Name: index_contract_calls_on_call_type; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -651,6 +762,20 @@ CREATE INDEX index_contract_calls_on_status ON public.contract_calls USING btree
 --
 
 CREATE INDEX index_contract_calls_on_to_contract_address ON public.contract_calls USING btree (to_contract_address);
+
+
+--
+-- Name: index_contract_implementation_versions_on_contract_address; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contract_implementation_versions_on_contract_address ON public.contract_implementation_versions USING btree (contract_address);
+
+
+--
+-- Name: index_contract_implementation_versions_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contract_implementation_versions_on_transaction_hash ON public.contract_implementation_versions USING btree (transaction_hash);
 
 
 --
@@ -738,10 +863,10 @@ CREATE UNIQUE INDEX index_contracts_on_address ON public.contracts USING btree (
 
 
 --
--- Name: index_contracts_on_init_code_hash; Type: INDEX; Schema: public; Owner: -
+-- Name: index_contracts_on_current_init_code_hash; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_contracts_on_init_code_hash ON public.contracts USING btree (init_code_hash);
+CREATE INDEX index_contracts_on_current_init_code_hash ON public.contracts USING btree (current_init_code_hash);
 
 
 --
@@ -878,6 +1003,13 @@ CREATE TRIGGER trigger_delete_later_ethscriptions AFTER DELETE ON public.ethscri
 
 
 --
+-- Name: contract_implementation_versions update_current_init_code_hash; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER update_current_init_code_hash AFTER INSERT OR DELETE ON public.contract_implementation_versions FOR EACH ROW EXECUTE FUNCTION public.update_current_init_code_hash();
+
+
+--
 -- Name: contract_states update_latest_state; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -890,6 +1022,14 @@ CREATE TRIGGER update_latest_state AFTER INSERT OR DELETE ON public.contract_sta
 
 ALTER TABLE ONLY public.ethscriptions
     ADD CONSTRAINT fk_rails_104cee2b3d FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
+
+
+--
+-- Name: contract_implementation_versions fk_rails_2f9aa1263a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_implementation_versions
+    ADD CONSTRAINT fk_rails_2f9aa1263a FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(ethscription_id) ON DELETE CASCADE;
 
 
 --
@@ -914,6 +1054,14 @@ ALTER TABLE ONLY public.contract_states
 
 ALTER TABLE ONLY public.contract_calls
     ADD CONSTRAINT fk_rails_84969f6044 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(ethscription_id) ON DELETE CASCADE;
+
+
+--
+-- Name: contract_implementation_versions fk_rails_93de792a6f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_implementation_versions
+    ADD CONSTRAINT fk_rails_93de792a6f FOREIGN KEY (contract_address) REFERENCES public.contracts(address) ON DELETE CASCADE;
 
 
 --
@@ -947,8 +1095,8 @@ ALTER TABLE ONLY public.contract_states
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20231020163602'),
 ('20231015132041'),
-('20231014154537'),
 ('20231010142505'),
 ('20231001152142'),
 ('20230928185853'),

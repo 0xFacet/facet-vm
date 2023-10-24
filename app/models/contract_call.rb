@@ -21,17 +21,18 @@ class ContractCall < ApplicationRecord
       if is_create?
         create_and_validate_new_contract!
       else
-        find_and_validate_existing_contract!(to_contract_address)
+        find_and_validate_existing_contract!
       end
       
-      result, state_changed = to_contract.execute_function(
+      # result, state_changed = to_contract.execute_function(
+      result = to_contract.execute_function(
         function,
         args
-      ).values_at(:result, :state_changed)
-      
-      if function_object.read_only? && state_changed
-        raise ReadOnlyFunctionChangedStateError, "Invalid change in read-only function: #{function}, #{args.inspect}, to address: #{to_contract.address}"
-      end
+      )#.values_at(:result, :state_changed)
+      # pp function
+      # if function_object.read_only? && state_changed
+      #   raise ReadOnlyFunctionChangedStateError, "Invalid change in read-only function: #{function}, #{args.inspect}, to address: #{to_contract.address}"
+      # end
     end
     
     assign_attributes(
@@ -46,30 +47,32 @@ class ContractCall < ApplicationRecord
   rescue ContractError, TransactionError => e
     assign_attributes(error: e.message, status: :failure)
     raise
+  rescue ReadOnlyFunctionChangedStateError => e
+    raise ReadOnlyFunctionChangedStateError, "Invalid change in read-only function: #{function}, #{args.inspect}, to address: #{to_contract.address}"
   end
   
   def args=(args)
     super(args || {})
   end
   
-  def find_and_validate_existing_contract!(address)
-    self.to_contract = Contract.find_by(address: to_contract_address)
+  def find_and_validate_existing_contract!
+    self.to_contract ||= Contract.find_by(address: to_contract_address)
     
     if to_contract.blank?
       raise CallingNonExistentContractError.new("Contract not found: #{to_contract_address}")
     end
     
-    if !function_object
-      raise ContractError.new("Call to unknown function #{function}", to_contract)
-    end
-    
-    if function.to_sym == :constructor
+    # if !to_contract.public_abi[function]
+    #   raise ContractError.new("Call to unknown function #{function}", to_contract)
+    # end
+    # binding.pry
+    if function&.to_sym == :constructor
       raise ContractError.new("Cannot call constructor function: #{function}", to_contract)
     end
     
-    if is_static_call? && !function_object.read_only?
-      raise ContractError.new("Cannot call non-read-only function in static call: #{function}", to_contract)
-    end
+    # if is_static_call? && !to_contract&.public_abi[function]&.read_only?
+    #   raise ContractError.new("Cannot call non-read-only function in static call: #{function}", to_contract)
+    # end
   end
   
   def to_contract_init_code_hash
@@ -97,17 +100,25 @@ class ContractCall < ApplicationRecord
       transaction_hash: TransactionContext.transaction_hash,
       address: calculate_new_contract_address,
       type: to_contract_implementation.name,
+      current_init_code_hash: to_contract_init_code_hash
+    )
+    
+    self.to_contract.implementation_versions.create!(
+      transaction_hash: TransactionContext.transaction_hash,
+      block_number: TransactionContext.block_number,
+      transaction_index: TransactionContext.transaction_index,
+      internal_transaction_index: TransactionContext.current_call.internal_transaction_index,
       init_code_hash: to_contract_init_code_hash,
     )
     
     self.function = :constructor
   end
   
-  def function_object
-    public_abi = to_contract.implementation.public_abi
+  # def function_object
+  #   public_abi = to_contract.public_abi
     
-    public_abi[function]
-  end
+  #   public_abi[function]
+  # end
   
   def calculate_new_contract_address
     if contract_initiated? && salt

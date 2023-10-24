@@ -1,0 +1,92 @@
+# TODO: what should happen if storage layout changes?
+
+pragma :rubidity, "1.0.0"
+
+contract :UpgradeableV2 do
+  uint256 :public, :version
+  address :public, :upgradeAdmin
+  
+  event :NotifyOfVersion, { version: :uint256, from: :string }
+
+  function :sayHi, { to: :string }, :public, :view, returns: :string do
+    return "Greetings " + to
+  end
+  
+  function :migration, :public do
+    require(msg.sender == address(this), "NOT_AUTHORIZED")
+    
+    s.version = 2
+    
+    emit :NotifyOfVersion, version: s.version, from: "v2"
+  end
+end
+
+contract :UpgradeableV1 do
+  uint256 :public, :version
+  address :public, :upgradeAdmin
+  
+  event :NotifyOfVersion, { version: :uint256, from: :string }
+  
+  constructor() {
+    s.version = 1
+    s.upgradeAdmin = msg.sender
+  }
+  
+  function :sayHi, { to: :string }, :public, :view, returns: :string do
+    return "Hello " + to
+  end
+  
+  function :addressCanUpgrade, { addr: :address }, :public, :view, returns: :bool do
+    return true
+  end
+  
+  function :upgradeFromV1, { newHash: :bytes32 }, :public do
+    require(msg.sender == s.upgradeAdmin, "NOT_AUTHORIZED")
+    
+    esc.upgradeContract(newHash)
+    UpgradeableV2(this).migration
+    
+    emit :NotifyOfVersion, version: s.version, from: "v1"
+  end
+end
+
+contract :callStackDepth do
+  constructor() {}
+  
+  function :callOtherContract, { other: :address }, :public do
+    callStackDepth(other).callOtherContract(address(this))
+  end
+end
+
+contract :callStackDepth1, is: :callStackDepth do
+end
+
+contract :callStackDepth2, is: :callStackDepth do
+end
+
+contract :UpgradeableLoop do
+  address :public, :target
+  
+  function :loopUpgrade, { newHash: :bytes32 }, :public do
+    esc.upgradeContract(newHash)
+
+    LoopInitiator(msg.sender).upgradeFromV1(newHash)
+  end
+
+  function :setTarget, { addr: :address }, :public do
+    target = addr
+  end
+end
+
+contract :LoopInitiator do
+  address :public, :target
+  
+  function :callLoopUpgrade, {
+    loopAddress: :address,
+    newHash: :bytes32,
+  }, :public do
+    require(msg.sender == s.upgradeAdmin, "NOT_AUTHORIZED")
+    
+    UpgradeableLoop(loopAddress).loopUpgrade(newHash)
+  end
+end

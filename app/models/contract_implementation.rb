@@ -10,7 +10,7 @@ class ContractImplementation
   delegate :block, :blockhash, :tx, :esc, :msg, :log_event, :call_stack,
            :current_address, to: :current_context
   
-  attr_reader :current_context
+  attr_reader :current_context, :state_initialized
   
   def initialize(current_context: TransactionContext)
     @current_context = current_context || raise("Must provide current context")
@@ -26,6 +26,16 @@ class ContractImplementation
   
   def state_proxy
     @state_proxy ||= StateProxy.new(self.class.state_variable_definitions)
+  end
+  
+  def init_from_saved_state(state)
+    state_proxy.load(state)
+    @initial_state = state_proxy.serialize
+    @state_initialized = true
+  end
+  
+  def state_changed?
+    @initial_state != state_proxy.serialize
   end
   
   def self.abi
