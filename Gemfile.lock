@@ -49,6 +49,8 @@ GEM
       erubi (~> 1.11)
       rails-dom-testing (~> 2.2)
       rails-html-sanitizer (~> 1.6)
+    active_record_query_trace (1.8.2)
+      activerecord (>= 6.0.0)
     activejob (7.1.1)
       activesupport (= 7.1.1)
       globalid (>= 0.3.6)
@@ -262,6 +264,7 @@ GEM
       parser
     scrypt (3.0.7)
       ffi-compiler (>= 1.0, < 2.0)
+    stackprof (0.2.25)
     stringio (3.0.8)
     thor (1.2.2)
     timeout (0.4.0)
@@ -284,6 +287,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  active_record_query_trace (~> 1.8)
   activerecord-import (~> 1.5)
   airbrake (~> 13.0)
   awesome_print (~> 1.9)
@@ -302,6 +306,7 @@ DEPENDENCIES
   rails (~> 7.1.1)
   rspec-rails
   scout_apm (~> 5.3)
+  stackprof (~> 0.2.25)
   tzinfo-data
   unparser (~> 0.6.8)
 

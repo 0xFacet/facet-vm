@@ -14,26 +14,18 @@ class ContractCall < ApplicationRecord
   before_validation :set_effective_contract_address
 
   def execute!
-    result = nil
     self.pending_logs = []
     
-    ActiveRecord::Base.transaction(requires_new: true) do
-      if is_create?
-        create_and_validate_new_contract!
-      else
-        find_and_validate_existing_contract!
-      end
-      
-      # result, state_changed = to_contract.execute_function(
-      result = to_contract.execute_function(
-        function,
-        args
-      )#.values_at(:result, :state_changed)
-      # pp function
-      # if function_object.read_only? && state_changed
-      #   raise ReadOnlyFunctionChangedStateError, "Invalid change in read-only function: #{function}, #{args.inspect}, to address: #{to_contract.address}"
-      # end
+    if is_create?
+      create_and_validate_new_contract!
+    else
+      find_and_validate_existing_contract!
     end
+    
+    result = to_contract.execute_function(
+      function,
+      args
+    )
     
     assign_attributes(
       return_value: result,
@@ -62,17 +54,9 @@ class ContractCall < ApplicationRecord
       raise CallingNonExistentContractError.new("Contract not found: #{to_contract_address}")
     end
     
-    # if !to_contract.public_abi[function]
-    #   raise ContractError.new("Call to unknown function #{function}", to_contract)
-    # end
-    # binding.pry
     if function&.to_sym == :constructor
       raise ContractError.new("Cannot call constructor function: #{function}", to_contract)
     end
-    
-    # if is_static_call? && !to_contract&.public_abi[function]&.read_only?
-    #   raise ContractError.new("Cannot call non-read-only function in static call: #{function}", to_contract)
-    # end
   end
   
   def to_contract_init_code_hash
@@ -113,12 +97,6 @@ class ContractCall < ApplicationRecord
     
     self.function = :constructor
   end
-  
-  # def function_object
-  #   public_abi = to_contract.public_abi
-    
-  #   public_abi[function]
-  # end
   
   def calculate_new_contract_address
     if contract_initiated? && salt
