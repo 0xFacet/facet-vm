@@ -27,10 +27,8 @@ class CallStack
       TransactionContext.tx_origin :
       current_frame.to_contract.address
     
-    active_contract = find_active_contract(to_contract_address)
       
     call = TransactionContext.current_transaction.contract_calls.build(
-      to_contract: active_contract,
       to_contract_address: to_contract_address,
       to_contract_type: to_contract_type,
       to_contract_init_code_hash: to_contract_init_code_hash,
@@ -66,12 +64,6 @@ class CallStack
     pop
   end
   
-  def find_active_contract(address)
-    @frames.detect do |frame|
-      frame.to_contract&.address == address
-    end&.to_contract
-  end
-
   def push(frame)
     @frames.push(frame)
     

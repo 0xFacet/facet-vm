@@ -17,6 +17,8 @@ class ImportResolver
       obj = new(initial_filename)
       ast = obj.process_file(initial_filename)
       
+      return Parser::AST::Node.new(:begin) if ast.blank?
+      
       new_kids = ast.children.reject do |node|
         next false unless node.type == :send
         

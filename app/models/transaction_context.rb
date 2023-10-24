@@ -4,6 +4,8 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   attribute :call_stack, :ethscription, :current_call,
   :transaction_hash, :transaction_index, :current_transaction, :contract_files
   
+  delegate :get_active_contract, to: :current_transaction
+  
   STRUCT_DETAILS = {
     msg:    { attributes: { sender: :address } },
     tx:     { attributes: { origin: :address } },

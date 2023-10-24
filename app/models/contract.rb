@@ -58,40 +58,27 @@ class Contract < ApplicationRecord
   end
   
   def with_correct_implementation(function_name)
-    old_implementation = @implementation
+    old_implementation = implementation
     @implementation = implementation_class.new
     
-    if old_implementation&.state_initialized
-      implementation.state_proxy.load(old_implementation.state_proxy.serialize)
-    else
-      implementation.init_from_saved_state(latest_state)
-    end
+    implementation.state_proxy.load(
+      old_implementation&.state_proxy&.serialize || latest_state
+    )
     
     result = yield
     
     is_read_only = implementation.public_abi[function_name].read_only?
     
-    if implementation.state_changed?
-      if is_read_only
-        raise ReadOnlyFunctionChangedStateError
-      end
-      
-      final_state = implementation.state_proxy.serialize
-      
-      states.create!(
-        transaction_hash: TransactionContext.transaction_hash,
-        block_number: TransactionContext.block_number,
-        transaction_index: TransactionContext.transaction_index,
-        internal_transaction_index: TransactionContext.current_call.internal_transaction_index,
-        state: final_state
-      )
-      
-      update!(latest_state: final_state)
+    if implementation.state_proxy.state_changed? && is_read_only
+      raise ReadOnlyFunctionChangedStateError
     end
     
-    @implementation = old_implementation
-    
-    implementation.state_proxy.load(final_state) if @implementation
+    if old_implementation
+      current_implementation = implementation
+
+      @implementation = old_implementation
+      implementation.state_proxy.load(current_implementation.state_proxy.serialize)
+    end
     
     result
   end

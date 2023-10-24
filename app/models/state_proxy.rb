@@ -42,6 +42,12 @@ class StateProxy
       
       var.deserialize(value)
     end
+    
+    @initial_state ||= serialize
   end
   alias_method :load, :deserialize
+  
+  def state_changed?
+    @initial_state != serialize
+  end
 end

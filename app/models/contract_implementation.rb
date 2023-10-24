@@ -28,15 +28,6 @@ class ContractImplementation
     @state_proxy ||= StateProxy.new(self.class.state_variable_definitions)
   end
   
-  def init_from_saved_state(state)
-    state_proxy.load(state)
-    @initial_state = state_proxy.serialize
-    @state_initialized = true
-  end
-  
-  def state_changed?
-    @initial_state != state_proxy.serialize
-  end
   
   def self.abi
     @abi ||= AbiProxy.new(self)

@@ -26,7 +26,7 @@ class ContractTransaction < ApplicationRecord
         raise "ContractTransaction already created for #{ethscription.inspect}"
       end
       
-      new_from_ethscription(ethscription).execute_transaction
+      new_from_ethscription(ethscription).execute_transaction_with_persistence
     
       end_time = Time.current
       
@@ -191,17 +191,42 @@ class ContractTransaction < ApplicationRecord
     end
   end
   
-  def execute_transaction
+  def execute_transaction_with_persistence
     return unless mimetype_and_to_valid?
     
-    # TODO: this should be a transaction?
-    begin
-      make_initial_call
-    rescue ContractError, TransactionError => e
-      # puts e.message
-    end
+    ContractTransaction.transaction do
+      begin
+        make_initial_call
+      rescue ContractError, TransactionError
+      end
     
-    save! unless is_static_call?
+      save!
+      persist_contract_state_if_success!
+    end
+  end
+  
+  def persist_contract_state_if_success!
+    return unless status == :success
+    
+    contract_calls.each do |call|
+      contract = call.to_contract
+      
+      if contract.implementation.state_proxy.state_changed?
+        contract.states.create!(
+          transaction_hash: transaction_hash,
+          block_number: block_number,
+          transaction_index: transaction_index,
+          internal_transaction_index: call.internal_transaction_index,
+          state: contract.implementation.state_proxy.serialize
+        )
+      end
+    end
+  end
+  
+  def get_active_contract(address)
+    contract_calls.reject(&:failure?).detect do |call|
+      call.to_contract&.address == address
+    end&.to_contract
   end
   
   def is_static_call?

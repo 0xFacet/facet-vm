@@ -48,7 +48,7 @@ class ContractCall < ApplicationRecord
     assign_attributes(error: e.message, status: :failure)
     raise
   rescue ReadOnlyFunctionChangedStateError => e
-    raise ReadOnlyFunctionChangedStateError, "Invalid change in read-only function: #{function}, #{args.inspect}, to address: #{to_contract.address}"
+    raise ReadOnlyFunctionChangedStateError, "Invalid change in read-only function: #{function}, #{args.inspect}, to address: #{to_contract.address}. Before: #{to_contract.implementation.initial_state} after: #{to_contract.implementation.state_proxy.serialize}"
   end
   
   def args=(args)
@@ -56,7 +56,7 @@ class ContractCall < ApplicationRecord
   end
   
   def find_and_validate_existing_contract!
-    self.to_contract ||= Contract.find_by(address: to_contract_address)
+    self.to_contract = TransactionContext.get_active_contract(to_contract_address) || Contract.find_by(address: to_contract_address)
     
     if to_contract.blank?
       raise CallingNonExistentContractError.new("Contract not found: #{to_contract_address}")
