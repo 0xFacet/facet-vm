@@ -333,7 +333,7 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      bridge_out_res = trigger_contract_interaction_and_expect_call_error(
+      trigger_contract_interaction_and_expect_call_error(
         command: 'call',
         from: dc_token_recipient,
         data: {
@@ -347,13 +347,13 @@ RSpec.describe Contract, type: :model do
 
       pending_withdraw = ContractTransaction.make_static_call(
         contract: deploy.address,
-        function_name: "pendingWithdrawalAmounts",
+        function_name: "pendingUserWithdrawalIds",
         function_args: [
-          dc_token_recipient
+          dc_token_recipient, 0
         ]
       )
       
-      expect(pending_withdraw).to eq(2.ether)
+      expect(pending_withdraw).to eq(bridge_out_res.transaction_hash)
 
       balance = ContractTransaction.make_static_call(
         contract: deploy.address,
@@ -383,20 +383,20 @@ RSpec.describe Contract, type: :model do
           functionName: "markWithdrawalComplete",
           args: {
             to: dc_token_recipient,
-            amount: 2.ether,
+            withdrawalId: bridge_out_res.transaction_hash
           }
         }
       )
       
-      pending_withdraw = ContractTransaction.make_static_call(
+      pending_withdraw_ids = ContractTransaction.make_static_call(
         contract: deploy.address,
-        function_name: "pendingWithdrawalAmounts",
+        function_name: "getPendingWithdrawalsForUser",
         function_args: [
           dc_token_recipient
         ]
       )
       
-      expect(pending_withdraw).to eq(0)
+      expect(pending_withdraw_ids.length).to eq(0)
     end
     
     it "nfts" do
