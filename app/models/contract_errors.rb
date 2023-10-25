@@ -26,8 +26,6 @@ module ContractErrors
   class StateVariableMutabilityError < StandardError; end
   class ContractArgumentError < StandardError; end
   class CallingNonExistentContractError < TransactionError; end
-  class UnknownEthscriptionError < StandardError; end
-  class FatalNetworkError < StandardError; end
   class InvalidOverrideError < StandardError; end
   class FunctionAlreadyDefinedError < StandardError; end
   class InvalidEthscriptionError < StandardError; end

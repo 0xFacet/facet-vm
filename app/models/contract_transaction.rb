@@ -110,8 +110,7 @@ class ContractTransaction < ApplicationRecord
         creator: from.downcase,
         creation_timestamp: Time.zone.now.to_i,
         transaction_index: 1,
-        content_uri: uri,
-        mock_for_simulate_transaction: true
+        content_uri: uri
       }
       
       eth = Ethscription.new(ethscription_attrs)
@@ -157,8 +156,7 @@ class ContractTransaction < ApplicationRecord
       block_timestamp: block_timestamp,
       block_blockhash: block_blockhash,
       transaction_hash: transaction_hash,
-      transaction_index: transaction_index,
-      ethscription: ethscription # TODO: Do we need this?
+      transaction_index: transaction_index
     ) do
       yield
     end

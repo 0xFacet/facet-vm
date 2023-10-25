@@ -139,68 +139,6 @@ class EthscriptionSync
     Ethscription.import!(new_ethscriptions)
   end
   
-  def self.test_findEthscriptionById
-    # All on goerli. Todo make into real test
-    picture_ethscription = "0xe311b34c7ca0d37ed3c2139ed26696656de707fa39fb04f44f6a86d0f78cd69e"
-    initial_owner = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97".downcase
-    
-    first_contract_interaction = "0x59311b2d3f0df7fa54671954b2d3f20ac9f012cf39fa45373033097f4285f074"
-    
-    transfer = "0xdeeb813391c34b43d5445ea97039488478cd7e20df7e15552c5eeb62492f31af"
-    new_owner = "0x455E5AA18469bC6ccEF49594645666C587A3a71B".downcase
-    
-    second_contract_interaction = "0x95f24a00beb54b1c5b6cf902912b16d25b6d5ba6cf747ea3e7ccc0ba855505b6"
-    
-    _initial_owner = findEthscriptionById(picture_ethscription, as_of: first_contract_interaction)['current_owner']
-    _new_owner = findEthscriptionById(picture_ethscription, as_of: second_contract_interaction)['current_owner']
-    
-    unless _initial_owner == initial_owner && _new_owner == new_owner
-      raise "FAILURE"
-    end
-    "SUCCESS!"
-  end
-  
-  def self.findEthscriptionById(ethscription_id, as_of:)
-    maximum_attempts = 3 
-    attempts = 0
-    
-    latest_block = if Rails.env.test?
-      EthBlock.new(
-        block_number: 9808217,
-        blockhash: "0x915b5850f596a717b0634d722728e3ee7befde2d0b1ad89fdd55c6921c49ed06",
-      )
-    else
-      EthBlock.order(block_number: :desc).where.not(imported_at: nil).first
-    end
-    
-    begin
-      response = query_api("ethscription_as_of",
-        ethscription_id: ethscription_id,
-        as_of_ethscription: as_of,
-        latest_block_number: latest_block&.block_number,
-        latest_block_hash: latest_block&.blockhash
-      )
-  
-      case response.code
-      when 200...300
-        return transform_server_response(response.parsed_response['result'])
-      when 404
-        raise UnknownEthscriptionError.new("Unknown ethscription: #{ethscription_id}")
-      else
-        raise FatalNetworkError.new("Unexpected HTTP error: #{response.code}")
-      end
-  
-    rescue FatalNetworkError => e
-      attempts += 1
-      if attempts < maximum_attempts
-        sleep(1)
-        retry
-      else
-        raise e
-      end
-    end
-  end
-  
   def self.transform_server_response(server_data)
     res = {
       ethscription_id: server_data['transaction_hash'],
