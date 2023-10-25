@@ -11,7 +11,7 @@ class ContractImplementation
   delegate :block, :blockhash, :tx, :esc, :msg, :log_event, :call_stack,
            :current_address, to: :current_context
   
-  attr_reader :current_context, :state_initialized
+  attr_reader :current_context
   
   def initialize(current_context: TransactionContext, initial_state: nil)
     @current_context = current_context || raise("Must provide current context")
