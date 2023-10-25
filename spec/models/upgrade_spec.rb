@@ -221,6 +221,32 @@ describe 'Upgrading Contracts' do
     expect(re_entrancy_triggered).to eq(false)
   end
   
+  it "handles broken storage layout" do
+    v1 = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: nil,
+        data: {
+          type: "UpgradeableV1"
+        }
+      }
+    )
+    
+    hash = RubidityFile.registry.detect{|k, v| v.name == "NoStorage"}.first
+    
+    trigger_contract_interaction_and_expect_error(
+      error_msg_includes: 'Implementations have different storage layouts',
+      from: user_address,
+      payload: {
+        to: v1.contract_address,
+        data: {
+          function: "upgradeFromV1",
+          args: "0x" + hash
+        }
+      }
+    )
+  end
+  
   it 'handles multiple upgrades correctly' do
     # Deploy the initial version of the contract
     v1 = trigger_contract_interaction_and_expect_success(

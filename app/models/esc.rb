@@ -49,8 +49,8 @@ class Esc
       )
     end
     
-    new_state_vars = new_implementation_class.new.state_proxy.state_variables
-    old_state_vars = target.implementation_class.new.state_proxy.state_variables
+    new_state_vars = new_implementation_class.state_variable_definitions
+    old_state_vars = target.implementation_class.state_variable_definitions
     
     unless new_state_vars == old_state_vars
       raise ContractError.new("Implementations have different storage layouts: old: #{old_state_vars.keys}, new: #{new_state_vars.keys}", target)

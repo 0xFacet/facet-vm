@@ -58,6 +58,10 @@ contract :UpgradeableV2 do
   end
 end
 
+contract :NoStorage do
+  function :migration, :public
+end
+
 contract :UpgradeableV1 do
   uint256 :public, :version
   address :public, :upgradeAdmin
