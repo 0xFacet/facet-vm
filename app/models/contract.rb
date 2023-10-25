@@ -123,7 +123,7 @@ class Contract < ApplicationRecord
         ]
       )
     ).tap do |json|
-      json['abi'] = implementation.public_abi.map do |name, func|
+      json['abi'] = implementation_class.new.public_abi.map do |name, func|
         [name, func.as_json.except('implementation')]
       end.to_h
       
@@ -133,14 +133,12 @@ class Contract < ApplicationRecord
         {}
       end
       
-      json['current_state']['contract_type'] = type
-      
-      klass = implementation.class
+      json['current_state']['contract_type'] = current_type
       
       json['source_code'] = [
         {
           language: 'ruby',
-          code: klass.source_code
+          code: implementation_class.source_code
         }
       ]
     end
