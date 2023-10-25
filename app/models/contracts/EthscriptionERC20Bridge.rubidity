@@ -10,7 +10,7 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
   address :public, :trustedSmartContract
   mapping ({ address: :uint256 }), :public, :bridgedInAmounts
   mapping ({ bytes32: :uint256 }), :public, :pendingWithdrawalAmounts
-  mapping ({ address: array(:bytes32) }), :public, :pendingUserWithdrawalIds
+  mapping ({ address: :bytes32 }), :public, :pendingUserWithdrawalIds
   
   constructor(
     name: :string,
@@ -37,6 +37,10 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
   function :bridgeOut, { amount: :uint256 }, :public do
     withdrawalId = esc.currentTransactionHash
     require(
+      s.pendingUserWithdrawalIds[msg.sender] == bytes32(0),
+      "Withdrawal pending"
+    )
+    require(
       s.pendingWithdrawalAmounts[withdrawalId] == 0,
       "Already bridged out"
     )
@@ -45,10 +49,9 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
       "Not enough bridged in"
     )
 
-    s.bridgedInAmounts[msg.sender] -= amount
-    
+    s.pendingUserWithdrawalIds[msg.sender] = withdrawalId
     s.pendingWithdrawalAmounts[withdrawalId] = amount
-    s.pendingUserWithdrawalIds[msg.sender].push(withdrawalId)
+    s.bridgedInAmounts[msg.sender] -= amount
       
     _burn(from: msg.sender, amount: amount)
     emit :InitiateWithdrawal, from: msg.sender, amount: amount, withdrawalId: withdrawalId
@@ -63,43 +66,14 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
       'Only the trusted smart contract can mark withdrawals as complete'
     )
     require(
-      _removeFirstOccurenceOfValueFromArray(
-        s.pendingUserWithdrawalIds[to],
-        withdrawalId
-      ),
+      s.pendingUserWithdrawalIds[to] == withdrawalId,
       "Withdrawal id not found"
     )
     
     amount = s.pendingWithdrawalAmounts[withdrawalId]
     s.pendingWithdrawalAmounts[withdrawalId] = 0
+    s.pendingUserWithdrawalIds[to] = bytes32(0)
       
     emit :WithdrawalComplete, to: to, amount: amount, withdrawalId: withdrawalId
-  end
-  
-  function :getPendingWithdrawalsForUser, { user: :address }, :public, :view, returns: [:bytes32] do
-    return s.pendingUserWithdrawalIds[user]
-  end
-  
-  function :_removeFirstOccurenceOfValueFromArray, { arr: array(:bytes32), value: :bytes32 }, :internal, returns: :bool do
-    for i in 0...arr.length
-      if arr[i] == value
-        return _removeItemAtIndex(arr: arr, indexToRemove: i)
-      end
-    end
-    
-    return false
-  end
-  
-  function :_removeItemAtIndex, { arr: array(:bytes32), indexToRemove: :uint256 }, :internal, returns: :bool do
-    lastIndex = arr.length - 1
-    
-    if lastIndex != indexToRemove
-      lastItem = arr[lastIndex]
-      arr[indexToRemove] = lastItem
-    end
-    
-    arr.pop
-    
-    return true
   end
 end

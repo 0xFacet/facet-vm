@@ -349,7 +349,7 @@ RSpec.describe Contract, type: :model do
         contract: deploy.address,
         function_name: "pendingUserWithdrawalIds",
         function_args: [
-          dc_token_recipient, 0
+          dc_token_recipient
         ]
       )
       
@@ -388,15 +388,15 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      pending_withdraw_ids = ContractTransaction.make_static_call(
+      pending_withdraw = ContractTransaction.make_static_call(
         contract: deploy.address,
-        function_name: "getPendingWithdrawalsForUser",
+        function_name: "pendingUserWithdrawalIds",
         function_args: [
           dc_token_recipient
         ]
       )
       
-      expect(pending_withdraw_ids.length).to eq(0)
+      expect(pending_withdraw).to eq("0x0000000000000000000000000000000000000000000000000000000000000000")
     end
     
     it "nfts" do
