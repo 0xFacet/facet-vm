@@ -1,7 +1,7 @@
 class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
-  attribute :call_stack, :ethscription, :current_call,
+  attribute :call_stack, :current_call,
   :transaction_hash, :transaction_index, :current_transaction, :contract_files
   
   delegate :get_active_contract, to: :current_transaction
@@ -83,6 +83,6 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def esc
-    Esc.new(ethscription)
+    Esc.new
   end
 end
