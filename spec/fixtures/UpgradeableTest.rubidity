@@ -92,12 +92,14 @@ contract :MaliciousReentrancy, is: :UpgradeableV1 do
     
     s.reEntrancyTriggered = true
     upgradeFromV1(newHash: newHash)
+    nil
   end
 
   function :upgradeFromV1, { newHash: :bytes32 }, :override, :public do
     require(!s.reEntrancyTriggered, "Re-entrancy already triggered!")
 
     UpgradeableV1.upgradeFromV1(newHash: newHash)
+    nil
   end
 end
 
@@ -106,6 +108,7 @@ contract :callStackDepth do
   
   function :callOtherContract, { other: :address }, :public do
     callStackDepth(other).callOtherContract(address(this))
+    nil
   end
 end
 
@@ -221,6 +224,7 @@ contract :UpgradeableLoop do
     esc.upgradeContract(newHash)
 
     LoopInitiator(msg.sender).upgradeFromV1(newHash)
+    nil
   end
 
   function :setTarget, { addr: :address }, :public do
@@ -238,5 +242,6 @@ contract :LoopInitiator do
     require(msg.sender == s.upgradeAdmin, "NOT_AUTHORIZED")
     
     UpgradeableLoop(loopAddress).loopUpgrade(newHash)
+    nil
   end
 end

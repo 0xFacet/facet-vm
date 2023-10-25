@@ -36,15 +36,34 @@ class Contract < ApplicationRecord
     end
   end
   
-  # def public_abi
-  #   # implementation_class.new.public_abi
-  #   implementation_class.new.public_abi
-  # end
+  def should_save_new_state?
+    current_init_code_hash_changed? ||
+    current_type_changed? ||
+    current_state_changed? ||
+    !(states.loaded? ? states.any? : states.exists?)
+  end
   
-  def execute_function(function_name, args)
-    with_correct_implementation(function_name) do
+  def save_new_state_if_needed!(transaction:)
+    return unless should_save_new_state?
+    
+    states.create!(
+      transaction_hash: transaction.transaction_hash,
+      block_number: transaction.block_number,
+      transaction_index: transaction.transaction_index,
+      state: current_state,
+      type: current_type,
+      init_code_hash: current_init_code_hash
+    )
+  end
+  
+  def execute_function(function_name, args, is_static_call:)
+    with_correct_implementation do
       if !implementation.public_abi[function_name]
         raise ContractError.new("Call to unknown function #{function_name}", self)
+      end
+      
+      if is_static_call && !implementation.public_abi[function_name].read_only?
+        raise ContractError.new("Cannot call non-read-only function in static call: #{function_name}", self)
       end
       
       if args.is_a?(Hash)
@@ -55,36 +74,27 @@ class Contract < ApplicationRecord
     end
   end
   
-  def with_correct_implementation(function_name)
+  def with_correct_implementation
     old_implementation = implementation
-    @implementation = implementation_class.new
-    
-    implementation.state_proxy.load(
-      old_implementation&.state_proxy&.serialize || current_state
+    @implementation = implementation_class.new(
+      initial_state: old_implementation&.state_proxy&.serialize ||
+        current_state
     )
     
     result = yield
     
-    is_read_only = implementation.public_abi[function_name].read_only?
-    
-    if implementation.state_proxy.state_changed? && is_read_only
-      raise ReadOnlyFunctionChangedStateError
-    end
+    self.current_state = implementation.state_proxy.serialize
     
     if old_implementation
-      current_implementation = implementation
-
       @implementation = old_implementation
-      implementation.state_proxy.load(current_implementation.state_proxy.serialize)
+      implementation.state_proxy.load(current_state)
     end
     
     result
   end
   
   def fresh_implementation_with_current_state
-    implementation_class.new.tap do |implementation|
-      implementation.state_proxy.load(current_state)
-    end
+    implementation_class.new(initial_state: current_state)
   end
   
   def self.deployable_contracts

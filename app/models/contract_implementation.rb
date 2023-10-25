@@ -13,8 +13,12 @@ class ContractImplementation
   
   attr_reader :current_context, :state_initialized
   
-  def initialize(current_context: TransactionContext)
+  def initialize(current_context: TransactionContext, initial_state: nil)
     @current_context = current_context || raise("Must provide current context")
+    
+    if initial_state
+      state_proxy.load(initial_state)
+    end
   end
   
   def self.state_variable_definitions

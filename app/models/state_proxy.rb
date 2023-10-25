@@ -1,7 +1,7 @@
 class StateProxy
   include ContractErrors
   
-  attr_reader :state_variables
+  attr_reader :state_variables, :initial_state
   
   def initialize(definitions)
     @state_variables = {}.with_indifferent_access
@@ -27,7 +27,9 @@ class StateProxy
   end
   
   def serialize
-    state_variables.each.with_object({}) do |(key, value), h|
+    sorted = state_variables.sort_by { |key, _| [key.length, key] }.to_h
+    
+    sorted.each.with_object({}) do |(key, value), h|
       h[key] = value.serialize
     end.deep_dup
   end

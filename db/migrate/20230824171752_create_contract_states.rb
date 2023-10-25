@@ -15,7 +15,8 @@ class CreateContractStates < ActiveRecord::Migration[7.0]
       t.bigint :block_number, null: false
       t.bigint :transaction_index, null: false
       
-      t.index [:block_number, :transaction_index]
+      t.index [:block_number, :transaction_index, :contract_id],
+        unique: true, name: :index_contract_states_on_block_index_contract_address
       t.index :state, using: :gin
       
       t.timestamps
@@ -34,7 +35,7 @@ class CreateContractStates < ActiveRecord::Migration[7.0]
           SELECT INTO latest_contract_state *
           FROM contract_states
           WHERE contract_address = NEW.contract_address
-          ORDER BY block_number DESC, transaction_index DESC, internal_transaction_index DESC
+          ORDER BY block_number DESC, transaction_index DESC
           LIMIT 1;
 
           UPDATE contracts
@@ -47,7 +48,7 @@ class CreateContractStates < ActiveRecord::Migration[7.0]
           FROM contract_states
           WHERE contract_address = OLD.contract_address
             AND id != OLD.id
-          ORDER BY block_number DESC, transaction_index DESC, internal_transaction_index DESC
+          ORDER BY block_number DESC, transaction_index DESC
           LIMIT 1;
 
           UPDATE contracts

@@ -22,7 +22,8 @@ class ContractCall < ApplicationRecord
     
     result = to_contract.execute_function(
       function,
-      args
+      args,
+      is_static_call: is_static_call?
     )
     
     assign_attributes(
@@ -42,8 +43,6 @@ class ContractCall < ApplicationRecord
   rescue ContractError, TransactionError => e
     assign_attributes(error: e.message, status: :failure)
     raise
-  rescue ReadOnlyFunctionChangedStateError => e
-    raise ReadOnlyFunctionChangedStateError, "Invalid change in read-only function: #{function}, #{args.inspect}, to address: #{to_contract.address}. Before: #{to_contract.implementation.initial_state} after: #{to_contract.implementation.state_proxy.serialize}"
   end
   
   def args=(args)

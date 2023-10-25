@@ -189,24 +189,19 @@ class ContractTransaction < ApplicationRecord
   def persist_contract_state_if_success!
     return unless status == :success
     
-    contract_calls.each do |call|
-      contract = call.to_contract
-      
-      save_new_state = contract.implementation.state_proxy.state_changed? ||
-        contract.current_init_code_hash_changed? ||
-        contract.current_type_changed?
-      
-      if save_new_state
-        contract.states.create!(
-          transaction_hash: transaction_hash,
-          block_number: block_number,
-          transaction_index: transaction_index,
-          internal_transaction_index: call.internal_transaction_index,
-          state: contract.implementation.state_proxy.serialize,
-          type: contract.current_type,
-          init_code_hash: contract.current_init_code_hash
-        )
+    grouped_contracts = contract_calls.group_by { |call| call.to_contract.address }
+
+    grouped_contracts.each do |address, calls|
+      states = calls.map { |call| call.to_contract.current_state }.uniq
+      if states.length > 1
+        raise "Duplicate contracts with different states for address #{address}"
       end
+    end
+    
+    contract_calls.map(&:to_contract).uniq.each do |contract|
+      contract.save_new_state_if_needed!(
+        transaction: self,
+      )
     end
   end
   

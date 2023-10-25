@@ -11,6 +11,7 @@ contract :StubERC20B, is: :ERC20 do
   
   function :unsafeReadOnly, :public, :view do
     s.unsafeReadOnlyCounter += 1
+    nil
   end
   
   function :callOwnUnsafeReadOnly, :public do

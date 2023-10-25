@@ -56,14 +56,6 @@ class Esc
       raise ContractError.new("Implementations have different storage layouts: old: #{old_state_vars.keys}, new: #{new_state_vars.keys}", target)
     end
     
-    # target.implementation_versions.build(
-    #   transaction_hash: TransactionContext.transaction_hash,
-    #   block_number: TransactionContext.block_number,
-    #   transaction_index: TransactionContext.transaction_index,
-    #   internal_transaction_index: TransactionContext.current_call.internal_transaction_index,
-    #   init_code_hash: new_init_code_hash
-    # )
-    
     target.assign_attributes(
       current_type: new_implementation_class.name,
       current_init_code_hash: new_init_code_hash

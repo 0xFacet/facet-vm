@@ -133,7 +133,7 @@ CREATE FUNCTION public.update_current_state() RETURNS trigger
           SELECT INTO latest_contract_state *
           FROM contract_states
           WHERE contract_address = NEW.contract_address
-          ORDER BY block_number DESC, transaction_index DESC, internal_transaction_index DESC
+          ORDER BY block_number DESC, transaction_index DESC
           LIMIT 1;
 
           UPDATE contracts
@@ -146,7 +146,7 @@ CREATE FUNCTION public.update_current_state() RETURNS trigger
           FROM contract_states
           WHERE contract_address = OLD.contract_address
             AND id != OLD.id
-          ORDER BY block_number DESC, transaction_index DESC, internal_transaction_index DESC
+          ORDER BY block_number DESC, transaction_index DESC
           LIMIT 1;
 
           UPDATE contracts
@@ -155,7 +155,7 @@ CREATE FUNCTION public.update_current_state() RETURNS trigger
               current_init_code_hash = latest_contract_state.init_code_hash
           WHERE address = OLD.contract_address;
         END IF;
-
+      
         RETURN NULL; -- result is ignored since this is an AFTER trigger
       END;
       $$;
@@ -245,7 +245,6 @@ CREATE TABLE public.contract_states (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     contract_address character varying NOT NULL,
-    internal_transaction_index integer NOT NULL,
     CONSTRAINT chk_rails_05016dab2f CHECK (((init_code_hash)::text ~ '^[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_0d9a27b31a CHECK (((contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_e8714d0639 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
@@ -663,13 +662,6 @@ CREATE INDEX index_contract_calls_on_to_contract_address ON public.contract_call
 
 
 --
--- Name: index_contract_states_on_block_number_and_transaction_index; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_contract_states_on_block_number_and_transaction_index ON public.contract_states USING btree (block_number, transaction_index);
-
-
---
 -- Name: index_contract_states_on_contract_address; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -677,17 +669,10 @@ CREATE INDEX index_contract_states_on_contract_address ON public.contract_states
 
 
 --
--- Name: index_contract_states_on_internal_transaction_index; Type: INDEX; Schema: public; Owner: -
+-- Name: index_contract_states_on_contract_address_and_transaction_hash; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_contract_states_on_internal_transaction_index ON public.contract_states USING btree (internal_transaction_index);
-
-
---
--- Name: index_contract_states_on_internal_tx_index_and_tx_hash; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_contract_states_on_internal_tx_index_and_tx_hash ON public.contract_states USING btree (internal_transaction_index, transaction_hash);
+CREATE UNIQUE INDEX index_contract_states_on_contract_address_and_transaction_hash ON public.contract_states USING btree (contract_address, transaction_hash);
 
 
 --
@@ -958,7 +943,6 @@ SET search_path TO "$user", public;
 INSERT INTO "schema_migrations" (version) VALUES
 ('20231001152142'),
 ('20230928185853'),
-('20230914181546'),
 ('20230911151706'),
 ('20230911150931'),
 ('20230911143056'),

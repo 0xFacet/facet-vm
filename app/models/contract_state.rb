@@ -8,7 +8,7 @@ class ContractState < ApplicationRecord
   touch: true, optional: true
   
   scope :newest_first, -> {
-    order(block_number: :desc, transaction_index: :desc, internal_transaction_index: :desc) 
+    order(block_number: :desc, transaction_index: :desc) 
   }
   
   def as_json(options = {})

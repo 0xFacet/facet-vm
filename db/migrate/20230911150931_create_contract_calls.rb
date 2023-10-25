@@ -18,7 +18,7 @@ class CreateContractCalls < ActiveRecord::Migration[7.0]
       
       t.timestamps
     
-      t.index ["transaction_hash", "internal_transaction_index"], unique: true, name: "index_contract_calls_on_contract_tx_id_and_internal_tx_index"
+      t.index [:transaction_hash, :internal_transaction_index], unique: true, name: "index_contract_calls_on_contract_tx_id_and_internal_tx_index"
       t.index :effective_contract_address
       t.index :internal_transaction_index
       t.index :from_address

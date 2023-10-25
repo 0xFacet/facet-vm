@@ -73,9 +73,20 @@ class AbiProxy
       define_method(method_name) do |*args, **kwargs|
         begin
           cooked_args = func_proxy.convert_args_to_typed_variables_struct(args, kwargs)
+          
+          if func_proxy.read_only?
+            initial_value = state_proxy.serialize
+          end
+          
           ret_val = FunctionContext.define_and_call_function_method(
             self, cooked_args, &func_proxy.implementation
           )
+          
+          if func_proxy.read_only? && initial_value != state_proxy.serialize
+            raise ContractError,
+             "Invalid change in read-only function: #{method_name}, #{(args.presence || kwargs).inspect}, to address: #{current_address}. Before: #{initial_value} after: #{state_proxy.serialize}"
+          end
+          
           func_proxy.convert_return_to_typed_variable(ret_val)
         rescue Contract::ContractArgumentError, Contract::VariableTypeError => e
           raise ContractError.new("Wrong args in #{method_name} (#{func_proxy.func_location}): #{e.message}", self)

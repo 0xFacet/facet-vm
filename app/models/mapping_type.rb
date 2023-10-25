@@ -22,7 +22,11 @@ class MappingType < TypedVariable
       end
       
       clean_data = data.except(*dirty_keys)
-      clean_data.merge(serialized_dirty_data).deep_dup
+      merged_data = clean_data.merge(serialized_dirty_data)
+      
+      sorted_data = merged_data.sort_by { |key, _| [key.length, key] }.to_h
+      
+      sorted_data.deep_dup
     end
     
     def ==(other)
