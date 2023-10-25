@@ -6,8 +6,6 @@ class Contract < ApplicationRecord
     foreign_key: 'contract_address'
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
 
-  has_many :implementation_versions, primary_key: 'address', foreign_key: 'contract_address', class_name: "ContractImplementationVersion"
-  
   belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'transaction_hash', optional: true
   
   has_many :contract_calls, foreign_key: :effective_contract_address, primary_key: :address
@@ -20,12 +18,9 @@ class Contract < ApplicationRecord
   
   delegate :implements?, to: :implementation
   
-  def init_code_hash
-    current_init_code_hash
-  end
-  
   def implementation_class
-    klass = TransactionContext.implementation_from_init_code(init_code_hash) || RubidityFile.registry[init_code_hash]
+    klass = TransactionContext.implementation_from_init_code(current_init_code_hash) ||
+      RubidityFile.registry[current_init_code_hash]
   end
   
   def self.types_that_implement(base_type)
