@@ -11,6 +11,16 @@ class StateProxy
     end
   end
   
+  def detecting_changes(revert_on_change:)
+    @_change_detector = false
+    
+    yield
+    
+    if @_change_detector && revert_on_change
+      raise InvalidStateVariableChange.new
+    end
+  end
+  
   def method_missing(name, *args)
     is_setter = name[-1] == '='
     var_name = is_setter ? name[0...-1].to_s : name.to_s
@@ -20,6 +30,8 @@ class StateProxy
     return super if var.nil?
 
     if is_setter
+      # TODO: ensure no other way to make changes
+      @_change_detector = true
       var.typed_variable = args.first
     else
       var.typed_variable
