@@ -1,5 +1,3 @@
-# TODO: what should happen if storage layout changes?
-
 pragma :rubidity, "1.0.0"
 
 contract :UpgradeableV3 do
