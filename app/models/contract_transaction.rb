@@ -10,8 +10,6 @@ class ContractTransaction < ApplicationRecord
   has_many :contracts, foreign_key: :transaction_hash, primary_key: :transaction_hash
   belongs_to :contract, primary_key: 'address', foreign_key: 'to_contract_address', optional: true
 
-  after_create :create_transaction_receipt!
-  
   attr_accessor :tx_origin, :initial_call_info, :payload
   
   def self.required_mimetype
@@ -26,7 +24,11 @@ class ContractTransaction < ApplicationRecord
         raise "ContractTransaction already created for #{ethscription.inspect}"
       end
       
-      new_from_ethscription(ethscription).execute_transaction_with_persistence
+      record = new_from_ethscription(ethscription)
+      
+      if record.mimetype_and_to_valid?
+        record.execute_transaction(persist: true)
+      end
     
       end_time = Time.current
       
@@ -78,14 +80,14 @@ class ContractTransaction < ApplicationRecord
     contract_calls.sort_by(&:internal_transaction_index).first
   end
   
-  def create_transaction_receipt!
-    ContractTransactionReceipt.create!(
+  def build_transaction_receipt
+    self.contract_transaction_receipt = ContractTransactionReceipt.new(
       transaction_hash: transaction_hash,
       caller: initial_call.from_address,
       timestamp: Time.zone.at(block_timestamp),
       function_name: initial_call.function,
       function_args: initial_call.args,
-      logs: contract_calls.order(:internal_transaction_index).map(&:logs).flatten,
+      logs: contract_calls.sort_by(&:internal_transaction_index).map(&:logs).flatten,
       status: status,
       contract_address: initial_call.effective_contract_address,
       error_message: initial_call.error
@@ -99,46 +101,25 @@ class ContractTransaction < ApplicationRecord
       mimetype = ContractTransaction.required_mimetype
       uri = %{#{mimetype},#{tx_payload.to_json}}
   
-      transaction_receipt = nil
-  
-      ActiveRecord::Base.transaction do
-        if !EthBlock.exists?
-          EthBlock.create!(
-            block_number: 1,
-            blockhash: "0x" + SecureRandom.hex(32),
-            parent_blockhash: "0x" + SecureRandom.hex(32),
-            timestamp: Time.zone.now.to_i,
-            imported_at: Time.zone.now,
-            processing_state: "complete"
-          )
-        end
-        
-        block_number = EthBlock.where(processing_state: :complete).
-          order(imported_at: :desc).limit(1).pluck(:block_number).first
-        
-        ethscription_attrs = {
-          ethscription_id: "0x" + SecureRandom.hex(32),
-          block_number: block_number,
-          block_blockhash: "0x" + SecureRandom.hex(32),
-          current_owner: from.downcase,
-          creator: from.downcase,
-          creation_timestamp: Time.zone.now.to_i,
-          initial_owner: "0x" + "0" * 40,
-          transaction_index: Time.zone.now.to_i,
-          content_uri: uri,
-          content_sha: Digest::SHA256.hexdigest(uri),
-          mimetype: mimetype,
-          mock_for_simulate_transaction: true
-        }
-        
-        eth = Ethscription.create!(ethscription_attrs)
-        ContractTransaction.create_from_ethscription!(eth)
-        transaction_receipt = eth.contract_transaction_receipt
-        
-        raise ActiveRecord::Rollback
-      end
-  
-      transaction_receipt
+      block_number = EthBlock.maximum(:block_number).to_i + 1
+      
+      ethscription_attrs = {
+        ethscription_id: "0x" + SecureRandom.hex(32),
+        block_number: block_number,
+        block_blockhash: "0x" + SecureRandom.hex(32),
+        creator: from.downcase,
+        creation_timestamp: Time.zone.now.to_i,
+        transaction_index: Time.zone.now.to_i,
+        content_uri: uri,
+        mock_for_simulate_transaction: true
+      }
+      
+      eth = Ethscription.new(ethscription_attrs)
+      
+      tx = ContractTransaction.new_from_ethscription(eth)
+      tx.execute_transaction(persist: false)
+      
+      tx.contract_transaction_receipt
     end
   end
   
@@ -191,15 +172,15 @@ class ContractTransaction < ApplicationRecord
     end
   end
   
-  def execute_transaction_with_persistence
-    return unless mimetype_and_to_valid?
+  def execute_transaction(persist:)
+    begin
+      make_initial_call
+    rescue ContractError, TransactionError
+    end
     
-    ContractTransaction.transaction do
-      begin
-        make_initial_call
-      rescue ContractError, TransactionError
-      end
+    build_transaction_receipt
     
+    if persist
       save!
       persist_contract_state_if_success!
     end
@@ -210,6 +191,17 @@ class ContractTransaction < ApplicationRecord
     
     contract_calls.each do |call|
       contract = call.to_contract
+      
+      if contract.current_init_code_hash_changed?
+        # binding.pry
+        contract.implementation_versions.create!(
+          transaction_hash: transaction_hash,
+          block_number: block_number,
+          transaction_index: transaction_index,
+          internal_transaction_index: call.internal_transaction_index,
+          init_code_hash: contract.current_init_code_hash
+        )
+      end
       
       if contract.implementation.state_proxy.state_changed?
         contract.states.create!(
@@ -236,8 +228,6 @@ class ContractTransaction < ApplicationRecord
   def status
     contract_calls.any?(&:failure?) ? :error : :success
   end
-  
-  private
   
   def mimetype_and_to_valid?
     unless ethscription.initial_owner == ("0x" + "0" * 40) && ethscription.mimetype == ContractTransaction.required_mimetype

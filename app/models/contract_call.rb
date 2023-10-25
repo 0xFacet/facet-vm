@@ -11,8 +11,6 @@ class ContractCall < ApplicationRecord
   
   belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'transaction_hash', optional: true
 
-  before_validation :set_effective_contract_address
-
   def execute!
     self.pending_logs = []
     
@@ -32,6 +30,8 @@ class ContractCall < ApplicationRecord
       status: :success,
       logs: pending_logs
     )
+    
+    self.effective_contract_address = to_contract.address
     
     if is_create?
       self.created_contract = to_contract
@@ -83,19 +83,11 @@ class ContractCall < ApplicationRecord
       raise TransactionError.new("Cannot deploy abstract contract: #{to_contract_implementation.name}")
     end
     
-    self.to_contract = Contract.create!(
+    self.to_contract = Contract.new(
       transaction_hash: TransactionContext.transaction_hash,
       address: calculate_new_contract_address,
       type: to_contract_implementation.name,
       current_init_code_hash: to_contract_init_code_hash
-    )
-    
-    self.to_contract.implementation_versions.create!(
-      transaction_hash: TransactionContext.transaction_hash,
-      block_number: TransactionContext.block_number,
-      transaction_index: TransactionContext.transaction_index,
-      internal_transaction_index: TransactionContext.current_call.internal_transaction_index,
-      init_code_hash: to_contract_init_code_hash,
     )
     
     self.function = :constructor
@@ -162,15 +154,5 @@ class ContractCall < ApplicationRecord
   def log_event(event)
     pending_logs << event
     nil
-  end
-  
-  private
-  
-  def set_effective_contract_address
-    self.effective_contract_address = if is_create?
-      created_contract_address
-    else
-      to_contract_address
-    end
   end
 end
