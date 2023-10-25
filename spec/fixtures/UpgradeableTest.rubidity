@@ -1,8 +1,8 @@
 pragma :rubidity, "1.0.0"
 
 contract :UpgradeableV3 do
-  uint256 :public, :version
   address :public, :upgradeAdmin
+  uint256 :public, :version
   bytes32 :public, :lastUpgradeHash
 
   event :NotifyOfVersion, { version: :uint256, from: :string }
@@ -54,10 +54,6 @@ contract :UpgradeableV2 do
     
     require(false, "Upgrade error")
   end
-end
-
-contract :NoStorage do
-  function :migration, :public
 end
 
 contract :UpgradeableV1 do

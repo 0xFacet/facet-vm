@@ -49,13 +49,6 @@ class Esc
       )
     end
     
-    new_state_vars = new_implementation_class.state_variable_definitions
-    old_state_vars = target.implementation_class.state_variable_definitions
-    
-    unless new_state_vars == old_state_vars
-      raise ContractError.new("Implementations have different storage layouts: old: #{old_state_vars.keys}, new: #{new_state_vars.keys}", target)
-    end
-    
     target.assign_attributes(
       current_type: new_implementation_class.name,
       current_init_code_hash: new_init_code_hash
