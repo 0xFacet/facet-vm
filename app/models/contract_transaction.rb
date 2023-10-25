@@ -109,7 +109,7 @@ class ContractTransaction < ApplicationRecord
         block_blockhash: "0x" + SecureRandom.hex(32),
         creator: from.downcase,
         creation_timestamp: Time.zone.now.to_i,
-        transaction_index: Time.zone.now.to_i,
+        transaction_index: 1,
         content_uri: uri,
         mock_for_simulate_transaction: true
       }
