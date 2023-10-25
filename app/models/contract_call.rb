@@ -50,7 +50,8 @@ class ContractCall < ApplicationRecord
   end
   
   def find_and_validate_existing_contract!
-    self.to_contract = TransactionContext.get_active_contract(to_contract_address) || Contract.find_by(address: to_contract_address)
+    self.to_contract = TransactionContext.get_active_contract(to_contract_address) ||
+      Contract.find_by(address: to_contract_address)
     
     if to_contract.blank?
       raise CallingNonExistentContractError.new("Contract not found: #{to_contract_address}")

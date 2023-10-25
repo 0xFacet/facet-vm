@@ -198,7 +198,7 @@ class ContractTransaction < ApplicationRecord
       end
     end
     
-    contract_calls.map(&:to_contract).uniq.each do |contract|
+    contract_calls.map(&:to_contract).uniq(&:address).each do |contract|
       contract.save_new_state_if_needed!(
         transaction: self,
       )
@@ -209,10 +209,6 @@ class ContractTransaction < ApplicationRecord
     contract_calls.detect do |call|
       call.to_contract&.address == address
     end&.to_contract
-  end
-  
-  def is_static_call?
-    initial_call.is_static_call?
   end
   
   def status

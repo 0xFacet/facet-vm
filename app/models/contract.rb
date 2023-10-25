@@ -44,8 +44,7 @@ class Contract < ApplicationRecord
   def should_save_new_state?
     current_init_code_hash_changed? ||
     current_type_changed? ||
-    normalized_state_changed? ||
-    !(states.loaded? ? states.any? : states.exists?)
+    normalized_state_changed?
   end
   
   def save_new_state_if_needed!(transaction:)
