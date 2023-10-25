@@ -27,7 +27,6 @@ class CallStack
       TransactionContext.tx_origin :
       current_frame.to_contract.address
     
-      
     call = TransactionContext.current_transaction.contract_calls.build(
       to_contract_address: to_contract_address,
       to_contract_type: to_contract_type,
