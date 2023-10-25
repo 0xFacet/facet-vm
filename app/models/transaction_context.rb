@@ -47,7 +47,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   def implementation_from_init_code(init_code_hash)
     return unless contract_files.present?
     
-    init_code_hash = init_code_hash.sub(/^0x/, '')
+    init_code_hash = init_code_hash&.sub(/^0x/, '')
     contract_files[init_code_hash]
   end
   
