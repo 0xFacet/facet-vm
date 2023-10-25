@@ -31,6 +31,10 @@ class RubidityFile
     def clear_registry
       @registry = nil
     end
+    
+    def find_by_name(name)
+      registry.detect{|k, v| v.name == name}.second
+    end
   end
   
   def initialize(filename)
@@ -101,16 +105,19 @@ class RubidityFile
       
       new_source = new_ast.unparse
       
+      contract_name = contract_ast.children.last.children.first.children.third.children.first
+      
       contract_class = ContractBuilder.build_contract_class(
         available_contracts: available_contracts,
         source: new_source,
-        filename: normalized_filename,
+        filename: contract_name.to_s + " " + normalized_filename,
         line_number: 1,
       )
       
       contract_class.instance_variable_set(:@source_code, new_source)
       contract_class.instance_variable_set(:@source_file, normalized_filename)
       
+      contract_class.instance_variable_set(:@creation_code, new_ast.inspect)
       init_code_hash = Digest::Keccak256.hexdigest(new_ast.inspect)
       contract_class.instance_variable_set(:@init_code_hash, init_code_hash)
       

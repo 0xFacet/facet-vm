@@ -27,14 +27,22 @@ class StateProxy
   end
   
   def serialize
-    state_variables.each.with_object({}) do |(key, value), h|
+    serialized = state_variables.each.with_object({}) do |(key, value), h|
       h[key] = value.serialize
     end
+    
+    JsonSorter.sort_hash(serialized).deep_dup
   end
   
   def deserialize(state_data)
-    state_data.each do |var_name, value|
-      state_variables[var_name.to_sym].deserialize(value)
+    state_data.deep_dup.each do |var_name, value|
+      var = state_variables[var_name.to_sym]
+      
+      unless var
+        raise "Unknown state variable #{var_name}"
+      end
+      
+      var.deserialize(value)
     end
   end
   alias_method :load, :deserialize

@@ -1,6 +1,4 @@
 class Contract < ApplicationRecord
-  self.inheritance_column = :_type_disabled
-  
   include ContractErrors
     
   has_many :states, primary_key: 'address', foreign_key: 'contract_address', class_name: "ContractState"
@@ -20,12 +18,19 @@ class Contract < ApplicationRecord
   
   delegate :implements?, to: :implementation
   
-  def implementation
-    @implementation ||= implementation_class.new
+  after_initialize :set_normalized_initial_state
+  
+  def set_normalized_initial_state
+    @normalized_initial_state = JsonSorter.sort_hash(current_state)
+  end
+  
+  def normalized_state_changed?
+    @normalized_initial_state != JsonSorter.sort_hash(current_state)
   end
   
   def implementation_class
-    klass = TransactionContext.implementation_from_init_code(init_code_hash) || RubidityFile.registry[init_code_hash]
+    klass = TransactionContext.implementation_from_init_code(current_init_code_hash) ||
+      RubidityFile.registry[current_init_code_hash]
   end
   
   def self.types_that_implement(base_type)
@@ -36,8 +41,35 @@ class Contract < ApplicationRecord
     end
   end
   
-  def execute_function(function_name, args)
-    with_state_management do
+  def should_save_new_state?
+    current_init_code_hash_changed? ||
+    current_type_changed? ||
+    normalized_state_changed?
+  end
+  
+  def save_new_state_if_needed!(transaction:)
+    return unless should_save_new_state?
+    
+    states.create!(
+      transaction_hash: transaction.transaction_hash,
+      block_number: transaction.block_number,
+      transaction_index: transaction.transaction_index,
+      state: current_state,
+      type: current_type,
+      init_code_hash: current_init_code_hash
+    )
+  end
+  
+  def execute_function(function_name, args, is_static_call:)
+    with_correct_implementation do
+      if !implementation.public_abi[function_name]
+        raise ContractError.new("Call to unknown function #{function_name}", self)
+      end
+      
+      if is_static_call && !implementation.public_abi[function_name].read_only?
+        raise ContractError.new("Cannot call non-read-only function in static call: #{function_name}", self)
+      end
+      
       if args.is_a?(Hash)
         implementation.public_send(function_name, **args)
       else
@@ -46,35 +78,27 @@ class Contract < ApplicationRecord
     end
   end
   
-  def with_state_management
-    state_changed = false
+  def with_correct_implementation
+    old_implementation = implementation
+    @implementation = implementation_class.new(
+      initial_state: old_implementation&.state_proxy&.serialize ||
+        current_state
+    )
     
-    implementation.state_proxy.load(latest_state.deep_dup)
-    initial_state = implementation.state_proxy.serialize
+    result = yield
     
-    result = yield.tap do
-      final_state = implementation.state_proxy.serialize
-      
-      if final_state != initial_state
-        states.create!(
-          transaction_hash: TransactionContext.transaction_hash,
-          block_number: TransactionContext.block_number,
-          transaction_index: TransactionContext.transaction_index,
-          internal_transaction_index: TransactionContext.current_call.internal_transaction_index,
-          state: final_state
-        )
-        
-        state_changed = true
-      end
+    self.current_state = implementation.state_proxy.serialize
+    
+    if old_implementation
+      @implementation = old_implementation
+      implementation.state_proxy.load(current_state)
     end
     
-    { result: result, state_changed: state_changed }
+    result
   end
   
-  def fresh_implementation_with_latest_state
-    implementation_class.new.tap do |implementation|
-      implementation.state_proxy.load(latest_state.deep_dup)
-    end
+  def fresh_implementation_with_current_state
+    implementation_class.new(initial_state: current_state)
   end
   
   def self.deployable_contracts
@@ -104,7 +128,7 @@ class Contract < ApplicationRecord
       end.to_h
       
       json['current_state'] = if options[:include_current_state]
-        latest_state
+        current_state
       else
         {}
       end

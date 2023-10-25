@@ -2,7 +2,7 @@ class CreateContractCalls < ActiveRecord::Migration[7.0]
   def change
     create_table :contract_calls, force: :cascade do |t|
       t.string :transaction_hash, null: false
-      t.integer :internal_transaction_index, null: false
+      t.bigint :internal_transaction_index, null: false
       t.string :from_address, null: false
       t.string :to_contract_address
       t.string :to_contract_type
@@ -18,7 +18,7 @@ class CreateContractCalls < ActiveRecord::Migration[7.0]
       
       t.timestamps
     
-      t.index ["transaction_hash", "internal_transaction_index"], unique: true, name: "index_contract_calls_on_contract_tx_id_and_internal_tx_index"
+      t.index [:transaction_hash, :internal_transaction_index], unique: true, name: "index_contract_calls_on_contract_tx_id_and_internal_tx_index"
       t.index :effective_contract_address
       t.index :internal_transaction_index
       t.index :from_address

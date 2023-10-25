@@ -144,6 +144,8 @@ contract :UniswapV2Router do
     path: [:address],
     _to: :address
   }, :internal, :virtual do
+    # TODO: how bad can this loop get?
+    
     for i in 0...(path.length - 1)
       input, output = path[i], path[i + 1]
       token0, _ = sortTokens(input, output)

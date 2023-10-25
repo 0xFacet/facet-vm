@@ -11,28 +11,20 @@ class ContractCall < ApplicationRecord
   
   belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'transaction_hash', optional: true
 
-  before_validation :set_effective_contract_address
-
   def execute!
-    result = nil
     self.pending_logs = []
     
-    ActiveRecord::Base.transaction(requires_new: true) do
-      if is_create?
-        create_and_validate_new_contract!
-      else
-        find_and_validate_existing_contract!(to_contract_address)
-      end
-      
-      result, state_changed = to_contract.execute_function(
-        function,
-        args
-      ).values_at(:result, :state_changed)
-      
-      if function_object.read_only? && state_changed
-        raise ReadOnlyFunctionChangedStateError, "Invalid change in read-only function: #{function}, #{args.inspect}, to address: #{to_contract.address}"
-      end
+    if is_create?
+      create_and_validate_new_contract!
+    else
+      find_and_validate_existing_contract!
     end
+    
+    result = to_contract.execute_function(
+      function,
+      args,
+      is_static_call: is_static_call?
+    )
     
     assign_attributes(
       return_value: result,
@@ -40,9 +32,14 @@ class ContractCall < ApplicationRecord
       logs: pending_logs
     )
     
-    self.created_contract = to_contract if is_create?
+    self.effective_contract_address = to_contract.address
     
-    result
+    if is_create?
+      self.created_contract = to_contract
+      to_contract.address
+    else
+      result
+    end
   rescue ContractError, TransactionError => e
     assign_attributes(error: e.message, status: :failure)
     raise
@@ -52,23 +49,16 @@ class ContractCall < ApplicationRecord
     super(args || {})
   end
   
-  def find_and_validate_existing_contract!(address)
-    self.to_contract = Contract.find_by(address: to_contract_address)
+  def find_and_validate_existing_contract!
+    self.to_contract = TransactionContext.get_active_contract(to_contract_address) ||
+      Contract.find_by(address: to_contract_address)
     
     if to_contract.blank?
       raise CallingNonExistentContractError.new("Contract not found: #{to_contract_address}")
     end
     
-    if !function_object
-      raise ContractError.new("Call to unknown function #{function}", to_contract)
-    end
-    
-    if function.to_sym == :constructor
+    if function&.to_sym == :constructor
       raise ContractError.new("Cannot call constructor function: #{function}", to_contract)
-    end
-    
-    if is_static_call? && !function_object.read_only?
-      raise ContractError.new("Cannot call non-read-only function in static call: #{function}", to_contract)
     end
   end
   
@@ -93,20 +83,14 @@ class ContractCall < ApplicationRecord
       raise TransactionError.new("Cannot deploy abstract contract: #{to_contract_implementation.name}")
     end
     
-    self.to_contract = Contract.create!(
+    self.to_contract = Contract.new(
       transaction_hash: TransactionContext.transaction_hash,
       address: calculate_new_contract_address,
-      type: to_contract_implementation.name,
-      init_code_hash: to_contract_init_code_hash,
+      current_type: to_contract_implementation.name,
+      current_init_code_hash: to_contract_init_code_hash
     )
     
     self.function = :constructor
-  end
-  
-  def function_object
-    public_abi = to_contract.implementation.public_abi
-    
-    public_abi[function]
   end
   
   def calculate_new_contract_address
@@ -170,15 +154,5 @@ class ContractCall < ApplicationRecord
   def log_event(event)
     pending_logs << event
     nil
-  end
-  
-  private
-  
-  def set_effective_contract_address
-    self.effective_contract_address = if is_create?
-      created_contract_address
-    else
-      to_contract_address
-    end
   end
 end

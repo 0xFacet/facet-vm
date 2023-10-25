@@ -120,33 +120,39 @@ CREATE FUNCTION public.delete_later_ethscriptions() RETURNS trigger
 
 
 --
--- Name: update_latest_state(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: update_current_state(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.update_latest_state() RETURNS trigger
+CREATE FUNCTION public.update_current_state() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
+      DECLARE
+        latest_contract_state RECORD;
       BEGIN
         IF TG_OP = 'INSERT' THEN
+          SELECT INTO latest_contract_state *
+          FROM contract_states
+          WHERE contract_address = NEW.contract_address
+          ORDER BY block_number DESC, transaction_index DESC
+          LIMIT 1;
+
           UPDATE contracts
-          SET latest_state = (
-            SELECT state
-            FROM contract_states
-            WHERE contract_address = NEW.contract_address
-            ORDER BY block_number DESC, transaction_index DESC, internal_transaction_index DESC
-            LIMIT 1
-          )
+          SET current_state = latest_contract_state.state,
+              current_type = latest_contract_state.type,
+              current_init_code_hash = latest_contract_state.init_code_hash
           WHERE address = NEW.contract_address;
         ELSIF TG_OP = 'DELETE' THEN
+          SELECT INTO latest_contract_state *
+          FROM contract_states
+          WHERE contract_address = OLD.contract_address
+            AND id != OLD.id
+          ORDER BY block_number DESC, transaction_index DESC
+          LIMIT 1;
+
           UPDATE contracts
-          SET latest_state = (
-            SELECT state
-            FROM contract_states
-            WHERE contract_address = OLD.contract_address
-              AND id != OLD.id
-            ORDER BY block_number DESC, transaction_index DESC, internal_transaction_index DESC
-            LIMIT 1
-          )
+          SET current_state = latest_contract_state.state,
+              current_type = latest_contract_state.type,
+              current_init_code_hash = latest_contract_state.init_code_hash
           WHERE address = OLD.contract_address;
         END IF;
       
@@ -178,7 +184,7 @@ CREATE TABLE public.ar_internal_metadata (
 CREATE TABLE public.contract_calls (
     id bigint NOT NULL,
     transaction_hash character varying NOT NULL,
-    internal_transaction_index integer NOT NULL,
+    internal_transaction_index bigint NOT NULL,
     from_address character varying NOT NULL,
     to_contract_address character varying,
     to_contract_type character varying,
@@ -231,13 +237,15 @@ ALTER SEQUENCE public.contract_calls_id_seq OWNED BY public.contract_calls.id;
 CREATE TABLE public.contract_states (
     id bigint NOT NULL,
     transaction_hash character varying NOT NULL,
+    type character varying NOT NULL,
+    init_code_hash character varying NOT NULL,
     state jsonb DEFAULT '{}'::jsonb NOT NULL,
     block_number bigint NOT NULL,
-    transaction_index integer NOT NULL,
+    transaction_index bigint NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     contract_address character varying NOT NULL,
-    internal_transaction_index integer NOT NULL,
+    CONSTRAINT chk_rails_05016dab2f CHECK (((init_code_hash)::text ~ '^[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_0d9a27b31a CHECK (((contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_e8714d0639 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
@@ -314,7 +322,7 @@ CREATE TABLE public.contract_transactions (
     block_blockhash character varying NOT NULL,
     block_timestamp bigint NOT NULL,
     block_number bigint NOT NULL,
-    transaction_index integer NOT NULL,
+    transaction_index bigint NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT block_blockhash_format CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
@@ -348,15 +356,15 @@ ALTER SEQUENCE public.contract_transactions_id_seq OWNED BY public.contract_tran
 CREATE TABLE public.contracts (
     id bigint NOT NULL,
     transaction_hash character varying NOT NULL,
-    type character varying NOT NULL,
+    current_type character varying NOT NULL,
+    current_init_code_hash character varying NOT NULL,
+    current_state jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     address character varying NOT NULL,
-    latest_state jsonb DEFAULT '{}'::jsonb NOT NULL,
-    init_code_hash character varying NOT NULL,
-    CONSTRAINT chk_rails_566d6d0fef CHECK (((init_code_hash)::text ~ '^[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_6d0039a684 CHECK (((address)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_c653bcbc93 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
+    CONSTRAINT chk_rails_c653bcbc93 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_cc2872e127 CHECK (((current_init_code_hash)::text ~ '^[a-f0-9]{64}$'::text))
 );
 
 
@@ -426,7 +434,7 @@ CREATE TABLE public.ethscriptions (
     ethscription_id character varying NOT NULL,
     block_number bigint NOT NULL,
     block_blockhash character varying NOT NULL,
-    transaction_index integer NOT NULL,
+    transaction_index bigint NOT NULL,
     creator character varying NOT NULL,
     initial_owner character varying NOT NULL,
     current_owner character varying NOT NULL,
@@ -654,13 +662,6 @@ CREATE INDEX index_contract_calls_on_to_contract_address ON public.contract_call
 
 
 --
--- Name: index_contract_states_on_block_number_and_transaction_index; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_contract_states_on_block_number_and_transaction_index ON public.contract_states USING btree (block_number, transaction_index);
-
-
---
 -- Name: index_contract_states_on_contract_address; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -668,17 +669,10 @@ CREATE INDEX index_contract_states_on_contract_address ON public.contract_states
 
 
 --
--- Name: index_contract_states_on_internal_transaction_index; Type: INDEX; Schema: public; Owner: -
+-- Name: index_contract_states_on_contract_address_and_transaction_hash; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_contract_states_on_internal_transaction_index ON public.contract_states USING btree (internal_transaction_index);
-
-
---
--- Name: index_contract_states_on_internal_tx_index_and_tx_hash; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_contract_states_on_internal_tx_index_and_tx_hash ON public.contract_states USING btree (internal_transaction_index, transaction_hash);
+CREATE UNIQUE INDEX index_contract_states_on_contract_address_and_transaction_hash ON public.contract_states USING btree (contract_address, transaction_hash);
 
 
 --
@@ -738,10 +732,17 @@ CREATE UNIQUE INDEX index_contracts_on_address ON public.contracts USING btree (
 
 
 --
--- Name: index_contracts_on_init_code_hash; Type: INDEX; Schema: public; Owner: -
+-- Name: index_contracts_on_current_init_code_hash; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_contracts_on_init_code_hash ON public.contracts USING btree (init_code_hash);
+CREATE INDEX index_contracts_on_current_init_code_hash ON public.contracts USING btree (current_init_code_hash);
+
+
+--
+-- Name: index_contracts_on_current_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contracts_on_current_type ON public.contracts USING btree (current_type);
 
 
 --
@@ -749,13 +750,6 @@ CREATE INDEX index_contracts_on_init_code_hash ON public.contracts USING btree (
 --
 
 CREATE INDEX index_contracts_on_transaction_hash ON public.contracts USING btree (transaction_hash);
-
-
---
--- Name: index_contracts_on_type; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_contracts_on_type ON public.contracts USING btree (type);
 
 
 --
@@ -878,10 +872,10 @@ CREATE TRIGGER trigger_delete_later_ethscriptions AFTER DELETE ON public.ethscri
 
 
 --
--- Name: contract_states update_latest_state; Type: TRIGGER; Schema: public; Owner: -
+-- Name: contract_states update_current_state; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_latest_state AFTER INSERT OR DELETE ON public.contract_states FOR EACH ROW EXECUTE FUNCTION public.update_latest_state();
+CREATE TRIGGER update_current_state AFTER INSERT OR DELETE ON public.contract_states FOR EACH ROW EXECUTE FUNCTION public.update_current_state();
 
 
 --
@@ -947,18 +941,12 @@ ALTER TABLE ONLY public.contract_states
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
-('20231015132041'),
-('20231014154537'),
-('20231010142505'),
 ('20231001152142'),
 ('20230928185853'),
-('20230927152725'),
-('20230914181546'),
 ('20230911151706'),
 ('20230911150931'),
 ('20230911143056'),
 ('20230908205257'),
-('20230908145640'),
 ('20230824174647'),
 ('20230824171752'),
 ('20230824170608'),

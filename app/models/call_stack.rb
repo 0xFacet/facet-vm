@@ -1,19 +1,11 @@
 class CallStack
   include ContractErrors
+  
+  MAX_CALL_COUNT = 100
 
   def initialize
     @frames = []
     @push_count = 0
-  end
-
-  def push(frame)
-    @frames.push(frame)
-    
-    @push_count += 1
-  end
-
-  def pop
-    @frames.pop
   end
 
   def current_frame
@@ -52,13 +44,32 @@ class CallStack
     end
   end
   
+  private
+  
   def execute_in_frame(call)
     push(call)
     
-    begin
-      return current_frame.execute!
-    ensure
-      pop
+    if @push_count > MAX_CALL_COUNT
+      current_frame.assign_attributes(
+        error: "Too many internal transactions",
+        status: :failure
+      )
+      
+      raise ContractError.new("Too many internal transactions")
     end
+    
+    current_frame.execute!
+  ensure
+    pop
+  end
+  
+  def push(frame)
+    @frames.push(frame)
+    
+    @push_count += 1
+  end
+
+  def pop
+    @frames.pop
   end
 end

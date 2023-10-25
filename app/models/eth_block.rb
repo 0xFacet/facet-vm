@@ -116,7 +116,10 @@ class EthBlock < ApplicationRecord
       return unless locked_next_block
   
       ethscriptions = locked_next_block.ethscriptions.order(:transaction_index)
-  
+      # StackProf.run(mode: :wall, out: 'stackprof-cpu.dump', raw: true) do
+      #   1000 / (Benchmark.ms{100.times{EthBlock.process_contract_actions_for_next_block_with_ethscriptions}} /  100.0)
+      # end
+      
       ethscriptions.each do |e|
         ContractTransaction.create_from_ethscription!(e)
       end
