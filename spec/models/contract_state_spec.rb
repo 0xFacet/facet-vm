@@ -50,6 +50,8 @@ RSpec.describe Contract, type: :model do
       ContractState.create!(
         transaction_hash: @ethscription.ethscription_id,
         state: new_state,
+        type: @contract.current_type,
+        init_code_hash: @contract.current_init_code_hash,
         block_number: 1,
         transaction_index: 1,
         created_at: Time.now,
@@ -72,6 +74,8 @@ RSpec.describe Contract, type: :model do
       ContractState.create!(
         transaction_hash: @ethscription.ethscription_id,
         state: old_state,
+        type: @contract.current_type,
+        init_code_hash: @contract.current_init_code_hash,
         block_number: counter += 1,
         transaction_index: counter += 1,
         created_at: Time.now,
@@ -88,6 +92,8 @@ RSpec.describe Contract, type: :model do
       contract_state = ContractState.create!(
         transaction_hash: @ethscription.ethscription_id,
         state: new_state,
+        type: @contract.current_type,
+        init_code_hash: @contract.current_init_code_hash,
         block_number: counter += 1,
         transaction_index: counter += 1,
         created_at: Time.now,

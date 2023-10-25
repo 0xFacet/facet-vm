@@ -192,24 +192,19 @@ class ContractTransaction < ApplicationRecord
     contract_calls.each do |call|
       contract = call.to_contract
       
-      if contract.current_init_code_hash_changed?
-        # binding.pry
-        contract.implementation_versions.create!(
-          transaction_hash: transaction_hash,
-          block_number: block_number,
-          transaction_index: transaction_index,
-          internal_transaction_index: call.internal_transaction_index,
-          init_code_hash: contract.current_init_code_hash
-        )
-      end
+      save_new_state = contract.implementation.state_proxy.state_changed? ||
+        contract.current_init_code_hash_changed? ||
+        contract.current_type_changed?
       
-      if contract.implementation.state_proxy.state_changed?
+      if save_new_state
         contract.states.create!(
           transaction_hash: transaction_hash,
           block_number: block_number,
           transaction_index: transaction_index,
           internal_transaction_index: call.internal_transaction_index,
-          state: contract.implementation.state_proxy.serialize
+          state: contract.implementation.state_proxy.serialize,
+          type: contract.current_type,
+          init_code_hash: contract.current_init_code_hash
         )
       end
     end

@@ -1,6 +1,4 @@
 class Contract < ApplicationRecord
-  self.inheritance_column = :_type_disabled
-  
   include ContractErrors
     
   has_many :states, primary_key: 'address', foreign_key: 'contract_address', class_name: "ContractState"
