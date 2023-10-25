@@ -27,11 +27,11 @@ class StateProxy
   end
   
   def serialize
-    sorted = state_variables.sort_by { |key, _| [key.length, key] }.to_h
-    
-    sorted.each.with_object({}) do |(key, value), h|
+    serialized = state_variables.each.with_object({}) do |(key, value), h|
       h[key] = value.serialize
-    end.deep_dup
+    end
+    
+    JsonSorter.sort_hash(serialized).deep_dup
   end
   
   def deserialize(state_data)

@@ -18,6 +18,16 @@ class Contract < ApplicationRecord
   
   delegate :implements?, to: :implementation
   
+  after_initialize :set_normalized_initial_state
+  
+  def set_normalized_initial_state
+    @normalized_initial_state = JsonSorter.sort_hash(current_state)
+  end
+  
+  def normalized_state_changed?
+    @normalized_initial_state != JsonSorter.sort_hash(current_state)
+  end
+  
   def implementation_class
     klass = TransactionContext.implementation_from_init_code(current_init_code_hash) ||
       RubidityFile.registry[current_init_code_hash]
@@ -34,7 +44,7 @@ class Contract < ApplicationRecord
   def should_save_new_state?
     current_init_code_hash_changed? ||
     current_type_changed? ||
-    current_state_changed? ||
+    normalized_state_changed? ||
     !(states.loaded? ? states.any? : states.exists?)
   end
   
