@@ -65,7 +65,7 @@ class Esc
     # )
     
     target.assign_attributes(
-      type: new_implementation_class.name,
+      current_type: new_implementation_class.name,
       current_init_code_hash: new_init_code_hash
     )
     

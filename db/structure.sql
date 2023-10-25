@@ -156,16 +156,16 @@ CREATE FUNCTION public.update_current_init_code_hash() RETURNS trigger
 
 
 --
--- Name: update_latest_state(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: update_current_state(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.update_latest_state() RETURNS trigger
+CREATE FUNCTION public.update_current_state() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
       BEGIN
         IF TG_OP = 'INSERT' THEN
           UPDATE contracts
-          SET latest_state = (
+          SET current_state = (
             SELECT state
             FROM contract_states
             WHERE contract_address = NEW.contract_address
@@ -175,7 +175,7 @@ CREATE FUNCTION public.update_latest_state() RETURNS trigger
           WHERE address = NEW.contract_address;
         ELSIF TG_OP = 'DELETE' THEN
           UPDATE contracts
-          SET latest_state = (
+          SET current_state = (
             SELECT state
             FROM contract_states
             WHERE contract_address = OLD.contract_address
@@ -423,9 +423,9 @@ ALTER SEQUENCE public.contract_transactions_id_seq OWNED BY public.contract_tran
 CREATE TABLE public.contracts (
     id bigint NOT NULL,
     transaction_hash character varying NOT NULL,
-    type character varying NOT NULL,
+    current_type character varying NOT NULL,
     current_init_code_hash character varying NOT NULL,
-    latest_state jsonb DEFAULT '{}'::jsonb NOT NULL,
+    current_state jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     address character varying NOT NULL,
@@ -870,17 +870,17 @@ CREATE INDEX index_contracts_on_current_init_code_hash ON public.contracts USING
 
 
 --
+-- Name: index_contracts_on_current_type; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contracts_on_current_type ON public.contracts USING btree (current_type);
+
+
+--
 -- Name: index_contracts_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX index_contracts_on_transaction_hash ON public.contracts USING btree (transaction_hash);
-
-
---
--- Name: index_contracts_on_type; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_contracts_on_type ON public.contracts USING btree (type);
 
 
 --
@@ -1010,10 +1010,10 @@ CREATE TRIGGER update_current_init_code_hash AFTER INSERT OR DELETE ON public.co
 
 
 --
--- Name: contract_states update_latest_state; Type: TRIGGER; Schema: public; Owner: -
+-- Name: contract_states update_current_state; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER update_latest_state AFTER INSERT OR DELETE ON public.contract_states FOR EACH ROW EXECUTE FUNCTION public.update_latest_state();
+CREATE TRIGGER update_current_state AFTER INSERT OR DELETE ON public.contract_states FOR EACH ROW EXECUTE FUNCTION public.update_current_state();
 
 
 --

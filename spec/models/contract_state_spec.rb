@@ -35,17 +35,17 @@ RSpec.describe Contract, type: :model do
 
     @contract = Contract.create!(
       transaction_hash: @ethscription.ethscription_id,
-      type: 'SomeType',
+      current_type: 'SomeType',
       current_init_code_hash: SecureRandom.hex(32),
       created_at: Time.now,
       updated_at: Time.now,
       address: '0x' + SecureRandom.hex(20),
-      latest_state: {}
+      current_state: {}
     )
   end
 
   context 'when a ContractState is created' do
-    it 'updates the latest_state of the Contract' do
+    it 'updates the current_state of the Contract' do
       new_state = { key: 'value' }
       ContractState.create!(
         transaction_hash: @ethscription.ethscription_id,
@@ -59,14 +59,14 @@ RSpec.describe Contract, type: :model do
       )
 
       @contract.reload
-      expect(@contract.latest_state).to eq(new_state.stringify_keys)
+      expect(@contract.current_state).to eq(new_state.stringify_keys)
     end
   end
 
   context 'when a ContractState is deleted' do
     counter = 0
     
-    it 'updates the latest_state of the Contract' do
+    it 'updates the current_state of the Contract' do
       old_state = { key: 'old_value' }
       
       ContractState.create!(
@@ -81,7 +81,7 @@ RSpec.describe Contract, type: :model do
       )
       
       @contract.reload
-      expect(@contract.latest_state).to eq(old_state.stringify_keys)
+      expect(@contract.current_state).to eq(old_state.stringify_keys)
       
       new_state = { key: 'new_value' }
       
@@ -97,12 +97,12 @@ RSpec.describe Contract, type: :model do
       )
       
       @contract.reload
-      expect(@contract.latest_state).to eq(new_state.stringify_keys)
+      expect(@contract.current_state).to eq(new_state.stringify_keys)
 
       contract_state.destroy
 
       @contract.reload
-      expect(@contract.latest_state).to eq(old_state.stringify_keys)
+      expect(@contract.current_state).to eq(old_state.stringify_keys)
     end
   end
 end

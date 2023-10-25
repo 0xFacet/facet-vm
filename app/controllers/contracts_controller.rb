@@ -4,11 +4,11 @@ class ContractsController < ApplicationController
     per_page = (params[:per_page] || 50).to_i
     per_page = 50 if per_page > 50
     
-    scope = Contract.where(type: Contract.deployable_contracts.map(&:name)).order(created_at: :desc)
+    scope = Contract.where(current_type: Contract.deployable_contracts.map(&:name)).order(created_at: :desc)
     
     if params[:base_type]
       scope = scope.where(
-        type: Contract.types_that_implement(params[:base_type]).map(&:name)
+        current_type: Contract.types_that_implement(params[:base_type]).map(&:name)
       )
     end
     
@@ -141,8 +141,8 @@ class ContractsController < ApplicationController
       # Fetch all token contracts in bulk
       token_addresses = contracts.map do |contract|
         [
-          contract.fresh_implementation_with_latest_state.token0,
-          contract.fresh_implementation_with_latest_state.token1
+          contract.fresh_implementation_with_current_state.token0,
+          contract.fresh_implementation_with_current_state.token1
         ]
       end.flatten
       
@@ -150,8 +150,8 @@ class ContractsController < ApplicationController
   
       result = contracts.each_with_object({}) do |contract, hash|
         ["token0", "token1"].each do |token_function|
-          token_addr = contract.fresh_implementation_with_latest_state.public_send(token_function)
-          contract_implementation = token_contracts[token_addr.to_s].fresh_implementation_with_latest_state
+          token_addr = contract.fresh_implementation_with_current_state.public_send(token_function)
+          contract_implementation = token_contracts[token_addr.to_s].fresh_implementation_with_current_state
   
           token_info = {
             address: token_addr,

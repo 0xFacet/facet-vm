@@ -23,11 +23,11 @@ class CreateContractStates < ActiveRecord::Migration[7.0]
     end
     
     execute <<-SQL
-      CREATE OR REPLACE FUNCTION update_latest_state() RETURNS TRIGGER AS $$
+      CREATE OR REPLACE FUNCTION update_current_state() RETURNS TRIGGER AS $$
       BEGIN
         IF TG_OP = 'INSERT' THEN
           UPDATE contracts
-          SET latest_state = (
+          SET current_state = (
             SELECT state
             FROM contract_states
             WHERE contract_address = NEW.contract_address
@@ -37,7 +37,7 @@ class CreateContractStates < ActiveRecord::Migration[7.0]
           WHERE address = NEW.contract_address;
         ELSIF TG_OP = 'DELETE' THEN
           UPDATE contracts
-          SET latest_state = (
+          SET current_state = (
             SELECT state
             FROM contract_states
             WHERE contract_address = OLD.contract_address
@@ -52,9 +52,9 @@ class CreateContractStates < ActiveRecord::Migration[7.0]
       END;
       $$ LANGUAGE plpgsql;
       
-      CREATE TRIGGER update_latest_state
+      CREATE TRIGGER update_current_state
       AFTER INSERT OR DELETE ON contract_states
-      FOR EACH ROW EXECUTE PROCEDURE update_latest_state();
+      FOR EACH ROW EXECUTE PROCEDURE update_current_state();
     SQL
   end
 end

@@ -62,7 +62,7 @@ class Contract < ApplicationRecord
     @implementation = implementation_class.new
     
     implementation.state_proxy.load(
-      old_implementation&.state_proxy&.serialize || latest_state
+      old_implementation&.state_proxy&.serialize || current_state
     )
     
     result = yield
@@ -83,9 +83,9 @@ class Contract < ApplicationRecord
     result
   end
   
-  def fresh_implementation_with_latest_state
+  def fresh_implementation_with_current_state
     implementation_class.new.tap do |implementation|
-      implementation.state_proxy.load(latest_state)
+      implementation.state_proxy.load(current_state)
     end
   end
   
@@ -116,7 +116,7 @@ class Contract < ApplicationRecord
       end.to_h
       
       json['current_state'] = if options[:include_current_state]
-        latest_state
+        current_state
       else
         {}
       end

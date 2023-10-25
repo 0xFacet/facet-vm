@@ -6,12 +6,11 @@ class CreateContracts < ActiveRecord::Migration[7.0]
           to_table: :ethscriptions, primary_key: 'ethscription_id', on_delete: :cascade
         }
       
-      t.string :type, null: false
+      t.string :current_type, null: false
       t.string :current_init_code_hash, null: false
+      t.jsonb :current_state, null: false, default: {}
       
-      t.jsonb :latest_state, null: false, default: {}
-      
-      t.index :type
+      t.index :current_type
       t.index :current_init_code_hash
       
       t.timestamps
