@@ -206,7 +206,7 @@ class ContractTransaction < ApplicationRecord
   end
   
   def get_active_contract(address)
-    contract_calls.reject(&:failure?).detect do |call|
+    contract_calls.detect do |call|
       call.to_contract&.address == address
     end&.to_contract
   end
