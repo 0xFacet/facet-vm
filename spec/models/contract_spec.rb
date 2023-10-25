@@ -271,6 +271,7 @@ RSpec.describe Contract, type: :model do
     it "bridges_tokens" do
       trusted_address = "0xf99812028817da95f5cf95fb29a2a7eabfbcc27e"
       dc_token_recipient = "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
+      mint_amount = 1000
       
       deploy = trigger_contract_interaction_and_expect_success(
         command: 'deploy',
@@ -280,6 +281,7 @@ RSpec.describe Contract, type: :model do
           constructorArgs: {
             name: "Bridge Native 1",
             symbol: "PT1",
+            mintAmount: mint_amount,
             trustedSmartContract: trusted_address,
           }
         }
@@ -293,7 +295,7 @@ RSpec.describe Contract, type: :model do
           functionName: "bridgeIn",
           args: {
             to: dc_token_recipient,
-            amount: 1.ether,
+            amount: 1,
           }
         }
       )
@@ -306,7 +308,7 @@ RSpec.describe Contract, type: :model do
           functionName: "bridgeIn",
           args: {
             to: dc_token_recipient,
-            amount: 2.ether,
+            amount: 2,
           }
         }
       )
@@ -319,7 +321,7 @@ RSpec.describe Contract, type: :model do
         ]
       )
       
-      expect(balance).to eq(3.ether)
+      expect(balance).to eq(mint_amount * 3.ether)
       
       bridge_out_res = trigger_contract_interaction_and_expect_success(
         command: 'call',
@@ -328,7 +330,7 @@ RSpec.describe Contract, type: :model do
           contract: deploy.address,
           functionName: "bridgeOut",
           args: {
-            amount: 2.ether
+            amount: 2
           }
         }
       )
@@ -340,14 +342,14 @@ RSpec.describe Contract, type: :model do
           contract: deploy.address,
           functionName: "bridgeOut",
           args: {
-            amount: 2.ether
+            amount: 2
           }
         }
       )
 
       pending_withdraw = ContractTransaction.make_static_call(
         contract: deploy.address,
-        function_name: "pendingUserWithdrawalIds",
+        function_name: "userWithdrawalId",
         function_args: [
           dc_token_recipient
         ]
@@ -373,7 +375,7 @@ RSpec.describe Contract, type: :model do
         ]
       )
 
-      expect(balance).to eq(1.ether)
+      expect(balance).to eq(mint_amount * 1.ether)
       
       trigger_contract_interaction_and_expect_success(
         command: 'call',
@@ -390,7 +392,7 @@ RSpec.describe Contract, type: :model do
       
       pending_withdraw = ContractTransaction.make_static_call(
         contract: deploy.address,
-        function_name: "pendingUserWithdrawalIds",
+        function_name: "userWithdrawalId",
         function_args: [
           dc_token_recipient
         ]

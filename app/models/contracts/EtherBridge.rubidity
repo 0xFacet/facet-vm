@@ -1,6 +1,6 @@
 pragma :rubidity, "1.0.0"
 
-import './ERC20.rubidity'
+import "./ERC20.rubidity"
 
 contract :EtherBridge, is: :ERC20 do
   event :InitiateWithdrawal, { from: :address, amount: :uint256, withdrawalId: :bytes32 }
@@ -47,7 +47,7 @@ contract :EtherBridge, is: :ERC20 do
   }, :public do
     require(
       msg.sender == s.trustedSmartContract,
-      'Only the trusted smart contract can mark withdrawals as complete'
+      "Only the trusted smart contract can mark withdrawals as complete"
     )
     
     for i in 0...withdrawalIds.length
@@ -56,7 +56,7 @@ contract :EtherBridge, is: :ERC20 do
       
       require(
         s.pendingWithdrawalAmounts[to] >= amount,
-        'Insufficient pending withdrawal'
+        "Insufficient pending withdrawal"
       )
       
       require(

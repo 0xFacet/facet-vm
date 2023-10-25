@@ -1,24 +1,31 @@
 pragma :rubidity, "1.0.0"
 
-import './ERC20.rubidity'
+import "./ERC20.rubidity"
 
 contract :EthscriptionERC20Bridge, is: :ERC20 do
   event :BridgedIn, { to: :address, amount: :uint256 }
   event :InitiateWithdrawal, { from: :address, amount: :uint256, withdrawalId: :bytes32 }
   event :WithdrawalComplete, { to: :address, amount: :uint256, withdrawalId: :bytes32 }
   
+  uint256 :public, :mintAmount
   address :public, :trustedSmartContract
-  mapping ({ address: :uint256 }), :public, :bridgedInAmounts
-  mapping ({ bytes32: :uint256 }), :public, :pendingWithdrawalAmounts
-  mapping ({ address: :bytes32 }), :public, :pendingUserWithdrawalIds
+
+  mapping ({ address: :uint256 }), :public, :bridgedInAmount
+  mapping ({ bytes32: :uint256 }), :public, :withdrawalIdAmount
+  mapping ({ address: :bytes32 }), :public, :userWithdrawalId
   
   constructor(
     name: :string,
     symbol: :string,
-    trustedSmartContract: :address,
+    mintAmount: :uint256,
+    trustedSmartContract: :address
   ) {
+    require(mintAmount > 0, "Invalid mint amount")
+    require(trustedSmartContract != address(0), "Invalid smart contract")
+
     ERC20.constructor(name: name, symbol: symbol, decimals: 18)
-    
+
+    s.mintAmount = mintAmount
     s.trustedSmartContract = trustedSmartContract
   }
   
@@ -28,33 +35,33 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
       "Only the trusted smart contract can bridge in tokens"
     )
     
-    s.bridgedInAmounts[to] += amount
+    s.bridgedInAmount[to] += amount
 
-    _mint(to: to, amount: amount)
-    emit :BridgedIn, to: to, amount: amount
+    _mint(to: to, amount: amount * s.mintAmount * 1.ether)
+    emit :BridgedIn, to: to, amount: amount * s.mintAmount * 1.ether
   end
   
   function :bridgeOut, { amount: :uint256 }, :public do
     withdrawalId = esc.currentTransactionHash
     require(
-      s.pendingUserWithdrawalIds[msg.sender] == bytes32(0),
+      s.userWithdrawalId[msg.sender] == bytes32(0),
       "Withdrawal pending"
     )
     require(
-      s.pendingWithdrawalAmounts[withdrawalId] == 0,
+      s.withdrawalIdAmount[withdrawalId] == 0,
       "Already bridged out"
     )
     require(
-      s.bridgedInAmounts[msg.sender] >= amount,
+      s.bridgedInAmount[msg.sender] >= amount,
       "Not enough bridged in"
     )
 
-    s.pendingUserWithdrawalIds[msg.sender] = withdrawalId
-    s.pendingWithdrawalAmounts[withdrawalId] = amount
-    s.bridgedInAmounts[msg.sender] -= amount
+    s.userWithdrawalId[msg.sender] = withdrawalId
+    s.withdrawalIdAmount[withdrawalId] = amount
+    s.bridgedInAmount[msg.sender] -= amount
       
-    _burn(from: msg.sender, amount: amount)
-    emit :InitiateWithdrawal, from: msg.sender, amount: amount, withdrawalId: withdrawalId
+    _burn(from: msg.sender, amount: amount * s.mintAmount * 1.ether)
+    emit :InitiateWithdrawal, from: msg.sender, amount: amount * s.mintAmount * 1.ether, withdrawalId: withdrawalId
   end
   
   function :markWithdrawalComplete, {
@@ -63,17 +70,17 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
   }, :public do
     require(
       msg.sender == s.trustedSmartContract,
-      'Only the trusted smart contract can mark withdrawals as complete'
+      "Only the trusted smart contract can mark withdrawals as complete"
     )
     require(
-      s.pendingUserWithdrawalIds[to] == withdrawalId,
+      s.userWithdrawalId[to] == withdrawalId,
       "Withdrawal id not found"
     )
     
-    amount = s.pendingWithdrawalAmounts[withdrawalId]
-    s.pendingWithdrawalAmounts[withdrawalId] = 0
-    s.pendingUserWithdrawalIds[to] = bytes32(0)
+    amount = s.withdrawalIdAmount[withdrawalId]
+    s.withdrawalIdAmount[withdrawalId] = 0
+    s.userWithdrawalId[to] = bytes32(0)
       
-    emit :WithdrawalComplete, to: to, amount: amount, withdrawalId: withdrawalId
+    emit :WithdrawalComplete, to: to, amount: amount * s.mintAmount * 1.ether, withdrawalId: withdrawalId
   end
 end
