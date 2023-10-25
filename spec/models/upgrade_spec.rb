@@ -246,7 +246,6 @@ describe 'Upgrading Contracts' do
       }
     )
   
-    # Confirm that the version is now 2
     version = ContractTransaction.make_static_call(
       contract: v1.address,
       function_name: "version",
@@ -255,6 +254,28 @@ describe 'Upgrading Contracts' do
   
     # Upgrade to v3
     hash_v3 = RubidityFile.registry.detect{|k, v| v.name == "UpgradeableV3"}.first
+    
+    # First fail
+    trigger_contract_interaction_and_expect_error(
+      error_msg_includes: 'Upgrade error',
+      from: user_address,
+      payload: {
+        to: v1.contract_address,
+        data: {
+          function: "upgradeAndRevert",  # Assuming you have a similar function in V2 for further upgrades
+          args: "0x" + hash_v3
+        }
+      }
+    )
+    
+    lastUpgradeHash = ContractTransaction.make_static_call(
+      contract: v1.address,
+      function_name: "lastUpgradeHash",
+    )
+    expect(lastUpgradeHash).to eq("0x" + hash_v2)
+    
+    expect(Contract.find_by_address(v1.contract_address).current_init_code_hash).to eq(hash_v2)
+    
     trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
@@ -272,9 +293,14 @@ describe 'Upgrading Contracts' do
       function_name: "version",
     )
     expect(version).to eq(3)
-  
-    # Additional checks to verify state variables and functionalities for v3
-    # ...
+    
+    hi_result = ContractTransaction.make_static_call(
+      contract: v1.address,
+      function_name: "sayHi",
+      function_args: "Contract"
+    )
+    
+    expect(hi_result).to eq("I am V3 Contract")
   end
   
   it 'handles complex upgrade chain correctly' do

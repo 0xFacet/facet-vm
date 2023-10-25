@@ -5,11 +5,12 @@ pragma :rubidity, "1.0.0"
 contract :UpgradeableV3 do
   uint256 :public, :version
   address :public, :upgradeAdmin
-  
+  bytes32 :public, :lastUpgradeHash
+
   event :NotifyOfVersion, { version: :uint256, from: :string }
 
   function :sayHi, { to: :string }, :public, :view, returns: :string do
-    return "Greetings " + to
+    return "I am V3 " + to
   end
   
   function :migration, :public do
@@ -24,7 +25,8 @@ end
 contract :UpgradeableV2 do
   uint256 :public, :version
   address :public, :upgradeAdmin
-  
+  bytes32 :public, :lastUpgradeHash
+
   event :NotifyOfVersion, { version: :uint256, from: :string }
 
   function :sayHi, { to: :string }, :public, :view, returns: :string do
@@ -42,16 +44,24 @@ contract :UpgradeableV2 do
   function :upgradeFromV2, { newHash: :bytes32 }, :virtual, :public do
     require(msg.sender == s.upgradeAdmin, "NOT_AUTHORIZED")
     
+    s.lastUpgradeHash = newHash
     esc.upgradeContract(newHash)
     UpgradeableV3(this).migration
     
     emit :NotifyOfVersion, version: s.version, from: "v2"
+  end
+  
+  function :upgradeAndRevert, { newHash: :bytes32 }, :virtual, :public do
+    upgradeFromV2(newHash: newHash)
+    
+    require(false, "Upgrade error")
   end
 end
 
 contract :UpgradeableV1 do
   uint256 :public, :version
   address :public, :upgradeAdmin
+  bytes32 :public, :lastUpgradeHash
   
   event :NotifyOfVersion, { version: :uint256, from: :string }
   
@@ -71,6 +81,7 @@ contract :UpgradeableV1 do
   function :upgradeFromV1, { newHash: :bytes32 }, :virtual, :public do
     require(msg.sender == s.upgradeAdmin, "NOT_AUTHORIZED")
     
+    s.lastUpgradeHash = newHash
     esc.upgradeContract(newHash)
     UpgradeableV2(this).migration
     
