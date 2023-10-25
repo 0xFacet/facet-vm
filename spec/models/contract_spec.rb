@@ -271,6 +271,7 @@ RSpec.describe Contract, type: :model do
     it "bridges_tokens" do
       trusted_address = "0xf99812028817da95f5cf95fb29a2a7eabfbcc27e"
       dc_token_recipient = "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
+      mint_amount = 1000
       
       deploy = trigger_contract_interaction_and_expect_success(
         command: 'deploy',
@@ -280,9 +281,8 @@ RSpec.describe Contract, type: :model do
           constructorArgs: {
             name: "Bridge Native 1",
             symbol: "PT1",
+            mintAmount: mint_amount,
             trustedSmartContract: trusted_address,
-            # eths on goerli
-            ethscriptionDeployId: '0x930c0fa451d2bf96a6f98c2a00080c1551788d20e5664aa2830618e846abb123'
           }
         }
       )
@@ -295,39 +295,7 @@ RSpec.describe Contract, type: :model do
           functionName: "bridgeIn",
           args: {
             to: dc_token_recipient,
-            escrowedIds: [
-              "0x1cceab90c59af76ed7315ce00d7703b41898409d7558f9af8932f69d24e9be49", # not bridged yet
-              "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6" # not bridged yet
-            ],
-          }
-        }
-      )
-      
-      trigger_contract_interaction_and_expect_call_error(
-        command: 'call',
-        from: trusted_address,
-        data: {
-          "contract": deploy.address,
-          functionName: "bridgeIn",
-          args: {
-            to: dc_token_recipient,
-            escrowedIds: ["0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6"], # already bridged
-          }
-        }
-      )
-      
-      trigger_contract_interaction_and_expect_call_error(
-        command: 'call',
-        from: trusted_address,
-        data: {
-          "contract": deploy.address,
-          functionName: "bridgeIn",
-          args: {
-            to: dc_token_recipient,
-            escrowedIds: [
-              "0x233ff0088e80050867578938e6ca54e70c9123cad0da1342cf64cdf27c49d88f", # not bridged yet
-              "0x1cceab90c59af76ed7315ce00d7703b41898409d7558f9af8932f69d24e9be49" # already bridged id
-            ],
+            amount: 1,
           }
         }
       )
@@ -340,9 +308,7 @@ RSpec.describe Contract, type: :model do
           functionName: "bridgeIn",
           args: {
             to: dc_token_recipient,
-            escrowedIds: [
-              "0x233ff0088e80050867578938e6ca54e70c9123cad0da1342cf64cdf27c49d88f" # not bridged yet
-            ],
+            amount: 2,
           }
         }
       )
@@ -355,28 +321,37 @@ RSpec.describe Contract, type: :model do
         ]
       )
       
-      expect(balance).to eq(3000 * (10 ** 18))
+      expect(balance).to eq(mint_amount * 3.ether)
       
       bridge_out_res = trigger_contract_interaction_and_expect_success(
         command: 'call',
         from: dc_token_recipient,
         data: {
-          "contract": deploy.address,
+          contract: deploy.address,
           functionName: "bridgeOut",
           args: {
-            escrowedIds: [
-              "0x1cceab90c59af76ed7315ce00d7703b41898409d7558f9af8932f69d24e9be49",
-              "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6"
-            ],
+            amount: 2
+          }
+        }
+      )
+      
+      trigger_contract_interaction_and_expect_call_error(
+        command: 'call',
+        from: dc_token_recipient,
+        data: {
+          contract: deploy.address,
+          functionName: "bridgeOut",
+          args: {
+            amount: 2
           }
         }
       )
 
       pending_withdraw = ContractTransaction.make_static_call(
         contract: deploy.address,
-        function_name: "pendingUserWithdrawalIds",
+        function_name: "userWithdrawalId",
         function_args: [
-          dc_token_recipient, 0
+          dc_token_recipient
         ]
       )
       
@@ -400,7 +375,7 @@ RSpec.describe Contract, type: :model do
         ]
       )
 
-      expect(balance).to eq(1000 * (10 ** 18))
+      expect(balance).to eq(mint_amount * 1.ether)
       
       trigger_contract_interaction_and_expect_success(
         command: 'call',
@@ -410,20 +385,20 @@ RSpec.describe Contract, type: :model do
           functionName: "markWithdrawalComplete",
           args: {
             to: dc_token_recipient,
-            withdrawalIds: [bridge_out_res.transaction_hash],
+            withdrawalId: bridge_out_res.transaction_hash
           }
         }
       )
       
-      balance = ContractTransaction.make_static_call(
+      pending_withdraw = ContractTransaction.make_static_call(
         contract: deploy.address,
-        function_name: "bridgedEthscriptionToOwner",
+        function_name: "userWithdrawalId",
         function_args: [
-          "0xd63053076a037e25dd76b53b603ef6d6b3c490d030e80929f7f6e2c62d09e6f6"
+          dc_token_recipient
         ]
       )
-      # binding.pry
-      expect(balance).to eq("0x" + "0" * 40)
+      
+      expect(pending_withdraw).to eq("0x0000000000000000000000000000000000000000000000000000000000000000")
     end
     
     it "nfts" do
