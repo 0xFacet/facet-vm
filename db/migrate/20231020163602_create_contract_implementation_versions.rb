@@ -4,8 +4,8 @@ class CreateContractImplementationVersions < ActiveRecord::Migration[7.1]
       t.string :transaction_hash, null: false
       t.string :init_code_hash, null: false
       t.bigint :block_number, null: false
-      t.integer :transaction_index, null: false
-      t.integer :internal_transaction_index, null: false
+      t.bigint :transaction_index, null: false
+      t.bigint :internal_transaction_index, null: false
       t.string :contract_address, null: false
       
       t.index [:block_number, :transaction_index]
@@ -23,10 +23,6 @@ class CreateContractImplementationVersions < ActiveRecord::Migration[7.1]
 
       t.timestamps
     end
-    
-    add_column :contracts, :current_init_code_hash, :string, null: false
-    add_index :contracts, :current_init_code_hash
-    add_check_constraint :contracts, "current_init_code_hash ~ '^[a-f0-9]{64}$'"
     
     execute <<-SQL
       CREATE OR REPLACE FUNCTION update_current_init_code_hash() RETURNS TRIGGER AS $$

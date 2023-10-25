@@ -9,6 +9,8 @@ class AddContractActionsProcessedAt < ActiveRecord::Migration[7.0]
     add_index :eth_blocks, :block_number, where: "processing_state = 'complete'", name: 'index_eth_blocks_on_block_number_completed'
     add_index :eth_blocks, :block_number, where: "processing_state = 'pending'", name: 'index_eth_blocks_on_block_number_pending'
 
+    add_index :eth_blocks, [:imported_at, :processing_state]
+
     execute <<-SQL
       CREATE OR REPLACE FUNCTION check_block_sequence()
       RETURNS TRIGGER AS $$

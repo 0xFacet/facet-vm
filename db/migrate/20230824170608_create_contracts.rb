@@ -7,12 +7,17 @@ class CreateContracts < ActiveRecord::Migration[7.0]
         }
       
       t.string :type, null: false
+      t.string :current_init_code_hash, null: false
+      
+      t.jsonb :latest_state, null: false, default: {}
       
       t.index :type
+      t.index :current_init_code_hash
       
       t.timestamps
       
       t.check_constraint "contract_id ~ '^0x[a-f0-9]{64}$'"
+      t.check_constraint "current_init_code_hash ~ '^[a-f0-9]{64}$'"
     end
     
     remove_index :contracts, :contract_id

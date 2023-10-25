@@ -4,8 +4,7 @@ class CreateEthscriptions < ActiveRecord::Migration[7.0]
       t.string :ethscription_id, null: false
       t.bigint :block_number, null: false
       t.string :block_blockhash, null: false
-      # TODO: change to bigint
-      t.integer :transaction_index, null: false
+      t.bigint :transaction_index, null: false
       t.string :creator, null: false
       t.string :initial_owner, null: false
       t.string :current_owner, null: false
@@ -16,7 +15,7 @@ class CreateEthscriptions < ActiveRecord::Migration[7.0]
       t.string :mimetype, null: false
 
       t.index :ethscription_id, unique: true
-      t.index :content_sha, unique: true
+      t.index :content_sha
       t.index [:block_number, :transaction_index], unique: true
       
       t.timestamps

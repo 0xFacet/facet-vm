@@ -5,7 +5,7 @@ class CreateContractTransactions < ActiveRecord::Migration[7.0]
       t.string :block_blockhash, null: false
       t.bigint :block_timestamp, null: false
       t.bigint :block_number, null: false
-      t.integer :transaction_index, null: false
+      t.bigint :transaction_index, null: false
       
       t.timestamps
     

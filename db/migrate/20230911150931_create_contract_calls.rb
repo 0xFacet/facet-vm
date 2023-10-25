@@ -2,7 +2,7 @@ class CreateContractCalls < ActiveRecord::Migration[7.0]
   def change
     create_table :contract_calls, force: :cascade do |t|
       t.string :transaction_hash, null: false
-      t.integer :internal_transaction_index, null: false
+      t.bigint :internal_transaction_index, null: false
       t.string :from_address, null: false
       t.string :to_contract_address
       t.string :to_contract_type
