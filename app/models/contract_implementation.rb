@@ -33,7 +33,6 @@ class ContractImplementation
     @state_proxy ||= StateProxy.new(self.class.state_variable_definitions)
   end
   
-  
   def self.abi
     @abi ||= AbiProxy.new(self)
   end
