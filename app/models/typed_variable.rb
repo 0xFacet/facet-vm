@@ -61,15 +61,16 @@ class TypedVariable
   
   def value=(new_value)
     new_value = type.check_and_normalize_literal(new_value)
+    
     if @value != new_value
       on_change&.call
+      
+      if new_value.respond_to?(:on_change=)
+        new_value.on_change = on_change
+      end
+      
+      @value = new_value
     end
-    
-    if new_value.respond_to?(:on_change=)
-      new_value.on_change = on_change
-    end
-    
-    @value = new_value
   end
   
   def method_missing(name, *args, &block)

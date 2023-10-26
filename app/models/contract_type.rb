@@ -1,7 +1,6 @@
 class ContractType < TypedVariable  
   def initialize(...)
     super(...)
-    value.on_change = on_change
   end
   
   def serialize
@@ -20,7 +19,6 @@ class ContractType < TypedVariable
     include ContractErrors
     extend AttrPublicReadPrivateWrite
     
-    attr_accessor :on_change
     attr_public_read_private_write :contract_type, :address,
       :uncast_address, :contract_interface
 
@@ -31,14 +29,13 @@ class ContractType < TypedVariable
       other.address == address
     end
     
-    def initialize(contract_type:, address:, contract_interface:, on_change: nil)
+    def initialize(contract_type:, address:, contract_interface:)
       self.uncast_address = address
       address = TypedVariable.create_or_validate(:address, address).value
     
       self.contract_type = contract_type
       self.address = address
       self.contract_interface = contract_interface
-      self.on_change = on_change
     end
     
     def method_missing(name, *args, **kwargs, &block)

@@ -84,12 +84,12 @@ class MappingType < TypedVariable
       
       if old_value != val_var
         on_change&.call
+        
+        transformed_keys.add(key_var)
+
+        data[key_var] ||= val_var
+        data[key_var].value = val_var.value
       end
-
-      transformed_keys.add(key_var)
-
-      data[key_var] ||= val_var
-      data[key_var].value = val_var.value
     end
     
     private

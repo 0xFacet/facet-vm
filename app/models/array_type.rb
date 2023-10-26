@@ -64,15 +64,12 @@ class ArrayType < TypedVariable
       
       if old_value != val_var
         on_change&.call
+        self.data[index_var] ||= val_var
+        self.data[index_var].value = val_var.value
       end
-      
-      self.data[index_var] ||= val_var
-      self.data[index_var].value = val_var.value
     end
     
     def push(value)
-      on_change&.call
-      
       next_index = data.size
       
       self.[]=(next_index, value)
