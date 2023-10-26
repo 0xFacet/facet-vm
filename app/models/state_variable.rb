@@ -3,7 +3,7 @@ class StateVariable
   
   attr_accessor :typed_variable, :name, :visibility, :immutable, :constant
   
-  def initialize(name, typed_variable, args)
+  def initialize(name, typed_variable, args, on_change: nil)
     visibility = :internal
     
     args.each do |arg|
@@ -17,12 +17,15 @@ class StateVariable
     @immutable = args.include?(:immutable)
     @constant = args.include?(:constant)
     @name = name
+    @on_change = on_change
+    
     @typed_variable = typed_variable
+    @typed_variable.on_change = on_change
   end
   
-  def self.create(name, type, args)
-    var = TypedVariable.create(type)
-    new(name, var, args)
+  def self.create(name, type, args, on_change: nil)
+    var = TypedVariable.create(type, on_change: on_change)
+    new(name, var, args, on_change: on_change)
   end
   
   def create_public_getter_function(contract_class)
@@ -91,9 +94,9 @@ class StateVariable
     typed_variable.deserialize(value)
   end
   
-  def method_missing(name, *args, &block)
+  def method_missing(name, ...)
     if typed_variable.respond_to?(name)
-      typed_variable.send(name, *args, &block)
+      typed_variable.send(name, ...)
     else
       super
     end
@@ -105,7 +108,16 @@ class StateVariable
   
   def typed_variable=(new_value)
     if new_value.is_a?(TypedVariable)
-      @typed_variable = TypedVariable.create_or_validate(type, new_value)
+      new_typed_variable = TypedVariable.create_or_validate(
+        type,
+        new_value,
+        on_change: on_change
+      )
+      
+      if new_typed_variable != @typed_variable
+        on_change&.call
+        @typed_variable = new_typed_variable
+      end
     else
       typed_variable.value = new_value
     end

@@ -271,7 +271,7 @@ class AbiProxy
     end
   
     def as_json(*)
-      @hash
+      @hash.as_json
     end
   
     private

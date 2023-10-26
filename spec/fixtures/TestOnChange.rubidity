@@ -1,0 +1,127 @@
+pragma :rubidity, "1.0.0"
+
+contract :TestOnChange do
+  string :public, :name
+  string :public, :symbol
+  uint8 :public, :decimals
+  address :public, :deployer
+  
+  mapping ({ address: :uint256 }), :public, :uninitializedMapping
+  mapping ({ address: mapping(address: :uint256) }), :public, :uninitializedDoubleMapping
+  mapping ({ address: :uint256 }), :public, :balanceOf
+  mapping ({ address: mapping(address: :uint256) }), :public, :allowance
+  
+  array :uint256, :public, :testArray, initial_length: 3
+  array :uint256, :public, :uninitializedArray, initial_length: 1
+  
+  constructor() {
+    s.name = "testNameVal"
+    s.symbol = "testSymbolVal"
+    s.decimals = 18
+    s.balanceOf[msg.sender] = 100
+    s.deployer = msg.sender
+    
+    s.allowance[msg.sender][address(this)] = 100
+    s.testArray[0] = 1
+  }
+  
+  function :mappingSucceed1, :public, :view do
+    s.balanceOf[s.deployer]
+    s.balanceOf[s.deployer] = s.balanceOf[s.deployer]
+    
+    s.allowance[s.deployer][address(this)]
+    s.allowance[s.deployer][address(this)] = s.allowance[s.deployer][address(this)]
+    
+    s.balanceOf[address(0)]
+    s.balanceOf[address(0)] = s.balanceOf[address(0)]
+    nil
+  end
+  
+  function :mappingSucceed2, :public, :view do
+    require(s.uninitializedMapping[s.deployer] == 0, "Uninitialized mapping value should be 0")
+    require(s.uninitializedArray[0] == 0, "Uninitialized array value should be 0")
+    require(s.uninitializedDoubleMapping[s.deployer][s.deployer] == 0, "Uninitialized mapping value should be 0")
+    s.uninitializedDoubleMapping[s.deployer][s.deployer] = 0
+    nil
+  end
+  
+  function :arraySucceed1, :public, :view do
+    s.testArray[0]
+    nil
+  end
+  
+  function :arraySucceed2, :public, :view do
+    s.testArray[0] = s.testArray[0]
+    nil
+  end
+  
+  function :arrayFail1, :public, :view do
+    s.testArray[0] = 0
+    nil
+  end
+  
+  function :arrayFail2, :public, :view do
+    cur = s.testArray[0]
+    s.testArray[0] = cur + 1
+    s.testArray[0] = cur
+    nil
+  end
+  
+  function :arrayFail3, :public, :view do
+    s.testArray.push(10)
+    nil
+  end
+  
+  function :arrayFail4, :public, :view do
+    s.testArray.pop()
+    nil
+  end
+  
+  function :mappingFail1, :public, :view do
+    s.balanceOf[s.deployer] -= 1
+    nil
+  end
+  
+  function :mappingFail2, :public, :view do
+    s.balanceOf[s.deployer] -= 1
+    s.balanceOf[s.deployer] += 1
+    nil
+  end
+  
+  function :mappingFail3, :public, :view do
+    s.allowance[s.deployer][address(this)] = 0
+    nil
+  end
+  
+  function :mappingFail4, :public, :view do
+    cur = s.allowance[s.deployer][address(this)]
+    
+    s.allowance[s.deployer][address(this)] = 0
+    s.allowance[s.deployer][address(this)] = cur
+    nil
+  end
+  
+  function :mappingFail5, :public, :view do
+    s.uninitializedDoubleMapping[s.deployer][s.deployer] = 1
+    nil
+  end
+  
+  function :staticCallShouldSucceed, :public, :view do
+    current_val = s.name
+    s.name = current_val
+    s.name = s.name
+    nil
+  end
+  
+  function :staticCallAttemptModifySymbol, :public, :view do
+    s.symbol = "newSymbolVal"
+    nil
+  end
+  
+  function :staticCallShouldFail, :public, :view do
+    current_val = s.decimals
+    s.decimals = current_val + 1
+    s.decimals = current_val
+    nil
+  end
+end
