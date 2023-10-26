@@ -55,9 +55,9 @@ class ContractImplementation
     end
   end
   
-  def self.array(*args)
+  def self.array(*args, **kwargs)
     value_type = args.first
-    metadata = {value_type: value_type}
+    metadata = {value_type: value_type}.merge(kwargs)
     type = Type.create(:array, metadata)
     
     if args.length == 1

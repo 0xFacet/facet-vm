@@ -1,6 +1,7 @@
 class ArrayType < TypedVariable
-  def initialize(type, value = nil, **options)
-    super
+  def initialize(...)
+    super(...)
+    value.on_change = on_change
   end
   
   def serialize
@@ -8,7 +9,10 @@ class ArrayType < TypedVariable
   end
   
   class Proxy
-    attr_accessor :value_type, :data
+    extend AttrPublicReadPrivateWrite
+    
+    attr_accessor :on_change
+    attr_public_read_private_write :value_type, :data
     
     def ==(other)
       return false unless other.is_a?(self.class)
@@ -17,7 +21,12 @@ class ArrayType < TypedVariable
       other.data == data
     end
   
-    def initialize(initial_value = [], value_type:, initial_length: nil)
+    def initialize(
+      initial_value = [],
+      value_type:,
+      initial_length: nil,
+      on_change: nil
+    )
       unless value_type.is_value_type?
         raise VariableTypeError.new("Only value types can me array elements")
       end
@@ -32,29 +41,38 @@ class ArrayType < TypedVariable
           data << TypedVariable.create(value_type) 
         end
       end
+      
+      self.on_change = on_change
     end
   
     def [](index)
-      index_var = TypedVariable.create_or_validate(:uint256, index)
+      index_var = TypedVariable.create_or_validate(:uint256, index, on_change: on_change)
       
       raise "Index out of bounds" if index_var >= data.size
 
       value = data[index_var]
-      value || TypedVariable.create_or_validate(value_type)
+      value || TypedVariable.create_or_validate(value_type, on_change: on_change)
     end
   
     def []=(index, value)
-      index_var = TypedVariable.create_or_validate(:uint256, index)
+      index_var = TypedVariable.create_or_validate(:uint256, index, on_change: on_change)
       
       raise "Sparse arrays are not supported" if index_var > data.size
 
-      val_var = TypedVariable.create_or_validate(value_type, value)
+      old_value = self.data[index_var]
+      val_var = TypedVariable.create_or_validate(value_type, value, on_change: on_change)
+      
+      if old_value != val_var
+        on_change&.call
+      end
       
       self.data[index_var] ||= val_var
       self.data[index_var].value = val_var.value
     end
     
     def push(value)
+      on_change&.call
+      
       next_index = data.size
       
       self.[]=(next_index, value)
@@ -62,6 +80,8 @@ class ArrayType < TypedVariable
     end
     
     def pop
+      on_change&.call
+      
       data.pop
     end
     

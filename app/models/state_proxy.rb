@@ -5,20 +5,34 @@ class StateProxy
   
   def initialize(definitions)
     @state_variables = {}.with_indifferent_access
+    @dirty_stack = []
     
     definitions.each do |name, definition|
-      @state_variables[name] = StateVariable.create(name, definition[:type], definition[:args])
+      @state_variables[name] = StateVariable.create(
+        name,
+        definition[:type],
+        definition[:args],
+        on_change: method(:mark_dirty)
+      )
     end
   end
   
   def detecting_changes(revert_on_change:)
-    @_change_detector = false
+    @dirty_stack.push(false)
     
     yield
     
-    if @_change_detector && revert_on_change
+    if @dirty_stack.last && revert_on_change
       raise InvalidStateVariableChange.new
     end
+  ensure
+    @dirty_stack.pop
+  end
+  
+  def mark_dirty
+    return if @dirty_stack.empty?
+    
+    @dirty_stack[-1] = true
   end
   
   def method_missing(name, *args)
@@ -30,8 +44,6 @@ class StateProxy
     return super if var.nil?
 
     if is_setter
-      # TODO: ensure no other way to make changes
-      @_change_detector = true
       var.typed_variable = args.first
     else
       var.typed_variable

@@ -74,7 +74,7 @@ describe 'UniswapV2Router contract' do
       function_name: "lastZap"
     )
     
-    args = res.values_at(:router, :factory, :tokenA, :tokenB)
+    args = res.values_at("router", "factory", "tokenA", "tokenB")
     
     ContractTransaction.make_static_call(
       contract: zap.contract_address,
@@ -82,10 +82,10 @@ describe 'UniswapV2Router contract' do
       function_args: [user_address, *args],
     )
     
-    args = res.values_at(:tokenA, :tokenB)
+    args = res.values_at("tokenA", "tokenB")
     
     ContractTransaction.make_static_call(
-      contract: res[:router],
+      contract: res["router"],
       function_name: "userStats",
       function_args: [user_address, *args],
     )
@@ -251,7 +251,7 @@ describe 'UniswapV2Router contract' do
       function_args: [factory_address, token_a_address, token_b_address]
     )
     
-    reserveA, reserveB = reserves.values_at(:reserveA, :reserveB)
+    reserveA, reserveB = reserves.values_at("reserveA", "reserveB")
 
     total_lp_supply = ContractTransaction.make_static_call(
       contract: pair_address,
@@ -349,7 +349,7 @@ describe 'UniswapV2Router contract' do
       function_args: [factory_address, token_a_address, token_b_address]
     )
     
-    reserveA, reserveB = reserves.values_at(:reserveA, :reserveB)
+    reserveA, reserveB = reserves.values_at("reserveA", "reserveB")
     
     amountIn = 1_000.ether
     amountOutMin = 300.ether
@@ -411,7 +411,7 @@ describe 'UniswapV2Router contract' do
       function_args: [factory_address, token_a_address, token_b_address]
     )
   
-    reserveA, reserveB = reserves.values_at(:reserveA, :reserveB)
+    reserveA, reserveB = reserves.values_at("reserveA", "reserveB")
   
     amountOut = 300.ether
     amountInMax = 3_000.ether

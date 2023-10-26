@@ -248,8 +248,8 @@ RSpec.describe "UniswapV2Pair", type: :model do
       function_name: "getReserves"
     )
     
-    reserveA, reserveB = reserves.values_at(:_reserve0, :_reserve1)
-
+    reserveA, reserveB = reserves.values_at("_reserve0", "_reserve1")
+    
     numerator = inputAmount * 997 * reserveA;
     denominator = (reserveB * 1000) + (inputAmount * 997);
     expectedOut = numerator.div(denominator)

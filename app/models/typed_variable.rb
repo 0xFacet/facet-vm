@@ -1,15 +1,20 @@
 class TypedVariable
   include ContractErrors
+  extend AttrPublicReadPrivateWrite
   
-  attr_accessor :type, :value
+  attr_accessor :value, :on_change
+  attr_public_read_private_write :type
 
-  def initialize(type, value = nil, **options)
+  def initialize(type, value = nil, on_change: nil, **options)
     self.type = type
     self.value = value || type.default_value
+    self.on_change = on_change
   end
   
-  def self.create(type, value = nil, **options)
+  def self.create(type, value = nil, on_change: nil, **options)
     type = Type.create(type)
+    
+    options[:on_change] = on_change
     
     if type.mapping?
       MappingType.new(type, value, **options)
@@ -22,7 +27,7 @@ class TypedVariable
     end
   end
   
-  def self.create_or_validate(type, value = nil)
+  def self.create_or_validate(type, value = nil, on_change: nil)
     if value.is_a?(TypedVariable)
       unless Type.create(type).can_be_assigned_from?(value.type)
         raise VariableTypeError.new("invalid #{type}: #{value.inspect}")
@@ -31,7 +36,7 @@ class TypedVariable
       value = value.value
     end
     
-    create(type, value)
+    create(type, value, on_change: on_change)
   end
   
   def as_json(args = {})
@@ -55,7 +60,16 @@ class TypedVariable
   end
   
   def value=(new_value)
-    @value = type.check_and_normalize_literal(new_value)
+    new_value = type.check_and_normalize_literal(new_value)
+    if @value != new_value
+      on_change&.call
+    end
+    
+    if new_value.respond_to?(:on_change=)
+      new_value.on_change = on_change
+    end
+    
+    @value = new_value
   end
   
   def method_missing(name, *args, &block)

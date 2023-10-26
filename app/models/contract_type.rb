@@ -1,6 +1,7 @@
 class ContractType < TypedVariable  
-  def initialize(type, value, **options)
-    super
+  def initialize(...)
+    super(...)
+    value.on_change = on_change
   end
   
   def serialize
@@ -17,8 +18,11 @@ class ContractType < TypedVariable
 
   class Proxy
     include ContractErrors
-
-    attr_accessor :contract_type, :address, :uncast_address, :contract_interface
+    extend AttrPublicReadPrivateWrite
+    
+    attr_accessor :on_change
+    attr_public_read_private_write :contract_type, :address,
+      :uncast_address, :contract_interface
 
     def ==(other)
       return false unless other.is_a?(self.class)
@@ -27,17 +31,20 @@ class ContractType < TypedVariable
       other.address == address
     end
     
-    def initialize(contract_type:, address:, contract_interface:)
+    def initialize(contract_type:, address:, contract_interface:, on_change: nil)
       self.uncast_address = address
       address = TypedVariable.create_or_validate(:address, address).value
     
       self.contract_type = contract_type
       self.address = address
       self.contract_interface = contract_interface
+      self.on_change = on_change
     end
     
     def method_missing(name, *args, **kwargs, &block)
       computed_args = args.presence || kwargs
+      
+      super unless contract_interface
       
       known_function = contract_interface.public_abi[name]
       
