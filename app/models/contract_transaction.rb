@@ -123,8 +123,7 @@ class ContractTransaction < ApplicationRecord
   end
   
   def self.make_static_call(contract:, function_name:, function_args: {}, msgSender: nil)
-    cache_key = [:make_static_call, ContractState.all, contract,
-      function_name, function_args, msgSender]
+    cache_key = [:make_static_call, ContractState.all, contract, function_name, function_args, msgSender]
     
     Rails.cache.fetch(cache_key) do
       record = new(
