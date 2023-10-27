@@ -51,7 +51,7 @@ class ArrayType < TypedVariable
       raise "Index out of bounds" if index_var >= data.size
 
       value = data[index_var]
-      value || TypedVariable.create_or_validate(value_type, on_change: on_change)
+      value.deep_dup || TypedVariable.create_or_validate(value_type, on_change: on_change)
     end
   
     def []=(index, value)
