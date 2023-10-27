@@ -150,7 +150,7 @@ class TypedVariable
       success: true,
       data: TypedVariable.create(:string, data)
     )
-  rescue ContractError, JSON::ParserError
+  rescue ContractError, TransactionError, JSON::ParserError
     return AbiProxy::DestructureOnly.new(
       success: false,
       data: TypedVariable.create(:string)
