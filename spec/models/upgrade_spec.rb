@@ -303,6 +303,31 @@ describe 'Upgrading Contracts' do
     expect(hi_result).to eq("I am V3 Contract")
   end
   
+  it 'handles non-upgradeable correctly' do
+    v1 = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        data: {
+          type: "NotUpgradeable"
+        }
+      }
+    )
+  
+    hash_v2 = RubidityFile.registry.detect{|k, v| v.name == "UpgradeableV2"}.first
+    
+    trigger_contract_interaction_and_expect_error(
+      error_msg_includes: 'Contract is not upgradeable',
+      from: user_address,
+      payload: {
+        to: v1.contract_address,
+        data: {
+          function: "upgradeFromV1",
+          args: "0x" + hash_v2
+        }
+      }
+    )
+  end
+  
   it 'handles complex upgrade chain correctly' do
 # Deploy A1 and B1 as before
     a1 = trigger_contract_interaction_and_expect_success(

@@ -114,6 +114,63 @@ RSpec.describe AbiProxy, type: :model do
       )
   end
   
+  it "allows a child contract to call a function from a non-closest parent contract" do
+    deploy_receipt = trigger_contract_interaction_and_expect_success(
+      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      payload: {
+        data: {
+          type: "TestContractMultipleInheritance",
+          "args": {
+            "name": "Test Token",
+            "symbol": "TT",
+            "decimals": 18
+          },
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      payload: {
+        to: deploy_receipt.address,
+        data: {
+          function: "testNonClosestParent",
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      payload: {
+        to: deploy_receipt.address,
+        data: {
+          function: "closestParentFunction",
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      payload: {
+        to: deploy_receipt.address,
+        data: {
+          function: "testNonClosestParentFunction",
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_error(
+      error_msg_includes: 'I am the revert version',
+      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      payload: {
+        to: deploy_receipt.address,
+        data: {
+          function: "callDistantParent",
+        }
+      }
+    )
+  end
+  
   it "raises an error when declaring override without overriding anything" do
     expect {
       RubidityFile.add_to_registry('spec/fixtures/TestContractOverrideNonVirtual2.rubidity')

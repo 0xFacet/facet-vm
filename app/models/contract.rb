@@ -63,18 +63,26 @@ class Contract < ApplicationRecord
   def execute_function(function_name, args, is_static_call:)
     with_correct_implementation do
       if !implementation.public_abi[function_name]
-        raise ContractError.new("Call to unknown function #{function_name}", self)
+        raise ContractError.new("Call to unknown function: #{function_name}", self)
       end
       
-      if is_static_call && !implementation.public_abi[function_name].read_only?
+      read_only = implementation.public_abi[function_name].read_only?
+      
+      if is_static_call && !read_only
         raise ContractError.new("Cannot call non-read-only function in static call: #{function_name}", self)
       end
       
-      if args.is_a?(Hash)
+      result = if args.is_a?(Hash)
         implementation.public_send(function_name, **args)
       else
         implementation.public_send(function_name, *Array.wrap(args))
       end
+      
+      unless read_only
+        self.current_state = self.current_state.merge(implementation.state_proxy.serialize)
+      end
+      
+      result
     end
   end
   
@@ -86,8 +94,6 @@ class Contract < ApplicationRecord
     )
     
     result = yield
-    
-    self.current_state = implementation.state_proxy.serialize
     
     if old_implementation
       @implementation = old_implementation

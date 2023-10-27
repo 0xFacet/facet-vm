@@ -1,6 +1,6 @@
 pragma :rubidity, "1.0.0"
 
-contract :UpgradeableV3 do
+contract :UpgradeableV3, upgradeable: true do
   address :public, :upgradeAdmin
   uint256 :public, :version
   bytes32 :public, :lastUpgradeHash
@@ -20,23 +20,25 @@ contract :UpgradeableV3 do
   end
 end
 
-contract :UpgradeableV2 do
+contract :UpgradeableV2, upgradeable: true do
   uint256 :public, :version
   address :public, :upgradeAdmin
   bytes32 :public, :lastUpgradeHash
 
   event :NotifyOfVersion, { version: :uint256, from: :string }
+  event :Message, { message: :string }
 
   function :sayHi, { to: :string }, :public, :view, returns: :string do
     return "Greetings " + to
   end
   
-  function :migration, :public do
+  function :migration, { message: :string }, :public do
     require(msg.sender == address(this), "NOT_AUTHORIZED")
     
     s.version = 2
     
     emit :NotifyOfVersion, version: s.version, from: "v2"
+    emit :Message, message: message
   end
   
   function :upgradeFromV2, { newHash: :bytes32 }, :virtual, :public do
@@ -44,7 +46,7 @@ contract :UpgradeableV2 do
     
     s.lastUpgradeHash = newHash
     esc.upgradeContract(newHash)
-    UpgradeableV3(this).migration
+    address(this).call('{"function":"migration"}')
     
     emit :NotifyOfVersion, version: s.version, from: "v2"
   end
@@ -56,7 +58,7 @@ contract :UpgradeableV2 do
   end
 end
 
-contract :UpgradeableV1 do
+contract :UpgradeableV1, upgradeable: true do
   uint256 :public, :version
   address :public, :upgradeAdmin
   bytes32 :public, :lastUpgradeHash
@@ -81,13 +83,13 @@ contract :UpgradeableV1 do
     
     s.lastUpgradeHash = newHash
     esc.upgradeContract(newHash)
-    UpgradeableV2(this).migration
+    address(this).call('{"function":"migration","args":"hello"}')
     
     emit :NotifyOfVersion, version: s.version, from: "v1"
   end
 end
 
-contract :MaliciousReentrancy, is: :UpgradeableV1 do
+contract :MaliciousReentrancy, is: :UpgradeableV1, upgradeable: true do
   bool :public, :reEntrancyTriggered
 
   constructor() {
@@ -138,7 +140,7 @@ contract :AbstractB, abstract: true do
 end
 
 # Concrete implementations inherit from abstract contracts
-contract :A1, is: :AbstractA do
+contract :A1, is: :AbstractA, upgradeable: true do
   uint256 :public, :version
   address :public, :relatedB
   bytes32 :public, :nextUpgradeHash  # New state variable for storing the hash
@@ -166,12 +168,12 @@ contract :A1, is: :AbstractA do
   function :migration, :override, :public do
     esc.upgradeContract(s.nextUpgradeHash)
     s.version += 1
-    AbstractA(address(this)).migration
+    address(this).call('{"function":"migration"}')
     nil
   end
 end
 
-contract :B1, is: :AbstractB do
+contract :B1, is: :AbstractB, upgradeable: true do
   address :public, :relatedA
   bytes32 :public, :nextUpgradeHash  # New
   uint256 :public, :bVersion
@@ -193,13 +195,13 @@ contract :B1, is: :AbstractB do
   function :initiateUpgrade, :override, :public do
     AbstractA(s.relatedA).migration
     esc.upgradeContract(s.nextUpgradeHash)
-    AbstractB(address(this)).migration
+    address(this).call('{"function":"migration"}')
     nil
   end
 end
 
 # Subsequent versions of A and B also inherit from the abstract contracts
-contract :A2, is: :AbstractA do
+contract :A2, is: :AbstractA, upgradeable: true do
   uint256 :public, :version
   address :public, :relatedB
   bytes32 :public, :nextUpgradeHash  # New state variable for storing the hash
@@ -225,32 +227,11 @@ contract :B2, is: :AbstractB do
   end
 end
 
-
-contract :UpgradeableLoop do
-  address :public, :target
+contract :NotUpgradeable do
+  constructor() {}
   
-  function :loopUpgrade, { newHash: :bytes32 }, :public do
+  function :upgradeFromV1, { newHash: :bytes32 }, :public do
     esc.upgradeContract(newHash)
-
-    LoopInitiator(msg.sender).upgradeFromV1(newHash)
-    nil
-  end
-
-  function :setTarget, { addr: :address }, :public do
-    target = addr
-  end
-end
-
-contract :LoopInitiator do
-  address :public, :target
-  
-  function :callLoopUpgrade, {
-    loopAddress: :address,
-    newHash: :bytes32,
-  }, :public do
-    require(msg.sender == s.upgradeAdmin, "NOT_AUTHORIZED")
-    
-    UpgradeableLoop(loopAddress).loopUpgrade(newHash)
     nil
   end
 end

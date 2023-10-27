@@ -9,6 +9,10 @@ class TypedVariable
     self.type = type
     self.value = value || type.default_value
     self.on_change = on_change
+    
+    if type == Type.create(:address)
+      define_singleton_method(:call, method(:address_call))
+    end
   end
   
   def self.create(type, value = nil, on_change: nil, **options)
@@ -125,5 +129,31 @@ class TypedVariable
 
   def eql?(other)
     hash == other.hash
+  end
+  
+  private
+  
+  def address_call(json_call_data = '{}')
+    calldata = JSON.parse(json_call_data)
+
+    function = calldata['function']
+    args = calldata['args']
+    
+    data = TransactionContext.call_stack.execute_in_new_frame(
+      to_contract_address: self,
+      function: function,
+      args: args,
+      type: :call
+    ).to_json
+    
+    AbiProxy::DestructureOnly.new( 
+      success: true,
+      data: TypedVariable.create(:string, data)
+    )
+  rescue ContractError, TransactionError, JSON::ParserError
+    return AbiProxy::DestructureOnly.new(
+      success: false,
+      data: TypedVariable.create(:string)
+    )
   end
 end
