@@ -2,7 +2,16 @@ pragma :rubidity, "1.0.0"
 
 import '/app/models/contracts/ERC20.rubidity'
 
-contract :TestContract, is: :ERC20 do
+contract :StartingParent do
+  function :definedInNonClosestParent, :public, :virtual do
+    require(false, "I am the revert version")
+  end
+  
+  function :closestParentFunction, :public, :virtual do
+  end
+end
+
+contract :TestContract, is: [:ERC20, :StartingParent] do
   string :public, :definedInTest
 
   constructor(
@@ -18,7 +27,13 @@ contract :TestContract, is: :ERC20 do
     ERC20._mint(to: to, amount: amount)
   end
   
-  function :nonVirtual, {}, :public do
+  function :nonVirtual, :public do
+  end
+  
+  function :definedInNonClosestParent, :public, :virtual, :override do
+  end
+  
+  function :closestParentFunction, :public, :virtual, :override do
   end
 end
 
@@ -43,9 +58,24 @@ contract :NonToken do
     s.definedInNonToken = "definedInNonToken"
     emit :Greet, greeting: "Hello"
   end
+  
+  function :nonTokenFunction, :public do
+    s.definedInNonToken = "nonTokenFunctionCalled"
+  end
+  
+  function :nonClosestParentFunction, {}, :public do
+  end
 end
 
-contract :TestContractMultipleInheritance, is: [:TestContract, :NonToken] do
+contract :FarthestParent do
+  function :definedInNonClosestParent, :public, :virtual do
+  end
+  
+  function :closestParentFunction, :public, :virtual do
+  end
+end
+
+contract :TestContractMultipleInheritance, is: [:FarthestParent, :TestContract, :NonToken] do
   string :public, :definedHere
 
   constructor(
@@ -64,5 +94,20 @@ contract :TestContractMultipleInheritance, is: [:TestContract, :NonToken] do
     TestContract._mint(to: to, amount: amount)
     NonToken._mint(to: to, amount: amount)
     ERC20._mint(to: to, amount: amount)
+  end
+  
+  function :testNonClosestParent, :public do
+    definedInNonClosestParent
+  end
+  
+  function :testNonClosestParentFunction, :public do
+    nonClosestParentFunction
+  end
+  
+  function :closestParentFunction, :public, :override do
+  end
+  
+  function :callDistantParent, :public do
+    StartingParent.definedInNonClosestParent
   end
 end

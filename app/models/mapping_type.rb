@@ -69,7 +69,7 @@ class MappingType < TypedVariable
         set_value(typed_key_var, value)
       end
       
-      value
+      value.deep_dup
     end
 
     def []=(key_var, value)

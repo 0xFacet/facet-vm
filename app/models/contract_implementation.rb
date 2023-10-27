@@ -3,7 +3,8 @@ class ContractImplementation
   
   class << self
     attr_reader :name, :is_abstract_contract, :source_code, :creation_code,
-    :init_code_hash, :parent_contracts, :available_contracts, :source_file
+    :init_code_hash, :parent_contracts, :available_contracts, :source_file,
+    :is_upgradeable
     
     attr_accessor :state_variable_definitions, :events
   end
@@ -120,18 +121,31 @@ class ContractImplementation
     end
   end
   
-  def self.linearize_contracts(contract, processed = [])
-    return [] if processed.include?(contract)
+  def self.linearize_contracts(contract)
+    stack = [contract]
+    linearized = []
   
-    new_processed = processed + [contract]
+    while stack.any?
+      current = stack.last
+      if linearized.include?(current)
+        stack.pop
+        next
+      end
   
-    return [contract] if contract.parent_contracts.empty?
-    linearized = [contract] + contract.parent_contracts.reverse.flat_map { |parent| linearize_contracts(parent, new_processed) }
-    linearized.uniq { |c| raise "Invalid linearization" if linearized.rindex(c) != linearized.index(c); c }
+      unprocessed_parents = current.parent_contracts.reject { |parent| linearized.include?(parent) }
+  
+      if unprocessed_parents.empty?
+        linearized << stack.pop
+      else
+        stack.push(*unprocessed_parents)
+      end
+    end
+  
+    linearized
   end
   
   def self.linearized_parents
-    linearize_contracts(self)[1..-1]
+    linearize_contracts(self).dup.tap(&:pop)
   end
   
   def self.function(name, args, *options, returns: nil, &block)

@@ -23,19 +23,12 @@ class AbiProxy
   end
   
   def merge_parent_abis
-    return unless contract_class.linearized_parents.present?
-  
     contract_class.linearized_parents.each do |parent|
       parent.abi.data.each do |name, func|
         prefixed_name = "__#{parent.name}__#{name}"
         define_function_method(prefixed_name, func, contract_class)
+        add_function(name, func, from_parent: true)
       end
-    end
-    
-    closest_parent = contract_class.linearized_parents.first
-    
-    closest_parent.abi.data.each do |name, func|
-      add_function(name, func, from_parent: true)
     end
   end
   
@@ -47,14 +40,15 @@ class AbiProxy
     if existing_function
       if existing_function.from_parent
         unless (existing_function.virtual? && new_function.override?) ||
-               (existing_function.constructor? && new_function.constructor?)
-          raise InvalidOverrideError, "Cannot override non-constructor parent function #{name} without proper modifiers!"
+               (existing_function.constructor? && new_function.constructor?) ||
+               from_parent
+          raise InvalidOverrideError, "Cannot override non-constructor parent function #{name} without proper modifiers (#{contract_class.name})"
         end
       else
         raise FunctionAlreadyDefinedError, "Function #{name} already defined in child!"
       end
     elsif new_function.override?
-      raise InvalidOverrideError, "Function #{name} declared with override but does not override any parent function!"
+      raise InvalidOverrideError, "Function #{name} declared with override but does not override any parent function (#{contract_class.name})"
     end
   
     @data[name] = new_function

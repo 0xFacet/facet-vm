@@ -62,9 +62,9 @@ class StateProxy
     state_data.deep_dup.each do |var_name, value|
       var = state_variables[var_name.to_sym]
       
-      unless var
-        raise "Unknown state variable #{var_name}"
-      end
+      # If the variable is not defined in the contract, we ignore it
+      # It might be left from another implementation
+      next unless var
       
       var.deserialize(value)
     end

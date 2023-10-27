@@ -1,8 +1,9 @@
 pragma :rubidity, "1.0.0"
 
 import "./ERC20.rubidity"
+import "./Upgradeable.rubidity"
 
-contract :EtherBridge, is: :ERC20 do
+contract :EtherBridge, is: [:ERC20, :Upgradeable], upgradeable: true do
   event :InitiateWithdrawal, { from: :address, amount: :uint256, withdrawalId: :bytes32 }
   event :WithdrawalComplete, { to: :address, amounts: [:uint256], withdrawalIds: [:bytes32] }
 
@@ -16,6 +17,7 @@ contract :EtherBridge, is: :ERC20 do
     trustedSmartContract: :address
   ) {
     ERC20.constructor(name: name, symbol: symbol, decimals: 18)
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
     
     s.trustedSmartContract = trustedSmartContract
   }

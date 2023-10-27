@@ -1,6 +1,9 @@
 require 'rails_helper'
 
 RSpec.describe Contract, type: :model do
+  let(:user_address) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
+  let(:trusted_address) { "0x019824B229400345510A3a7EFcFB77fD6A78D8d0" }
+  
   before(:all) do
     RubidityFile.add_to_registry('spec/fixtures/ERC20LiquidityPool.rubidity')
   end
@@ -191,8 +194,6 @@ RSpec.describe Contract, type: :model do
     end
     
     it "bridges" do
-      trusted_address = "0x019824B229400345510A3a7EFcFB77fD6A78D8d0"
-      
       deploy = trigger_contract_interaction_and_expect_success(
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
@@ -266,6 +267,155 @@ RSpec.describe Contract, type: :model do
           }
         }
       )
+    end
+    
+    it "upgrades the bridge" do
+      bridge = trigger_contract_interaction_and_expect_success(
+        from: user_address,
+        payload: {
+          data: {
+            type: "EtherBridge",
+            args: {
+              name: "Bridge Native 1",
+              symbol: "PT1",
+              trustedSmartContract: trusted_address
+            }
+          }
+        }
+      )
+      
+      v1_hash = "0x" + RubidityFile.find_by_name("EtherBridge").init_code_hash
+      v2_hash = "0x" + RubidityFile.find_by_name("EtherBridgeV2").init_code_hash
+
+      upgrade_tx = trigger_contract_interaction_and_expect_success(
+        from: user_address,
+        payload: {
+          to: bridge.contract_address,
+          data: {
+            function: "upgrade",
+            args: v2_hash
+          }
+        }
+      )
+      
+      contract_upgraded_event = upgrade_tx.logs.detect do |i|
+        i['event'] == 'ContractUpgraded'
+      end
+
+      expect(contract_upgraded_event['data']['oldHash']).to eq(v1_hash)
+      expect(contract_upgraded_event['data']['newHash']).to eq(v2_hash)
+      
+      bridge = trigger_contract_interaction_and_expect_success(
+        from: user_address,
+        payload: {
+          data: {
+            type: "EtherBridge",
+            args: {
+              name: "Bridge Native 1",
+              symbol: "PT1",
+              trustedSmartContract: trusted_address
+            }
+          }
+        }
+      )
+      
+      trigger_contract_interaction_and_expect_success(
+        from: trusted_address,
+        payload: {
+          to: bridge.contract_address,
+          data: {
+            function: "bridgeIn",
+            args: [
+              "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+              500
+            ]
+          }
+        }
+      )
+      
+      bridge_out = trigger_contract_interaction_and_expect_success(
+        from: user_address,
+        payload: {
+          to: bridge.contract_address,
+          data: {
+            function: "bridgeOut",
+            args: 200
+          }
+        }
+      )
+      
+      withdrawal_id = bridge_out.logs.detect{|i| i['event'] == 'InitiateWithdrawal'}['data']['withdrawalId']
+
+      migrationCalldata = {
+        function: "onUpgrade",
+        args: {
+          usersToProcess: [
+            user_address
+          ]
+        }
+      }
+      
+      upgrade_tx = trigger_contract_interaction_and_expect_success(
+        from: user_address,
+        payload: {
+          to: bridge.contract_address,
+          data: {
+            function: "upgradeAndCall",
+            args: {
+              newHash: v2_hash,
+              migrationCalldata: migrationCalldata.to_json
+            }
+          }
+        }
+      )
+      
+      contract_upgraded_event = upgrade_tx.logs.detect do |i|
+        i['event'] == 'ContractUpgraded'
+      end
+
+      expect(contract_upgraded_event['data']['oldHash']).to eq(v1_hash)
+      expect(contract_upgraded_event['data']['newHash']).to eq(v2_hash)
+      
+      bal = ContractTransaction.make_static_call(
+        contract: bridge.contract_address,
+        function_name: "balanceOf",
+        function_args: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      )
+      
+      pending = ContractTransaction.make_static_call(
+        contract: bridge.contract_address,
+        function_name: "withdrawalIdAmount",
+        function_args: withdrawal_id
+      )
+      
+      expect(bal).to eq(300)
+      expect(pending).to eq(200)
+      
+      upgrade_tx = trigger_contract_interaction_and_expect_success(
+        from: user_address,
+        payload: {
+          to: bridge.contract_address,
+          data: {
+            function: "upgrade",
+            args: v1_hash
+          }
+        }
+      )
+      
+      contract_upgraded_event = upgrade_tx.logs.detect do |i|
+        i['event'] == 'ContractUpgraded'
+      end
+
+      expect(contract_upgraded_event['data']['oldHash']).to eq(v2_hash)
+      expect(contract_upgraded_event['data']['newHash']).to eq(v1_hash)
+      
+      bal = ContractTransaction.make_static_call(
+        contract: bridge.contract_address,
+        function_name: "balanceOf",
+        function_args: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      )
+      
+      expect(bal).to eq(300)
     end
     
     it "bridges_tokens" do

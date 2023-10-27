@@ -16,7 +16,7 @@ class ContractBuilder < BasicObject
   def pragma(...)
   end
   
-  def contract(name, is: [], abstract: false, &block)
+  def contract(name, is: [], abstract: false, upgradeable: false, &block)
     available_contracts = @available_contracts
     
     implementation_klass = ::Class.new(::ContractImplementation) do
@@ -30,6 +30,7 @@ class ContractBuilder < BasicObject
         @parent_contracts << parent
       end
       
+      @is_upgradeable = upgradeable
       @is_abstract_contract = abstract
       @name = name.to_s
       @available_contracts = available_contracts.merge(@name => self)

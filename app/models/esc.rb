@@ -9,6 +9,14 @@ class Esc
     Base64.strict_encode64(str)
   end
   
+  def getImplementationHash
+    target = TransactionContext.current_contract.implementation_class
+    
+    code = "0x" + target.init_code_hash
+    
+    TypedVariable.create(:bytes32, code)
+  end
+  
   def upgradeContract(new_init_code_hash)
     typed = TypedVariable.create_or_validate(:bytes32, new_init_code_hash)
     
@@ -16,6 +24,13 @@ class Esc
     
     target = TransactionContext.current_contract
     new_implementation_class = TransactionContext.implementation_from_init_code(new_init_code_hash)
+    
+    unless target.implementation_class.is_upgradeable
+      raise ContractError.new(
+        "Contract is not upgradeable: #{target.implementation_class.name}",
+        target
+      )
+    end
     
     unless new_implementation_class
       raise ContractError.new(
