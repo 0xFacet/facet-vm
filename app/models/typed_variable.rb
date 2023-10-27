@@ -10,6 +10,10 @@ class TypedVariable
     self.value = value || type.default_value
     self.on_change = on_change
     
+    if type.bool?
+      raise "Use literals instead of TypedVariable for booleans"
+    end
+    
     if type == Type.create(:address)
       define_singleton_method(:call, method(:address_call))
     end
@@ -17,6 +21,11 @@ class TypedVariable
   
   def self.create(type, value = nil, on_change: nil, **options)
     type = Type.create(type)
+    
+    if type.bool?
+      return value.nil? ? type.default_value :
+        type.check_and_normalize_literal(value)
+    end
     
     options[:on_change] = on_change
     

@@ -11,6 +11,8 @@ contract :EtherBridge, is: [:ERC20, :Upgradeable], upgradeable: true do
   mapping ({ address: :uint256 }), :public, :pendingWithdrawalAmounts
   mapping ({ address: array(:bytes32) }), :public, :pendingUserWithdrawalIds
 
+  bool :public, :bridgeOutPaused
+  
   constructor(
     name: :string,
     symbol: :string,
@@ -31,7 +33,16 @@ contract :EtherBridge, is: [:ERC20, :Upgradeable], upgradeable: true do
     _mint(to: to, amount: amount)
   end
   
+  function :setBridgeOutPause, { newState: :bool }, :public do
+    require(msg.sender == s.upgradeAdmin, "Only the pause admin can pause bridge outs")
+    
+    s.bridgeOutPaused = newState
+    nil
+  end
+  
   function :bridgeOut, { amount: :uint256 }, :public do
+    require(!s.bridgeOutPaused, "Bridge out is paused")
+    
     _burn(from: msg.sender, amount: amount)
     
     withdrawalId = esc.currentTransactionHash
