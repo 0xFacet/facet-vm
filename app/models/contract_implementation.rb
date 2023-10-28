@@ -217,7 +217,7 @@ class ContractImplementation
   end
   
   def type(var)
-    if var.is_a?(TypedVariable) && var.type.contract?
+    if var.is_a?(TypedObject) && var.type.contract?
       var = var.contract_type
     end
     
@@ -252,7 +252,7 @@ class ContractImplementation
   end
   
   def string(i)
-    if i.is_a?(TypedVariable) && i.type.is_value_type?
+    if i.is_a?(TypedObject) && i.type.is_value_type?
       return TypedVariable.create(:string, i.value.to_s)
     else
       raise "Input must be typed"
@@ -260,7 +260,7 @@ class ContractImplementation
   end
   
   def address(i)
-    if i.is_a?(TypedVariable) && i.type.contract?
+    if i.is_a?(TypedObject) && i.type.contract?
       return TypedVariable.create(:address, i.value.address)
     end
     
@@ -268,7 +268,7 @@ class ContractImplementation
       return TypedVariable.create(:address) 
     end
     
-    if i.is_a?(TypedVariable) && i.type.address?
+    if i.is_a?(TypedObject) && i.type.address?
       return i
     end
     
@@ -337,7 +337,7 @@ class ContractImplementation
   end
   
   def new(contract_initializer)
-    if contract_initializer.is_a?(TypedVariable) && contract_initializer.type.contract?
+    if contract_initializer.is_a?(TypedObject) && contract_initializer.type.contract?
       contract_initializer = {
         to_contract_type: contract_initializer.contract_type,
         args: contract_initializer.uncast_address,

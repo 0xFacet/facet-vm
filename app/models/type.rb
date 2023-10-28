@@ -144,7 +144,7 @@ class Type
   
   def check_and_normalize_literal(literal)
     if literal.is_a?(TypedVariable)
-      raise VariableTypeError, "Only literals can be passed to check_and_normalize_literal: #{literal.inspect}"
+      raise VariableTypeError, "Only literals and TypedObjects can be passed to check_and_normalize_literal: #{literal.inspect}"
     end
     
     if address?

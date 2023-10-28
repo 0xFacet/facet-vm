@@ -16,6 +16,6 @@ end
 
 class Float
   def ether
-    to_i.ether
+    to_d.to_i.ether
   end
 end

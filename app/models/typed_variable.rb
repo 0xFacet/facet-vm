@@ -1,4 +1,6 @@
 class TypedVariable
+  include TypedObject
+  
   include ContractErrors
   extend AttrPublicReadPrivateWrite
   
@@ -7,11 +9,11 @@ class TypedVariable
 
   def initialize(type, value = nil, on_change: nil, **options)
     self.type = type
-    self.value = value || type.default_value
+    self.value = value.nil? ? type.default_value : value
     self.on_change = on_change
     
     if type.bool?
-      raise "Use literals instead of TypedVariable for booleans"
+      raise TypeError.new("Use literals instead of TypedVariable for booleans")
     end
     
     if type == Type.create(:address)
@@ -41,7 +43,7 @@ class TypedVariable
   end
   
   def self.create_or_validate(type, value = nil, on_change: nil)
-    if value.is_a?(TypedVariable)
+    if value.is_a?(TypedObject)
       unless Type.create(type).can_be_assigned_from?(value.type)
         raise VariableTypeError.new("invalid #{type}: #{value.inspect}")
       end
@@ -119,12 +121,16 @@ class TypedVariable
     value.respond_to?(name, include_private) || super
   end
   
+  def !
+    raise TypeError.new("Cannot negate `TypedVariable's")
+  end
+  
   def !=(other)
     !(self == other)
   end
   
   def ==(other)
-    if other.is_a?(self.class)
+    if other.is_a?(TypedObject)
       return false unless type.values_can_be_compared?(other.type)
       return value == other.value
     else

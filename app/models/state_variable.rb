@@ -107,7 +107,7 @@ class StateVariable
   end
   
   def typed_variable=(new_value)
-    if new_value.is_a?(TypedVariable)
+    if new_value.is_a?(TypedObject)
       new_typed_variable = TypedVariable.create_or_validate(
         type,
         new_value,
