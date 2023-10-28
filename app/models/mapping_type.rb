@@ -47,7 +47,7 @@ class MappingType < TypedVariable
     end
     
     def [](key_var)
-      raw_key = key_var.is_a?(TypedVariable) ? key_var.value : key_var
+      raw_key = key_var.is_a?(TypedObject) ? key_var.value : key_var
       string_key = raw_key.to_s
     
       typed_key_var = TypedVariable.create_or_validate(key_type, key_var, on_change: on_change)
@@ -87,8 +87,11 @@ class MappingType < TypedVariable
         
         transformed_keys.add(key_var)
 
-        data[key_var] ||= val_var
-        data[key_var].value = val_var.value
+        if data[key_var].nil? || val_var.type.is_value_type?
+          data[key_var] = val_var
+        else
+          data[key_var].value = val_var.value
+        end
       end
     end
     

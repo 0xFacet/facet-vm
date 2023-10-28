@@ -64,8 +64,12 @@ class ArrayType < TypedVariable
       
       if old_value != val_var
         on_change&.call
-        self.data[index_var] ||= val_var
-        self.data[index_var].value = val_var.value
+        
+        if data[index_var].nil? || val_var.type.is_value_type?
+          data[index_var] = val_var
+        else
+          data[index_var].value = val_var.value
+        end
       end
     end
     

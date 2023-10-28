@@ -4,7 +4,7 @@ RSpec.describe AbiProxy::FunctionProxy, type: :model do
   describe '#convert_args_to_typed_variables_struct' do
     let(:function_proxy) do
       described_class.new(
-        args: { arg1: :string, arg2: :uint256 },
+        args: { arg1: :string, arg2: :uint256, arg3: :bool },
         state_mutability: :non_payable,
         visibility: :internal,
         type: :function
@@ -12,12 +12,13 @@ RSpec.describe AbiProxy::FunctionProxy, type: :model do
     end
 
     context 'when named parameters are passed' do
-      let(:args) { { arg1: 'test', arg2: 123 } }
+      let(:args) { { arg1: 'test', arg2: 123, arg3: false } }
 
       it 'converts named parameters to typed variables struct' do
         result = function_proxy.convert_args_to_typed_variables_struct([], args)
-        expect(result.arg1).to be_a(TypedVariable)
-        expect(result.arg2).to be_a(TypedVariable)
+        expect(result.arg1).to be_a(TypedObject)
+        expect(result.arg2).to be_a(TypedObject)
+        expect(result.arg3).to be_a(TypedObject)
       end
     end
 
@@ -26,8 +27,8 @@ RSpec.describe AbiProxy::FunctionProxy, type: :model do
 
       it 'converts non-named parameters to typed variables struct' do
         result = function_proxy.convert_args_to_typed_variables_struct(args, {})
-        expect(result.arg1).to be_a(TypedVariable)
-        expect(result.arg2).to be_a(TypedVariable)
+        expect(result.arg1).to be_a(TypedObject)
+        expect(result.arg2).to be_a(TypedObject)
       end
     end
   end
@@ -105,8 +106,8 @@ RSpec.describe AbiProxy::FunctionProxy, type: :model do
 
       it 'converts named parameters to typed variables struct' do
         result = function_proxy.convert_args_to_typed_variables_struct(args, {})
-        expect(result.arg1).to be_a(TypedVariable)
-        expect(result.arg2).to be_a(TypedVariable)
+        expect(result.arg1).to be_a(TypedObject)
+        expect(result.arg2).to be_a(TypedObject)
       end
     end
 
@@ -115,8 +116,8 @@ RSpec.describe AbiProxy::FunctionProxy, type: :model do
 
       it 'converts non-named parameters to typed variables struct' do
         result = function_proxy.convert_args_to_typed_variables_struct(args, {})
-        expect(result.arg1).to be_a(TypedVariable)
-        expect(result.arg2).to be_a(TypedVariable)
+        expect(result.arg1).to be_a(TypedObject)
+        expect(result.arg2).to be_a(TypedObject)
       end
     end
 
@@ -125,7 +126,7 @@ RSpec.describe AbiProxy::FunctionProxy, type: :model do
 
       it 'converts the string argument to a typed variables struct' do
         result = function_proxy.convert_args_to_typed_variables_struct([args, nil], {})
-        expect(result.arg1).to be_a(TypedVariable)
+        expect(result.arg1).to be_a(TypedObject)
       end
     end
   end
