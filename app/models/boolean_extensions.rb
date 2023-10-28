@@ -5,7 +5,7 @@ module BooleanExtensions
     Type.new(:bool)
   end
   
-  def value=(new_val)
+  def value=(*)
     raise TypeError.new("Cannot change value of #{self}")
   end
 end

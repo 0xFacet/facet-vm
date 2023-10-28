@@ -23,7 +23,7 @@ RSpec.describe AbiProxy::FunctionProxy, type: :model do
     end
 
     context 'when non-named parameters are passed' do
-      let(:args) { ['test', 123] }
+      let(:args) { ['test', 123, true] }
 
       it 'converts non-named parameters to typed variables struct' do
         result = function_proxy.convert_args_to_typed_variables_struct(args, {})
