@@ -1,0 +1,219 @@
+pragma :rubidity, "1.0.0"
+
+import './Upgradeable.rubidity'
+import './UniswapV2Router.rubidity'
+
+contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgradeable: true do
+  uint256 :public, :feeBPS
+  
+  mapping ({ address: mapping(address: :uint256) }), :public, :stakedLP
+  mapping ({ address: mapping(address: :uint256) }), :public, :rewardDebt
+  
+  mapping ({:address => :uint256}), :public, :totalStakedLP
+  mapping ({:address => :uint256}), :public, :totalStakeSeconds
+  mapping ({:address => :uint256}), :public, :accRewardsPerShare
+  mapping ({:address => :uint256}), :public, :lastUpdateTime
+  
+  mapping ({ address: mapping(address: :uint256) }), :public, :weightedAvgStakeTime
+  mapping ({ address: mapping(address: :uint256) }), :public, :lastStakeTime
+
+
+  constructor(
+    _factory: :address,
+    _WETH: :address,
+    _feeBPS: :uint256,
+  ) {
+    require(_feeBPS <= 10000, 'Fee cannot be greater than 100%')
+    
+    s.feeBPS = _feeBPS
+    
+    UniswapV2Router.constructor(_factory: _factory, _WETH: _WETH)
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+  }
+  
+  function :stakeLP, { lpToken: :address, amount: :uint256 }, :public do
+    lpPair = IUniswapV2Pair(lpToken)
+    token0 = lpPair.token0()
+    token1 = lpPair.token1()
+    
+    require(token0 == WETH || token1 == WETH, 'One of the tokens must be WETH')
+    
+    # Call the internal function to update the staking amount
+    updateStakeAmount(lpToken: lpToken, amount: amount, isStaking: true, user: msg.sender)
+  
+    # Transfer LP tokens from the user to this contract
+    ERC20(lpToken).transferFrom(msg.sender, address(this), amount)
+  end
+  
+  function :unstakeLP, { lpToken: :address, amount: :uint256 }, :public do
+    require(stakedLP[msg.sender][lpToken] >= amount, 'Insufficient staked amount')
+  
+    # Call the internal function to update the staking amount
+    updateStakeAmount(lpToken: lpToken, amount: amount, isStaking: false, user: msg.sender)
+    
+    # Transfer LP tokens from this contract back to the user
+    ERC20(lpToken).transfer(msg.sender, amount)
+  end
+  
+  function :withdrawRewards, { lpToken: :address }, :public do
+    # Call the internal function with an amount of 0 to update and withdraw rewards
+    updateStakeAmount(lpToken: lpToken, amount: 0, isStaking: true, user: msg.sender)
+  end  
+  
+  function :updateStakeAmount, ({
+    lpToken: :address,
+    amount: :uint256,
+    isStaking: :bool,
+    user: :address }
+  ), :internal do    
+    # Calculate pending rewards for the user
+    pending = (stakedLP[user][lpToken] * accRewardsPerShare[lpToken] / 1e12) - rewardDebt[user][lpToken]
+    
+    # Distribute pending rewards, if any
+    if pending > 0
+      WETH.transfer(user, pending)
+    end
+    
+    if (pending > 0 || amount > 0)
+      lastUpdateTime[lpToken] = block.timestamp
+    end
+  
+    # Update user's weighted average stake-time
+    oldStake = stakedLP[user][lpToken]
+    newStake = isStaking ? (oldStake + amount) : (oldStake - amount)
+    oldWeightedTime = weightedAvgStakeTime[user][lpToken]
+    currentTime = block.timestamp
+  
+    newWeightedTime = ((oldStake * oldWeightedTime) + (amount * currentTime)) / newStake
+  
+    weightedAvgStakeTime[user][lpToken] = newWeightedTime
+  
+    totalStakeSeconds[lpToken] -= oldStake * oldWeightedTime
+    totalStakeSeconds[lpToken] += newStake * newWeightedTime
+  
+    # Update staked amount for the user and the total staked LP
+    stakedLP[user][lpToken] = newStake
+    totalStakedLP[lpToken] = isStaking ? (totalStakedLP[lpToken] + amount) : (totalStakedLP[lpToken] - amount)
+  
+    # Update reward debt for the user
+    rewardDebt[user][lpToken] = newStake * accRewardsPerShare[lpToken] / 1e12
+    nil
+  end
+  
+  function :swapExactTokensForTokens, { 
+    amountIn: :uint256, 
+    amountOutMin: :uint256, 
+    path: [:address],
+    to: :address, 
+    deadline: :uint256 
+  }, :public, :virtual, :override, returns: [:uint256] do
+    feeAmount = _chargeFee(amountIn, path[0])
+    
+    amount = UniswapV2Router.swapExactTokensForTokens(
+      amountIn: amountIn - feeAmount,
+      amountOutMin: amountOutMin,
+      path: path,
+      to: to,
+      deadline: deadline
+    )
+    
+    feeInWETH = convertToWETH(token: path[0], amount: feeAmount)
+    
+    lpToken = pairFor(factory, path[0], path[1])
+    
+    updateRewards(lpToken: lpToken, feeAmount: feeInWETH)
+    
+    amount
+  end
+  
+  function :updateRewards, { lpToken: :address, feeAmount: :uint256 }, :internal do
+    if totalStakedLP[lpToken] > 0
+      # Get the current time
+      currentTime = block.timestamp
+  
+      # Calculate the duration of staking
+      stakingDuration = currentTime - lastUpdateTime[lpToken]
+  
+      # Calculate rewards per second
+      rewardsPerSecond = (feeAmount * 1.ether).div(stakingDuration)
+  
+      # Update accumulated rewards per share
+      accRewardsPerShare[lpToken] += rewardsPerSecond.div(totalStakedLP[lpToken])
+  
+      # Update the last update time
+      lastUpdateTime[lpToken] = currentTime
+    end
+  end
+  
+  function :swapTokensForExactTokens, {
+    amountOut: :uint256,
+    amountInMax: :uint256,
+    path: [:address],
+    to: :address,
+    deadline: :uint256
+  }, :public, :virtual, :override, returns: [:uint256] do
+    feeAmount = _chargeFee(amountOut, path[0])
+
+    amount = UniswapV2Router.swapTokensForExactTokens(
+      amountOut: amountOut - feeAmount,
+      amountInMax: amountInMax,
+      path: path,
+      to: to,
+      deadline: deadline
+    )
+    
+    feeInWETH = convertToWETH(token: path[0], amount: feeAmount)
+    
+    lpToken = pairFor(factory, path[0], path[1])
+    
+    updateRewards(lpToken: lpToken, feeAmount: feeInWETH)
+    
+    amount
+  end
+  
+  function :updateFeeAdmin, { newAdmin: :address }, :public do
+    require(msg.sender == s.feeAdmin, 'Only the fee admin can update the fee admin')
+    
+    s.feeAdmin = newAdmin
+    nil
+  end
+  
+  function :updateFee, { newFeeBPS: :uint256 }, :public do
+    require(msg.sender == s.feeAdmin, 'Only the fee admin can update the fee')
+    
+    s.feeBPS = newFeeBPS
+    nil
+  end
+  
+  function :_chargeFee, {
+    tokenAmount: :uint256,
+    tokenAddress: :address
+  }, :internal, :virtual, returns: :uint256 do
+    feeAmount = (tokenAmount * s.feeBPS).div(10000)
+    
+    ERC20(tokenAddress).transferFrom(
+      from: msg.sender,
+      to: address(this),
+      amount: feeAmount
+    )
+    
+    feeAmount
+  end
+  
+  function :convertToWETH, {
+    token: :address,
+    amount: :uint256
+  }, :internal, returns: :uint256 do
+    if token == WETH
+      return amount
+    end
+    
+    return UniswapV2Router.swapExactTokensForTokens(
+      amountIn: amount,
+      amountOutMin: 0,
+      path: [token, WETH],
+      to: address(this),
+      deadline: block.timestamp + 1
+    )
+  end
+end
