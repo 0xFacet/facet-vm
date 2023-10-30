@@ -1,10 +1,10 @@
-# Welcome to the Ethscriptions VM Server!
+# Welcome to the Facet VM!
 
-The Ethscriptions VM is an app that interprets certain special ethscriptions as computer commands direct at computer programs called Dumb Contracts.
+The Facet VM is an app that interprets certain special ethscriptions as computer commands direct at computer programs called Dumb Contracts.
 
 The VM handles logic, validation, and state persistance and exposes everything it does via an API.
 
-You can interact with the VM using the [Ethscriptions VM Client](https://github.com/ethscriptions-protocol/ethscriptions-vm-client).
+You can interact with the VM using the [FacetScan](https://github.com/0xfacet/facetscan).
 
 ## Installation Instructions
 
@@ -13,7 +13,7 @@ The VM is a Ruby on Rails app. To install it, follow these steps:
 Run this command inside the directory of your choice to clone the repository:
 
 ```!bash
-git clone https://github.com/ethscriptions-protocol/ethscriptions-vm-server
+git clone https://github.com/0xfacet/facet-vm
 ```
 
 If you don't already have Ruby Version Manager installed, install it:
@@ -64,7 +64,7 @@ Migrate the database schema:
 rails db:migrate
 ```
 
-Set up your env vars by renaming `.sample.env` to `.env`. The most important env var is `INDEXER_API_BASE_URI`. This is the indexer you will use to get ethscriptions relevant to the Ethscriptions VM. By default it is set to use the ethscriptions.com indexer, which is free.
+Set up your env vars by renaming `.sample.env` to `.env`. The most important env var is `INDEXER_API_BASE_URI`. This is the indexer you will use to get ethscriptions relevant to the Facet VM. By default it is set to use the ethscriptions.com indexer, which is free.
 
 Run the tests to make sure everything is set up correctly:
 
@@ -99,6 +99,3 @@ If you want to debug your app you can run `rails c` to open up a console. Once i
 ## Creating Dumb Contracts
 
 Now that you're set up you can try the main attraction: creating your own Dumb Contracts. Dumb Contracts live in `app/models/contracts`. You can edit and create them without touching any other part of the codebase. [See these docs for more](https://docs.ethscriptions.com/v/ethscriptions-vm/getting-started/welcome-to-ethscriptions-vm)!
-
-
-
