@@ -1,6 +1,6 @@
 class ContractImplementation
   include ContractErrors
-  include LimitedLoop
+  include ForLoop
   
   class << self
     attr_reader :name, :is_abstract_contract, :source_code, :creation_code,

@@ -1,5 +1,5 @@
-module LimitedLoop
-  def limited_loop(start: 0, condition:, step: 1, max_iterations:)
+module ForLoop
+  def for_loop(start: 0, condition:, step: 1, max_iterations:)
     raise ArgumentError, 'Block is required' unless block_given?
     
     current_val = start

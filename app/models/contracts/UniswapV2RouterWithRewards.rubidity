@@ -248,7 +248,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
   function :updateSwapperRewards, :internal do
     nonNullSwapperCount = 0
 
-    limited_loop(
+    for_loop(
       condition: ->(i) { i < s.topFiveSwappers.length },
       max_iterations: 5
     ) do |i|
@@ -261,7 +261,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     
     individualSwapperReward = s.swapperRewardsPool.div(nonNullSwapperCount)
     
-    limited_loop(
+    for_loop(
       condition: ->(i) { i < s.topFiveSwappers.length },
       max_iterations: 5
     ) do |i|
@@ -305,7 +305,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
 
     newTotal = s.feesGeneratedBySwapper[currentSwapper]
   
-    limited_loop(
+    for_loop(
       condition: ->(i) { i < s.topFiveSwappers.length },
       max_iterations: 5
     ) do |i|
@@ -315,7 +315,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     minFee = 2 ** 256 - 1
     minIndex = 0
     
-    limited_loop(
+    for_loop(
       condition: -> i { i < s.topFiveSwappers.length },
       max_iterations: 5
     ) do |i|
