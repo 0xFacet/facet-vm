@@ -18,28 +18,6 @@ describe 'UniswapV2Router contract' do
     Math.sqrt(integer.value.to_d).floor
   end
   
-  def stake_lp_tokens(from_address:, lp_token_address:, amount:, router_address:)
-    trigger_contract_interaction_and_expect_success(
-      from: from_address,
-      payload: {
-        to: router_address,
-        data: {
-          function: "stakeLP",
-          args: {
-            lpToken: lp_token_address,
-            amount: amount
-          }
-        }
-      }
-    )
-  end
-  
-  def days_from_now(days)
-    now = 1698772517
-    
-    (now + days.days).to_i
-  end
-  
   it 'performs a token swap' do
     factory_deploy_receipt = trigger_contract_interaction_and_expect_success(
       from: user_address,
@@ -84,13 +62,14 @@ describe 'UniswapV2Router contract' do
       payload: {
         to: nil,
         data: {
-          type: "UniswapV2RouterWithRewards",
+          type: "UniswapV2RouterWithRewardsSimple",
           args: { _factory: factory_address, _WETH: weth_address, _feeBPS: 1_000 }
         }
       }
     )
     router_address = router_deploy_receipt.address
     router_contract = Contract.find_by_address(router_address)
+    rc = router_contract
     deploy_receipts = {
       "tokenA": tokenA_deploy_receipt,
       "tokenB": tokenB_deploy_receipt,
@@ -164,7 +143,6 @@ describe 'UniswapV2Router contract' do
     
     [user_address, alice, bob, charlie].each do |addr|
       add_liquidity_receipt = trigger_contract_interaction_and_expect_success(
-        block_timestamp: days_from_now(0),
         from: addr,
         payload: {
           to: router_address,
@@ -178,7 +156,7 @@ describe 'UniswapV2Router contract' do
               amountAMin: amountAMin,
               amountBMin: amountBMin,
               to: addr,
-              deadline: days_from_now(10000)
+              deadline: Time.now.to_i + 300
             }
           }
         }
@@ -204,39 +182,21 @@ describe 'UniswapV2Router contract' do
       function_args: user_address
     )
     
-    participants = [user_address, alice, bob, charlie]
-
-    # Amount to stake for each participant
-    stake_amount = 1_000.ether
+    alice_stake_amount = 1000.ether
     
-    # participants.each.with_index do |participant, i|
-    [user_address].each.with_index do |participant, i|
-      trigger_contract_interaction_and_expect_success(
-        block_timestamp: days_from_now((i + 1) * 30),
-        from: participant,
-        payload: {
-          to: router_address,
-          data: {
-            function: "stakeLP",
-            args: {
-              lpToken: pair_address,
-              amount: stake_amount,
-            }
+    trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        to: router_address,
+        data: {
+          function: "stakeLP",
+          args: {
+            lpToken: pair_address,
+            amount: alice_stake_amount,
           }
         }
-      )
-    
-      # Validate staked amount for each participant
-      staked_balance = ContractTransaction.make_static_call(
-        contract: router_address,
-        function_name: "stakedLP",
-        function_args: [participant, pair_address]
-      )
-    
-      expect(staked_balance).to eq(stake_amount)
-      
-      stake_amount -= stake_amount / 5
-    end
+      }
+    )
     
     liquidity_to_remove = my_current_liquidity.div(2)  # remove 50% of liquidity
     
@@ -282,7 +242,6 @@ describe 'UniswapV2Router contract' do
     )
     
     remove_liquidity_receipt = trigger_contract_interaction_and_expect_success(
-      block_timestamp: days_from_now(100),
       from: user_address,
       payload: {
         to: router_address,
@@ -295,7 +254,7 @@ describe 'UniswapV2Router contract' do
             amountAMin: amountAMin,
             amountBMin: amountBMin,
             to: user_address,
-            deadline: days_from_now(10000)
+            deadline: Time.now.to_i + 300
           }
         }
       }
@@ -352,16 +311,8 @@ describe 'UniswapV2Router contract' do
       function_name: "feeBPS"
     )
     
-    # participants.each do |participant|
-    #   initial_rewards = ContractTransaction.make_static_call(
-    #     contract: router_address,
-    #     function_name: "pendingRewards",
-    #     function_args: [participant, pair_address]
-    #   )
-    #   expect(initial_rewards).to eq(0)
-    # end
-    
     amountIn = 1_000.ether
+    first_swap_amount_in = amountIn
     amountOutMin = 300.ether
     
     feeFactor = (10000 - feeBPS) / 10000.to_d
@@ -370,7 +321,6 @@ describe 'UniswapV2Router contract' do
     expectedOut = numerator.div(denominator)
     
     swap_receipt = trigger_contract_interaction_and_expect_success(
-      block_timestamp: days_from_now(200),
       from: user_address,
       payload: {
         to: router_address,
@@ -381,24 +331,12 @@ describe 'UniswapV2Router contract' do
             amountOutMin: amountOutMin,
             path: [token_a_address, token_b_address],
             to: user_address,
-            deadline: days_from_now(10000)
+            deadline: Time.now.to_i + 300
           }
         }
       }
     )
-    # binding.pry
-    total = [user_address].sum do |participant|
-      post_swap_rewards = ContractTransaction.make_static_call(
-        block_timestamp: days_from_now(500),
-        contract: router_address,
-        function_name: "pendingRewards",
-        function_args: [participant, pair_address]
-      )
-    end
     
-    ap total
-    router_contract.reload
-    binding.pry
     token_a_balance_after = ContractTransaction.make_static_call(
       contract: token_a_address,
       function_name: "balanceOf",
@@ -417,13 +355,116 @@ describe 'UniswapV2Router contract' do
     token_b_diff = token_b_balance_after - token_b_balance_before
     expect(token_b_diff).to eq(expectedOut)
     
+    alice_initial_reward_withdraw = ContractTransaction.make_static_call(
+      contract: router_address,
+      function_name: "pendingRewards",
+      function_args: [alice, pair_address]
+    )
+    
+    current_weth_balance = ContractTransaction.make_static_call(
+      contract: weth_address,
+      function_name: "balanceOf",
+      function_args: alice
+    )
+    
+    withdrawRewards_receipt = trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        to: router_address,
+        data: {
+          function: "withdrawRewards",
+          args: {
+            lpToken: pair_address
+          }
+        }
+      }
+    )
+    
+    new_weth_balance = ContractTransaction.make_static_call(
+      contract: weth_address,
+      function_name: "balanceOf",
+      function_args: alice
+    )
+    
+    expect(current_weth_balance + alice_initial_reward_withdraw).to eq(new_weth_balance)
+    
     total_staked = ContractTransaction.make_static_call(
       contract: router_address,
       function_name: "totalStakedLP",
       function_args: [pair_address]
     )
+    
+    expect(total_staked).to eq(alice_stake_amount)
+    
+    bob_stake_amount = 500.ether
+    
+    trigger_contract_interaction_and_expect_success(
+      from: bob,
+      payload: {
+        to: router_address,
+        data: {
+          function: "stakeLP",
+          args: {
+            lpToken: pair_address,
+            amount: bob_stake_amount,
+          }
+        }
+      }
+    )
+    
+    second_swap_amount_in = 500.ether
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: router_address,
+        data: {
+          function: "swapExactTokensForTokens",
+          args: {
+            amountIn: second_swap_amount_in,
+            amountOutMin: 0,
+            path: [token_a_address, token_b_address],
+            to: user_address,
+            deadline: Time.now.to_i + 300
+          }
+        }
+      }
+    )
+    
+    rewards_per_share = 0
+    fee_in_first_swap = (first_swap_amount_in * feeBPS).div(10_000)
+    total_staked = alice_stake_amount
+    rewards_per_share += (fee_in_first_swap * 1.ether).div(total_staked)
+    alice_reward_debt = 0
+    
+    alice_reward = (rewards_per_share * alice_stake_amount).div(1.ether) - alice_reward_debt
+    
+    expect(alice_reward).to eq(alice_initial_reward_withdraw)
+    
+    alice_reward_debt = (rewards_per_share * alice_stake_amount).div(1.ether)
+    
+    total_staked += bob_stake_amount
+    
+    bob_reward_debt = (rewards_per_share * bob_stake_amount).div(1.ether)
+    
+    fee_in_second_swap = (second_swap_amount_in * feeBPS).div(10_000)
 
-    expect(total_staked).to be >= stake_amount
+    rewards_per_share += (fee_in_second_swap * 1.ether).div(total_staked)
+
+    alice_pending_rewards = (rewards_per_share * alice_stake_amount).div(1.ether) - alice_reward_debt
+    bob_pending_rewards = (rewards_per_share * bob_stake_amount).div(1.ether) - bob_reward_debt
+    
+    expect(ContractTransaction.make_static_call(
+      contract: router_address,
+      function_name: "pendingRewards",
+      function_args: [bob, pair_address]
+    )).to eq(bob_pending_rewards)
+    
+    expect(ContractTransaction.make_static_call(
+      contract: router_address,
+      function_name: "pendingRewards",
+      function_args: [alice, pair_address]
+    )).to eq(alice_pending_rewards)
     
     token_a_balance_before = ContractTransaction.make_static_call(
       contract: token_a_address,
@@ -457,7 +498,6 @@ describe 'UniswapV2Router contract' do
     expectedIn = (numerator.div(denominator)) + 1
     
     swap_receipt = trigger_contract_interaction_and_expect_success(
-      block_timestamp: days_from_now(300),
       from: user_address,
       payload: {
         to: router_address,
@@ -468,7 +508,7 @@ describe 'UniswapV2Router contract' do
             amountInMax: amountInMax,
             path: [token_a_address, token_b_address],
             to: user_address,
-            deadline: days_from_now(10000)
+            deadline: Time.now.to_i + 300
           }
         }
       }
@@ -492,9 +532,20 @@ describe 'UniswapV2Router contract' do
     token_b_diff = token_b_balance_after - token_b_balance_before
     expect(token_b_diff).to eq(amountOut)
     
-    stake_withdraw_receipt = trigger_contract_interaction_and_expect_success(
-      block_timestamp: days_from_now(500),
-      from: user_address,
+    current_weth_balance_bob = ContractTransaction.make_static_call(
+      contract: weth_address,
+      function_name: "balanceOf",
+      function_args: bob
+    )
+    
+    pending_rewards_bob = ContractTransaction.make_static_call(
+      contract: router_address,
+      function_name: "pendingRewards",
+      function_args: [bob, pair_address]
+    )
+    
+    withdrawRewards_receipt_bob = trigger_contract_interaction_and_expect_success(
+      from: bob,
       payload: {
         to: router_address,
         data: {
@@ -505,5 +556,51 @@ describe 'UniswapV2Router contract' do
         }
       }
     )
+    
+    new_weth_balance_bob = ContractTransaction.make_static_call(
+      contract: weth_address,
+      function_name: "balanceOf",
+      function_args: bob
+    )
+    
+    expect(new_weth_balance_bob).to eq(current_weth_balance_bob + pending_rewards_bob)
+    
+    total_staked = ContractTransaction.make_static_call(
+      contract: router_address,
+      function_name: "totalStakedLP",
+      function_args: [pair_address]
+    )
+    
+    expect(total_staked).to eq(alice_stake_amount + bob_stake_amount)
+    
+    alice_lp_balance = ContractTransaction.make_static_call(
+      contract: pair_address,
+      function_name: "balanceOf",
+      function_args: alice
+    )
+    
+    stake_withdraw_amount = 100.ether
+    
+    stake_withdraw_receipt = trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        to: router_address,
+        data: {
+          function: "unstakeLP",
+          args: {
+            lpToken: pair_address,
+            amount: stake_withdraw_amount
+          }
+        }
+      }
+    )
+    
+    alice_lp_balance_after = ContractTransaction.make_static_call(
+      contract: pair_address,
+      function_name: "balanceOf",
+      function_args: alice
+    )
+    
+    expect(alice_lp_balance_after).to eq(alice_lp_balance + stake_withdraw_amount)
   end
 end

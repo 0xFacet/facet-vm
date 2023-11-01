@@ -78,7 +78,14 @@ class AbiProxy
           
           func_proxy.convert_return_to_typed_variable(ret_val)
         rescue Contract::ContractArgumentError, Contract::VariableTypeError => e
-          raise ContractError.new("Wrong args in #{method_name} (#{func_proxy.func_location}): #{e.message}", self)
+          caller_location = caller_locations.detect { |location| location.path.ends_with?(".rubidity") }
+    
+          file = caller_location.path.gsub(%r{.*/}, '') 
+          line = caller_location.lineno
+          
+          emphasized_code = RubidityFile.emphasized_code_exerpt(name: file.split.first, line_number: line)
+          
+          raise ContractError.new("Wrong args in #{method_name} (#{func_proxy.func_location}): #{e.message}\n\n#{emphasized_code}", self)
         rescue InvalidStateVariableChange
           raise ContractError,
           "Invalid change in read-only function: #{method_name}, #{(args.presence || kwargs).inspect}, to address: #{current_address}."
