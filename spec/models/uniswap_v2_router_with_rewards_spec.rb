@@ -62,7 +62,7 @@ describe 'UniswapV2Router contract' do
       payload: {
         to: nil,
         data: {
-          type: "UniswapV2RouterWithRewardsSimple",
+          type: "UniswapV2RouterWithRewards",
           args: { _factory: factory_address, _WETH: weth_address, _feeBPS: 1_000 }
         }
       }
