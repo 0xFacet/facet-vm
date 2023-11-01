@@ -376,7 +376,7 @@ describe 'UniswapV2Router contract' do
     
     alice_initial_reward_withdraw = ContractTransaction.make_static_call(
       contract: router_address,
-      function_name: "pendingRewards",
+      function_name: "pendingStakingRewards",
       function_args: [alice, pair_address]
     )
     
@@ -391,7 +391,7 @@ describe 'UniswapV2Router contract' do
       payload: {
         to: router_address,
         data: {
-          function: "withdrawRewards",
+          function: "withdrawStakingRewards",
           args: {
             lpToken: pair_address
           }
@@ -514,13 +514,13 @@ describe 'UniswapV2Router contract' do
     
     expect(ContractTransaction.make_static_call(
       contract: router_address,
-      function_name: "pendingRewards",
+      function_name: "pendingStakingRewards",
       function_args: [bob, pair_address]
     )).to eq(bob_pending_rewards)
     
     expect(ContractTransaction.make_static_call(
       contract: router_address,
-      function_name: "pendingRewards",
+      function_name: "pendingStakingRewards",
       function_args: [alice, pair_address]
     )).to eq(alice_pending_rewards)
     
@@ -601,7 +601,7 @@ describe 'UniswapV2Router contract' do
     
     pending_rewards_bob = ContractTransaction.make_static_call(
       contract: router_address,
-      function_name: "pendingRewards",
+      function_name: "pendingStakingRewards",
       function_args: [bob, pair_address]
     )
     
@@ -610,7 +610,7 @@ describe 'UniswapV2Router contract' do
       payload: {
         to: router_address,
         data: {
-          function: "withdrawRewards",
+          function: "withdrawStakingRewards",
           args: {
             lpToken: pair_address
           }

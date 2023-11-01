@@ -5,27 +5,24 @@ import './UniswapV2Router.rubidity'
 
 contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgradeable: true do
   address :public, :feeAdmin
-  
   uint256 :public, :feeBPS
+  
   uint256 :public, :swapperFeePct
   uint256 :public, :stakerFeePct
   uint256 :public, :protocolFeePct
   
+  mapping ({ address: :uint256 }), :public, :stakerRewardsPool
+  uint256 :public, :swapperRewardsPool
+  uint256 :public, :protocolFeePool
+  
   mapping ({ address: mapping(address: :uint256) }), :public, :stakedLP
   mapping ({ address: mapping(address: :uint256) }), :public, :rewardDebt
-  
   mapping ({ address: :uint256 }), :public, :totalStakedLP
-  
-  mapping ({ address: :uint256 }), :public, :stakerRewardsPool
   mapping ({ address: :uint256 }), :public, :accRewardsPerShare
   
+  array :address, :public, :topFiveSwappers, initial_length: 5
   mapping ({ address: :uint256 }), :public, :feesGeneratedBySwapper
-  array :address, :public, :top5Swappers, initial_length: 5
-  
   mapping ({ address: :uint256 }), :public, :swapperRewards
-  uint256 :public, :swapperRewardsPool
-  
-  uint256 :public, :protocolFeePool
   
   constructor(
     _factory: :address,
@@ -36,11 +33,32 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     protocolFeePct: :uint256,
     feeAdmin: :address
   ) {
+    updateFees(
+      feeBPS: feeBPS,
+      swapperFeePct: swapperFeePct,
+      stakerFeePct: stakerFeePct,
+      protocolFeePct: protocolFeePct,
+      feeAdmin: feeAdmin
+    )
+    
+    UniswapV2Router.constructor(_factory: _factory, _WETH: _WETH)
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+  }
+  
+  function :updateFees, {
+    feeBPS: :uint256,
+    swapperFeePct: :uint256,
+    stakerFeePct: :uint256,
+    protocolFeePct: :uint256,
+    feeAdmin: :address
+  }, :public do
+    require(msg.sender == feeAdmin || s.feeAdmin == address(0), 'Only fee admin can update fees')
     require(feeBPS <= 10000, 'Fee cannot be greater than 100%')
     require(
       swapperFeePct + stakerFeePct + protocolFeePct == 100,
       'Fees must add up to 100%'
     )
+    require(feeAdmin != address(0), 'Fee admin cannot be address(0)')
     
     s.feeBPS = feeBPS
     s.stakerFeePct = stakerFeePct
@@ -48,10 +66,8 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     s.protocolFeePct = protocolFeePct
     
     s.feeAdmin = feeAdmin
-    
-    UniswapV2Router.constructor(_factory: _factory, _WETH: _WETH)
-    Upgradeable.constructor(upgradeAdmin: msg.sender)
-  }
+    nil
+  end
   
   function :stakeLP, { lpToken: :address, amount: :uint256 }, :public, returns: :bool do
     lpPair = UniswapV2Pair(lpToken)
@@ -75,7 +91,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     ERC20(lpToken).transfer(msg.sender, amount)
   end
   
-  function :withdrawRewards, { lpToken: :address }, :public do
+  function :withdrawStakingRewards, { lpToken: :address }, :public do
     updateStakeAmount(lpToken: lpToken, amount: 0, isStaking: true, user: msg.sender)
   end
   
@@ -85,9 +101,9 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     isStaking: :bool,
     user: :address
    }, :internal do
-    updateRewards(lpToken: lpToken)
+    updateStakingRewards(lpToken: lpToken)
 
-    pending = pendingRewards(user: user, lpToken: lpToken)
+    pending = pendingStakingRewards(user: user, lpToken: lpToken)
     
     require(pending > 0 || amount > 0, 'Nothing to do')
     
@@ -131,7 +147,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     s.stakerRewardsPool[lpToken] += (feeInWETH * s.stakerFeePct).div(100)
     s.protocolFeePool += (feeInWETH * s.protocolFeePct).div(100)
     
-    updateTop5Swappers(
+    updatetopFiveSwappers(
       currentSwapper: msg.sender,
       currentFee: feeInWETH
     )
@@ -161,7 +177,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     s.stakerRewardsPool[lpToken] += (feeInWETH * s.stakerFeePct).div(100)
     s.protocolFeePool += (feeInWETH * s.protocolFeePct).div(100)
     
-    updateTop5Swappers(
+    updatetopFiveSwappers(
       currentSwapper: msg.sender,
       currentFee: feeInWETH
     )
@@ -173,29 +189,25 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     return (amount * s.feeBPS).div(10000)
   end
   
-  function :calculateAccRewardsPerShare, { lpToken: :address, shouldUpdateState: :bool }, :internal, returns: :uint256 do
+  function :calculateAccRewardsPerShare, { lpToken: :address }, :internal, :view, returns: :uint256 do
     accRewardsPerShare = s.accRewardsPerShare[lpToken]
     
     if s.totalStakedLP[lpToken] > 0 && s.stakerRewardsPool[lpToken] > 0
       accRewardPerShareIncrement = (s.stakerRewardsPool[lpToken] * 1.ether).div(s.totalStakedLP[lpToken])
       accRewardsPerShare += accRewardPerShareIncrement
-      
-      if shouldUpdateState
-        s.accRewardsPerShare[lpToken] = accRewardsPerShare
-        s.stakerRewardsPool[lpToken] = 0
-      end
     end
     
     return accRewardsPerShare
   end
   
-  function :updateRewards, { lpToken: :address }, :internal do
-    calculateAccRewardsPerShare(lpToken: lpToken, shouldUpdateState: true)
+  function :updateStakingRewards, { lpToken: :address }, :internal do
+    s.accRewardsPerShare[lpToken] = calculateAccRewardsPerShare(lpToken: lpToken)
+    s.stakerRewardsPool[lpToken] = 0
     nil
   end
   
-  function :pendingRewards, { user: :address, lpToken: :address }, :public, :view, returns: :uint256 do
-    accRewardsPerShare = calculateAccRewardsPerShare(lpToken: lpToken, shouldUpdateState: false)
+  function :pendingStakingRewards, { user: :address, lpToken: :address }, :public, :view, returns: :uint256 do
+    accRewardsPerShare = calculateAccRewardsPerShare(lpToken: lpToken)
     
     topLine = (s.stakedLP[user][lpToken] * accRewardsPerShare).div(1.ether)
     
@@ -237,10 +249,10 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     nonNullSwapperCount = 0
 
     limited_loop(
-      condition: ->(i) { i < s.top5Swappers.length },
+      condition: ->(i) { i < s.topFiveSwappers.length },
       max_iterations: 5
     ) do |i|
-      if s.top5Swappers[i] != address(0)
+      if s.topFiveSwappers[i] != address(0)
         nonNullSwapperCount += 1
       end
     end
@@ -250,10 +262,10 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     individualSwapperReward = s.swapperRewardsPool.div(nonNullSwapperCount)
     
     limited_loop(
-      condition: ->(i) { i < s.top5Swappers.length },
+      condition: ->(i) { i < s.topFiveSwappers.length },
       max_iterations: 5
     ) do |i|
-      swapper = s.top5Swappers[i]
+      swapper = s.topFiveSwappers[i]
       if swapper != address(0)
         s.swapperRewards[swapper] += individualSwapperReward
       end
@@ -285,29 +297,29 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     ERC20(s.WETH).transfer(msg.sender, amount)
   end
   
-  function :updateTop5Swappers, { currentSwapper: :address, currentFee: :uint256 }, :internal do
+  function :updatetopFiveSwappers, { currentSwapper: :address, currentFee: :uint256 }, :internal do
     updateSwapperRewards()
     
     s.feesGeneratedBySwapper[currentSwapper] += currentFee
-    s.swapperRewardsPool += currentFee * s.swapperFeePct / 100
+    s.swapperRewardsPool += (currentFee * s.swapperFeePct).div(100)
 
     new_total = s.feesGeneratedBySwapper[currentSwapper]
   
     limited_loop(
-      condition: ->(i) { i < s.top5Swappers.length },
+      condition: ->(i) { i < s.topFiveSwappers.length },
       max_iterations: 5
     ) do |i|
-      return if s.top5Swappers[i] == currentSwapper
+      return if s.topFiveSwappers[i] == currentSwapper
     end
     
     min_fee = 2 ** 256 - 1
     min_index = 0
     
     limited_loop(
-      condition: -> i { i < s.top5Swappers.length },
+      condition: -> i { i < s.topFiveSwappers.length },
       max_iterations: 5
     ) do |i|
-      swapper = s.top5Swappers[i]
+      swapper = s.topFiveSwappers[i]
       if swapper == address(0) || s.feesGeneratedBySwapper[swapper] < min_fee
         min_fee = s.feesGeneratedBySwapper[swapper]
         min_index = i
@@ -315,7 +327,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     end
     
     if new_total > min_fee
-      s.top5Swappers[min_index] = currentSwapper
+      s.topFiveSwappers[min_index] = currentSwapper
     end
     
     nil
