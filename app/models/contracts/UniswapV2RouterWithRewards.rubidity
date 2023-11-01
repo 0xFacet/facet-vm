@@ -4,6 +4,8 @@ import './Upgradeable.rubidity'
 import './UniswapV2Router.rubidity'
 
 contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgradeable: true do
+  event :RewardClaimed, { user: :address, lpToken: :address, reward: :uint256 }
+  
   uint256 :public, :feeBPS
   
   mapping ({ address: mapping(address: :uint256) }), :public, :stakedLP
@@ -11,11 +13,14 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
   
   mapping ({:address => :uint256}), :public, :totalStakedLP
   mapping ({:address => :uint256}), :public, :totalStakeSeconds
+  mapping ({:address => :uint256}), :public, :weightedAvgStakeSeconds
   mapping ({:address => :uint256}), :public, :accRewardsPerShare
   mapping ({:address => :uint256}), :public, :lastUpdateTime
+  mapping ({:address => :uint256}), :public, :feePool
   
   mapping ({ address: mapping(address: :uint256) }), :public, :weightedAvgStakeTime
   mapping ({ address: mapping(address: :uint256) }), :public, :lastStakeTime
+  mapping ({ address: mapping(address: :uint256) }), :public, :firstStakeTime
 
 
   constructor(
@@ -31,7 +36,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     Upgradeable.constructor(upgradeAdmin: msg.sender)
   }
   
-  function :stakeLP, { lpToken: :address, amount: :uint256 }, :public do
+  function :stakeLP, { lpToken: :address, amount: :uint256 }, :public, returns: :bool do
     lpPair = UniswapV2Pair(lpToken)
     token0 = lpPair.token0()
     token1 = lpPair.token1()
@@ -45,7 +50,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     ERC20(lpToken).transferFrom(msg.sender, address(this), amount)
   end
   
-  function :unstakeLP, { lpToken: :address, amount: :uint256 }, :public do
+  function :unstakeLP, { lpToken: :address, amount: :uint256 }, :public, returns: :bool do
     require(s.stakedLP[msg.sender][lpToken] >= amount, 'Insufficient staked amount')
   
     # Call the internal function to update the staking amount
@@ -58,20 +63,34 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
   function :withdrawRewards, { lpToken: :address }, :public do
     # Call the internal function with an amount of 0 to update and withdraw rewards
     updateStakeAmount(lpToken: lpToken, amount: 0, isStaking: true, user: msg.sender)
-  end  
+  end
+  
+  # function :pendingRewards2, { user: :address, lpToken: :address }, :public, :view, returns: :uint256 do
+  #   ::Kernel.binding.pry
+  #   preDebt = (s.stakedLP[user][lpToken] * s.accRewardsPerShare[lpToken]).div(1.ether)
+    
+  #   return preDebt - s.rewardDebt[user][lpToken]
+  # end
+  
+  # function :pendingRewards, { user: :address, lpToken: :address }, :public, :view, returns: :uint256 do
+  #   preDebt = (s.stakedLP[user][lpToken] * s.accRewardsPerShare[lpToken]).div(1.ether)
+    
+  #   return preDebt - s.rewardDebt[user][lpToken]
+  # end
   
   function :updateStakeAmount, ({
     lpToken: :address,
     amount: :uint256,
     isStaking: :bool,
     user: :address }
-  ), :internal do    
+  ), :internal do
     # Calculate pending rewards for the user
-    pending = (s.stakedLP[user][lpToken] * s.accRewardsPerShare[lpToken] / 1e12) - s.rewardDebt[user][lpToken]
+    pending = 0 #pendingRewards(user: user, lpToken: lpToken)
     
     # Distribute pending rewards, if any
     if pending > 0
-      WETH.transfer(user, pending)
+      ERC20(s.WETH).transfer(user, pending)
+      emit :RewardClaimed, user: user, lpToken: lpToken, reward: pending
     end
     
     if (pending > 0 || amount > 0)
@@ -84,19 +103,48 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     oldWeightedTime = s.weightedAvgStakeTime[user][lpToken]
     currentTime = block.timestamp
   
-    newWeightedTime = ((oldStake * oldWeightedTime) + (amount * currentTime)) / newStake
+    newWeightedTime = ((oldStake * oldWeightedTime) + (amount * currentTime)).div(newStake)
   
+    # Update user's weighted average stake-time
+    oldStake = s.stakedLP[user][lpToken]
+    newStake = isStaking ? (oldStake + amount) : (oldStake - amount)
+
+    # Initialize oldWeightedTime to 0 if this is the user's first time staking this LP token
+    oldWeightedTime = s.weightedAvgStakeTime[user][lpToken] || 0
+    currentTime = block.timestamp
+
+    if oldStake == 0 && isStaking
+      # First-time staking for this user
+      s.firstStakeTime[user][lpToken] = currentTime
+      newWeightedTime = 0
+    else
+      newWeightedTime = ((oldStake * oldWeightedTime) + (amount * currentTime)) / newStake
+    end    
+
     s.weightedAvgStakeTime[user][lpToken] = newWeightedTime
-  
-    s.totalStakeSeconds[lpToken] -= oldStake * oldWeightedTime
-    s.totalStakeSeconds[lpToken] += newStake * newWeightedTime
-  
+    
+
+    # If it's the first staker, set weightedAvgStakeSeconds directly
+    if s.totalStakedLP[lpToken] == 0
+      s.weightedAvgStakeSeconds[lpToken] = newWeightedTime
+    else
+      s.weightedAvgStakeSeconds[lpToken] = (s.weightedAvgStakeSeconds[lpToken] * s.totalStakedLP[lpToken] + newStake * newWeightedTime).div(s.totalStakedLP[lpToken] + newStake)
+    end
+
+
+
+    # Update totalStakeSeconds only if it's not the user's first time staking or if there's more than one staker
+    if oldStake != 0 || s.totalStakedLP[lpToken] > 0
+      s.totalStakeSeconds[lpToken] -= oldStake * oldWeightedTime
+      s.totalStakeSeconds[lpToken] += newStake * newWeightedTime
+    end
+    
     # Update staked amount for the user and the total staked LP
     s.stakedLP[user][lpToken] = newStake
     s.totalStakedLP[lpToken] = isStaking ? (s.totalStakedLP[lpToken] + amount) : (s.totalStakedLP[lpToken] - amount)
   
     # Update reward debt for the user
-    s.rewardDebt[user][lpToken] = newStake * s.accRewardsPerShare[lpToken] / 1e12
+    s.rewardDebt[user][lpToken] = (newStake * s.accRewardsPerShare[lpToken]).div(1.ether)
     nil
   end
   
@@ -154,41 +202,146 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     return (amount * s.feeBPS).div(10000)
   end
   
-  function :updateRewards, { lpToken: :address, feeAmount: :uint256 }, :internal do
-    if s.totalStakedLP[lpToken] > 0
-      # Get the current time
-      currentTime = block.timestamp
-  
-      # Calculate the duration of staking
-      stakingDuration = currentTime - s.lastUpdateTime[lpToken]
-  
-      # Calculate rewards per second
-      rewardsPerSecond = (feeAmount * 1.ether).div(stakingDuration)
-  
-      # Update accumulated rewards per share
-      accRewardsPerShare[lpToken] += rewardsPerSecond.div(s.totalStakedLP[lpToken])
-  
-      # Update the last update time
-      lastUpdateTime[lpToken] = currentTime
-    end
-  end
-  
   # function :updateRewards, { lpToken: :address, feeAmount: :uint256 }, :internal do
-  #   if totalStakedLP[lpToken] > 0
-  #     # Get the current time
-  #     currentTime = block.timestamp
-  
-  #     # Calculate the time that has passed since the last update
-  #     timeElapsed = currentTime - lastUpdateTime[lpToken]
-  
-  #     # Update accumulated rewards per share, scaled to minimize rounding errors
-  #     accRewardsPerShare[lpToken] += (feeAmount * 1e12 * timeElapsed) / totalStakedLP[lpToken]
-  
-  #     # Update the last update time
-  #     lastUpdateTime[lpToken] = currentTime
-  #   end
+  #   return unless s.totalStakedLP[lpToken] > 0
+    
+  #   currentTime = block.timestamp
+  #   stakingDuration = currentTime - s.lastUpdateTime[lpToken]
+    
+  #   newStakeSeconds = s.totalStakedLP[lpToken] * stakingDuration
+  #   s.totalStakeSeconds[lpToken] += newStakeSeconds
+    
+  #   s.feePool[lpToken] += feeAmount
+    
+  #   scalingFactor = 1.ether
+  #   rewardsPerSecond = (feeAmount * scalingFactor).div(stakingDuration)
+    
+  #   accRewardPerShareIncrement = rewardsPerSecond.div(newStakeSeconds)
+  #   s.accRewardsPerShare[lpToken] += accRewardPerShareIncrement
+    
+  #   s.lastUpdateTime[lpToken] = currentTime
+
+  #   nil
   # end
   
+  
+  function :computeCurrentAccRewardsPerShare, { lpToken: :address }, :public, :view, returns: :uint256 do
+    # Check if there are any staked LP tokens
+    if s.totalStakedLP[lpToken] == 0
+      return s.accRewardsPerShare[lpToken]
+    end
+  
+    # Calculate the time since the last update
+    currentTime = block.timestamp
+    timeSinceLastUpdate = currentTime - s.lastUpdateTime[lpToken]
+  
+    # Calculate the new stake seconds
+    newStakeSeconds = s.totalStakedLP[lpToken] * timeSinceLastUpdate
+  
+    # Calculate the total stake seconds
+    totalStakeSeconds = s.totalStakeSeconds[lpToken] + newStakeSeconds
+  
+    # Calculate the pending rewards
+    pendingRewards = s.feePool[lpToken]
+  
+    # Calculate the increment in accRewardsPerShare
+    accRewardsPerShareIncrement = (pendingRewards * 1.ether).div(totalStakeSeconds)
+  
+    # Calculate the current accRewardsPerShare
+    current_acc_rewards_perShare = s.accRewardsPerShare[lpToken] + accRewardsPerShareIncrement
+  
+    return current_acc_rewards_perShare
+  end
+  
+  
+  function :pendingRewards, { user: :address, lpToken: :address }, :public, :view, returns: :uint256 do
+    # Calculate what s.accRewardsPerShare[lpToken] would be if all pending rewards were distributed
+    current_acc_rewards_per_share = computeCurrentAccRewardsPerShare(lpToken)
+    ::Kernel.binding.pry
+    # Get user's staked LP tokens and weighted average stake time for the lpToken
+    user_staked = s.stakedLP[user][lpToken]
+    
+    # Calculate the time since the last update
+    currentTime = block.timestamp
+    timeSinceLastUpdate = currentTime - s.lastUpdateTime[lpToken]
+    
+    # Retrieve the weighted average stake time and adjust for first-time stakers
+    weighted_avg_stake_time = s.weightedAvgStakeTime[user][lpToken]
+    first_stake_time = s.firstStakeTime[user][lpToken]
+    time_staked = currentTime - first_stake_time
+
+    weighted_avg_stake_time = weighted_avg_stake_time == 0 ? time_staked : weighted_avg_stake_time + timeSinceLastUpdate
+    
+    # Calculate user's stake-seconds
+    user_stake_seconds = user_staked * weighted_avg_stake_time
+    
+    # Calculate pending rewards for the user based on their stake-seconds
+    pending_rewards = (user_stake_seconds * current_acc_rewards_per_share).div(1.ether) - s.rewardDebt[user][lpToken]
+    
+    return pending_rewards
+  end
+  
+  
+  
+  
+  
+  function :updateRewards, { lpToken: :address, feeAmount: :uint256 }, :internal do
+    return unless s.totalStakedLP[lpToken] > 0
+    
+    # Get the current time
+    currentTime = block.timestamp
+    # ::Kernel.binding.pry
+    # Calculate the duration since the last update
+    stakingDuration = currentTime - s.lastUpdateTime[lpToken]
+    
+    # Update the total stake-seconds for this LP token
+    s.totalStakeSeconds[lpToken] += s.totalStakedLP[lpToken] * stakingDuration
+    
+    # Update the accumulated rewards for the LP token
+    s.feePool[lpToken] += feeAmount
+    
+    # Scaling to maintain precision
+    scalingFactor = 1.ether
+  
+    # Increment in accRewardPerShare
+    accRewardPerShareIncrement = (feeAmount * scalingFactor).div(
+      s.totalStakedLP[lpToken] * stakingDuration
+    )
+    s.accRewardsPerShare[lpToken] += accRewardPerShareIncrement
+    
+    # Update last update time
+    s.lastUpdateTime[lpToken] = currentTime
+    
+    nil
+  end
+  
+  
+  
+  # function :updateRewards, { lpToken: :address, feeAmount: :uint256 }, :internal do
+  #   return unless s.totalStakedLP[lpToken] > 0
+    
+  #   # Get the current time
+  #   currentTime = block.timestamp
+    
+  #   # Calculate the duration since the last update
+  #   stakingDuration = currentTime - s.lastUpdateTime[lpToken]
+    
+  #   # Update the total stake-seconds for this LP token
+  #   s.totalStakeSeconds[lpToken] += s.totalStakedLP[lpToken] * stakingDuration
+    
+  #   # Update the accumulated rewards for the LP token
+  #   s.feePool[lpToken] += feeAmount
+  #   # ::Kernel.binding.pry
+  #   scalingFactor = 1.ether  # additional scaling to maintain precision
+  #   rewardsPerSecond = (feeAmount * scalingFactor).div(stakingDuration)
+  #   accRewardPerShareIncrement = rewardsPerSecond.div(s.totalStakeSeconds[lpToken])
+  #   s.accRewardsPerShare[lpToken] += accRewardPerShareIncrement
+    
+  #   # Update last update time
+  #   s.lastUpdateTime[lpToken] = currentTime
+    
+  #   nil
+  # end
   
   function :chargeFeeInWETH, {
     amount: :uint256,

@@ -35,6 +35,34 @@ class RubidityFile
     def find_by_name(name)
       registry.detect{|k, v| v.name == name}.second
     end
+    
+    def emphasized_code_exerpt(name:, line_number:)
+      before_lines = 5
+      after_lines = 5
+      
+      code = find_by_name(name).source_code
+      
+      lines = code.split("\n")
+      start = [0, line_number - 1 - before_lines].max   # Don't go below the first line
+      finish = [lines.count - 1, line_number - 1 + after_lines].min  # Don't exceed total lines
+      range = (start..finish)
+      
+      minimum_indent = lines[range].map { |line| line[/\A */].size }.min
+      
+      range.each do |i|
+        # Indent the line correctly
+        indented_line = " " * (lines[i][/\A */].size - minimum_indent)
+    
+        if i == line_number - 1
+          # Add '>' to the emphasized line while keeping the original indentation
+          lines[i] = "#{indented_line}> #{lines[i].lstrip}"
+        else
+          lines[i] = "#{indented_line}  #{lines[i].lstrip}"
+        end
+      end
+    
+      lines[range].join("\n")
+    end
   end
   
   def initialize(filename)
