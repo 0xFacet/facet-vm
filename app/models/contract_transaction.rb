@@ -127,7 +127,8 @@ class ContractTransaction < ApplicationRecord
     function_name:,
     function_args: {},
     msgSender: nil,
-    block_timestamp: EthBlock.maximum(:timestamp) + 12
+    block_timestamp: EthBlock.maximum(:timestamp) + 12,
+    block_number: EthBlock.maximum(:block_number) + 1
   )
     cache_key = [:make_static_call, ContractState.all, contract, function_name, function_args, msgSender]
     
@@ -135,6 +136,7 @@ class ContractTransaction < ApplicationRecord
       record = new(
         tx_origin: msgSender,
         block_timestamp: block_timestamp,
+        block_number: block_number,
         initial_call_info: {
           type: :static_call,
           function: function_name,
