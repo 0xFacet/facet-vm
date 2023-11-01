@@ -33,6 +33,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     token1 = lpPair.token1()
     
     require(token0 == s.WETH || token1 == s.WETH, 'One of the tokens must be WETH')
+    require(amount > 0, 'Amount must be greater than 0')
     
     updateStakeAmount(lpToken: lpToken, amount: amount, isStaking: true, user: msg.sender)
   
@@ -41,7 +42,8 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
   
   function :unstakeLP, { lpToken: :address, amount: :uint256 }, :public, returns: :bool do
     require(s.stakedLP[msg.sender][lpToken] >= amount, 'Insufficient staked amount')
-  
+    require(amount > 0, 'Amount must be greater than 0')
+    
     updateStakeAmount(lpToken: lpToken, amount: amount, isStaking: false, user: msg.sender)
     
     ERC20(lpToken).transfer(msg.sender, amount)
@@ -60,7 +62,9 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     updateRewards(lpToken: lpToken)
 
     pending = pendingRewards(user: user, lpToken: lpToken)
-  
+    
+    require(pending > 0 || amount > 0, 'Nothing to do')
+    
     if pending > 0
       ERC20(s.WETH).transfer(user, pending)
     end
