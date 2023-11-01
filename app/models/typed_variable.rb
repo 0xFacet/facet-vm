@@ -105,13 +105,6 @@ class TypedVariable
       end
       
       result
-      
-      if name.to_s.end_with?("=") && !%w[>= <=].include?(name.to_s[-2..])
-        self.value = result if type.is_value_type?
-        self
-      else
-        result
-      end
     else
       super
     end

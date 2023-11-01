@@ -5,6 +5,7 @@ describe 'UniswapV2Router contract' do
   let(:alice) { "0x000000000000000000000000000000000000000a" }
   let(:bob) { "0x000000000000000000000000000000000000000b" }
   let(:charlie) { "0x000000000000000000000000000000000000000c" }
+  let(:daryl) { "0x000000000000000000000000000000000000000d" }
   let(:all_addresses) { [user_address, alice, bob, charlie] }
   let(:start_time) { Time.zone.now }
   
@@ -63,7 +64,15 @@ describe 'UniswapV2Router contract' do
         to: nil,
         data: {
           type: "UniswapV2RouterWithRewards",
-          args: { _factory: factory_address, _WETH: weth_address, _feeBPS: 1_000 }
+          args: {
+            _factory: factory_address,
+            _WETH: weth_address,
+            feeBPS: 1_000,
+            stakerFeePct: 75,
+            swapperFeePct: 15,
+            protocolFeePct: 10,
+            feeAdmin: daryl
+          }
         }
       }
     )
@@ -311,6 +320,16 @@ describe 'UniswapV2Router contract' do
       function_name: "feeBPS"
     )
     
+    stakerPct = ContractTransaction.make_static_call(
+      contract: router_address,
+      function_name: "stakerFeePct"
+    )
+    
+    protocolPct = ContractTransaction.make_static_call(
+      contract: router_address,
+      function_name: "protocolFeePct"
+    )
+    
     amountIn = 1_000.ether
     first_swap_amount_in = amountIn
     amountOutMin = 300.ether
@@ -431,8 +450,10 @@ describe 'UniswapV2Router contract' do
       }
     )
     
+    effectiveFee = feeBPS * stakerPct / 100
+    
     rewards_per_share = 0
-    fee_in_first_swap = (first_swap_amount_in * feeBPS).div(10_000)
+    fee_in_first_swap = (first_swap_amount_in * effectiveFee).div(10_000)
     total_staked = alice_stake_amount
     rewards_per_share += (fee_in_first_swap * 1.ether).div(total_staked)
     alice_reward_debt = 0
@@ -447,12 +468,49 @@ describe 'UniswapV2Router contract' do
     
     bob_reward_debt = (rewards_per_share * bob_stake_amount).div(1.ether)
     
-    fee_in_second_swap = (second_swap_amount_in * feeBPS).div(10_000)
+    fee_in_second_swap = (second_swap_amount_in * effectiveFee).div(10_000)
 
     rewards_per_share += (fee_in_second_swap * 1.ether).div(total_staked)
 
     alice_pending_rewards = (rewards_per_share * alice_stake_amount).div(1.ether) - alice_reward_debt
     bob_pending_rewards = (rewards_per_share * bob_stake_amount).div(1.ether) - bob_reward_debt
+    
+    effectiveProtocolFee = feeBPS * protocolPct / 100
+    
+    protocol_fee_amt = ((first_swap_amount_in + second_swap_amount_in) * effectiveProtocolFee).div(10_000)
+    
+    effectiveSwapFee = feeBPS * (100 - stakerPct - protocolPct) / 100
+    
+    swap_fee_amt = ((first_swap_amount_in + second_swap_amount_in) * effectiveSwapFee).div(10_000)
+    
+    expect(swap_fee_amt).to eq(
+      rc.reload['current_state']['swapperRewardsPool'] + rc['current_state']['swapperRewards'].values.sum
+    )
+    
+    initial_admin_balance = ContractTransaction.make_static_call(
+      contract: weth_address,
+      function_name: "balanceOf",
+      function_args: daryl
+    )
+    
+    withdraw_protocol_rewards = trigger_contract_interaction_and_expect_success(
+      from: daryl,
+      payload: {
+        to: router_address,
+        data: {
+          function: "withdrawProtocolRewards",
+          args: {
+            to: daryl
+          }
+        }
+      }
+    )
+    
+    expect(ContractTransaction.make_static_call(
+      contract: weth_address,
+      function_name: "balanceOf",
+      function_args: daryl
+    )).to eq(protocol_fee_amt + initial_admin_balance)
     
     expect(ContractTransaction.make_static_call(
       contract: router_address,
@@ -469,13 +527,13 @@ describe 'UniswapV2Router contract' do
     token_a_balance_before = ContractTransaction.make_static_call(
       contract: token_a_address,
       function_name: "balanceOf",
-      function_args: user_address
+      function_args: charlie
     )
     
     token_b_balance_before = ContractTransaction.make_static_call(
       contract: token_b_address,
       function_name: "balanceOf",
-      function_args: user_address
+      function_args: charlie
     )
     
     reserves = ContractTransaction.make_static_call(
@@ -497,8 +555,11 @@ describe 'UniswapV2Router contract' do
     denominator = (reserveB - adjustedAmountOut) * 997
     expectedIn = (numerator.div(denominator)) + 1
     
+    # ap rc.reload['current_state']['protocolFeePool'] / 1.ether
+    # ap rc.reload['current_state']#['protocolFeePool'] / 1.ether
+    
     swap_receipt = trigger_contract_interaction_and_expect_success(
-      from: user_address,
+      from: charlie,
       payload: {
         to: router_address,
         data: {
@@ -507,7 +568,7 @@ describe 'UniswapV2Router contract' do
             amountOut: amountOut,
             amountInMax: amountInMax,
             path: [token_a_address, token_b_address],
-            to: user_address,
+            to: charlie,
             deadline: Time.now.to_i + 300
           }
         }
@@ -517,13 +578,13 @@ describe 'UniswapV2Router contract' do
     token_a_balance_after = ContractTransaction.make_static_call(
       contract: token_a_address,
       function_name: "balanceOf",
-      function_args: user_address
+      function_args: charlie
     )
   
     token_b_balance_after = ContractTransaction.make_static_call(
       contract: token_b_address,
       function_name: "balanceOf",
-      function_args: user_address
+      function_args: charlie
     )
   
     token_a_diff = token_a_balance_before - token_a_balance_after
@@ -602,5 +663,15 @@ describe 'UniswapV2Router contract' do
     )
     
     expect(alice_lp_balance_after).to eq(alice_lp_balance + stake_withdraw_amount)
+    
+    sw_withdraw = trigger_contract_interaction_and_expect_success(
+      from: charlie,
+      payload: {
+        to: router_address,
+        data: {
+          function: "withdrawSwapperRewards"
+        }
+      }
+    )
   end
 end
