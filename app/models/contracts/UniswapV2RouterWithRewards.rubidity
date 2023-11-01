@@ -147,7 +147,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     s.stakerRewardsPool[lpToken] += (feeInWETH * s.stakerFeePct).div(100)
     s.protocolFeePool += (feeInWETH * s.protocolFeePct).div(100)
     
-    updatetopFiveSwappers(
+    updateTopFiveSwappers(
       currentSwapper: msg.sender,
       currentFee: feeInWETH
     )
@@ -177,7 +177,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     s.stakerRewardsPool[lpToken] += (feeInWETH * s.stakerFeePct).div(100)
     s.protocolFeePool += (feeInWETH * s.protocolFeePct).div(100)
     
-    updatetopFiveSwappers(
+    updateTopFiveSwappers(
       currentSwapper: msg.sender,
       currentFee: feeInWETH
     )
@@ -297,13 +297,13 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     ERC20(s.WETH).transfer(msg.sender, amount)
   end
   
-  function :updatetopFiveSwappers, { currentSwapper: :address, currentFee: :uint256 }, :internal do
+  function :updateTopFiveSwappers, { currentSwapper: :address, currentFee: :uint256 }, :internal do
     updateSwapperRewards()
     
     s.feesGeneratedBySwapper[currentSwapper] += currentFee
     s.swapperRewardsPool += (currentFee * s.swapperFeePct).div(100)
 
-    new_total = s.feesGeneratedBySwapper[currentSwapper]
+    newTotal = s.feesGeneratedBySwapper[currentSwapper]
   
     limited_loop(
       condition: ->(i) { i < s.topFiveSwappers.length },
@@ -312,22 +312,22 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
       return if s.topFiveSwappers[i] == currentSwapper
     end
     
-    min_fee = 2 ** 256 - 1
-    min_index = 0
+    minFee = 2 ** 256 - 1
+    minIndex = 0
     
     limited_loop(
       condition: -> i { i < s.topFiveSwappers.length },
       max_iterations: 5
     ) do |i|
       swapper = s.topFiveSwappers[i]
-      if swapper == address(0) || s.feesGeneratedBySwapper[swapper] < min_fee
-        min_fee = s.feesGeneratedBySwapper[swapper]
-        min_index = i
+      if swapper == address(0) || s.feesGeneratedBySwapper[swapper] < minFee
+        minFee = s.feesGeneratedBySwapper[swapper]
+        minIndex = i
       end
     end
     
-    if new_total > min_fee
-      s.topFiveSwappers[min_index] = currentSwapper
+    if newTotal > minFee
+      s.topFiveSwappers[minIndex] = currentSwapper
     end
     
     nil

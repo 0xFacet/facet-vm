@@ -558,22 +558,27 @@ describe 'UniswapV2Router contract' do
     # ap rc.reload['current_state']['protocolFeePool'] / 1.ether
     # ap rc.reload['current_state']#['protocolFeePool'] / 1.ether
     
-    swap_receipt = trigger_contract_interaction_and_expect_success(
-      from: charlie,
-      payload: {
-        to: router_address,
-        data: {
-          function: "swapTokensForExactTokens",
-          args: {
-            amountOut: amountOut,
-            amountInMax: amountInMax,
-            path: [token_a_address, token_b_address],
-            to: charlie,
-            deadline: Time.now.to_i + 300
+    swap_receipt = nil
+    
+    t = Benchmark.ms do
+      swap_receipt = trigger_contract_interaction_and_expect_success(
+        from: charlie,
+        payload: {
+          to: router_address,
+          data: {
+            function: "swapTokensForExactTokens",
+            args: {
+              amountOut: amountOut,
+              amountInMax: amountInMax,
+              path: [token_a_address, token_b_address],
+              to: charlie,
+              deadline: Time.now.to_i + 300
+            }
           }
         }
-      }
-    )
+      )
+    end
+    # ap t
   
     token_a_balance_after = ContractTransaction.make_static_call(
       contract: token_a_address,

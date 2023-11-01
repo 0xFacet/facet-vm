@@ -420,22 +420,27 @@ describe 'UniswapV2Router contract' do
     denominator = (reserveB - amountOut) * 997
     expectedIn = (numerator.div(denominator)) + 1
   
-    swap_receipt = trigger_contract_interaction_and_expect_success(
-      from: user_address,
-      payload: {
-        to: router_address,
-        data: {
-          function: "swapTokensForExactTokens",
-          args: {
-            amountOut: amountOut,
-            amountInMax: amountInMax,
-            path: [token_a_address, token_b_address],
-            to: user_address,
-            deadline: Time.now.to_i + 300
+    swap_receipt = nil
+
+    t = Benchmark.ms do
+      swap_receipt = trigger_contract_interaction_and_expect_success(
+        from: user_address,
+        payload: {
+          to: router_address,
+          data: {
+            function: "swapTokensForExactTokens",
+            args: {
+              amountOut: amountOut,
+              amountInMax: amountInMax,
+              path: [token_a_address, token_b_address],
+              to: user_address,
+              deadline: Time.now.to_i + 300
+            }
           }
         }
-      }
-    )
+      )
+    end
+    # ap t
   
     token_a_balance_after = ContractTransaction.make_static_call(
       contract: token_a_address,
