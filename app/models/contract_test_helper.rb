@@ -72,7 +72,8 @@ module ContractTestHelper
     command: nil,
     from:,
     data: nil,
-    payload: nil
+    payload: nil,
+    block_timestamp: Time.current.to_i
   )
     payload = transform_old_format_to_new(data || payload)
     
@@ -106,7 +107,7 @@ module ContractTestHelper
       "block_blockhash"=> blockhash,
       "current_owner"=>from.downcase,
       "creator"=>from.downcase,
-      creation_timestamp: Time.zone.now.to_i,
+      creation_timestamp: block_timestamp,
       "initial_owner"=>'0x0000000000000000000000000000000000000000',
       "transaction_index"=>transaction_index,
       "content_uri"=> uri,

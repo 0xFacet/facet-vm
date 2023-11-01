@@ -9,7 +9,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   STRUCT_DETAILS = {
     msg:    { attributes: { sender: :address } },
     tx:     { attributes: { origin: :address } },
-    block:  { attributes: { number: :uint256, timestamp: :datetime, blockhash: :string } },
+    block:  { attributes: { number: :uint256, timestamp: :uint256, blockhash: :string } },
   }.freeze
 
   STRUCT_DETAILS.each do |struct_name, details|

@@ -122,12 +122,21 @@ class ContractTransaction < ApplicationRecord
     end
   end
   
-  def self.make_static_call(contract:, function_name:, function_args: {}, msgSender: nil)
+  def self.make_static_call(
+    contract:,
+    function_name:,
+    function_args: {},
+    msgSender: nil,
+    block_timestamp: EthBlock.maximum(:timestamp) + 12,
+    block_number: EthBlock.maximum(:block_number) + 1
+  )
     cache_key = [:make_static_call, ContractState.all, contract, function_name, function_args, msgSender]
     
     Rails.cache.fetch(cache_key) do
       record = new(
         tx_origin: msgSender,
+        block_timestamp: block_timestamp,
+        block_number: block_number,
         initial_call_info: {
           type: :static_call,
           function: function_name,

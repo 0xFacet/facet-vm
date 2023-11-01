@@ -1,5 +1,6 @@
 class ContractImplementation
   include ContractErrors
+  include ForLoop
   
   class << self
     attr_reader :name, :is_abstract_contract, :source_code, :creation_code,
@@ -76,29 +77,17 @@ class ContractImplementation
     TypedVariable.create(type)
   end
   
-  def require(condition_or_block, message)
+  def require(condition, message)
     caller_location = caller_locations.detect { |location| location.path.ends_with?(".rubidity") }
     
     file = caller_location.path.gsub(%r{.*/}, '') 
     line = caller_location.lineno
     
-    if condition_or_block.is_a?(Proc)
-      begin
-        condition_result = condition_or_block.call
-      rescue => e
-        error_message = "Exception during condition evaluation: #{e.message}. (#{file}:#{line})"
-        raise ContractError.new(error_message, self)
-      end
-  
-      unless condition_result
-        error_message = "#{message}. (#{file}:#{line})"
-        raise ContractError.new(error_message, self)
-      end
-    else
-      unless condition_or_block
-        error_message = "#{message}. (#{file}:#{line})"
-        raise ContractError.new(error_message, self)
-      end
+    unless condition
+      emphasized_code = RubidityFile.emphasized_code_exerpt(name: file.split.first, line_number: line)
+      
+      error_message = "#{message}. (#{file}:#{line})\n\n#{emphasized_code}\n\n"
+      raise ContractError.new(error_message, self)
     end
   end
   

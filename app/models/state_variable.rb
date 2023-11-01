@@ -107,19 +107,15 @@ class StateVariable
   end
   
   def typed_variable=(new_value)
-    if new_value.is_a?(TypedObject)
-      new_typed_variable = TypedVariable.create_or_validate(
-        type,
-        new_value,
-        on_change: on_change
-      )
-      
-      if new_typed_variable != @typed_variable
-        on_change&.call
-        @typed_variable = new_typed_variable
-      end
-    else
-      typed_variable.value = new_value
+    new_typed_variable = TypedVariable.create_or_validate(
+      type,
+      new_value,
+      on_change: on_change
+    )
+    
+    if new_typed_variable != @typed_variable
+      on_change&.call
+      @typed_variable = new_typed_variable
     end
   rescue StateVariableMutabilityError => e
     message = "immutability error for #{var.name}: #{e.message}"
