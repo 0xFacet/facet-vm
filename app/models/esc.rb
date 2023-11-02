@@ -9,6 +9,14 @@ class Esc
     Base64.strict_encode64(str)
   end
   
+  def jsonEncode(obj)
+    TypedVariable.create(:string, obj.to_json)
+  end
+  
+  def strIsAlphaNumeric(str)
+    TypedVariable.create(:bool, !!(str =~ /\A[a-z0-9]+\z/i))
+  end
+  
   def getImplementationHash
     target = TransactionContext.current_contract.implementation_class
     

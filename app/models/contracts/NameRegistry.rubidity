@@ -1,0 +1,245 @@
+pragma :rubidity, "1.0.0"
+
+import './ERC721.rubidity'
+import './ERC20.rubidity'
+
+contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
+  address :public, :WETH
+  address :public, :admin
+  address :public, :trustedSmartContract
+  uint256 :public, :usdCentsInOneEth
+  uint256 :public, :minRegistrationDuration
+  uint256 :public, :gracePeriod
+  uint256 :public, :maxNameLength
+  
+  string :public, :description
+  
+  array :uint256, :public, :charCountToUsdCentsPrice, initial_length: 0
+  
+  bool :public, :registrationPaused
+  
+  uint256 :public, :nextTokenId
+  mapping ({ string: :uint256 }), :public, :nameToTokenId
+  mapping ({ uint256: :string }), :public, :tokenIdToName
+  mapping ({ address: :uint256 }), :public, :reverseRecords
+  
+  mapping ({ uint256: :uint256 }), :public, :tokenExpiryTimes
+  
+  mapping ({ address: :string }), :public, :userRealNames
+  mapping ({ address: :string }), :public, :userBios
+  mapping ({ address: :string }), :public, :userImageURIs
+  mapping ({ address: [:string] }), :public, :userLinks
+  
+  constructor(
+    name: :string,
+    symbol: :string,
+    trustedSmartContract: :address,
+    admin: :address,
+    usdCentsInOneEth: :uint256,
+    charCountToUsdCentsPrice: [:uint256],
+    _WETH: :address
+  ) {
+    require(charCountToUsdCentsPrice.length >= 4, 'Must have at least 4 price points')
+
+    ERC721.constructor(name: name, symbol: symbol)
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+    
+    s.admin = admin
+    s.trustedSmartContract = trustedSmartContract
+    s.WETH = _WETH
+    s.usdCentsInOneEth = usdCentsInOneEth
+    
+    s.charCountToUsdCentsPrice = charCountToUsdCentsPrice
+    
+    s.maxNameLength = 32
+    s.gracePeriod = 90.days
+    s.minRegistrationDuration = 28.days
+    s.nextTokenId = 1
+    s.registrationPaused = true
+  }
+  
+  function :registerNameWithPayment, { name: :string, durationInSeconds: :uint256 }, :public do
+    require(!s.registrationPaused, 'Registration paused')
+    require(durationInSeconds >= s.minRegistrationDuration, 'Duration too short')
+    
+    _registerName(to: msg.sender, name: name, durationInSeconds: durationInSeconds)
+    
+    if s.reverseRecords[msg.sender] == 0
+      tokenId = s.nameToTokenId[name]
+      s.reverseRecords[msg.sender] = tokenId
+    end
+    
+    ERC20(s.WETH).transferFrom(
+      msg.sender,
+      address(this),
+      getPrice(name, durationInSeconds)
+    )
+  end
+  
+  function :renewNameWithPayment, { name: :string, durationInSeconds: :uint256 }, :public do
+    _renewName(name: name, durationInSeconds: durationInSeconds)
+    
+    ERC20(s.WETH).transferFrom(
+      msg.sender,
+      address(this),
+      getPrice(name, durationInSeconds)
+    )
+  end
+  
+  function :_registerName, { to: :address, name: :string, durationInSeconds: :uint256 }, :internal, returns: :uint256 do
+    require(nameAvailable(name), 'Name not available')
+    require(nameIsValid(name), 'Invalid name')
+    
+    tokenId = s.nameToTokenId[name]
+    
+    if _exists(tokenId)
+      # Name expired, burn it
+      _burn(tokenId)
+    else
+      tokenId = s.nextTokenId
+      s.nextTokenId += 1
+    end
+    
+    _mint(to: to, id: tokenId)
+    
+    s.nameToTokenId[name] = tokenId
+    s.tokenIdToName[tokenId] = name
+    
+    s.tokenExpiryTimes[tokenId] = block.timestamp + durationInSeconds
+    nil
+  end
+  
+  function :_renewName, { name: :string, durationInSeconds: :uint256 }, :internal do
+    tokenId = s.nameToTokenId[name]
+    
+    currentExpiry = s.tokenExpiryTimes[tokenId]
+    
+    require(currentExpiry + s.gracePeriod >= block.timestamp, 'Must be registered or in grace period')
+    
+    s.tokenExpiryTimes[tokenId] = currentExpiry + durationInSeconds
+    nil
+  end
+  
+  function :importFromPreregistration, { names: [:string], owners: [:address], durations: [:uint256] }, :public do
+    require(msg.sender == s.trustedSmartContract, 'Only the trusted smart contract can import names')
+    require(names.length == owners.length, 'Names and owners must be the same length')
+    require(names.length == durations.length, 'Names and owners must be the same length')
+    require(names.length <= 10, 'Cannot import more than 10 names at a time')
+    
+    forLoop(
+      start: 0,
+      step: 1,
+      condition: -> i { i < names.length }
+    ) do |i|
+      _registerName(to: owners[i], name: names[i], durationInSeconds: durations[i])
+    end
+  end
+  
+  function :tokenURI, { id: :uint256 }, :public, :view, :override, returns: :string do
+    require(_exists(id: id), 'ERC721Metadata: URI query for nonexistent token')
+    
+    name = s.tokenIdToName[id]
+    owner = ownerOf(id)
+
+    json_data = esc.jsonEncode({
+      name: "#{name} (##{string(id)})",
+      description: s.userBios[owner],
+      image: constructUserCard(owner),
+    })
+    
+    return "data:application/json,#{json_data}"
+  end
+  
+  function :constructUserCard, { user: :address }, :public, :view, returns: :string do
+  end
+  
+  function :setUserDetails, {
+    realName: :string,
+    bio: :string,
+    imageURI: :string,
+    links: [:string]
+  }, :public do
+    s.userRealNames[msg.sender] = realName
+    s.userBios[msg.sender] = bio
+    s.userImageURIs[msg.sender] = imageURI
+    s.userLinks[msg.sender] = links
+    nil
+  end
+  
+  function :transferFrom, { from: :address, to: :address, id: :uint256 }, :public, :override do
+    if s.reverseRecords[from] == id
+      s.reverseRecords[from] = 0
+    end
+    
+    ERC721.transferFrom(from: from, to: to, id: id)
+  end
+  
+  function :lookupAddress, { address: :address }, :public, :view, returns: :string do
+    candidateId = s.reverseRecords[address]
+    candidateName = s.tokenIdToName[candidateId]
+    require(resolveName(candidateName) == address, 'Not the owner')
+    candidateName
+  end
+  
+  function :setReverseRecord, { name: :string }, :public do
+    tokenId = s.nameToTokenId[name]
+    require(msg.sender == ownerOf(tokenId), 'Not the owner')
+    s.reverseRecords[msg.sender] = tokenId
+  end
+  
+  function :resolveName, { name: :string }, :public, :view, returns: :address do
+    tokenId = s.nameToTokenId[name]
+    ownerOf(tokenId)
+  end
+  
+  function :nameIsValid, { name: :string }, :public, :view, returns: :bool do
+    name.length <= s.maxNameLength &&
+    esc.strIsAlphaNumeric(name) &&
+    name.downcase == name
+  end
+  
+  function :convertUSDCentsToWei, { usdCents: :uint256 }, :public, :view, returns: :uint256 do
+    return (usdCents * 1.ether).div(s.usdCentsInOneEth)
+  end
+  
+  function :nameAvailable, { name: :string }, :public, :view, returns: :bool do
+    tokenId = s.nameToTokenId[name]
+    
+    if !_exists(tokenId)
+      return true
+    end
+    
+    s.tokenExpiryTimes[tokenId] + s.gracePeriod < block.timestamp
+  end
+  
+  function :getPrice, { name: :string, durationInSeconds: :uint256 }, :public, :view, returns: :uint256 do
+    len = name.length
+    
+    priceCents = if len >= charCountToUsdCentsPrice.length
+      charCountToUsdCentsPrice.last
+    else
+      charCountToUsdCentsPrice[len]
+    end
+    
+    totalPriceCents = (priceCentsPerYear * durationInSeconds).div(365.days)
+  
+    convertUSDCentsToWei(totalPriceCents)
+  end
+  
+  function :pauseRegistration, { newState: :bool } :public do
+    require(msg.sender == s.admin, 'Only the admin can pause registration')
+    s.registrationPaused = newState
+  end
+  
+  function :setUsdCentsInOneEth, { rate: :uint256 }, :public do
+    require(msg.sender == s.admin, 'Only the admin can set the ETH to USD rate')
+    s.usdCentsInOneEth = rate
+  end
+  
+  function :withdrawWETH, :public do
+    require(msg.sender == s.admin, 'Only the admin can withdraw WETH')
+    
+    amount = ERC20(s.WETH).balanceOf(address(this))
+    ERC20(s.WETH).transfer(msg.sender, amount)
+  end
+end
