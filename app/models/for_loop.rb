@@ -1,5 +1,11 @@
 module ForLoop
-  def for_loop(start: 0, condition:, step: 1, max_iterations:)
+  MAX_LOOPS = 100
+  
+  def forLoop(start: 0, condition:, step: 1, max_iterations:)
+    if max_iterations > MAX_LOOPS
+      raise ArgumentError, "Max iterations cannot exceed #{MAX_LOOPS}"
+    end
+    
     raise ArgumentError, 'Block is required' unless block_given?
     
     current_val = start
