@@ -809,6 +809,13 @@ CREATE INDEX index_eth_blocks_on_processing_state ON public.eth_blocks USING btr
 
 
 --
+-- Name: index_eth_blocks_on_timestamp; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_eth_blocks_on_timestamp ON public.eth_blocks USING btree ("timestamp");
+
+
+--
 -- Name: index_ethscriptions_on_block_number_and_transaction_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -941,6 +948,7 @@ ALTER TABLE ONLY public.contract_states
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20231102162109'),
 ('20231001152142'),
 ('20230928185853'),
 ('20230911151706'),
