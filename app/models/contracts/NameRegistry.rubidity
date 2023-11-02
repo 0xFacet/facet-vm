@@ -174,6 +174,11 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     ERC721.transferFrom(from: from, to: to, id: id)
   end
   
+  function :ownerOf, { id: :uint256 }, :public, :view, :override, returns: :address do
+    require(s.tokenExpiryTimes[tokenId] > block.timestamp, 'Name expired')
+    ERC721.ownerOf(id)
+  end
+  
   function :lookupAddress, { address: :address }, :public, :view, returns: :string do
     candidateId = s.reverseRecords[address]
     candidateName = s.tokenIdToName[candidateId]
