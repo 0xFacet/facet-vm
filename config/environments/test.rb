@@ -7,6 +7,7 @@ require "active_support/core_ext/integer/time"
 
 Rails.application.configure do
   ENV['ETHEREUM_NETWORK'] = "eth-goerli"
+  config.logger = ActiveSupport::Logger.new(config.paths['log'].first, 1, 25 * 1_048_576)
 
   # Settings specified here will take precedence over those in config/application.rb.
 
