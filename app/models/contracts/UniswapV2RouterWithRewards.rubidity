@@ -5,6 +5,7 @@ import './UniswapV2Router.rubidity'
 
 contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgradeable: true do
   event :FeeAccrued, {
+    total: :uint256,
     toStakers: :uint256,
     toSwappers: :uint256,
     toProtocol: :uint256
@@ -159,6 +160,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     )
     
     emit :FeeAccrued, {
+      total: feeInWETH,
       toStakers: (feeInWETH * s.stakerFeePct).div(100),
       toSwappers: (feeInWETH * s.swapperFeePct).div(100),
       toProtocol: (feeInWETH * s.protocolFeePct).div(100)
@@ -195,6 +197,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     )
     
     emit :FeeAccrued, {
+      total: feeInWETH,
       toStakers: (feeInWETH * s.stakerFeePct).div(100),
       toSwappers: (feeInWETH * s.swapperFeePct).div(100),
       toProtocol: (feeInWETH * s.protocolFeePct).div(100)
@@ -203,7 +206,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     amounts
   end
   
-  function :calculateFeeAmount, { amount: :uint256 }, :public, :virtual, returns: :uint256 do
+  function :calculateFeeAmount, { amount: :uint256 }, :public, :view, returns: :uint256 do
     return (amount * s.feeBPS).div(10000)
   end
   
