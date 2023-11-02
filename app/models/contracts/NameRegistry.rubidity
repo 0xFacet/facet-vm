@@ -1,5 +1,6 @@
 pragma :rubidity, "1.0.0"
 
+import './Upgradeable.rubidity'
 import './ERC721.rubidity'
 import './ERC20.rubidity'
 
@@ -231,7 +232,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     convertUSDCentsToWei(totalPriceCents)
   end
   
-  function :pauseRegistration, { newState: :bool } :public do
+  function :pauseRegistration, { newState: :bool }, :public do
     require(msg.sender == s.admin, 'Only the admin can pause registration')
     s.registrationPaused = newState
   end
