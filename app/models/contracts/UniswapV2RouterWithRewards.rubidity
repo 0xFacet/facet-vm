@@ -31,6 +31,8 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
   mapping ({ address: :uint256 }), :public, :feesGeneratedBySwapper
   mapping ({ address: :uint256 }), :public, :swapperRewards
   
+  uint256 :public, :decimals
+  
   constructor(
     _factory: :address,
     _WETH: :address,
@@ -47,6 +49,8 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
       protocolFeePct: protocolFeePct,
       feeAdmin: feeAdmin
     )
+    
+    s.decimals = 18
     
     UniswapV2Router.constructor(_factory: _factory, _WETH: _WETH)
     Upgradeable.constructor(upgradeAdmin: msg.sender)
