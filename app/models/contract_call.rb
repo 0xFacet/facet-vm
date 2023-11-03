@@ -46,7 +46,7 @@ class ContractCall < ApplicationRecord
   end
   
   def args=(args)
-    super(args || {})
+    super(args.nil? ? {} : args)
   end
   
   def find_and_validate_existing_contract!

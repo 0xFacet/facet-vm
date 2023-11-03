@@ -61,7 +61,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     s.registrationPaused = true
   }
   
-  function :registerNameWithPayment, { to: :address, name: :string, durationInSeconds: :uint256 }, :public do
+  function :registerNameWithPayment, { to: :address, name: :string, durationInSeconds: :uint256 }, :public, returns: :bool do
     require(!s.registrationPaused, 'Registration paused')
     require(durationInSeconds >= s.minRegistrationDuration, 'Duration too short')
     
@@ -79,7 +79,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     )
   end
   
-  function :renewNameWithPayment, { name: :string, durationInSeconds: :uint256 }, :public do
+  function :renewNameWithPayment, { name: :string, durationInSeconds: :uint256 }, :public, returns: :bool do
     _renewName(name: name, durationInSeconds: durationInSeconds)
     
     ERC20(s.WETH).transferFrom(
@@ -89,7 +89,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     )
   end
   
-  function :_registerName, { to: :address, name: :string, durationInSeconds: :uint256 }, :internal, returns: :uint256 do
+  function :_registerName, { to: :address, name: :string, durationInSeconds: :uint256 }, :internal do
     require(nameAvailable(name), 'Name not available')
     require(nameIsValid(name), 'Invalid name')
     
@@ -203,6 +203,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     tokenId = s.nameToTokenId[name]
     require(msg.sender == ownerOf(tokenId), 'Not the owner')
     s.userToPrimaryNameTokenId[msg.sender] = tokenId
+    nil
   end
   
   function :resolveName, { name: :string }, :public, :view, returns: :address do
@@ -244,17 +245,19 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     convertUSDCentsToWei(totalPriceCents)
   end
   
-  function :pauseRegistration, { newState: :bool }, :public do
+  function :updateRegistrationPaused, { newState: :bool }, :public do
     require(msg.sender == s.admin, 'Only the admin can pause registration')
     s.registrationPaused = newState
+    nil
   end
   
   function :setUsdCentsInOneEth, { rate: :uint256 }, :public do
     require(msg.sender == s.admin, 'Only the admin can set the ETH to USD rate')
     s.usdCentsInOneEth = rate
+    nil
   end
   
-  function :withdrawWETH, :public do
+  function :withdrawWETH, :public, returns: :bool do
     require(msg.sender == s.admin, 'Only the admin can withdraw WETH')
     
     amount = ERC20(s.WETH).balanceOf(address(this))
