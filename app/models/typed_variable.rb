@@ -16,8 +16,12 @@ class TypedVariable
       raise TypeError.new("Use literals instead of TypedVariable for booleans")
     end
     
-    if type == Type.create(:address)
+    if type.address?
       define_singleton_method(:call, method(:address_call))
+    end
+    
+    if type.is_int? || type.is_uint?
+      define_singleton_method(:toString, method(:int_to_string))
     end
   end
   
@@ -63,8 +67,8 @@ class TypedVariable
   end
   
   def to_s
-    if value.is_a?(String) || value.is_a?(Integer)
-      value.to_s
+    if type.string?
+      value
     else
       raise "No string conversion"
     end
@@ -140,6 +144,10 @@ class TypedVariable
   end
   
   private
+  
+  def int_to_string
+    value.to_s
+  end
   
   def address_call(json_call_data = '{}')
     calldata = JSON.parse(json_call_data)

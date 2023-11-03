@@ -60,6 +60,12 @@ class ContractImplementation
   def self.array(*args, **kwargs)
     value_type = args.first
     metadata = {value_type: value_type}.merge(kwargs)
+    
+    if args.length == 2
+      metadata.merge!(initial_length: args.last)
+      args.pop
+    end
+    
     type = Type.create(:array, metadata)
     
     if args.length == 1
@@ -273,6 +279,7 @@ class ContractImplementation
   end
   
   def self.calculate_new_contract_address_with_salt(salt, from_address, to_contract_init_code_hash)
+    from_address = TypedVariable.create_or_validate(:address, from_address)
     target_implementation = TransactionContext.implementation_from_init_code(to_contract_init_code_hash)
     
     unless target_implementation.present?
@@ -287,7 +294,7 @@ class ContractImplementation
       raise TransactionError.new("Salt must be 32 bytes")
     end
 
-    padded_from = from_address.to_s[2..-1].rjust(64, "0")
+    padded_from = from_address.value.to_s[2..-1].rjust(64, "0")
     
     # TODO: Turn this on when we can blow everything away
     unless Rails.env.test?
