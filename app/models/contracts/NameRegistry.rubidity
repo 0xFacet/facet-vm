@@ -3,8 +3,9 @@ pragma :rubidity, "1.0.0"
 import './Upgradeable.rubidity'
 import './ERC721.rubidity'
 import './ERC20.rubidity'
+import './NameRegistryRenderer.rubidity'
 
-contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
+contract :NameRegistry, is: [:ERC721, :Upgradeable, :NameRegistryRenderer], upgradeable: true do
   # TODO: events
   # TODO: broader pause functionality
   
@@ -40,6 +41,46 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
   mapping ({ address: :string }), :public, :userImageURIs
   mapping ({ address: [:string] }), :public, :userLinks
   
+  uint256 :public, :maxStickerId
+  uint256 :public, :nextStickerId
+  mapping ({ uint256: :string }), :public, :stickerIdToName
+  mapping ({ uint256: :string }), :public, :stickerIdToImageURI
+  
+  mapping ({ uint256: [:uint256] }), :public, :tokenIdToStickerIdsAry
+  mapping ({ uint256: mapping(uint256: :bool) }), :public, :tokenIdToStickerIdsAwardedMap
+  mapping ({ uint256: mapping(uint256: array(:uint256, 3)) }), :public, :tokenIdToStickerPosition
+  
+  function :createSticker, {
+    name: :string,
+    imageURI: :string
+  }, :public do
+    require(msg.sender == s.admin, 'Only the admin can create stickers')
+    require(name.length > 0, 'Name must be non-empty')
+    require(s.stickerId <= s.maxStickerId, 'Sticker ID overflow')
+
+    # TODO: enforce name uniqueness?
+    s.stickerIdToName[s.nextStickerId] = name
+    s.stickerIdToImageURI[s.nextStickerId] = imageURI
+    
+    s.nextStickerId += 1
+    nil
+  end
+  
+  function :awardSticker, {
+    stickerId: :uint256,
+    tokenId: :uint256,
+    position: array(:uint256, 3)
+  }, :public do
+    require(msg.sender == s.admin, "Only the admin can award stickers")
+    require(!s.tokenIdToStickerIdsAwardedMap[tokenId][stickerId], "Sticker already awarded")
+    
+    s.tokenIdToStickerIdsAwardedMap[tokenId][stickerId] = true
+    s.tokenIdToStickerPosition[tokenId][stickerId] = position
+    s.tokenIdToStickerIdsAry[tokenId].push(stickerId)
+    
+    nil
+  end
+  
   constructor(
     name: :string,
     symbol: :string,
@@ -66,7 +107,9 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     s.gracePeriod = 90.days
     s.minRegistrationDuration = 28.days
     s.nextTokenId = 1
+    s.nextStickerId = 1
     s.registrationPaused = true
+    s.maxStickerId = 25
   }
   
   function :registerNameWithPayment, { to: :address, name: :string, durationInSeconds: :uint256 }, :public, returns: :bool do
@@ -154,16 +197,16 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     name = s.tokenIdToName[id]
     owner = ownerOf(id)
 
+    card = NameRegistryRenderer.renderCard(id, name)
+    b64Card = "data:image/svg+xml;base64," + esc.base64Encode(card)
+    
     json_data = esc.jsonEncode(
-      name: "#{name} (##{string(id)})",
+      name: "#{name} (##{id.toString})",
       description: s.userBios[owner],
-      image: constructUserCard(owner),
+      image: b64Card,
     )
     
     return "data:application/json,#{json_data}"
-  end
-  
-  function :constructUserCard, { user: :address }, :public, :view, returns: :string do
   end
   
   function :setUserDetails, {

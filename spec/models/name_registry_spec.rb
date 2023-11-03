@@ -291,6 +291,14 @@ describe 'NameRegistry contract' do
   
     expect(new_owner).to eq(bob)
     
+    token_uri = ContractTransaction.make_static_call(
+      contract: registry_address,
+      function_name: "tokenURI",
+      function_args: 1
+    )
+    
+    # binding.pry
+    
     resolved_address = ContractTransaction.make_static_call(
       contract: registry_address,
       function_name: "resolveName",
