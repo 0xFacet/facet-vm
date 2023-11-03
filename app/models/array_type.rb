@@ -89,5 +89,9 @@ class ArrayType < TypedVariable
     def length
       data.length
     end
+    
+    def last
+      self.[](data.length - 1)
+    end
   end
 end

@@ -627,7 +627,7 @@ RSpec.describe Contract, type: :model do
           function_name: "ownerOf", 
           function_args: { id: 100 }
         )
-      }.to raise_error(ContractErrors::StaticCallError)
+      }.to raise_error(Contract::StaticCallError)
       
       result = ContractTransaction.make_static_call(
         contract: creation.address, 

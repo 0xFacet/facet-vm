@@ -6,18 +6,25 @@ import './ERC20.rubidity'
 
 contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
   # TODO: events
+  # TODO: broader pause functionality
   
+  event :NameRegistered, { tokenId: :uint256, owner: :address, name: :string, expires: :uint256 }
+  event :NameRenewed, { tokenId: :uint256, newExpiry: :uint256 }
+  event :PrimaryNameSet, { user: :address, tokenId: :uint256 }
+  event :RegistrationPaused, { newState: :bool }
+  event :ConversionRateUpdate, { newRate: :uint256 }
+
   address :public, :WETH
   address :public, :admin
   address :public, :trustedSmartContract
-  uint256 :public, :usdCentsInOneEth
+  uint256 :public, :usdWeiCentsInOneEth
   uint256 :public, :minRegistrationDuration
   uint256 :public, :gracePeriod
   uint256 :public, :maxNameLength
   
   string :public, :description
   
-  array :uint256, :public, :charCountToUsdCentsPrice, initial_length: 0
+  array :uint256, :public, :charCountToUsdWeiCentsPrice, initial_length: 0
   
   bool :public, :registrationPaused
   
@@ -28,7 +35,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
   
   mapping ({ uint256: :uint256 }), :public, :tokenExpiryTimes
   
-  mapping ({ address: :string }), :public, :userRealNames
+  mapping ({ address: :string }), :public, :userDisplayNames
   mapping ({ address: :string }), :public, :userBios
   mapping ({ address: :string }), :public, :userImageURIs
   mapping ({ address: [:string] }), :public, :userLinks
@@ -38,11 +45,12 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     symbol: :string,
     trustedSmartContract: :address,
     admin: :address,
-    usdCentsInOneEth: :uint256,
-    charCountToUsdCentsPrice: [:uint256],
+    usdWeiCentsInOneEth: :uint256,
+    charCountToUsdWeiCentsPrice: [:uint256],
     _WETH: :address
   ) {
-    require(charCountToUsdCentsPrice.length >= 4, 'Must have at least 4 price points')
+    require(charCountToUsdWeiCentsPrice.length >= 4, 'Must have at least 4 price points')
+    require(charCountToUsdWeiCentsPrice.length <= 10, 'Must have at most 10 price points')
 
     ERC721.constructor(name: name, symbol: symbol)
     Upgradeable.constructor(upgradeAdmin: msg.sender)
@@ -50,9 +58,9 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     s.admin = admin
     s.trustedSmartContract = trustedSmartContract
     s.WETH = _WETH
-    s.usdCentsInOneEth = usdCentsInOneEth
+    s.usdWeiCentsInOneEth = usdWeiCentsInOneEth
     
-    s.charCountToUsdCentsPrice = charCountToUsdCentsPrice
+    s.charCountToUsdWeiCentsPrice = charCountToUsdWeiCentsPrice
     
     s.maxNameLength = 32
     s.gracePeriod = 90.days
@@ -109,7 +117,8 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     s.tokenIdToName[tokenId] = name
     
     s.tokenExpiryTimes[tokenId] = block.timestamp + durationInSeconds
-    nil
+    
+    emit :NameRegistered, tokenId: tokenId, owner: to, name: name, expires: s.tokenExpiryTimes[tokenId]
   end
   
   function :_renewName, { name: :string, durationInSeconds: :uint256 }, :internal do
@@ -120,7 +129,8 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     require(currentExpiry + s.gracePeriod >= block.timestamp, 'Must be registered or in grace period')
     
     s.tokenExpiryTimes[tokenId] = currentExpiry + durationInSeconds
-    nil
+
+    emit :NameRenewed, tokenId: tokenId, newExpiry: s.tokenExpiryTimes[tokenId]
   end
   
   function :importFromPreregistration, { names: [:string], owners: [:address], durations: [:uint256] }, :public do
@@ -162,11 +172,25 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     imageURI: :string,
     links: [:string]
   }, :public do
-    s.userRealNames[msg.sender] = realName
+    s.userDisplayNames[msg.sender] = realName
     s.userBios[msg.sender] = bio
     s.userImageURIs[msg.sender] = imageURI
     s.userLinks[msg.sender] = links
     nil
+  end
+  
+  function :getUserDetails, { user: :address }, :public, :view, returns: {
+    realName: :string,
+    bio: :string,
+    imageURI: :string,
+    links: [:string]
+  } do
+    return {
+      realName: s.userDisplayNames[user],
+      bio: s.userBios[user],
+      imageURI: s.userImageURIs[user],
+      links: s.userLinks[user]
+    }
   end
   
   function :_burn, { id: :uint256 }, :internal, :override do
@@ -188,8 +212,9 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
   end
   
   function :ownerOf, { id: :uint256 }, :public, :view, :override, returns: :address do
-    require(s.tokenExpiryTimes[tokenId] > block.timestamp, 'Name expired')
-    ERC721.ownerOf(id)
+    owner = ERC721.ownerOf(id)
+    require(s.tokenExpiryTimes[id] > block.timestamp, 'Name expired')
+    owner
   end
   
   function :lookupAddress, { user: :address }, :public, :view, returns: :string do
@@ -203,7 +228,8 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     tokenId = s.nameToTokenId[name]
     require(msg.sender == ownerOf(tokenId), 'Not the owner')
     s.userToPrimaryNameTokenId[msg.sender] = tokenId
-    nil
+    
+    emit :PrimaryNameSet, user: msg.sender, tokenId: tokenId
   end
   
   function :resolveName, { name: :string }, :public, :view, returns: :address do
@@ -217,44 +243,38 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     name.downcase == name
   end
   
-  function :convertUSDCentsToWei, { usdCents: :uint256 }, :public, :view, returns: :uint256 do
-    return (usdCents * 1.ether).div(s.usdCentsInOneEth)
-  end
-  
   function :nameAvailable, { name: :string }, :public, :view, returns: :bool do
     tokenId = s.nameToTokenId[name]
-    
-    if !_exists(tokenId)
-      return true
-    end
     
     s.tokenExpiryTimes[tokenId] + s.gracePeriod < block.timestamp
   end
   
   function :getPrice, { name: :string, durationInSeconds: :uint256 }, :public, :view, returns: :uint256 do
     len = name.length
-    
-    priceCents = if len >= charCountToUsdCentsPrice.length
-      charCountToUsdCentsPrice.last
-    else
-      charCountToUsdCentsPrice[len]
-    end
-    
-    totalPriceCents = (priceCentsPerYear * durationInSeconds).div(365.days)
   
-    convertUSDCentsToWei(totalPriceCents)
+    priceWeiCentsPerSecond = if len >= s.charCountToUsdWeiCentsPrice.length
+      s.charCountToUsdWeiCentsPrice.last
+    else
+      s.charCountToUsdWeiCentsPrice[len - 1]
+    end
+  
+    totalPriceWeiCents = priceWeiCentsPerSecond * durationInSeconds
+  
+    (totalPriceWeiCents * 1.ether).div(s.usdWeiCentsInOneEth)
   end
   
   function :updateRegistrationPaused, { newState: :bool }, :public do
     require(msg.sender == s.admin, 'Only the admin can pause registration')
     s.registrationPaused = newState
-    nil
+    
+    emit :RegistrationPaused, newState: newState
   end
   
-  function :setUsdCentsInOneEth, { rate: :uint256 }, :public do
+  function :setusdWeiCentsInOneEth, { rate: :uint256 }, :public do
     require(msg.sender == s.admin, 'Only the admin can set the ETH to USD rate')
-    s.usdCentsInOneEth = rate
-    nil
+    s.usdWeiCentsInOneEth = rate
+    
+    emit :ConversionRateUpdate, newRate: rate
   end
   
   function :withdrawWETH, :public, returns: :bool do
@@ -262,5 +282,9 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     
     amount = ERC20(s.WETH).balanceOf(address(this))
     ERC20(s.WETH).transfer(msg.sender, amount)
+  end
+  
+  function :totalSupply, :public, :view, returns: :uint256 do
+    nextTokenId - 1
   end
 end
