@@ -5,6 +5,8 @@ import './ERC721.rubidity'
 import './ERC20.rubidity'
 
 contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
+  # TODO: events
+  
   address :public, :WETH
   address :public, :admin
   address :public, :trustedSmartContract
@@ -22,7 +24,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
   uint256 :public, :nextTokenId
   mapping ({ string: :uint256 }), :public, :nameToTokenId
   mapping ({ uint256: :string }), :public, :tokenIdToName
-  mapping ({ address: :uint256 }), :public, :reverseRecords
+  mapping ({ address: :uint256 }), :internal, :userToPrimaryNameTokenId
   
   mapping ({ uint256: :uint256 }), :public, :tokenExpiryTimes
   
@@ -59,15 +61,15 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     s.registrationPaused = true
   }
   
-  function :registerNameWithPayment, { name: :string, durationInSeconds: :uint256 }, :public do
+  function :registerNameWithPayment, { to: :address, name: :string, durationInSeconds: :uint256 }, :public do
     require(!s.registrationPaused, 'Registration paused')
     require(durationInSeconds >= s.minRegistrationDuration, 'Duration too short')
     
-    _registerName(to: msg.sender, name: name, durationInSeconds: durationInSeconds)
+    _registerName(to: to, name: name, durationInSeconds: durationInSeconds)
     
-    if s.reverseRecords[msg.sender] == 0
+    if to == msg.sender && s.userToPrimaryNameTokenId[msg.sender] == 0
       tokenId = s.nameToTokenId[name]
-      s.reverseRecords[msg.sender] = tokenId
+      s.userToPrimaryNameTokenId[msg.sender] = tokenId
     end
     
     ERC20(s.WETH).transferFrom(
@@ -142,11 +144,11 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     name = s.tokenIdToName[id]
     owner = ownerOf(id)
 
-    json_data = esc.jsonEncode({
+    json_data = esc.jsonEncode(
       name: "#{name} (##{string(id)})",
       description: s.userBios[owner],
       image: constructUserCard(owner),
-    })
+    )
     
     return "data:application/json,#{json_data}"
   end
@@ -167,9 +169,19 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     nil
   end
   
+  function :_burn, { id: :uint256 }, :internal, :override do
+    owner = s._ownerOf[id];
+    
+    if s.userToPrimaryNameTokenId[owner] == id
+      s.userToPrimaryNameTokenId[owner] = 0
+    end
+    
+    ERC721._burn(id)
+  end
+  
   function :transferFrom, { from: :address, to: :address, id: :uint256 }, :public, :override do
-    if s.reverseRecords[from] == id
-      s.reverseRecords[from] = 0
+    if s.userToPrimaryNameTokenId[from] == id
+      s.userToPrimaryNameTokenId[from] = 0
     end
     
     ERC721.transferFrom(from: from, to: to, id: id)
@@ -180,17 +192,17 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable], upgradeable: true do
     ERC721.ownerOf(id)
   end
   
-  function :lookupAddress, { address: :address }, :public, :view, returns: :string do
-    candidateId = s.reverseRecords[address]
-    candidateName = s.tokenIdToName[candidateId]
-    require(resolveName(candidateName) == address, 'Not the owner')
-    candidateName
+  function :lookupAddress, { user: :address }, :public, :view, returns: :string do
+    candidateId = s.userToPrimaryNameTokenId[user]
+    require(ownerOf(candidateId) == user, 'Not the owner')
+
+    s.tokenIdToName[candidateId]
   end
   
-  function :setReverseRecord, { name: :string }, :public do
+  function :setPrimaryName, { name: :string }, :public do
     tokenId = s.nameToTokenId[name]
     require(msg.sender == ownerOf(tokenId), 'Not the owner')
-    s.reverseRecords[msg.sender] = tokenId
+    s.userToPrimaryNameTokenId[msg.sender] = tokenId
   end
   
   function :resolveName, { name: :string }, :public, :view, returns: :address do

@@ -2,15 +2,17 @@ class Esc
   include ContractErrors
 
   def currentTransactionHash
-    TransactionContext.transaction_hash
+    TypedVariable.create_or_validate(:bytes32, TransactionContext.transaction_hash)
   end
 
   def base64Encode(str)
-    Base64.strict_encode64(str)
+    typed = TypedVariable.create_or_validate(:string, str)
+
+    TypedVariable.create(:string, Base64.strict_encode64(typed.value))
   end
   
-  def jsonEncode(obj)
-    TypedVariable.create(:string, obj.to_json)
+  def jsonEncode(**kwargs)
+    TypedVariable.create(:string, kwargs.to_json)
   end
   
   def strIsAlphaNumeric(str)
