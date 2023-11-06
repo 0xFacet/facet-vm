@@ -36,50 +36,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :NameRegistryRenderer], upgr
   
   mapping ({ uint256: :uint256 }), :public, :tokenExpiryTimes
   
-  mapping ({ address: :string }), :public, :userDisplayNames
-  mapping ({ address: :string }), :public, :userBios
-  mapping ({ address: :string }), :public, :userImageURIs
-  mapping ({ address: [:string] }), :public, :userLinks
-  
-  uint256 :public, :maxStickerId
-  uint256 :public, :nextStickerId
-  mapping ({ uint256: :string }), :public, :stickerIdToName
-  mapping ({ uint256: :string }), :public, :stickerIdToImageURI
-  
-  mapping ({ uint256: [:uint256] }), :public, :tokenIdToStickerIdsAry
-  mapping ({ uint256: mapping(uint256: :bool) }), :public, :tokenIdToStickerIdsAwardedMap
-  mapping ({ uint256: mapping(uint256: array(:uint256, 3)) }), :public, :tokenIdToStickerPosition
-  
-  function :createSticker, {
-    name: :string,
-    imageURI: :string
-  }, :public do
-    require(msg.sender == s.admin, 'Only the admin can create stickers')
-    require(name.length > 0, 'Name must be non-empty')
-    require(s.stickerId <= s.maxStickerId, 'Sticker ID overflow')
-
-    # TODO: enforce name uniqueness?
-    s.stickerIdToName[s.nextStickerId] = name
-    s.stickerIdToImageURI[s.nextStickerId] = imageURI
-    
-    s.nextStickerId += 1
-    nil
-  end
-  
-  function :awardSticker, {
-    stickerId: :uint256,
-    tokenId: :uint256,
-    position: array(:uint256, 3)
-  }, :public do
-    require(msg.sender == s.admin, "Only the admin can award stickers")
-    require(!s.tokenIdToStickerIdsAwardedMap[tokenId][stickerId], "Sticker already awarded")
-    
-    s.tokenIdToStickerIdsAwardedMap[tokenId][stickerId] = true
-    s.tokenIdToStickerPosition[tokenId][stickerId] = position
-    s.tokenIdToStickerIdsAry[tokenId].push(stickerId)
-    
-    nil
-  end
+  mapping ({ uint256: :uint256 }), :public, :registrationTimestamps
   
   constructor(
     name: :string,
@@ -162,6 +119,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :NameRegistryRenderer], upgr
     s.tokenIdToName[tokenId] = name
     
     s.tokenExpiryTimes[tokenId] = block.timestamp + durationInSeconds
+    s.registrationTimestamps[tokenId] = block.timestamp
     
     emit :NameRegistered, tokenId: tokenId, owner: to, name: name, expires: s.tokenExpiryTimes[tokenId]
   end
@@ -211,39 +169,14 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :NameRegistryRenderer], upgr
     return "data:application/json,#{json_data}"
   end
   
-  function :setUserDetails, {
-    realName: :string,
-    bio: :string,
-    imageURI: :string,
-    links: [:string]
-  }, :public do
-    s.userDisplayNames[msg.sender] = realName
-    s.userBios[msg.sender] = bio
-    s.userImageURIs[msg.sender] = imageURI
-    s.userLinks[msg.sender] = links
-    nil
-  end
-  
-  function :getUserDetails, { user: :address }, :public, :view, returns: {
-    realName: :string,
-    bio: :string,
-    imageURI: :string,
-    links: [:string]
-  } do
-    return {
-      realName: s.userDisplayNames[user],
-      bio: s.userBios[user],
-      imageURI: s.userImageURIs[user],
-      links: s.userLinks[user]
-    }
-  end
-  
   function :_burn, { id: :uint256 }, :internal, :override do
     owner = s._ownerOf[id];
     
     if s.userToPrimaryNameTokenId[owner] == id
       s.userToPrimaryNameTokenId[owner] = 0
     end
+    
+    _clearStickers(id)
     
     ERC721._burn(id)
   end
@@ -252,6 +185,8 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :NameRegistryRenderer], upgr
     if s.userToPrimaryNameTokenId[from] == id
       s.userToPrimaryNameTokenId[from] = 0
     end
+    
+    _clearStickers(id)
     
     ERC721.transferFrom(from: from, to: to, id: id)
   end

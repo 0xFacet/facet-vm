@@ -29,6 +29,7 @@
       right: 0;
       width: 100%;
       height: 100%;
+      z-index: -1;
     }
     
     .name {
@@ -51,6 +52,18 @@
       color: #696969;
       font-family: monospace;
       padding: 18px;
+    }
+    
+    .sticker-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .sticker {
+      position: absolute;
+      image-rendering: pixelated;
+      width: 5%;
     }
     
     .st0{fill:#FFFFFF;}
@@ -129,6 +142,21 @@
         #${s.tokenId}
       </div>
     </div>
+    <div class="sticker-container" id="sticker-container"></div>
   </div>
+  
+  <script>
+    const container = document.getElementById('sticker-container');
+    if (container) {
+      window.s.stickerImages.forEach((src, index) => {
+        const img = document.createElement('img');
+        img.src = src;
+        img.className = 'sticker';
+        img.style.left = window.s.stickerXPositions[index] + '%';
+        img.style.top = window.s.stickerYPositions[index] + '%';
+        container.appendChild(img);
+      });
+    }
+  <\/script>
 </body>
 </html>

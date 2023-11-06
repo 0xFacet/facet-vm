@@ -56,4 +56,56 @@ class Esc
     
     nil
   end
+  
+  def verifyTypedDataSignature(
+    type,
+    message,
+    verifyingContract:,
+    domainName:,
+    domainVersion:,
+    signature:,
+    signer:
+  )
+    unless type.is_a?(Hash) && type.keys.length == 1  
+      raise ArgumentError.new("Invalid type")
+    end
+    
+    message = message.transform_values do |value|
+      value.respond_to?(:value) ? value.value : value
+    end
+    
+    typed_data = {
+      types: {
+        EIP712Domain: [
+          { name: "name", type: "string" },
+          { name: "version", type: "string" },
+          { name: "chainId", type: "uint256" },
+          { name: "verifyingContract", type: "address" }
+        ]
+      }.merge(type),
+      primaryType: type.keys.first.to_s,
+      domain: {
+        name: domainName.respond_to?(:value) ? domainName.value : domainName,
+        version: domainVersion.respond_to?(:value) ? domainVersion.value : domainVersion,
+        chainId: self.class.chain_id,
+        verifyingContract: verifyingContract.respond_to?(:value) ? verifyingContract.value : verifyingContract
+      },
+      message: message
+    }
+    
+    signer = signer.respond_to?(:value) ? signer.value : signer
+    signature = signature.respond_to?(:value) ? signature.value : signature
+    
+    Eth::Signature.verify(typed_data, signature, signer, self.class.chain_id)
+  end
+  
+  def self.chain_id
+    if ENV.fetch("ETHEREUM_NETWORK") == "eth-mainnet"
+      1
+    elsif ENV.fetch("ETHEREUM_NETWORK") == "eth-goerli"
+      5
+    else
+      raise "Unknown network: #{ENV.fetch("ETHEREUM_NETWORK")}"
+    end
+  end
 end
