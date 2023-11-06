@@ -38,6 +38,8 @@ describe 'NameRegistry contract' do
     
     usd_wei_cents_in_one_eth = 1800_00 * 1.ether # 1800 USD in cents
     
+    template = IO.read('/Users/tom/Dropbox (Personal)/db-src/ethscriptions-vm-server/app/views/layouts/name_registry.html')
+    
     registry_deploy = trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
@@ -50,6 +52,7 @@ describe 'NameRegistry contract' do
             admin: user_address,
             usdWeiCentsInOneEth: usd_wei_cents_in_one_eth,
             charCountToUsdWeiCentsPrice: char_count_to_wei_usd_per_sec,
+            cardTemplate: template,
             _WETH: weth_address
           }
         }
@@ -296,8 +299,6 @@ describe 'NameRegistry contract' do
       function_name: "tokenURI",
       function_args: 1
     )
-    
-    # binding.pry
     
     resolved_address = ContractTransaction.make_static_call(
       contract: registry_address,

@@ -88,6 +88,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :NameRegistryRenderer], upgr
     admin: :address,
     usdWeiCentsInOneEth: :uint256,
     charCountToUsdWeiCentsPrice: [:uint256],
+    cardTemplate: :string,
     _WETH: :address
   ) {
     require(charCountToUsdWeiCentsPrice.length >= 4, 'Must have at least 4 price points')
@@ -95,6 +96,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :NameRegistryRenderer], upgr
 
     ERC721.constructor(name: name, symbol: symbol)
     Upgradeable.constructor(upgradeAdmin: msg.sender)
+    NameRegistryRenderer.constructor(cardTemplate: cardTemplate)
     
     s.admin = admin
     s.trustedSmartContract = trustedSmartContract
@@ -198,7 +200,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :NameRegistryRenderer], upgr
     owner = ownerOf(id)
 
     card = NameRegistryRenderer.renderCard(id, name)
-    b64Card = "data:image/svg+xml;base64," + esc.base64Encode(card)
+    b64Card = "data:text/html;charset=utf-8;base64," + esc.base64Encode(card)
     
     json_data = esc.jsonEncode(
       name: "#{name} (##{id.toString})",
