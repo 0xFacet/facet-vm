@@ -48,8 +48,7 @@ describe 'NameRegistry contract' do
           args: {
             name: "Registry",
             symbol: "REG",
-            trustedSmartContract: daryl,
-            admin: user_address,
+            owner: user_address,
             usdWeiCentsInOneEth: usd_wei_cents_in_one_eth,
             charCountToUsdWeiCentsPrice: char_count_to_wei_usd_per_sec,
             cardTemplate: template,
@@ -102,7 +101,7 @@ describe 'NameRegistry contract' do
     )
     
     trigger_contract_interaction_and_expect_error(
-      error_msg_includes: 'Only the admin can pause registration',
+      error_msg_includes: 'Only the owner can pause registration',
       from: alice,
       payload: {
         to: registry_address,

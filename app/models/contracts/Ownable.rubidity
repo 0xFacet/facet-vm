@@ -1,0 +1,27 @@
+pragma :rubidity, "1.0.0"
+
+contract :Ownable, abstract: true do
+  address :public, :owner
+  
+  event :OwnershipTransferred, { previousOwner: :address, newOwner: :address }
+  
+  constructor(owner: :address) {
+    s.owner = owner
+  }
+  
+  function :transferOwnership, { newOwner: :address }, :public do
+    require(msg.sender == s.owner, "NOT_AUTHORIZED")
+    
+    previousOwner = s.owner
+    s.owner = newOwner
+    
+    emit :OwnershipTransferred, previousOwner: previousOwner, newOwner: newOwner
+  end
+  
+  function :enforceOwner, {
+    account: :address,
+    errorMsg: :string
+  }, :internal do
+    require(account == s.owner, errorMsg)
+  end
+end

@@ -1,11 +1,12 @@
 pragma :rubidity, "1.0.0"
 
+import './Ownable.rubidity'
 import './Upgradeable.rubidity'
 import './ERC721.rubidity'
 import './ERC20.rubidity'
 import './NameRegistryRenderer.rubidity'
 
-contract :NameRegistry, is: [:ERC721, :Upgradeable, :NameRegistryRenderer], upgradeable: true do
+contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :NameRegistryRenderer], upgradeable: true do
   # TODO: events
   # TODO: broader pause functionality
   
@@ -16,8 +17,6 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :NameRegistryRenderer], upgr
   event :ConversionRateUpdate, { newRate: :uint256 }
 
   address :public, :WETH
-  address :public, :admin
-  address :public, :trustedSmartContract
   uint256 :public, :usdWeiCentsInOneEth
   uint256 :public, :minRegistrationDuration
   uint256 :public, :gracePeriod
@@ -41,8 +40,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :NameRegistryRenderer], upgr
   constructor(
     name: :string,
     symbol: :string,
-    trustedSmartContract: :address,
-    admin: :address,
+    owner: :address,
     usdWeiCentsInOneEth: :uint256,
     charCountToUsdWeiCentsPrice: [:uint256],
     cardTemplate: :string,
@@ -53,10 +51,9 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :NameRegistryRenderer], upgr
 
     ERC721.constructor(name: name, symbol: symbol)
     Upgradeable.constructor(upgradeAdmin: msg.sender)
+    Ownable.constructor(owner: owner)
     NameRegistryRenderer.constructor(cardTemplate: cardTemplate)
     
-    s.admin = admin
-    s.trustedSmartContract = trustedSmartContract
     s.WETH = _WETH
     s.usdWeiCentsInOneEth = usdWeiCentsInOneEth
     
@@ -137,7 +134,8 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :NameRegistryRenderer], upgr
   end
   
   function :importFromPreregistration, { names: [:string], owners: [:address], durations: [:uint256] }, :public do
-    require(msg.sender == s.trustedSmartContract, 'Only the trusted smart contract can import names')
+    enforceOwner(msg.sender, 'Only the owner can import names')
+    
     require(names.length == owners.length, 'Names and owners must be the same length')
     require(names.length == durations.length, 'Names and owners must be the same length')
     require(names.length <= 10, 'Cannot import more than 10 names at a time')
@@ -244,24 +242,26 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :NameRegistryRenderer], upgr
   end
   
   function :updateRegistrationPaused, { newState: :bool }, :public do
-    require(msg.sender == s.admin, 'Only the admin can pause registration')
+    enforceOwner(msg.sender, 'Only the owner can pause registration')
+    
     s.registrationPaused = newState
     
     emit :RegistrationPaused, newState: newState
   end
   
   function :setusdWeiCentsInOneEth, { rate: :uint256 }, :public do
-    require(msg.sender == s.admin, 'Only the admin can set the ETH to USD rate')
+    enforceOwner(msg.sender, 'Only the owner can set the ETH to USD rate')
+    
     s.usdWeiCentsInOneEth = rate
     
     emit :ConversionRateUpdate, newRate: rate
   end
   
   function :withdrawWETH, :public, returns: :bool do
-    require(msg.sender == s.admin, 'Only the admin can withdraw WETH')
+    enforceOwner(msg.sender, 'Only the owner can withdraw WETH')
     
     amount = ERC20(s.WETH).balanceOf(address(this))
-    ERC20(s.WETH).transfer(msg.sender, amount)
+    ERC20(s.WETH).transfer(s.owner, amount)
   end
   
   function :totalSupply, :public, :view, returns: :uint256 do
