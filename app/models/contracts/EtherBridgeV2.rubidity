@@ -69,6 +69,7 @@ contract :EtherBridgeV2, is: [:ERC20, :Upgradeable], upgradeable: true do
       s.withdrawalIdAmount[withdrawalId] == 0,
       "Already bridged out"
     )
+    require(amount > 0, "Invalid amount")
 
     s.userWithdrawalId[msg.sender] = withdrawalId
     s.withdrawalIdAmount[withdrawalId] = amount

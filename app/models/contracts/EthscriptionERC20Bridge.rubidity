@@ -1,8 +1,9 @@
 pragma :rubidity, "1.0.0"
 
 import "./ERC20.rubidity"
+import "./Upgradeable.rubidity"
 
-contract :EthscriptionERC20Bridge, is: :ERC20 do
+contract :EthscriptionERC20Bridge, is: [:ERC20, :Upgradeable], upgradeable: true do
   event :BridgedIn, { to: :address, amount: :uint256 }
   event :InitiateWithdrawal, { from: :address, amount: :uint256, withdrawalId: :bytes32 }
   event :WithdrawalComplete, { to: :address, amount: :uint256, withdrawalId: :bytes32 }
@@ -24,7 +25,8 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
     require(trustedSmartContract != address(0), "Invalid smart contract")
 
     ERC20.constructor(name: name, symbol: symbol, decimals: 18)
-
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+    
     s.mintAmount = mintAmount
     s.trustedSmartContract = trustedSmartContract
   }
@@ -38,7 +40,7 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
     s.bridgedInAmount[to] += amount
 
     _mint(to: to, amount: amount * s.mintAmount * 1.ether)
-    emit :BridgedIn, to: to, amount: amount * s.mintAmount * 1.ether
+    emit :BridgedIn, to: to, amount: amount
   end
   
   function :bridgeOut, { amount: :uint256 }, :public do
@@ -55,13 +57,14 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
       s.bridgedInAmount[msg.sender] >= amount,
       "Not enough bridged in"
     )
+    require(amount > 0, "Invalid amount")
 
     s.userWithdrawalId[msg.sender] = withdrawalId
     s.withdrawalIdAmount[withdrawalId] = amount
     s.bridgedInAmount[msg.sender] -= amount
       
     _burn(from: msg.sender, amount: amount * s.mintAmount * 1.ether)
-    emit :InitiateWithdrawal, from: msg.sender, amount: amount * s.mintAmount * 1.ether, withdrawalId: withdrawalId
+    emit :InitiateWithdrawal, from: msg.sender, amount: amount, withdrawalId: withdrawalId
   end
   
   function :markWithdrawalComplete, {
@@ -81,6 +84,6 @@ contract :EthscriptionERC20Bridge, is: :ERC20 do
     s.withdrawalIdAmount[withdrawalId] = 0
     s.userWithdrawalId[to] = bytes32(0)
       
-    emit :WithdrawalComplete, to: to, amount: amount * s.mintAmount * 1.ether, withdrawalId: withdrawalId
+    emit :WithdrawalComplete, to: to, amount: amount, withdrawalId: withdrawalId
   end
 end

@@ -66,6 +66,8 @@ contract :ERC20, abstract: true do
   end
   
   function :_burn, { from: :address, amount: :uint256 }, :internal, :virtual do
+    require(s.balanceOf[from] >= amount, "Insufficient balance")
+    
     s.balanceOf[from] -= amount
     s.totalSupply -= amount
     
