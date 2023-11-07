@@ -91,7 +91,11 @@ class StateVariable
   end
   
   def deserialize(value)
-    typed_variable.deserialize(value)
+    if typed_variable.type.bool?
+      self.typed_variable = value
+    else
+      typed_variable.deserialize(value)
+    end
   end
   
   def method_missing(name, ...)

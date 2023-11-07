@@ -27,6 +27,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :NameRegistryRende
   array :uint256, :public, :charCountToUsdWeiCentsPrice, initial_length: 0
   
   bool :public, :registrationPaused
+  bool :public, :preregistrationComplete
   
   uint256 :public, :nextTokenId
   mapping ({ string: :uint256 }), :public, :nameToTokenId
@@ -64,12 +65,13 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :NameRegistryRende
     s.minRegistrationDuration = 28.days
     s.nextTokenId = 1
     s.nextStickerId = 1
-    s.registrationPaused = true
     s.maxStickerId = 25
   }
   
   function :registerNameWithPayment, { to: :address, name: :string, durationInSeconds: :uint256 }, :public, returns: :bool do
     require(!s.registrationPaused, 'Registration paused')
+    require(s.preregistrationComplete, 'Preregistration must be complete')
+
     require(durationInSeconds >= s.minRegistrationDuration, 'Duration too short')
     
     _registerName(to: to, name: name, durationInSeconds: durationInSeconds)
@@ -133,16 +135,22 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :NameRegistryRende
     emit :NameRenewed, tokenId: tokenId, newExpiry: s.tokenExpiryTimes[tokenId]
   end
   
+  function :markPreregistrationComplete, :public do
+    enforceOwner(msg.sender, 'Only the owner can mark preregistration complete')
+    s.preregistrationComplete = true
+    nil
+  end
+  
   function :importFromPreregistration, { names: [:string], owners: [:address], durations: [:uint256] }, :public do
     enforceOwner(msg.sender, 'Only the owner can import names')
+    
+    require(!s.preregistrationComplete, 'Preregistration must not be complete')
     
     require(names.length == owners.length, 'Names and owners must be the same length')
     require(names.length == durations.length, 'Names and owners must be the same length')
     require(names.length <= 10, 'Cannot import more than 10 names at a time')
     
     forLoop(
-      start: 0,
-      step: 1,
       condition: -> i { i < names.length }
     ) do |i|
       _registerName(to: owners[i], name: names[i], durationInSeconds: durations[i])

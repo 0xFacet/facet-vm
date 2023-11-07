@@ -112,6 +112,16 @@ describe 'NameRegistry contract' do
       }
     )
     
+    mark = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: registry_address,
+        data: {
+          function: "markPreregistrationComplete"
+        }
+      }
+    )
+    
     reg_receipt = trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
