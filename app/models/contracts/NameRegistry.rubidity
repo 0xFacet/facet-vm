@@ -3,7 +3,7 @@ pragma :rubidity, "1.0.0"
 import './Ownable.rubidity'
 import './Upgradeable.rubidity'
 import './ERC721.rubidity'
-import './ERC20.rubidity'
+import './ERC20Permit.rubidity'
 import './NameRegistryRenderer.rubidity'
 
 contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :NameRegistryRenderer], upgradeable: true do
@@ -68,10 +68,16 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :NameRegistryRende
     s.maxStickerId = 25
   }
   
-  function :registerNameWithPayment, { to: :address, name: :string, durationInSeconds: :uint256 }, :public, returns: :bool do
+  function :registerNameWithPayment, {
+    to: :address,
+    name: :string,
+    durationInSeconds: :uint256,
+    deadline: :uint256,
+    signature: :bytes,
+  }, :public, returns: :bool do
     require(!s.registrationPaused, 'Registration paused')
     require(s.preregistrationComplete, 'Preregistration must be complete')
-
+  
     require(durationInSeconds >= s.minRegistrationDuration, 'Duration too short')
     
     _registerName(to: to, name: name, durationInSeconds: durationInSeconds)
@@ -81,21 +87,38 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :NameRegistryRende
       s.userToPrimaryNameTokenId[msg.sender] = tokenId
     end
     
-    ERC20(s.WETH).transferFrom(
-      msg.sender,
-      address(this),
-      getPrice(name, durationInSeconds)
+    paymentAmount = getPrice(name, durationInSeconds)
+  
+    ERC20Permit(s.WETH).tryPermitOrTransferFrom(
+      from: msg.sender,
+      to: address(this),
+      amount: paymentAmount,
+      deadline: deadline,
+      signature: signature
     )
+  
+    return true
   end
   
-  function :renewNameWithPayment, { name: :string, durationInSeconds: :uint256 }, :public, returns: :bool do
+  function :renewNameWithPayment, {
+    name: :string,
+    durationInSeconds: :uint256,
+    deadline: :uint256,
+    signature: :bytes,
+  }, :public, returns: :bool do
     _renewName(name: name, durationInSeconds: durationInSeconds)
     
-    ERC20(s.WETH).transferFrom(
-      msg.sender,
-      address(this),
-      getPrice(name, durationInSeconds)
+    paymentAmount = getPrice(name, durationInSeconds)
+    
+    ERC20Permit(s.WETH).tryPermitOrTransferFrom(
+      from: msg.sender,
+      to: address(this),
+      amount: paymentAmount,
+      deadline: deadline,
+      signature: signature
     )
+  
+    return true
   end
   
   function :_registerName, { to: :address, name: :string, durationInSeconds: :uint256 }, :internal do
@@ -224,6 +247,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :NameRegistryRende
   end
   
   function :nameIsValid, { name: :string }, :public, :view, returns: :bool do
+    name.length > 0 &&
     name.length <= s.maxNameLength &&
     esc.strIsAlphaNumeric(name) &&
     name.downcase == name

@@ -1,6 +1,6 @@
 pragma :rubidity, "1.0.0"
 
-import '/app/models/contracts/ERC20.rubidity'
+import '/app/models/contracts/ERC20Permit.rubidity'
 
 contract :StartingParent do
   function :definedInNonClosestParent, :public, :virtual do
@@ -11,7 +11,7 @@ contract :StartingParent do
   end
 end
 
-contract :TestContract, is: [:ERC20, :StartingParent] do
+contract :TestContract, is: [:ERC20Permit, :StartingParent] do
   string :public, :definedInTest
 
   constructor(
@@ -37,7 +37,7 @@ contract :TestContract, is: [:ERC20, :StartingParent] do
   end
 end
 
-contract :TestContractNoOverride, is: :ERC20 do
+contract :TestContractNoOverride, is: :ERC20Permit do
   constructor(
     name: :string,
     symbol: :string,

@@ -1,8 +1,8 @@
 pragma :rubidity, "1.0.0"
 
-import '/app/models/contracts/ERC20.rubidity'
+import '/app/models/contracts/ERC20Permit.rubidity'
 
-contract :StubERC20, is: :ERC20 do
+contract :StubERC20, is: :ERC20Permit do
   constructor(name: :string) {
     ERC20.constructor(name: name, symbol: "symbol", decimals: 18)
   }

@@ -1,8 +1,8 @@
 pragma :rubidity, "1.0.0"
 
-import '/app/models/contracts/ERC20.rubidity'
+import '/app/models/contracts/ERC20Permit.rubidity'
 
-contract :StubERC20B, is: :ERC20 do
+contract :StubERC20B, is: :ERC20Permit do
   uint256 :public, :unsafeReadOnlyCounter
   
   constructor() {

@@ -1,0 +1,113 @@
+pragma :rubidity, "1.0.0"
+
+import './ERC20.rubidity'
+
+contract :ERC20Permit, is: :ERC20, abstract: true do
+  mapping ({ address: :uint256 }), :public, :nonces
+  
+  constructor() {}
+
+  function :permit, {
+    owner: :address,
+    spender: :address,
+    value: :uint256,
+    deadline: :uint256,
+    signature: :bytes,
+  }, :public, :virtual do
+    require(deadline >= block.timestamp, "Permit expired")
+    
+    signatureValid = esc.verifyTypedDataSignature(
+      {Permit: [
+        { name: "owner", type: "address" },
+        { name: "spender", type: "address" },
+        { name: "value", type: "uint256" },
+        { name: "nonce", type: "uint256" },
+        { name: "deadline", type: "uint256" },
+      ]},
+      {
+        owner: owner,
+        spender: spender,
+        value: value,
+        nonce: _useNonce(owner),
+        deadline: deadline
+      },
+      verifyingContract: address(this),
+      domainName: s.name,
+      domainVersion: "1",
+      signature: signature,
+      signer: owner
+    )
+    
+    require(signatureValid, "Invalid signature")
+    
+    _approve(owner: owner, spender: spender, amount: value)
+  end
+  
+  function :permitAndTransfer, {
+    from: :address,
+    to: :address,
+    amount: :uint256,
+    deadline: :uint256,
+    signature: :bytes,
+  }, :public do
+    require(deadline >= block.timestamp, "Permit expired")
+  
+    signatureValid = esc.verifyTypedDataSignature(
+      {Permit: [
+        { name: "owner", type: "address" },
+        { name: "spender", type: "address" },
+        { name: "value", type: "uint256" },
+        { name: "nonce", type: "uint256" },
+        { name: "deadline", type: "uint256" },
+      ]},
+      {
+        owner: from,
+        spender: msg.sender,
+        value: amount,
+        nonce: _useNonce(from),
+        deadline: deadline
+      },
+      verifyingContract: address(this),
+      domainName: s.name,
+      domainVersion: "1",
+      signature: signature,
+      signer: from
+    )
+  
+    require(signatureValid, "Invalid signature")
+    
+    _transfer(from: from, to: to, amount: amount)
+  end
+  
+  function :tryPermitOrTransferFrom, {
+    from: :address,
+    to: :address,
+    amount: :uint256,
+    deadline: :uint256,
+    signature: :bytes,
+  }, :public do
+    if signature.length > 0
+      permitAndTransfer(
+        from: from,
+        to: to,
+        amount: amount,
+        deadline: deadline,
+        signature: signature
+      )
+    else
+      transferFrom(
+        from: from,
+        to: to,
+        amount: amount
+      )
+    end
+    
+    nil
+  end
+  
+  function :_useNonce, { owner: :address }, :internal, returns: :uint256 do
+    currentNonce = s.nonces[owner]
+    s.nonces[owner] += 1
+    currentNonce
+  end
+end

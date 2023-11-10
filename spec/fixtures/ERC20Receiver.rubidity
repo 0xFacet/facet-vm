@@ -1,14 +1,14 @@
 pragma :rubidity, "1.0.0"
 
-import '/app/models/contracts/ERC20.rubidity'
+import '/app/models/contracts/ERC20Permit.rubidity'
 
-contract :ERC20Receiver, is: :ERC20 do
+contract :ERC20Receiver, is: :ERC20Permit do
   constructor() {
     ERC20.constructor(name: "bye", symbol: "B", decimals: 18)
   }
 end
 
-contract :ERC20Minimal, is: :ERC20 do
+contract :ERC20Minimal, is: :ERC20Permit do
   constructor(name: :string, symbol: :string, decimals: :uint8) {
     ERC20.constructor(name, symbol, decimals)
   }
