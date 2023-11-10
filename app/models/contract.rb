@@ -29,8 +29,7 @@ class Contract < ApplicationRecord
   end
   
   def implementation_class
-    klass = TransactionContext.implementation_from_init_code(current_init_code_hash) ||
-      RubidityFile.registry[current_init_code_hash]
+    RubidityFile.find_by_init_code_hash!(current_init_code_hash)
   end
   
   def self.types_that_implement(base_type)

@@ -4,6 +4,9 @@ class RubidityFile
   attr_accessor :filename
   
   class << self
+    include ContractErrors
+    extend Memoist
+    
     def registry
       return @registry if @registry
     
@@ -25,6 +28,23 @@ class RubidityFile
         end
       end
       
+      ensure_implementations_saved(registry)
+    end
+    
+    def ensure_implementations_saved(registry)
+      registry.each do |_, klass|
+        ContractCodeVersion.find_or_initialize_by(init_code_hash: klass.init_code_hash) do |cv|
+          if cv.new_record?
+            cv.update!(
+              name: klass.name,
+              source_code: klass.source_code,
+              ast: klass.creation_code,
+              source_file: klass.source_file,
+            )
+          end
+        end
+      end
+      
       registry
     end
     
@@ -33,7 +53,32 @@ class RubidityFile
     end
     
     def find_by_name(name)
-      registry.detect{|k, v| v.name == name}.second
+      version = ContractCodeVersion.find_by(name: name)
+      return unless version
+      find_by_init_code_hash!(version.init_code_hash)
+    end
+    
+    def find_by_init_code_hash!(init_code_hash)
+      version = ContractCodeVersion.find_by(init_code_hash: init_code_hash.sub(/^0x/, ''))
+      
+      unless version
+        raise UnknownInitCodeHash.new("No contract found with init code hash: #{init_code_hash}")
+      end
+      
+      class_from_source(
+        source_code: version.source_code,
+        source_file: version.source_file,
+      ).tap do |contract_class|
+        if contract_class.init_code_hash != version.init_code_hash ||
+          contract_class.source_code != version.source_code
+          raise "Invalid code"
+        end
+      end
+    end
+    memoize :find_by_init_code_hash!
+    
+    def class_from_source(source_code:, source_file:)
+      new(source_file, source_code).contract_classes.last
     end
     
     def emphasized_code_exerpt(name:, line_number:)
@@ -65,12 +110,17 @@ class RubidityFile
     end
   end
   
-  def initialize(filename)
+  def initialize(filename, source_code = nil)
     @filename = filename
+    
+    if source_code
+      ast = Unparser.parse(source_code)
+      @file_ast = ast
+    end
   end
-  
+    
   def file_ast
-    ImportResolver.process(absolute_path)
+    @file_ast || ImportResolver.process(absolute_path)
   end
   memoize :file_ast
   
@@ -82,11 +132,6 @@ class RubidityFile
       filename
     end
   end
-  
-  def file_source
-    file_ast.unparse
-  end
-  memoize :file_source
   
   def contract_asts
     contract_nodes = []
