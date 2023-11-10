@@ -4,6 +4,20 @@ class ContractCodeVersion < ApplicationRecord
   after_find :verify_ast_and_hash
   before_validation :verify_ast_and_hash_on_save
   
+  def as_json(options = {})
+    super(
+      options.merge(
+        only: [
+          :name,
+          :source_code,
+          # :ast,
+          :init_code_hash,
+          # :source_file,
+        ]
+      )
+    )
+  end
+  
   private
   
   def verify_ast_and_hash_on_save
