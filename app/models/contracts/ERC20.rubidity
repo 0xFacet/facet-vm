@@ -20,20 +20,13 @@ contract :ERC20, abstract: true do
   }
 
   function :approve, { spender: :address, amount: :uint256 }, :public, :virtual, returns: :bool do
-    s.allowance[msg.sender][spender] = amount
-    
-    emit :Approval, owner: msg.sender, spender: spender, amount: amount
+    _approve(owner: msg.sender, spender: spender, amount: amount)
     
     return true
   end
   
   function :transfer, { to: :address, amount: :uint256 }, :public, :virtual, returns: :bool do
-    require(s.balanceOf[msg.sender] >= amount, "Insufficient balance")
-    
-    s.balanceOf[msg.sender] -= amount
-    s.balanceOf[to] += amount
-
-    emit :Transfer, from: msg.sender, to: to, amount: amount
+    _transfer(from: msg.sender, to: to, amount: amount)
     
     return true
   end
@@ -43,19 +36,45 @@ contract :ERC20, abstract: true do
     to: :address,
     amount: :uint256
   }, :public, :virtual, returns: :bool do
-    allowed = s.allowance[from][msg.sender]
+    _transferFrom(
+      spender: msg.sender,
+      from: from,
+      to: to,
+      amount: amount
+    )
+  
+    return true
+  end
+  
+  function :_transferFrom, {
+    spender: :address,
+    from: :address,
+    to: :address,
+    amount: :uint256
+  }, :internal do
+    allowed = s.allowance[from][spender]
     
-    require(s.balanceOf[from] >= amount, "Insufficient balance")
     require(allowed >= amount, "Insufficient allowance")
+    require(s.balanceOf[from] >= amount, "Insufficient balance")
     
-    s.allowance[from][msg.sender] = allowed - amount
-    
+    s.allowance[from][spender] = allowed - amount
+    _transfer(from: from, to: to, amount: amount)
+  end
+  
+  function :_transfer, { from: :address, to: :address, amount: :uint256 }, :internal do
+    require(s.balanceOf[from] >= amount, "Insufficient balance")
+    require(to != address(0), "Transfer to the zero address")
+  
     s.balanceOf[from] -= amount
     s.balanceOf[to] += amount
     
     emit :Transfer, from: from, to: to, amount: amount
+  end
+  
+  function :_approve, { owner: :address, spender: :address, amount: :uint256 }, :internal do
+    s.allowance[owner][spender] = amount
     
-    return true
+    emit :Approval, owner: msg.sender, spender: spender, amount: amount
   end
   
   function :_mint, { to: :address, amount: :uint256 }, :internal, :virtual do

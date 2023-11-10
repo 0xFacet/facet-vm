@@ -1,9 +1,9 @@
 pragma :rubidity, "1.0.0"
 
-import "./ERC20.rubidity"
+import "./ERC20Permit.rubidity"
 import "./Upgradeable.rubidity"
 
-contract :EtherBridgeV2, is: [:ERC20, :Upgradeable], upgradeable: true do
+contract :EtherBridgeV2, is: [:ERC20Permit, :Upgradeable], upgradeable: true do
   event :BridgedIn, { to: :address, amount: :uint256 }
   event :InitiateWithdrawal, { from: :address, amount: :uint256, withdrawalId: :bytes32 }
   event :WithdrawalComplete, { to: :address, amount: :uint256, withdrawalId: :bytes32 }

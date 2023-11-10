@@ -131,7 +131,9 @@ describe 'NameRegistry contract' do
           args: {
             to: user_address,
             name: "eve",
-            durationInSeconds: 365.days
+            durationInSeconds: 365.days,
+            deadline: 0,
+            signature: ""
           }
         }
       }
@@ -153,7 +155,9 @@ describe 'NameRegistry contract' do
             args: {
               to: alice,
               name: invalid_name,
-              durationInSeconds: 365.days
+              durationInSeconds: 365.days,
+              deadline: 0,
+              signature: ""
             }
           }
         }
@@ -170,7 +174,9 @@ describe 'NameRegistry contract' do
           args: {
             to: alice,
             name: "eve",
-            durationInSeconds: 365.days
+            durationInSeconds: 365.days,
+            deadline: 0,
+            signature: ""
           }
         }
       }
@@ -185,7 +191,9 @@ describe 'NameRegistry contract' do
           args: {
             to: alice,
             name: "alice",
-            durationInSeconds: 365.days
+            durationInSeconds: 365.days,
+            deadline: 0,
+            signature: ""
           }
         }
       }
@@ -209,7 +217,9 @@ describe 'NameRegistry contract' do
           args: {
             to: alice,
             name: name,
-            durationInSeconds: duration_in_seconds
+            durationInSeconds: duration_in_seconds,
+            deadline: 0,
+            signature: ""
           }
         }
       }
@@ -245,7 +255,9 @@ describe 'NameRegistry contract' do
           function: "renewNameWithPayment",
           args: {
             name: "eve",
-            durationInSeconds: 10.days
+            durationInSeconds: 10.days,
+            deadline: 0,
+            signature: ""
           }
         }
       }
@@ -334,7 +346,9 @@ describe 'NameRegistry contract' do
           args: {
             to: bob,
             name: "shortdurationname",
-            durationInSeconds: 28.days
+            durationInSeconds: 28.days,
+            deadline: 0,
+            signature: ""
           }
         }
       }
@@ -487,7 +501,9 @@ describe 'NameRegistry contract' do
           args: {
             to: user_address,
             name: "stickerfan",
-            durationInSeconds: 365.days
+            durationInSeconds: 365.days,
+            deadline: 0,
+            signature: ""
           }
         }
       }
