@@ -67,7 +67,7 @@ class ContractArtifact < ApplicationRecord
         ref_artifact = ContractArtifact.find_by(init_code_hash: ref_init_code_hash)
         
         unless ref_artifact
-          raise UnknownInitCodeHash.new("No contract found with init code ehash: #{ref_init_code_hash}")
+          raise UnknownInitCodeHash.new("No contract found with init code hash: #{ref_init_code_hash}")
         end
 
         contract_classes[contract_name] = ref_artifact.build_class
@@ -84,6 +84,28 @@ class ContractArtifact < ApplicationRecord
       end
     end
     memoize :build_class
+    
+    def types_that_implement(base_type)
+      impl = class_from_name(base_type)
+      contracts = all_contract_classes.values.reject(&:is_abstract_contract)
+      
+      contracts.select do |contract|
+        contract.implements?(impl)
+      end
+    end
+    
+    def deployable_contracts
+      all_contract_classes.values.reject(&:is_abstract_contract)
+    end
+    
+    def all_abis(deployable_only: false)
+      contract_classes = all_contract_classes.values
+      contract_classes.reject!(&:is_abstract_contract) if deployable_only
+      
+      contract_classes.each_with_object({}) do |contract_class, hash|
+        hash[contract_class.name] = contract_class.public_abi
+      end
+    end
   end
 
   def build_class
@@ -91,12 +113,10 @@ class ContractArtifact < ApplicationRecord
   end
     
   def self.emphasized_code_exerpt(name:, line_number:)
-    # TODO
-    return ''
     before_lines = 5
     after_lines = 5
     
-    code = find_by_name!(name).source_code
+    code = class_from_name(name).source_code
     
     lines = code.split("\n")
     start = [0, line_number - 1 - before_lines].max   # Don't go below the first line

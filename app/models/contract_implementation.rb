@@ -78,19 +78,24 @@ class ContractImplementation
   end
   
   def require(condition, message)
-    caller_location = caller_locations.detect { |location| location.path.ends_with?(".rubidity") }
+    return if condition == true
     
-    # TODO
-    
-    file = caller_location.path.gsub(%r{.*/}, '') rescue ''
-    line = caller_location.lineno rescue ''
-    
-    unless condition
-      emphasized_code = ContractArtifact.emphasized_code_exerpt(name: file.split.first, line_number: line)
-      
-      error_message = "#{message}. (#{file}:#{line})\n\n#{emphasized_code}\n\n"
-      raise ContractError.new(error_message, self)
+    if condition
+      raise "Invalid truthy value for require"
     end
+    
+    caller_location = caller_locations.detect do |location|
+      self.class.linearized_parents.map(&:name).include?(location.path) ||
+      location.path == self.class.name
+    end
+    
+    file = caller_location.path
+    line = caller_location.lineno
+    
+    emphasized_code = ContractArtifact.emphasized_code_exerpt(name: file, line_number: line)
+      
+    error_message = "#{message}. (#{file}:#{line})\n\n#{emphasized_code}\n\n"
+    raise ContractError.new(error_message, self)
   end
   
   def self.public_abi

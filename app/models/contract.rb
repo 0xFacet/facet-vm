@@ -33,12 +33,7 @@ class Contract < ApplicationRecord
   end
   
   def self.types_that_implement(base_type)
-    return [] # TODO
-    impl = RubidityFile.registry.values.detect{|i| i.name == base_type.to_s}
-    
-    RubidityFile.registry.values.reject(&:is_abstract_contract).select do |contract|
-      contract.implements?(impl)
-    end
+    ContractArtifact.types_that_implement(base_type)
   end
   
   def should_save_new_state?
@@ -108,20 +103,11 @@ class Contract < ApplicationRecord
   end
   
   def self.deployable_contracts
-    # TODO
-    return []
-    RubidityFile.registry.values.reject(&:is_abstract_contract)
+    ContractArtifact.deployable_contracts
   end
   
-  def self.all_abis(deployable_only: false)
-    # TODO
-    return {}
-    contract_classes = RubidityFile.registry.values.dup
-    contract_classes.reject!(&:is_abstract_contract) if deployable_only
-    
-    contract_classes.each_with_object({}) do |contract_class, hash|
-      hash[contract_class.name] = contract_class.public_abi
-    end
+  def self.all_abis(...)
+    ContractArtifact.deployable_contracts(...)
   end
   
   def as_json(options = {})
