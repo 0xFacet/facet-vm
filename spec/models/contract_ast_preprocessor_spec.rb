@@ -13,7 +13,9 @@ RSpec.describe ContractAstPreprocessor do
   end
   
   it "disallows duplicate contract names" do
-    expect { RubidityFile.new(dupe_contract).contract_classes }.to raise_error(/Duplicate contract names.*/)
+    expect {
+      ContractArtifact.create_artifacts_from_files(dupe_contract)
+    }.to raise_error(/Duplicate contract names.*/)
   end
   
   it "rewrites constants" do
@@ -61,8 +63,9 @@ RSpec.describe ContractAstPreprocessor do
       }
     RUBY
     
-    classes = RubidityFile.new(unused_reference).contract_classes
-    expect(classes.last.source_code).to eq(normalized)
+    transpiled = RubidityTranspiler.transpile_file(unused_reference)
+    
+    expect(transpiled.last[:source_code]).to eq(normalized)
   end
 
   it "retains the bottom contract" do
