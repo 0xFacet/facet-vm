@@ -75,10 +75,6 @@ class ContractCall < ApplicationRecord
       raise ContractError.new("Cannot call function on contract creation")
     end
     
-    unless to_contract_implementation.present?
-      raise TransactionError.new("Invalid contract: #{to_contract_init_code_hash || to_contract_type}")
-    end
-    
     if to_contract_implementation.is_abstract_contract
       raise TransactionError.new("Cannot deploy abstract contract: #{to_contract_implementation.name}")
     end
@@ -91,6 +87,8 @@ class ContractCall < ApplicationRecord
     )
     
     self.function = :constructor
+  rescue UnknownInitCodeHash => e
+    raise TransactionError.new("Invalid contract: #{to_contract_init_code_hash || to_contract_type}")
   end
   
   def calculate_new_contract_address

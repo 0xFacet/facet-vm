@@ -46,10 +46,10 @@ class ContractArtifact < ApplicationRecord
     memoize :all_contract_classes
     
     def class_from_init_code_hash!(init_code_hash)
-      hash = init_code_hash.sub(/^0x/, '')
+      hash = init_code_hash&.sub(/^0x/, '')
       all_contract_classes[hash].tap do |code|
         unless code
-          raise UnknownInitCodeHash.new("No contract found with init code hash: #{init_code_hash}")
+          raise UnknownInitCodeHash.new("No contract found with init code hash: #{init_code_hash.inspect}")
         end
       end
     end
