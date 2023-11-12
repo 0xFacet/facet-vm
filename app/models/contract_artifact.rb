@@ -1,8 +1,8 @@
 class ContractArtifact < ApplicationRecord
+  include ContractErrors
   extend Memoist
   
   CodeIntegrityError = Class.new(StandardError)
-  InitCodeNotFound = Class.new(StandardError)
   
   after_find :verify_ast_and_hash
   before_validation :verify_ast_and_hash_on_save
@@ -11,6 +11,7 @@ class ContractArtifact < ApplicationRecord
   delegate :reset_cache, to: :class
   
   class << self
+    include ContractErrors
     extend Memoist
     
     def main_files
@@ -48,7 +49,7 @@ class ContractArtifact < ApplicationRecord
       hash = init_code_hash.sub(/^0x/, '')
       all_contract_classes[hash].tap do |code|
         unless code
-          raise InitCodeNotFound.new("No contract found with init code hash: #{init_code_hash}")
+          raise UnknownInitCodeHash.new("No contract found with init code hash: #{init_code_hash}")
         end
       end
     end
@@ -66,7 +67,7 @@ class ContractArtifact < ApplicationRecord
         ref_artifact = ContractArtifact.find_by(init_code_hash: ref_init_code_hash)
         
         unless ref_artifact
-          raise InitCodeNotFound.new("No contract found with init code ehash: #{ref_init_code_hash}")
+          raise UnknownInitCodeHash.new("No contract found with init code ehash: #{ref_init_code_hash}")
         end
 
         contract_classes[contract_name] = ref_artifact.build_class

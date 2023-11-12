@@ -4,7 +4,7 @@ describe 'Upgrading Contracts' do
   let(:user_address) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
 
   before(:all) do
-    RubidityFile.add_to_registry('spec/fixtures/UpgradeableTest.rubidity')
+    ContractArtifact.create_artifacts_from_files('spec/fixtures/UpgradeableTest.rubidity')
   end
   
   it 'is upgradeable' do
@@ -33,7 +33,7 @@ describe 'Upgrading Contracts' do
     
     expect(version).to eq(1)
 
-    hash = RubidityFile.registry.detect{|k, v| v.name == "UpgradeableV2"}.first
+    hash = ContractArtifact.class_from_name("UpgradeableV2").init_code_hash
     
     upgrade_tx = trigger_contract_interaction_and_expect_success(
       from: user_address,
@@ -190,7 +190,7 @@ describe 'Upgrading Contracts' do
   
     # Attempt to perform a re-entrancy attack via the malicious contract
     # Assuming that the hash used here is valid
-    valid_hash = RubidityFile.registry.detect{|k, v| v.name == "UpgradeableV2"}.first
+    valid_hash = ContractArtifact.class_from_name("UpgradeableV2").init_code_hash
   
     # This should fail, hence expect_error
     trigger_contract_interaction_and_expect_error(
@@ -234,7 +234,7 @@ describe 'Upgrading Contracts' do
     )
   
     # Upgrade to v2
-    hash_v2 = RubidityFile.registry.detect{|k, v| v.name == "UpgradeableV2"}.first
+    hash_v2 = ContractArtifact.class_from_name("UpgradeableV2").init_code_hash
     trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
@@ -253,7 +253,7 @@ describe 'Upgrading Contracts' do
     expect(version).to eq(2)
   
     # Upgrade to v3
-    hash_v3 = RubidityFile.registry.detect{|k, v| v.name == "UpgradeableV3"}.first
+    hash_v3 = ContractArtifact.class_from_name("UpgradeableV3").init_code_hash
     
     # First fail
     trigger_contract_interaction_and_expect_error(
@@ -313,7 +313,7 @@ describe 'Upgrading Contracts' do
       }
     )
   
-    hash_v2 = RubidityFile.registry.detect{|k, v| v.name == "UpgradeableV2"}.first
+    hash_v2 = ContractArtifact.class_from_name("UpgradeableV2").init_code_hash
     
     trigger_contract_interaction_and_expect_error(
       error_msg_includes: 'Contract is not upgradeable',
@@ -375,7 +375,7 @@ describe 'Upgrading Contracts' do
 
     # Set the next upgrade hash for A1 and B1
     # Assume hash_a2 and hash_b2 are the calculated hashes for A2 and B2
-    hash_a2 = RubidityFile.registry.detect{|k, v| v.name == "A2"}.first
+    hash_a2 = ContractArtifact.class_from_name("A2").init_code_hash
 
     
     trigger_contract_interaction_and_expect_success(
@@ -389,7 +389,7 @@ describe 'Upgrading Contracts' do
       }
     )
 
-    hash_b2 = RubidityFile.registry.detect{|k, v| v.name == "B2"}.first
+    hash_b2 = ContractArtifact.class_from_name("B2").init_code_hash
 
     trigger_contract_interaction_and_expect_success(
       from: user_address,
