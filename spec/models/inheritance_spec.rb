@@ -2,7 +2,7 @@ require 'rails_helper'
 
 RSpec.describe AbiProxy, type: :model do
   before(:all) do
-    RubidityFile.add_to_registry('spec/fixtures/TestContract.rubidity')
+    ContractArtifact.create_artifacts_from_files('spec/fixtures/TestContract.rubidity')
   end
   
   it "won't deploy abstract contract" do
@@ -173,25 +173,32 @@ RSpec.describe AbiProxy, type: :model do
   
   it "raises an error when declaring override without overriding anything" do
     expect {
-      RubidityFile.add_to_registry('spec/fixtures/TestContractOverrideNonVirtual2.rubidity')
+      ContractArtifact.create_artifacts_from_files('spec/fixtures/TestContractOverrideNonVirtual2.rubidity')
+      ContractArtifact.class_from_name('TestContractOverrideNonVirtual2')
     }.to raise_error(ContractErrors::InvalidOverrideError)
   end
   
   it "raises an error when trying to override a non-virtual function" do
     expect {
-      RubidityFile.add_to_registry('spec/fixtures/TestContractOverrideNonVirtual.rubidity')
+      ContractArtifact.create_artifacts_from_files('spec/fixtures/TestContractOverrideNonVirtual.rubidity')
+      ContractArtifact.class_from_name('TestContractOverrideNonVirtual')
+
     }.to raise_error(ContractErrors::InvalidOverrideError)
   end
   
   it "raises an error when trying to override a virtual function without the override modifier" do
     expect {
-      RubidityFile.add_to_registry('spec/fixtures/TestContractOverrideWithoutModifier.rubidity')
+      ContractArtifact.create_artifacts_from_files('spec/fixtures/TestContractOverrideWithoutModifier.rubidity')
+      ContractArtifact.class_from_name('TestContractOverrideWithoutModifier')
+
     }.to raise_error(ContractErrors::InvalidOverrideError)
   end
   
   it "raises an error when defining the same function twice in a contract" do
     expect {
-      RubidityFile.add_to_registry('spec/fixtures/TestContractDuplicateFunction.rubidity')
+      ContractArtifact.create_artifacts_from_files('spec/fixtures/TestContractDuplicateFunction.rubidity')
+      ContractArtifact.class_from_name('TestContractDuplicateFunction')
+
     }.to raise_error(ContractErrors::FunctionAlreadyDefinedError)
   end
 end

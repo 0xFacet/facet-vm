@@ -25,7 +25,7 @@ class Esc
     target = TransactionContext.current_contract
     
     begin
-      new_implementation_class = RubidityFile.find_by_init_code_hash!(new_init_code_hash)
+      new_implementation_class = ContractArtifact.class_from_init_code_hash!(new_init_code_hash)
     rescue UnknownInitCodeHash => e
       raise ContractError.new(e.message, target)
     end

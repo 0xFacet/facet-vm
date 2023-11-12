@@ -4,7 +4,7 @@ describe 'On Change and State Proxy Dirty Tracking' do
   let(:user_address) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
 
   before(:all) do
-    RubidityFile.add_to_registry('spec/fixtures/TestOnChange.rubidity')
+    ContractArtifact.create_artifacts_from_files('spec/fixtures/TestOnChange.rubidity')
   end
   
   it 'does a basic static call' do

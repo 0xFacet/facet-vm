@@ -80,11 +80,13 @@ class ContractImplementation
   def require(condition, message)
     caller_location = caller_locations.detect { |location| location.path.ends_with?(".rubidity") }
     
-    file = caller_location.path.gsub(%r{.*/}, '') 
-    line = caller_location.lineno
+    # TODO
+    
+    file = caller_location.path.gsub(%r{.*/}, '') rescue ''
+    line = caller_location.lineno rescue ''
     
     unless condition
-      emphasized_code = RubidityFile.emphasized_code_exerpt(name: file.split.first, line_number: line)
+      emphasized_code = ContractArtifact.emphasized_code_exerpt(name: file.split.first, line_number: line)
       
       error_message = "#{message}. (#{file}:#{line})\n\n#{emphasized_code}\n\n"
       raise ContractError.new(error_message, self)
@@ -273,7 +275,7 @@ class ContractImplementation
   end
   
   def self.calculate_new_contract_address_with_salt(salt, from_address, to_contract_init_code_hash)
-    target_implementation = RubidityFile.find_by_init_code_hash!(to_contract_init_code_hash)
+    target_implementation = ContractArtifact.class_from_init_code_hash!(to_contract_init_code_hash)
     
     unless target_implementation.present?
       raise TransactionError.new("Invalid contract version: #{to_contract_init_code_hash}")

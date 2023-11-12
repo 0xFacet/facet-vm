@@ -29,10 +29,11 @@ class Contract < ApplicationRecord
   end
   
   def implementation_class
-    RubidityFile.find_by_init_code_hash!(current_init_code_hash)
+    ContractArtifact.class_from_init_code_hash!(current_init_code_hash)
   end
   
   def self.types_that_implement(base_type)
+    return [] # TODO
     impl = RubidityFile.registry.values.detect{|i| i.name == base_type.to_s}
     
     RubidityFile.registry.values.reject(&:is_abstract_contract).select do |contract|
@@ -107,10 +108,14 @@ class Contract < ApplicationRecord
   end
   
   def self.deployable_contracts
+    # TODO
+    return []
     RubidityFile.registry.values.reject(&:is_abstract_contract)
   end
   
   def self.all_abis(deployable_only: false)
+    # TODO
+    return {}
     contract_classes = RubidityFile.registry.values.dup
     contract_classes.reject!(&:is_abstract_contract) if deployable_only
     

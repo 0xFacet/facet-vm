@@ -63,11 +63,11 @@ class ContractCall < ApplicationRecord
   end
   
   def to_contract_init_code_hash
-    @to_contract_init_code_hash ||= RubidityFile.find_by_name(to_contract_type)&.init_code_hash
+    @to_contract_init_code_hash ||= ContractArtifact.class_from_name(to_contract_type)&.init_code_hash
   end
   
   def to_contract_implementation
-    RubidityFile.find_by_init_code_hash!(to_contract_init_code_hash)
+    ContractArtifact.class_from_init_code_hash!(to_contract_init_code_hash)
   end
   
   def create_and_validate_new_contract!

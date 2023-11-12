@@ -10,7 +10,7 @@ describe 'UniswapV2Router contract' do
   let(:start_time) { Time.zone.now }
   
   before(:all) do
-    RubidityFile.add_to_registry('spec/fixtures/StubERC20.rubidity')
+    ContractArtifact.create_artifacts_from_files('spec/fixtures/StubERC20.rubidity')
   end
   
   def sqrt(integer)

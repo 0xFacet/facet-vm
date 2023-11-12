@@ -5,7 +5,7 @@ RSpec.describe Contract, type: :model do
   let(:trusted_address) { "0x019824B229400345510A3a7EFcFB77fD6A78D8d0" }
   
   before(:all) do
-    RubidityFile.add_to_registry('spec/fixtures/ERC20LiquidityPool.rubidity')
+    ContractArtifact.create_artifacts_from_files('spec/fixtures/ERC20LiquidityPool.rubidity')
   end
   
   before do
@@ -284,8 +284,8 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      v1_hash = "0x" + RubidityFile.find_by_name("EtherBridge").init_code_hash
-      v2_hash = "0x" + RubidityFile.find_by_name("EtherBridgeV2").init_code_hash
+      v1_hash = "0x" + ContractArtifact.class_from_name("EtherBridge").init_code_hash
+      v2_hash = "0x" + ContractArtifact.class_from_name("EtherBridgeV2").init_code_hash
 
       upgrade_tx = trigger_contract_interaction_and_expect_success(
         from: user_address,

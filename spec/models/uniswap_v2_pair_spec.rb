@@ -2,7 +2,7 @@ require 'rails_helper'
 
 RSpec.describe "UniswapV2Pair", type: :model do
   before(:all) do
-    RubidityFile.add_to_registry('spec/fixtures/UniswapV2CalleeTester.rubidity')
+    ContractArtifact.create_artifacts_from_files('spec/fixtures/UniswapV2CalleeTester.rubidity')
   end
   
   it 'executes the Uniswap V2 process' do
