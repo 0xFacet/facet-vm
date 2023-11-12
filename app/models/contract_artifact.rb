@@ -20,13 +20,21 @@ class ContractArtifact < ApplicationRecord
     def create_artifacts_from_files(new_files = [])
       artifact_hashes = RubidityTranspiler.transpile_multiple(new_files)
       
+      existing_artifacts = ContractArtifact.all.group_by(&:name)
+      
       artifact_hashes.each do |hsh|
-        artifact = ContractArtifact.find_or_initialize_by(init_code_hash: hsh[:init_code_hash])
+        artifact = existing_artifacts[hsh[:name]]&.find { |a| a.init_code_hash == hsh[:init_code_hash] } || ContractArtifact.new
         artifact.assign_attributes(hsh)
     
-        ContractArtifact.where(name: artifact.name).where.not(init_code_hash: artifact.init_code_hash).destroy_all
+        # Destroy all artifacts with the same name but a different init_code_hash
+        (existing_artifacts[artifact.name] || []).each do |existing_artifact|
+          existing_artifact.destroy unless existing_artifact.init_code_hash == artifact.init_code_hash
+        end
+        
+        artifact.save! unless ContractArtifact.exists?(init_code_hash: artifact.init_code_hash)
     
-        artifact.save!
+        # Update the existing_artifacts hash
+        existing_artifacts[artifact.name] = [artifact]
       end
     end
     
