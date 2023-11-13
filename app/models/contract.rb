@@ -107,7 +107,7 @@ class Contract < ApplicationRecord
   end
   
   def self.all_abis(...)
-    ContractArtifact.deployable_contracts(...)
+    ContractArtifact.all_abis(...)
   end
   
   def as_json(options = {})
