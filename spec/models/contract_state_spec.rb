@@ -11,7 +11,7 @@ RSpec.describe Contract, type: :model do
     EthBlock.create!(
       block_number: block_number,
       blockhash: blockhash,
-      parent_blockhash: blockhash,
+      parent_blockhash: block&.blockhash || "0x" + SecureRandom.hex(32),
       timestamp: Time.zone.now.to_i,
       imported_at: Time.zone.now,
       processing_state: "complete"

@@ -3,6 +3,11 @@ require 'rails_helper'
 describe 'Upgrading Contracts' do
   let(:user_address) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
 
+  before(:all) do
+    hashes = RubidityTranspiler.transpile_file("UpgradeableTest").map(&:init_code_hash)
+    ContractTestHelper.update_contract_allow_list(hashes)
+  end
+  
   it 'is upgradeable' do
     v1 = trigger_contract_interaction_and_expect_success(
       from: user_address,

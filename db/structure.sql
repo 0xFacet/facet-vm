@@ -178,6 +178,40 @@ CREATE TABLE public.ar_internal_metadata (
 
 
 --
+-- Name: contract_allow_list_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.contract_allow_list_versions (
+    id bigint NOT NULL,
+    ethscription_id character varying NOT NULL,
+    block_number bigint NOT NULL,
+    transaction_index bigint NOT NULL,
+    allow_list jsonb DEFAULT '[]'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: contract_allow_list_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.contract_allow_list_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: contract_allow_list_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.contract_allow_list_versions_id_seq OWNED BY public.contract_allow_list_versions.id;
+
+
+--
 -- Name: contract_artifacts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -520,6 +554,13 @@ CREATE TABLE public.schema_migrations (
 
 
 --
+-- Name: contract_allow_list_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_allow_list_versions ALTER COLUMN id SET DEFAULT nextval('public.contract_allow_list_versions_id_seq'::regclass);
+
+
+--
 -- Name: contract_artifacts id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -581,6 +622,14 @@ ALTER TABLE ONLY public.ethscriptions ALTER COLUMN id SET DEFAULT nextval('publi
 
 ALTER TABLE ONLY public.ar_internal_metadata
     ADD CONSTRAINT ar_internal_metadata_pkey PRIMARY KEY (key);
+
+
+--
+-- Name: contract_allow_list_versions contract_allow_list_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_allow_list_versions
+    ADD CONSTRAINT contract_allow_list_versions_pkey PRIMARY KEY (id);
 
 
 --
@@ -653,6 +702,20 @@ ALTER TABLE ONLY public.ethscriptions
 
 ALTER TABLE ONLY public.schema_migrations
     ADD CONSTRAINT schema_migrations_pkey PRIMARY KEY (version);
+
+
+--
+-- Name: idx_on_block_number_transaction_index_e2ce48ceae; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_block_number_transaction_index_e2ce48ceae ON public.contract_allow_list_versions USING btree (block_number, transaction_index);
+
+
+--
+-- Name: index_contract_allow_list_versions_on_ethscription_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contract_allow_list_versions_on_ethscription_id ON public.contract_allow_list_versions USING btree (ethscription_id);
 
 
 --
@@ -974,6 +1037,14 @@ ALTER TABLE ONLY public.contract_states
 
 
 --
+-- Name: contract_allow_list_versions fk_rails_61e3ad3da6; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_allow_list_versions
+    ADD CONSTRAINT fk_rails_61e3ad3da6 FOREIGN KEY (ethscription_id) REFERENCES public.ethscriptions(ethscription_id) ON DELETE CASCADE;
+
+
+--
 -- Name: contract_calls fk_rails_84969f6044; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1012,6 +1083,7 @@ ALTER TABLE ONLY public.contract_states
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20231113223006'),
 ('20231113184826'),
 ('20231110173854'),
 ('20231102162109'),

@@ -68,6 +68,67 @@ module ContractTestHelper
     payload
   end
   
+  def self.update_contract_allow_list(*new_hashes)
+    block_timestamp = Time.current.to_i
+    from = '0x0000000000000000000000000000000000000000'
+    mimetype = "application/vnd.facet.system+json"
+    
+    current_list = ContractAllowListVersion.current_list
+    
+    current_list += new_hashes
+    
+    payload = {
+      op: "updateContractAllowList",
+      data: current_list.flatten
+    }
+    
+    uri = %{#{mimetype},#{payload.to_json}}
+    
+    tx_hash = "0x" + SecureRandom.hex(32)
+    sha = Digest::SHA256.hexdigest(uri)
+    
+    existing = Ethscription.newest_first.first
+    
+    block = EthBlock.order(imported_at: :desc).first
+    
+    block_number = block&.block_number.to_i + 1
+    transaction_index = existing&.transaction_index.to_i + 1
+    
+    blockhash = "0x" + SecureRandom.hex(32)
+    
+    EthBlock.create!(
+      block_number: block_number,
+      blockhash: blockhash,
+      parent_blockhash: block&.blockhash || "0x" + SecureRandom.hex(32),
+      timestamp: Time.zone.now.to_i,
+      imported_at: Time.zone.now,
+      processing_state: "complete"
+    )
+    
+    ethscription_attrs = {
+      "ethscription_id"=>tx_hash,
+      "block_number"=> block_number,
+      "block_blockhash"=> blockhash,
+      "current_owner"=>from.downcase,
+      "creator"=>from.downcase,
+      creation_timestamp: block_timestamp,
+      "initial_owner"=>'0x0000000000000000000000000000000000000000',
+      "transaction_index"=>transaction_index,
+      "content_uri"=> uri,
+      "content_sha"=>sha,
+      mimetype: mimetype
+    }
+    
+    eth = Ethscription.create!(ethscription_attrs)
+    ContractAllowListVersion.create_from_ethscription!(eth)
+    end_time = Time.current
+
+    eth.update_columns(
+      contract_actions_processed_at: end_time,
+      updated_at: end_time
+    )
+  end
+  
   def self.trigger_contract_interaction(
     command: nil,
     from:,
@@ -82,6 +143,13 @@ module ContractTestHelper
       
       payload['data']['source_code'] = item.source_code
       payload['data']['init_code_hash'] = item.init_code_hash
+      
+      required_hashes = [item.init_code_hash] + item.references.values
+      
+      unless required_hashes.all? { |hash| ContractAllowListVersion.current_list.include?(hash) }
+        missing_hashes = required_hashes.reject { |hash| ContractAllowListVersion.current_list.include?(hash) }
+        update_contract_allow_list(*missing_hashes)
+      end
     end
     
     mimetype = ContractTransaction.required_mimetype

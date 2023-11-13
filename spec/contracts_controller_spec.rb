@@ -4,6 +4,7 @@ RSpec.describe ContractsController, type: :controller do
   describe 'GET #simulate_transaction' do
     transpiled = RubidityTranspiler.transpile_file("PublicMintERC20")
     item = transpiled.detect{|i| i.name.to_s == "PublicMintERC20"}
+    ContractTestHelper.update_contract_allow_list(item.init_code_hash)
     
     it 'simulates success' do
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
@@ -59,7 +60,8 @@ RSpec.describe ContractsController, type: :controller do
     it 'simulates failure' do
       transpiled = RubidityTranspiler.transpile_file("PublicMintERC20")
       item = transpiled.detect{|i| i.name.to_s == "PublicMintERC20"}
-      
+      ContractTestHelper.update_contract_allow_list(item.init_code_hash)
+
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
       data = {
         data: {

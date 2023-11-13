@@ -26,7 +26,7 @@ class Esc
     target = TransactionContext.current_contract
     
     begin
-      new_implementation_class = ContractArtifact.class_from_init_code_hash_or_source_code!(
+      new_implementation_class = TransactionContext.allow_listed_contract_class(
         new_init_code_hash,
         typed_source.value.presence
       )

@@ -4,6 +4,13 @@ RSpec.describe Contract, type: :model do
   let(:user_address) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
   let(:trusted_address) { "0x019824B229400345510A3a7EFcFB77fD6A78D8d0" }
   
+  before(:all) do
+    h1 = RubidityTranspiler.transpile_file("EtherBridge").map(&:init_code_hash)
+    h2 = RubidityTranspiler.transpile_file("EtherBridgeV2").map(&:init_code_hash)
+    
+    ContractTestHelper.update_contract_allow_list(h1, h2)
+  end
+  
   before do
     ENV['INDEXER_API_BASE_URI'] = "http://goerli-api.ethscriptions.com/api"
     
