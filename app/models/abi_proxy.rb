@@ -78,6 +78,7 @@ class AbiProxy
           
           func_proxy.convert_return_to_typed_variable(ret_val)
         rescue Contract::ContractArgumentError, Contract::VariableTypeError => e
+          # TODO
           caller_location = caller_locations.detect { |location| location.path.ends_with?(".rubidity") }
           
           if caller_location

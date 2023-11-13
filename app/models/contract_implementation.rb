@@ -78,15 +78,16 @@ class ContractImplementation
   end
   
   def require(condition, message)
-    return if condition == true
-    
-    if condition
+    unless condition == true || condition == false
       raise "Invalid truthy value for require"
     end
     
+    return if condition == true
+    
     caller_location = caller_locations.detect do |location|
-      self.class.linearized_parents.map(&:name).include?(location.path) ||
       location.path == self.class.name
+    end || caller_locations.detect do |location|
+      self.class.linearized_parents.map(&:name).include?(location.path)
     end
     
     file = caller_location.path
