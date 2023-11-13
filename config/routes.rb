@@ -16,7 +16,13 @@ Rails.application.routes.draw do
 
   resources :blocks, only: [:index, :show] do
     collection do
-      get '/totals', to: 'blocks#totals'
+      get '/total', to: 'blocks#total'
+    end
+  end
+
+  resources :transactions, only: [:index, :show] do
+    collection do
+      get '/total', to: 'transactions#total'
     end
   end
   

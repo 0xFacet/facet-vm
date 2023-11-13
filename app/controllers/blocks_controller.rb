@@ -30,13 +30,11 @@ class BlocksController < ApplicationController
     }
   end
 
-  def totals
+  def total
     total_blocks = EthBlock.count
-    total_ethscriptions = Ethscription.count
 
     render json: {
-      total_blocks: total_blocks,
-      total_transactions: total_ethscriptions
+      result: total_blocks
     }
   end
 end
