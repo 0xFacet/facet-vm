@@ -18,7 +18,7 @@ class TransactionsController < ApplicationController
   end
 
   def show
-    transaction = Ethscription.find_by(ethscription_id: params[:transaction_hash])
+    transaction = Ethscription.find_by(ethscription_id: params[:id])
 
     if transaction.blank?
       render json: { error: "Transaction not found" }, status: 404
