@@ -8,7 +8,7 @@ class ContractArtifact < ApplicationRecord
   before_validation :verify_ast_and_hash_on_save
   
   after_commit :flush_cache
-  delegate :reset_cache, to: :class
+  delegate :reset, to: :class
   
   class << self
     include ContractErrors
@@ -156,7 +156,7 @@ class ContractArtifact < ApplicationRecord
     self.class.flush_cache if self.class.respond_to?(:flush_cache)
   end
   
-  def self.reset_cache
+  def self.reset
     delete_all
     flush_cache
   end

@@ -39,7 +39,7 @@ RSpec.configure do |config|
   config.use_transactional_fixtures = true
   config.before(:suite) do
     if ActiveRecord::Base.connection.table_exists?('contract_artifacts')
-      ContractArtifact.reset_cache
+      ContractArtifact.reset
     end
   end
 
