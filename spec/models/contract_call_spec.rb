@@ -2,7 +2,7 @@ require 'rails_helper'
 
 RSpec.describe ContractCall, type: :model do
   before(:all) do
-    RubidityFile.add_to_registry('spec/fixtures/StubERC20B.rubidity')
+    ContractArtifact.create_artifacts_from_files('spec/fixtures/StubERC20B.rubidity')
   end
   
   let(:from_address) { '0xc2172a6315c1d7f6855768f843c420ebb36eda97' }

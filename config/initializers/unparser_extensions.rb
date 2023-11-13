@@ -1,6 +1,6 @@
 class Parser::AST::Node
   def unparse
-    Unparser.safe_unparse(self)
+    Unparser.unparse(self)
   end
 end
 
@@ -8,13 +8,14 @@ module Unparser
   class << self
     extend Memoist
     
-    memoize :unparse
+    alias_method :original_unparse, :unparse
+    memoize :original_unparse
     memoize :parse
-    
-    def safe_unparse(node)
-      code = Unparser.unparse(node)
-      test_node = Unparser.parse(code)
-      
+
+    def unparse(node)
+      code = original_unparse(node)
+      test_node = parse(code)
+
       unless test_node == node
         raise "Unparse error: #{code}"
       end

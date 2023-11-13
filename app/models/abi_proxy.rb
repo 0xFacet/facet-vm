@@ -78,13 +78,14 @@ class AbiProxy
           
           func_proxy.convert_return_to_typed_variable(ret_val)
         rescue Contract::ContractArgumentError, Contract::VariableTypeError => e
+          # TODO
           caller_location = caller_locations.detect { |location| location.path.ends_with?(".rubidity") }
           
           if caller_location
             file = caller_location.path.gsub(%r{.*/}, '')
             line = caller_location.lineno
             
-            emphasized_code = RubidityFile.emphasized_code_exerpt(name: file.split.first, line_number: line)
+            emphasized_code = ContractArtifact.emphasized_code_exerpt(name: file.split.first, line_number: line)
           end
           
           raise ContractError.new("Wrong args in #{method_name} (#{func_proxy.func_location}): #{e.message}\n\n#{emphasized_code}", self)

@@ -178,6 +178,42 @@ CREATE TABLE public.ar_internal_metadata (
 
 
 --
+-- Name: contract_artifacts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.contract_artifacts (
+    id bigint NOT NULL,
+    name character varying NOT NULL,
+    source_code text NOT NULL,
+    ast text NOT NULL,
+    init_code_hash character varying NOT NULL,
+    "references" jsonb DEFAULT '{}'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_rails_97d3d8e44e CHECK (((init_code_hash)::text ~ '^[a-f0-9]{64}$'::text))
+);
+
+
+--
+-- Name: contract_artifacts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.contract_artifacts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: contract_artifacts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.contract_artifacts_id_seq OWNED BY public.contract_artifacts.id;
+
+
+--
 -- Name: contract_calls; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -485,6 +521,13 @@ CREATE TABLE public.schema_migrations (
 
 
 --
+-- Name: contract_artifacts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_artifacts ALTER COLUMN id SET DEFAULT nextval('public.contract_artifacts_id_seq'::regclass);
+
+
+--
 -- Name: contract_calls id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -539,6 +582,14 @@ ALTER TABLE ONLY public.ethscriptions ALTER COLUMN id SET DEFAULT nextval('publi
 
 ALTER TABLE ONLY public.ar_internal_metadata
     ADD CONSTRAINT ar_internal_metadata_pkey PRIMARY KEY (key);
+
+
+--
+-- Name: contract_artifacts contract_artifacts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_artifacts
+    ADD CONSTRAINT contract_artifacts_pkey PRIMARY KEY (id);
 
 
 --
@@ -603,6 +654,20 @@ ALTER TABLE ONLY public.ethscriptions
 
 ALTER TABLE ONLY public.schema_migrations
     ADD CONSTRAINT schema_migrations_pkey PRIMARY KEY (version);
+
+
+--
+-- Name: index_contract_artifacts_on_init_code_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_contract_artifacts_on_init_code_hash ON public.contract_artifacts USING btree (init_code_hash);
+
+
+--
+-- Name: index_contract_artifacts_on_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_contract_artifacts_on_name ON public.contract_artifacts USING btree (name);
 
 
 --
@@ -948,6 +1013,7 @@ ALTER TABLE ONLY public.contract_states
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20231110173854'),
 ('20231102162109'),
 ('20231001152142'),
 ('20230928185853'),

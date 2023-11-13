@@ -3,10 +3,20 @@ class ContractBuilder < BasicObject
     available_contracts:,
     source:,
     filename:,
-    line_number:
+    line_number: 1
   )
     builder = new(available_contracts)
-    builder.instance_eval(source, filename, line_number)
+    new_class = builder.instance_eval(source, filename, line_number)
+    
+    new_class.tap do |contract_class|
+      ast = ::Unparser.parse(source)
+      creation_code = ast.inspect
+      init_code_hash = ::Digest::Keccak256.hexdigest(creation_code)
+      
+      contract_class.instance_variable_set(:@source_code, source)
+      contract_class.instance_variable_set(:@creation_code, creation_code)
+      contract_class.instance_variable_set(:@init_code_hash, init_code_hash)
+    end
   end
   
   def initialize(available_contracts)

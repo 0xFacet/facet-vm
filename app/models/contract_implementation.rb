@@ -78,17 +78,25 @@ class ContractImplementation
   end
   
   def require(condition, message)
-    caller_location = caller_locations.detect { |location| location.path.ends_with?(".rubidity") }
+    unless condition == true || condition == false
+      raise "Invalid truthy value for require"
+    end
     
-    file = caller_location.path.gsub(%r{.*/}, '') 
+    return if condition == true
+    
+    caller_location = caller_locations.detect do |location|
+      location.path == self.class.name
+    end || caller_locations.detect do |location|
+      self.class.linearized_parents.map(&:name).include?(location.path)
+    end
+    
+    file = caller_location.path
     line = caller_location.lineno
     
-    unless condition
-      emphasized_code = RubidityFile.emphasized_code_exerpt(name: file.split.first, line_number: line)
+    emphasized_code = ContractArtifact.emphasized_code_exerpt(name: file, line_number: line)
       
-      error_message = "#{message}. (#{file}:#{line})\n\n#{emphasized_code}\n\n"
-      raise ContractError.new(error_message, self)
-    end
+    error_message = "#{message}. (#{file}:#{line})\n\n#{emphasized_code}\n\n"
+    raise ContractError.new(error_message, self)
   end
   
   def self.public_abi
@@ -273,7 +281,7 @@ class ContractImplementation
   end
   
   def self.calculate_new_contract_address_with_salt(salt, from_address, to_contract_init_code_hash)
-    target_implementation = TransactionContext.implementation_from_init_code(to_contract_init_code_hash)
+    target_implementation = ContractArtifact.class_from_init_code_hash!(to_contract_init_code_hash)
     
     unless target_implementation.present?
       raise TransactionError.new("Invalid contract version: #{to_contract_init_code_hash}")

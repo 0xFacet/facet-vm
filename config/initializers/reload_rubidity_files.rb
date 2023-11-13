@@ -1,3 +1,5 @@
 Rails.application.reloader.to_prepare do
-  RubidityFile.clear_registry
+  if ActiveRecord::Base.connection.table_exists?('contract_artifacts')
+    ContractArtifact.reset
+  end
 end

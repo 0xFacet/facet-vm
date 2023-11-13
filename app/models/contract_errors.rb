@@ -31,4 +31,5 @@ module ContractErrors
   class InvalidEthscriptionError < StandardError; end
   class InvalidDestructuringError < StandardError; end
   class InvalidStateVariableChange < StandardError; end
+  class UnknownInitCodeHash < StandardError; end
 end

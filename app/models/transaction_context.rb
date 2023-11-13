@@ -2,7 +2,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
   attribute :call_stack, :current_call,
-  :transaction_hash, :transaction_index, :current_transaction, :contract_files
+  :transaction_hash, :transaction_index, :current_transaction
   
   delegate :get_active_contract, to: :current_transaction
   
@@ -29,31 +29,6 @@ class TransactionContext < ActiveSupport::CurrentAttributes
       struct_values = struct_params.map { |key| send("#{struct_name}_#{key}") }
     
       Struct.new(*struct_params).new(*struct_values)
-    end
-  end
-  
-  def contract_files=(new_files)
-    return super(new_files) unless new_files
-    
-    names = new_files.values.map(&:name)
-    
-    if names.uniq != names
-      raise "Duplicate contract names detected in contract_files"
-    end
-  
-    super(new_files)
-  end
-  
-  def implementation_from_init_code(init_code_hash)
-    return unless contract_files.present?
-    
-    init_code_hash = init_code_hash&.sub(/^0x/, '')
-    contract_files[init_code_hash]
-  end
-  
-  def implementation_from_type(type)
-    contract_files.values.detect do |contract|
-      contract.name == type.to_s
     end
   end
   

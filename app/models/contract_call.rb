@@ -63,20 +63,16 @@ class ContractCall < ApplicationRecord
   end
   
   def to_contract_init_code_hash
-    @to_contract_init_code_hash ||= TransactionContext.implementation_from_type(to_contract_type)&.init_code_hash
+    @to_contract_init_code_hash ||= ContractArtifact.class_from_name(to_contract_type)&.init_code_hash
   end
   
   def to_contract_implementation
-    TransactionContext.implementation_from_init_code(to_contract_init_code_hash)
+    ContractArtifact.class_from_init_code_hash!(to_contract_init_code_hash)
   end
   
   def create_and_validate_new_contract!
     if function
       raise ContractError.new("Cannot call function on contract creation")
-    end
-    
-    unless to_contract_implementation.present?
-      raise TransactionError.new("Invalid contract: #{to_contract_init_code_hash || to_contract_type}")
     end
     
     if to_contract_implementation.is_abstract_contract
@@ -91,6 +87,8 @@ class ContractCall < ApplicationRecord
     )
     
     self.function = :constructor
+  rescue UnknownInitCodeHash => e
+    raise TransactionError.new("Invalid contract: #{to_contract_init_code_hash || to_contract_type}")
   end
   
   def calculate_new_contract_address

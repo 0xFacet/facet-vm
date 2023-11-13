@@ -49,6 +49,8 @@ class EthscriptionSync
   end
   
   def self.check_for_reorgs
+    return unless EthBlock.exists?
+    
     EthBlock.transaction do
       db_blocks = EthBlock.order(block_number: :desc).limit(100)
   
