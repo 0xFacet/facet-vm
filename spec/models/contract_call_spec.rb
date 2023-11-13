@@ -1,10 +1,6 @@
 require 'rails_helper'
 
 RSpec.describe ContractCall, type: :model do
-  before(:all) do
-    ContractArtifact.create_artifacts_from_files('spec/fixtures/StubERC20B.rubidity')
-  end
-  
   let(:from_address) { '0xc2172a6315c1d7f6855768f843c420ebb36eda97' }
 
   it 'calculates eoa_nonce correctly' do

@@ -1,10 +1,6 @@
 require 'rails_helper'
 
 RSpec.describe AbiProxy, type: :model do
-  before(:all) do
-    ContractArtifact.create_artifacts_from_files('spec/fixtures/TestContract.rubidity')
-  end
-  
   it "won't deploy abstract contract" do
     deploy_receipt = trigger_contract_interaction_and_expect_deploy_error(
       command: 'deploy',
@@ -53,7 +49,7 @@ RSpec.describe AbiProxy, type: :model do
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "protocol": "TestContractNoOverride",
+        "protocol": "TestContractNoOverride:TestContract",
         "constructorArgs": {
           "name": "Test Token",
           "symbol": "TT",
@@ -81,7 +77,7 @@ RSpec.describe AbiProxy, type: :model do
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "protocol": "TestContractMultipleInheritance",
+        "protocol": "TestContractMultipleInheritance:TestContract",
         "constructorArgs": {
           "name": "Test Token",
           "symbol": "TT",
@@ -119,7 +115,7 @@ RSpec.describe AbiProxy, type: :model do
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       payload: {
         data: {
-          type: "TestContractMultipleInheritance",
+          type: "TestContractMultipleInheritance:TestContract",
           "args": {
             "name": "Test Token",
             "symbol": "TT",
@@ -173,31 +169,41 @@ RSpec.describe AbiProxy, type: :model do
   
   it "raises an error when declaring override without overriding anything" do
     expect {
-      ContractArtifact.create_artifacts_from_files('spec/fixtures/TestContractOverrideNonVirtual2.rubidity')
-      ContractArtifact.class_from_name('TestContractOverrideNonVirtual2')
+      item = RubidityTranspiler.transpile_and_get("TestContractOverrideNonVirtual2")
+      
+      ContractArtifact.class_from_init_code_hash_or_source_code!(
+        item.init_code_hash, item.source_code
+      )
     }.to raise_error(ContractErrors::InvalidOverrideError)
   end
   
   it "raises an error when trying to override a non-virtual function" do
     expect {
-      ContractArtifact.create_artifacts_from_files('spec/fixtures/TestContractOverrideNonVirtual.rubidity')
-      ContractArtifact.class_from_name('TestContractOverrideNonVirtual')
-
+      item = RubidityTranspiler.transpile_and_get("TestContractOverrideNonVirtual")
+      
+      ContractArtifact.class_from_init_code_hash_or_source_code!(
+        item.init_code_hash, item.source_code
+      )
     }.to raise_error(ContractErrors::InvalidOverrideError)
   end
   
   it "raises an error when trying to override a virtual function without the override modifier" do
     expect {
-      ContractArtifact.create_artifacts_from_files('spec/fixtures/TestContractOverrideWithoutModifier.rubidity')
-      ContractArtifact.class_from_name('TestContractOverrideWithoutModifier')
-
+      item = RubidityTranspiler.transpile_and_get("TestContractOverrideWithoutModifier")
+      
+      ContractArtifact.class_from_init_code_hash_or_source_code!(
+        item.init_code_hash, item.source_code
+      )
     }.to raise_error(ContractErrors::InvalidOverrideError)
   end
   
   it "raises an error when defining the same function twice in a contract" do
     expect {
-      ContractArtifact.create_artifacts_from_files('spec/fixtures/TestContractDuplicateFunction.rubidity')
-      ContractArtifact.class_from_name('TestContractDuplicateFunction')
+      item = RubidityTranspiler.transpile_and_get("TestContractDuplicateFunction")
+      
+      ContractArtifact.class_from_init_code_hash_or_source_code!(
+        item.init_code_hash, item.source_code
+      )
 
     }.to raise_error(ContractErrors::FunctionAlreadyDefinedError)
   end

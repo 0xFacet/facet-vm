@@ -1,10 +1,6 @@
 require 'rails_helper'
 
 RSpec.describe "UniswapV2Pair", type: :model do
-  before(:all) do
-    ContractArtifact.create_artifacts_from_files('spec/fixtures/UniswapV2CalleeTester.rubidity')
-  end
-  
   it 'executes the Uniswap V2 process' do
     # Deploy the ERC20 tokens
     tokenA_deploy_receipt = trigger_contract_interaction_and_expect_success(

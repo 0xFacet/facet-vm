@@ -287,8 +287,6 @@ class ContractImplementation
       raise TransactionError.new("Invalid contract version: #{to_contract_init_code_hash}")
     end
     
-    to_contract_type = target_implementation.name
-
     salt_hex = Integer(salt, 16).to_s(16)
     
     if salt_hex.length != 64
@@ -296,11 +294,6 @@ class ContractImplementation
     end
 
     padded_from = from_address.to_s[2..-1].rjust(64, "0")
-    
-    # TODO: Turn this on when we can blow everything away
-    unless Rails.env.test?
-      to_contract_init_code_hash = Digest::Keccak256.hexdigest(Digest::Keccak256.bindigest(to_contract_type))
-    end
     
     data = "0xff" + padded_from + salt_hex + to_contract_init_code_hash
 

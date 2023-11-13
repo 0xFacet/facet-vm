@@ -17,15 +17,19 @@ class Esc
     TypedVariable.create(:bytes32, code)
   end
   
-  def upgradeContract(new_init_code_hash)
+  def upgradeContract(new_init_code_hash, new_source_code)
     typed = TypedVariable.create_or_validate(:bytes32, new_init_code_hash)
+    typed_source = TypedVariable.create_or_validate(:string, new_source_code)
     
     new_init_code_hash = typed.value.sub(/^0x/, '')
     
     target = TransactionContext.current_contract
     
     begin
-      new_implementation_class = ContractArtifact.class_from_init_code_hash!(new_init_code_hash)
+      new_implementation_class = ContractArtifact.class_from_init_code_hash_or_source_code!(
+        new_init_code_hash,
+        typed_source.value.presence
+      )
     rescue UnknownInitCodeHash => e
       raise ContractError.new(e.message, target)
     end

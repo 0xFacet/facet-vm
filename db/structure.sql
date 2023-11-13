@@ -223,7 +223,6 @@ CREATE TABLE public.contract_calls (
     internal_transaction_index bigint NOT NULL,
     from_address character varying NOT NULL,
     to_contract_address character varying,
-    to_contract_type character varying,
     created_contract_address character varying,
     effective_contract_address character varying,
     function character varying,
@@ -667,7 +666,7 @@ CREATE UNIQUE INDEX index_contract_artifacts_on_init_code_hash ON public.contrac
 -- Name: index_contract_artifacts_on_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_contract_artifacts_on_name ON public.contract_artifacts USING btree (name);
+CREATE INDEX index_contract_artifacts_on_name ON public.contract_artifacts USING btree (name);
 
 
 --
@@ -1013,6 +1012,7 @@ ALTER TABLE ONLY public.contract_states
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20231113184826'),
 ('20231110173854'),
 ('20231102162109'),
 ('20231001152142'),

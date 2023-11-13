@@ -14,7 +14,7 @@ RSpec.describe ContractAstPreprocessor do
   
   it "disallows duplicate contract names" do
     expect {
-      ContractArtifact.create_artifacts_from_files(dupe_contract)
+      RubidityTranspiler.transpile_file(dupe_contract)
     }.to raise_error(/Duplicate contract names.*/)
   end
   

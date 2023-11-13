@@ -32,4 +32,5 @@ module ContractErrors
   class InvalidDestructuringError < StandardError; end
   class InvalidStateVariableChange < StandardError; end
   class UnknownInitCodeHash < StandardError; end
+  class UnknownContractName < StandardError; end
 end

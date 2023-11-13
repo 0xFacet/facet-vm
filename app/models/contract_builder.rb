@@ -5,8 +5,8 @@ class ContractBuilder < BasicObject
     filename:,
     line_number: 1
   )
-    builder = new(available_contracts)
-    new_class = builder.instance_eval(source, filename, line_number)
+    builder = new(available_contracts, source, filename, line_number)
+    new_class = builder.instance_eval_with_isolation
     
     new_class.tap do |contract_class|
       ast = ::Unparser.parse(source)
@@ -18,9 +18,25 @@ class ContractBuilder < BasicObject
       contract_class.instance_variable_set(:@init_code_hash, init_code_hash)
     end
   end
+
+  def instance_eval_with_isolation
+    instance_eval(@source, @filename, @line_number).tap do
+      remove_instance_variable(:@source)
+      remove_instance_variable(:@filename)
+      remove_instance_variable(:@line_number)
+      remove_instance_variable(:@available_contracts)
+    end
+  end
   
-  def initialize(available_contracts)
+  def remove_instance_variable(var)
+    ::Object.instance_method(:remove_instance_variable).bind(self).call(var)
+  end
+  
+  def initialize(available_contracts, source, filename, line_number)
     @available_contracts = available_contracts
+    @source = source
+    @filename = filename.to_s
+    @line_number = line_number
   end
   
   def pragma(...)
@@ -45,7 +61,9 @@ class ContractBuilder < BasicObject
       @name = name.to_s
       @available_contracts = available_contracts.merge(@name => self)
       
-      instance_eval(&block)
+      define_singleton_method(:evaluate_block, &block)
+      evaluate_block
+      singleton_class.remove_method(:evaluate_block)
     end
   end
 end

@@ -4,7 +4,7 @@ class ContractCall < ApplicationRecord
   enum :call_type, [ :call, :static_call, :create ], prefix: :is
   enum :status, [ :failure, :success ]
   
-  attr_accessor :to_contract, :salt, :pending_logs, :to_contract_init_code_hash
+  attr_accessor :to_contract, :salt, :pending_logs, :to_contract_init_code_hash, :to_contract_source_code
   
   belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true, inverse_of: :contract_calls
@@ -62,18 +62,15 @@ class ContractCall < ApplicationRecord
     end
   end
   
-  def to_contract_init_code_hash
-    @to_contract_init_code_hash ||= ContractArtifact.class_from_name(to_contract_type)&.init_code_hash
-  end
-  
-  def to_contract_implementation
-    ContractArtifact.class_from_init_code_hash!(to_contract_init_code_hash)
-  end
-  
   def create_and_validate_new_contract!
     if function
       raise ContractError.new("Cannot call function on contract creation")
     end
+    
+    to_contract_implementation = ContractArtifact.class_from_init_code_hash_or_source_code!(
+      to_contract_init_code_hash,
+      to_contract_source_code
+    )
     
     if to_contract_implementation.is_abstract_contract
       raise TransactionError.new("Cannot deploy abstract contract: #{to_contract_implementation.name}")
@@ -88,7 +85,7 @@ class ContractCall < ApplicationRecord
     
     self.function = :constructor
   rescue UnknownInitCodeHash => e
-    raise TransactionError.new("Invalid contract: #{to_contract_init_code_hash || to_contract_type}")
+    raise TransactionError.new("Invalid contract: #{to_contract_init_code_hash}")
   end
   
   def calculate_new_contract_address

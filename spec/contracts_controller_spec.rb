@@ -2,12 +2,16 @@ require 'rails_helper'
 
 RSpec.describe ContractsController, type: :controller do
   describe 'GET #simulate_transaction' do
+    transpiled = RubidityTranspiler.transpile_file("PublicMintERC20")
+    item = transpiled.detect{|i| i.name.to_s == "PublicMintERC20"}
+    
     it 'simulates success' do
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
       data = {
         to: nil,
         data: {
-          type: "PublicMintERC20",
+          source_code: item.source_code,
+          init_code_hash: item.init_code_hash,
           args: {
             "name": "My Fun Token",
             "symbol": "FUN",
@@ -53,10 +57,14 @@ RSpec.describe ContractsController, type: :controller do
     end
     
     it 'simulates failure' do
+      transpiled = RubidityTranspiler.transpile_file("PublicMintERC20")
+      item = transpiled.detect{|i| i.name.to_s == "PublicMintERC20"}
+      
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
       data = {
         data: {
-          type: "PublicMintERC20",
+          source_code: item.source_code,
+          init_code_hash: item.init_code_hash,
           args: {
             "name": "My Fun Token",
             "symbol": "FUN",

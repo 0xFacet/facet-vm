@@ -75,7 +75,14 @@ module ContractTestHelper
     payload: nil,
     block_timestamp: Time.current.to_i
   )
-    payload = transform_old_format_to_new(data || payload)
+    payload = transform_old_format_to_new(data || payload).with_indifferent_access
+    
+    if payload['data'] && payload['data']['type']
+      item = RubidityTranspiler.transpile_and_get(payload['data']['type'])
+      
+      payload['data']['source_code'] = item.source_code
+      payload['data']['init_code_hash'] = item.init_code_hash
+    end
     
     mimetype = ContractTransaction.required_mimetype
     uri = %{#{mimetype},#{payload.to_json}}

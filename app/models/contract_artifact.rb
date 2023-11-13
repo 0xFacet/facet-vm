@@ -18,45 +18,55 @@ class ContractArtifact < ApplicationRecord
       Dir.glob(Rails.root.join("app/models/contracts/*.rubidity"))
     end
     
-    def create_artifacts_from_files(new_files = [])
-      artifact_hashes = RubidityTranspiler.transpile_multiple(new_files)
-      
-      existing_artifacts = ContractArtifact.all.group_by(&:name)
-      
-      artifact_hashes.each do |hsh|
-        artifact = existing_artifacts[hsh[:name]]&.find { |a| a.init_code_hash == hsh[:init_code_hash] } || ContractArtifact.new
-        artifact.assign_attributes(hsh)
-    
-        # Destroy all artifacts with the same name but a different init_code_hash
-        (existing_artifacts[artifact.name] || []).each do |existing_artifact|
-          existing_artifact.destroy unless existing_artifact.init_code_hash == artifact.init_code_hash
-        end
-        
-        artifact.save! unless ContractArtifact.exists?(init_code_hash: artifact.init_code_hash)
-    
-        # Update the existing_artifacts hash
-        existing_artifacts[artifact.name] = [artifact]
-      end
-    end
-    
     def all_contract_classes
       all.map(&:build_class).index_by(&:init_code_hash).with_indifferent_access
     end
     memoize :all_contract_classes
     
-    def class_from_init_code_hash!(init_code_hash)
-      hash = init_code_hash&.sub(/^0x/, '')
-      all_contract_classes[hash].tap do |code|
-        unless code
-          raise UnknownInitCodeHash.new("No contract found with init code hash: #{init_code_hash.inspect}")
-        end
+    def class_from_init_code_hash_or_source_code!(init_code_hash, source_code = nil)
+      existing = ContractArtifact.find_by_init_code_hash(init_code_hash)
+      
+      return existing.build_class if existing
+      
+      raise "Need source code without init code hash" unless source_code
+      
+      transpiled = RubidityTranspiler.transpile_code_string(source_code)
+      
+      transpiled.each do |hsh|
+        new_artifact = ContractArtifact.new(hsh.to_h)
+        new_artifact.save! unless ContractArtifact.exists?(init_code_hash: new_artifact.init_code_hash)
       end
+      
+      class_from_init_code_hash_or_source_code!(init_code_hash)
     end
     
-    def class_from_name(name)
-      all_contract_classes.values.detect do |klass|
-        klass.name == name
+    def class_from_init_code_hash!(init_code_hash)
+      hash = init_code_hash&.sub(/^0x/, '')
+      
+      artifact = find_by_init_code_hash(hash)
+      
+      unless artifact
+        raise UnknownInitCodeHash.new("No contract found with init code hash: #{init_code_hash.inspect}")
       end
+      
+      artifact.build_class
+    end
+    
+    # TODO: remove
+    def class_from_name(name)
+      artifacts = where(name: name)
+      
+      if artifacts.count > 1
+        raise "Multiple artifacts found with name: #{name.inspect}"
+      end
+      
+      artifact = artifacts.first
+      
+      unless artifact
+        raise UnknownContractName.new("No contract found with name: #{name.inspect}")
+      end
+      
+      artifact.build_class
     end
     
     def build_class(ref_artifacts, source_code, name, init_code_hash)
@@ -153,16 +163,6 @@ class ContractArtifact < ApplicationRecord
   
   def flush_cache
     self.class.flush_cache if self.class.respond_to?(:flush_cache)
-  end
-  
-  def self.reset
-    require Rails.root.join('app', 'models', 'boolean_extensions.rb')
-
-    delete_all
-    create_artifacts_from_files(main_files)
-    flush_cache
-    all_contract_classes
-    nil
   end
   
   private

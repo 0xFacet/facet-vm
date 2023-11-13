@@ -1,10 +1,6 @@
 require 'rails_helper'
 
 describe 'UniswapV2Router contract' do
-  before(:all) do
-    ContractArtifact.create_artifacts_from_files('spec/fixtures/StubERC20.rubidity')
-  end
-  
   def sqrt(integer)
     integer = TypedVariable.create_or_validate(:uint256, integer)
 

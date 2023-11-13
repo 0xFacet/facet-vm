@@ -66,8 +66,8 @@ class ContractTransaction < ApplicationRecord
       # TODO: change this format?
       # At least "data" at the top level should be a JSON-encoded string
       initial_call_info: {
-        to_contract_type: data['type'],
         to_contract_init_code_hash: data['init_code_hash'],
+        to_contract_source_code: data['source_code'],
         to_contract_address: payload['to']&.downcase,
         function: data['function'],
         args: data['args'],

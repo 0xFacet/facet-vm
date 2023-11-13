@@ -9,10 +9,6 @@ describe 'UniswapV2Router contract' do
   let(:all_addresses) { [user_address, alice, bob, charlie] }
   let(:start_time) { Time.zone.now }
   
-  before(:all) do
-    ContractArtifact.create_artifacts_from_files('spec/fixtures/StubERC20.rubidity')
-  end
-  
   def sqrt(integer)
     integer = TypedVariable.create_or_validate(:uint256, integer)
 
