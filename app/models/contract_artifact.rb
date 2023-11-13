@@ -40,7 +40,6 @@ class ContractArtifact < ApplicationRecord
     end
     
     def all_contract_classes
-      create_artifacts_from_files(main_files)
       all.map(&:build_class).index_by(&:init_code_hash).with_indifferent_access
     end
     memoize :all_contract_classes
@@ -157,8 +156,13 @@ class ContractArtifact < ApplicationRecord
   end
   
   def self.reset
+    require Rails.root.join('app', 'models', 'boolean_extensions.rb')
+
     delete_all
+    create_artifacts_from_files(main_files)
     flush_cache
+    all_contract_classes
+    nil
   end
   
   private
