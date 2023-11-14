@@ -6,6 +6,10 @@ class TransactionsController < ApplicationController
     
     scope = ContractTransactionReceipt.newest_first
     
+    if params[:block_number].present?
+      scope = scope.where(block_number: params[:block_number])
+    end
+    
     cache_key = ["transactions_index", scope, page, per_page]
   
     result = Rails.cache.fetch(cache_key) do

@@ -18,7 +18,7 @@ class BlocksController < ApplicationController
   end
 
   def show
-    eth_block = EthBlock.includes(:contract_transaction_receipts).find_by(block_number: params[:id])
+    eth_block = EthBlock.find_by(block_number: params[:id])
 
     if eth_block.blank?
       render json: { error: "Block not found" }, status: 404
