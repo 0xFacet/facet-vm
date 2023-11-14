@@ -65,6 +65,8 @@ module ContractTestHelper
   end
   
   def self.dep
+    ContractTestHelper.set_initial_allow_list
+    
     @creation_receipt = ContractTestHelper.trigger_contract_interaction(
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
@@ -135,7 +137,8 @@ module ContractTestHelper
       parent_blockhash: block&.blockhash || "0x" + SecureRandom.hex(32),
       timestamp: Time.zone.now.to_i,
       imported_at: Time.zone.now,
-      processing_state: "complete"
+      processing_state: "complete",
+      transaction_count: 0
     )
     
     ethscription_attrs = {
@@ -195,7 +198,8 @@ module ContractTestHelper
       parent_blockhash: block&.blockhash || "0x" + SecureRandom.hex(32),
       timestamp: Time.zone.now.to_i,
       imported_at: Time.zone.now,
-      processing_state: "complete"
+      processing_state: "complete",
+      transaction_count: 1
     )
     
     ethscription_attrs = {

@@ -1,10 +1,15 @@
 class ContractTransactionReceipt < ApplicationRecord
+  belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, touch: true
+
   belongs_to :contract, primary_key: 'address', foreign_key: 'contract_address', touch: true, optional: true
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
   belongs_to :ethscription,
   primary_key: 'ethscription_id', foreign_key: 'transaction_hash',
   touch: true, optional: true
   has_one :contract, through: :contract_transaction
+  
+  scope :newest_first, -> { order(block_number: :desc, transaction_index: :desc) }
+  scope :oldest_first, -> { order(block_number: :asc, transaction_index: :asc) }
 
   enum status: {
     success: 0,
@@ -48,14 +53,13 @@ class ContractTransactionReceipt < ApplicationRecord
           :function_name,
           :function_args,
           :error_message,
-          :logs
+          :logs,
+          :block_blockhash,
+          :block_number,
+          :transaction_index
         ]
       )
-    ).tap do |json|
-      [:block_blockhash, :block_number, :transaction_index].each do |key|
-        json[key] = contract_transaction&.public_send(key)
-      end
-    end.with_indifferent_access
+    ).with_indifferent_access
   end
 
   private
