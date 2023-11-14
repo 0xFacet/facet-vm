@@ -4,7 +4,7 @@ class BlocksController < ApplicationController
     per_page = (params[:per_page] || 50).to_i
     per_page = 50 if per_page > 50
     
-    scope = EthBlock.includes(:ethscriptions).order(block_number: :desc)
+    scope = EthBlock.order(block_number: :desc)
     
     cache_key = ["blocks_index", scope, page, per_page]
   
@@ -18,7 +18,7 @@ class BlocksController < ApplicationController
   end
 
   def show
-    eth_block = EthBlock.includes(:ethscriptions).find_by(block_number: params[:id])
+    eth_block = EthBlock.includes(:contract_transaction_receipts).find_by(block_number: params[:id])
 
     if eth_block.blank?
       render json: { error: "Block not found" }, status: 404

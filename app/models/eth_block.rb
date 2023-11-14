@@ -90,9 +90,21 @@ class EthBlock < ApplicationRecord
   end
 
   def as_json(options = {})
-    super(options).merge({
-      ethscriptions: ethscriptions&.as_json
-    })
+    super(options.merge(
+      only: [
+        :block_number,
+        :timestamp,
+        :blockhash,
+        :parent_blockhash,
+        :imported_at,
+        :processing_state,
+        :transaction_count,
+      ]
+    )).tap do |json|
+      if association(:contract_transaction_receipts).loaded?
+        json[:contract_transaction_receipts] = contract_transaction_receipts.map(&:as_json)
+      end
+    end.with_indifferent_access
   end
   
   private

@@ -84,6 +84,7 @@ class ContractTransaction < ApplicationRecord
     self.contract_transaction_receipt = ContractTransactionReceipt.new(
       transaction_hash: transaction_hash,
       block_number: block_number,
+      block_blockhash: block_blockhash,
       transaction_index: transaction_index,
       caller: initial_call.from_address,
       timestamp: Time.zone.at(block_timestamp),

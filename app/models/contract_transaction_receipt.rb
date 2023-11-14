@@ -53,14 +53,13 @@ class ContractTransactionReceipt < ApplicationRecord
           :function_name,
           :function_args,
           :error_message,
-          :logs
+          :logs,
+          :block_blockhash,
+          :block_number,
+          :transaction_index
         ]
       )
-    ).tap do |json|
-      [:block_blockhash, :block_number, :transaction_index].each do |key|
-        json[key] = contract_transaction&.public_send(key)
-      end
-    end.with_indifferent_access
+    ).with_indifferent_access
   end
 
   private

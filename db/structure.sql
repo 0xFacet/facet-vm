@@ -359,8 +359,10 @@ CREATE TABLE public.contract_transaction_receipts (
     contract_address character varying,
     block_number bigint NOT NULL,
     transaction_index bigint NOT NULL,
+    block_blockhash character varying NOT NULL,
     CONSTRAINT chk_rails_6a479b86d0 CHECK (((contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_bb3c17a6f6 CHECK (((caller)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_ec6dc7521c CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_fac62f5815 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 

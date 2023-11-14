@@ -2,9 +2,11 @@ class AddBlockNumberAndTxIndexToTransactionReceipts < ActiveRecord::Migration[7.
   def change
     add_column :contract_transaction_receipts, :block_number, :bigint, null: false
     add_column :contract_transaction_receipts, :transaction_index, :bigint, null: false
+    add_column :contract_transaction_receipts, :block_blockhash, :string, null: false
     
     add_index :contract_transaction_receipts, [:block_number, :transaction_index], unique: true
     
+    add_check_constraint :contract_transaction_receipts, "block_blockhash ~ '^0x[a-f0-9]{64}$'"
     add_column :eth_blocks, :transaction_count, :bigint
     
     reversible do |dir|
