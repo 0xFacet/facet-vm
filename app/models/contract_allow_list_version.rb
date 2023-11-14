@@ -24,7 +24,7 @@ class ContractAllowListVersion < ApplicationRecord
       end
       
       data = content['data']
-      unless data.is_a?(Array) && data.all? { |element| element.is_a?(String) }
+      unless data.is_a?(Array) && data.all? { |el| el.to_s =~ /\A0x[a-f0-9]{64}\z/ }
         raise "Invalid data: #{data.inspect}"
       end
       

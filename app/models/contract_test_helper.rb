@@ -26,6 +26,30 @@ module ContractTestHelper
     interaction
   end
   
+  def self.set_initial_allow_list
+    new_names = [
+      "EtherBridge",
+      "EtherBridgeV2",
+      "EthscriptionERC20Bridge",
+      "GenerativeERC721",
+      "OpenEditionERC721",
+      "PublicMintERC20",
+      "UniswapSetupZapV2",
+      "UniswapV2Factory",
+      "UniswapV2Pair",
+      "UniswapV2Router",
+      "UniswapV2RouterWithRewards",
+      "UnsafeNoApprovalERC20",
+    ]
+    
+    new_hashes = new_names.map do |name|
+      item = RubidityTranspiler.transpile_and_get(name)
+      item.init_code_hash
+    end
+    
+    ContractTestHelper.update_contract_allow_list(*new_hashes)
+  end
+  
   def update_contract_allow_list(*new_names)
     new_hashes = new_names.map do |name|
       item = RubidityTranspiler.transpile_and_get(name)
