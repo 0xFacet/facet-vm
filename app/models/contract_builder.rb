@@ -1,4 +1,4 @@
-class ContractBuilder < Object
+class ContractBuilder < BasicObject
   def self.build_contract_class(artifact)
     registry = {}.with_indifferent_access
     
