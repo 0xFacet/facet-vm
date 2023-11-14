@@ -117,12 +117,12 @@ class RubidityTranspiler
     
     sub_transpiler = self.class.new(desired_artifact.source_code)
     
-    artifacts = sub_transpiler.generate_contract_artifacts
+    new_artifacts = sub_transpiler.generate_contract_artifacts
   
-    desired_artifact_attributes = artifacts.last.attributes
-    references = artifacts.reject { |i| i.name == desired_artifact.name }
+    references = new_artifacts.reject { |i| i.name == desired_artifact.name }
     
-    ContractArtifact.new(desired_artifact_attributes.merge(references: references))
+    desired_artifact.references = references
+    desired_artifact
   end
   
   def generate_contract_artifacts
