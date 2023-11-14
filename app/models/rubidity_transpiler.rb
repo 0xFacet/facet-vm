@@ -4,6 +4,8 @@ class RubidityTranspiler
   attr_accessor :filename
   
   class << self
+    extend Memoist
+    
     def transpile_file(filename)
       new(filename).generate_contract_artifacts
     end
@@ -15,6 +17,19 @@ class RubidityTranspiler
       
       new(file || contract_type).get_desired_artifact(contract_type)
     end
+    
+    def find_and_transpile(init_code_hash)
+      contracts_dir = Rails.root.join('app', 'models', 'contracts')
+      Dir.glob("#{contracts_dir}/*.rubidity").each do |file|
+        transpiler = new(file)
+        artifacts = transpiler.generate_contract_artifacts
+        if artifacts.any? { |artifact| artifact.init_code_hash == init_code_hash }
+          return transpiler.get_desired_artifact(init_code_hash)
+        end
+      end
+      raise "No contract found with init code hash: #{init_code_hash.inspect}"
+    end
+    memoize :find_and_transpile
   end
   
   def initialize(filename_or_string)

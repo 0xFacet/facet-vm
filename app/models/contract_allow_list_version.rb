@@ -3,6 +3,8 @@ class ContractAllowListVersion < ApplicationRecord
   primary_key: 'ethscription_id', foreign_key: 'transaction_hash',
   touch: true, optional: true
   
+  # TODO: permissioned address
+  
   scope :newest_first, -> {
     order(block_number: :desc, transaction_index: :desc) 
   }
@@ -46,6 +48,12 @@ class ContractAllowListVersion < ApplicationRecord
   
   def self.current_list
     newest_first.first&.allow_list || []
+  end
+  
+  def self.current_artifacts
+    current_list.map do |item|
+      RubidityTranspiler.find_and_transpile(item)
+    end
   end
   
   def as_json(options = {})
