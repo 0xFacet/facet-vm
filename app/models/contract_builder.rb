@@ -4,18 +4,16 @@ class ContractBuilder < Object
     
     artifact.dependencies_and_self.each do |dep|
       builder = new(registry, dep.source_code, dep.name, 1)
-      new_class = builder.instance_eval_with_isolation
+      contract_class = builder.instance_eval_with_isolation
       
-      new_class.tap do |contract_class|
-        contract_class.instance_variable_set(:@source_code, dep.source_code)
-        contract_class.instance_variable_set(:@init_code_hash, dep.init_code_hash)
-        registry[dep.name] = contract_class
-        
-        contract_class.instance_variable_set(
-          :@available_contracts,
-          registry.deep_dup
-        )
-      end
+      contract_class.instance_variable_set(:@source_code, dep.source_code)
+      contract_class.instance_variable_set(:@init_code_hash, dep.init_code_hash)
+      registry[dep.name] = contract_class
+      
+      contract_class.instance_variable_set(
+        :@available_contracts,
+        registry.deep_dup
+      )
     end
     
     registry[artifact.name]
