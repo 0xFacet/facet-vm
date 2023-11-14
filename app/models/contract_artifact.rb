@@ -40,9 +40,7 @@ class ContractArtifact < ApplicationRecord
     end
     
     def class_from_init_code_hash!(init_code_hash)
-      hash = init_code_hash&.sub(/^0x/, '')
-      
-      artifact = find_by_init_code_hash(hash)
+      artifact = find_by_init_code_hash(init_code_hash)
       
       unless artifact
         raise UnknownInitCodeHash.new("No contract found with init code hash: #{init_code_hash.inspect}")
@@ -170,8 +168,9 @@ class ContractArtifact < ApplicationRecord
 
   def verify_ast_and_hash
     parsed_ast = Unparser.parse(source_code).inspect
+    hsh = "0x" + Digest::Keccak256.hexdigest(parsed_ast)
 
-    if Digest::Keccak256.hexdigest(parsed_ast) != init_code_hash
+    if hsh != init_code_hash
       raise CodeIntegrityError.new("Hash mismatch")
     end
   end

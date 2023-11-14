@@ -288,6 +288,7 @@ class ContractImplementation
     end
 
     padded_from = from_address.to_s[2..-1].rjust(64, "0")
+    to_contract_init_code_hash = Integer(to_contract_init_code_hash, 16).to_s(16)
     
     data = "0xff" + padded_from + salt_hex + to_contract_init_code_hash
 

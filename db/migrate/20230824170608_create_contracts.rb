@@ -16,7 +16,7 @@ class CreateContracts < ActiveRecord::Migration[7.0]
       t.timestamps
       
       t.check_constraint "contract_id ~ '^0x[a-f0-9]{64}$'"
-      t.check_constraint "current_init_code_hash ~ '^[a-f0-9]{64}$'"
+      t.check_constraint "current_init_code_hash ~ '^0x[a-f0-9]{64}$'"
     end
     
     remove_index :contracts, :contract_id

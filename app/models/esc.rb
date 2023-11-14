@@ -12,16 +12,14 @@ class Esc
   def getImplementationHash
     target = TransactionContext.current_contract.implementation_class
     
-    code = "0x" + target.init_code_hash
-    
-    TypedVariable.create(:bytes32, code)
+    TypedVariable.create(:bytes32, target.init_code_hash)
   end
   
   def upgradeContract(new_init_code_hash, new_source_code)
     typed = TypedVariable.create_or_validate(:bytes32, new_init_code_hash)
     typed_source = TypedVariable.create_or_validate(:string, new_source_code)
     
-    new_init_code_hash = typed.value.sub(/^0x/, '')
+    new_init_code_hash = typed.value
     
     target = TransactionContext.current_contract
     

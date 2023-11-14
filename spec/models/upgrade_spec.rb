@@ -42,7 +42,7 @@ describe 'Upgrading Contracts' do
         to: v1.contract_address,
         data: {
           function: "upgradeFromV1",
-          args: ["0x" + v2.init_code_hash, v2.source_code]
+          args: [v2.init_code_hash, v2.source_code]
         }
       }
     )
@@ -244,7 +244,7 @@ describe 'Upgrading Contracts' do
         to: v1.contract_address,
         data: {
           function: "upgradeFromV1",
-          args: ["0x" + hash_v2, v2.source_code]
+          args: [hash_v2, v2.source_code]
         }
       }
     )
@@ -267,7 +267,7 @@ describe 'Upgrading Contracts' do
         to: v1.contract_address,
         data: {
           function: "upgradeAndRevert",  # Assuming you have a similar function in V2 for further upgrades
-          args: ["0x" + hash_v3, v3.source_code]
+          args: [hash_v3, v3.source_code]
         }
       }
     )
@@ -276,7 +276,7 @@ describe 'Upgrading Contracts' do
       contract: v1.address,
       function_name: "lastUpgradeHash",
     )
-    expect(lastUpgradeHash).to eq("0x" + hash_v2)
+    expect(lastUpgradeHash).to eq(hash_v2)
     
     expect(Contract.find_by_address(v1.contract_address).current_init_code_hash).to eq(hash_v2)
     
@@ -286,7 +286,7 @@ describe 'Upgrading Contracts' do
         to: v1.contract_address,
         data: {
           function: "upgradeFromV2",  # Assuming you have a similar function in V2 for further upgrades
-          args: ["0x" + hash_v3, v3.source_code]
+          args: [hash_v3, v3.source_code]
         }
       }
     )
@@ -327,7 +327,7 @@ describe 'Upgrading Contracts' do
         to: v1.contract_address,
         data: {
           function: "upgradeFromV1",
-          args: ["0x" + hash_v2, v2.source_code]
+          args: [hash_v2, v2.source_code]
         }
       }
     )
@@ -392,7 +392,7 @@ describe 'Upgrading Contracts' do
         to: a1.address,
         data: {
           function: "setNextUpgradeHash",
-          args: ["0x" + hash_a2, a2.source_code]
+          args: [hash_a2, a2.source_code]
         }
       }
     )
@@ -406,7 +406,7 @@ describe 'Upgrading Contracts' do
         to: b1.address,
         data: {
           function: "setNextUpgradeHash",
-          args: ["0x" + hash_b2, b2.source_code]
+          args: [hash_b2, b2.source_code]
         }
       }
     )

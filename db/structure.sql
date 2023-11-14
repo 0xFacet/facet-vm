@@ -225,7 +225,7 @@ CREATE TABLE public.contract_artifacts (
     pragma_version character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT chk_rails_97d3d8e44e CHECK (((init_code_hash)::text ~ '^[a-f0-9]{64}$'::text))
+    CONSTRAINT chk_rails_e07e6a7a0d CHECK (((init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
 
@@ -315,9 +315,9 @@ CREATE TABLE public.contract_states (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     contract_address character varying NOT NULL,
-    CONSTRAINT chk_rails_05016dab2f CHECK (((init_code_hash)::text ~ '^[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_0d9a27b31a CHECK (((contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_e8714d0639 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
+    CONSTRAINT chk_rails_e8714d0639 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_ec7c2a761e CHECK (((init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
 
@@ -434,7 +434,7 @@ CREATE TABLE public.contracts (
     address character varying NOT NULL,
     CONSTRAINT chk_rails_6d0039a684 CHECK (((address)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_c653bcbc93 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT chk_rails_cc2872e127 CHECK (((current_init_code_hash)::text ~ '^[a-f0-9]{64}$'::text))
+    CONSTRAINT chk_rails_e1095f7a6a CHECK (((current_init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
 

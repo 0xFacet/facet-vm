@@ -106,7 +106,7 @@ class RubidityTranspiler
   end
   
   def compute_init_code_hash(ast)
-    Digest::Keccak256.hexdigest(ast.inspect)
+    "0x" + Digest::Keccak256.hexdigest(ast.inspect)
   end
   
   def get_desired_artifact(name_or_init_hash)

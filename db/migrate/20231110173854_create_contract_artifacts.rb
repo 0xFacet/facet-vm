@@ -11,7 +11,7 @@ class CreateContractArtifacts < ActiveRecord::Migration[7.1]
       t.index :name
       t.index :init_code_hash, unique: true
       
-      t.check_constraint "init_code_hash ~ '^[a-f0-9]{64}$'"
+      t.check_constraint "init_code_hash ~ '^0x[a-f0-9]{64}$'"
       
       t.timestamps
     end
