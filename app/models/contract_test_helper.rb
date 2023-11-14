@@ -26,6 +26,15 @@ module ContractTestHelper
     interaction
   end
   
+  def update_contract_allow_list(*new_names)
+    new_hashes = new_names.map do |name|
+      item = RubidityTranspiler.transpile_and_get(name)
+      item.init_code_hash
+    end
+    
+    ContractTestHelper.update_contract_allow_list(*new_hashes)
+  end
+  
   def failure_message(interaction)
     test_location = caller_locations.find { |location| location.path.include?('/spec/') }
     "\nCall error: #{interaction.error_message}\nTest failed at: #{test_location}"
@@ -119,14 +128,10 @@ module ContractTestHelper
       mimetype: mimetype
     }
     
-    eth = Ethscription.create!(ethscription_attrs)
-    ContractAllowListVersion.create_from_ethscription!(eth)
-    end_time = Time.current
-
-    eth.update_columns(
-      contract_actions_processed_at: end_time,
-      updated_at: end_time
-    )
+    Ethscription.transaction do
+      eth = Ethscription.create!(ethscription_attrs)
+      ContractAllowListVersion.create_from_ethscription!(eth)
+    end
   end
   
   def self.trigger_contract_interaction(
@@ -144,7 +149,7 @@ module ContractTestHelper
       payload['data']['source_code'] = item.source_code
       payload['data']['init_code_hash'] = item.init_code_hash
       
-      required_hashes = [item.init_code_hash] + item.references.values
+      required_hashes = [item.init_code_hash]
       
       unless required_hashes.all? { |hash| ContractAllowListVersion.current_list.include?(hash) }
         missing_hashes = required_hashes.reject { |hash| ContractAllowListVersion.current_list.include?(hash) }

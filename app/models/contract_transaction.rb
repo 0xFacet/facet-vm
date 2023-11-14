@@ -95,7 +95,13 @@ class ContractTransaction < ApplicationRecord
   end
   
   def self.simulate_transaction(from:, tx_payload:)
-    cache_key = [:simulate_transaction, ContractState.all, from, tx_payload]
+    cache_key = [
+      :simulate_transaction,
+      ContractState.all,
+      ContractAllowListVersion.all,
+      from,
+      tx_payload
+    ]
   
     Rails.cache.fetch(cache_key) do
       mimetype = ContractTransaction.required_mimetype

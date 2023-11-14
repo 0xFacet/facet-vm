@@ -1,22 +1,24 @@
-class ContractBuilder < BasicObject
-  def self.build_contract_class(
-    available_contracts:,
-    source:,
-    filename:,
-    line_number: 1
-  )
-    builder = new(available_contracts, source, filename, line_number)
-    new_class = builder.instance_eval_with_isolation
+class ContractBuilder < Object
+  def self.build_contract_class(artifact)
+    registry = {}.with_indifferent_access
     
-    new_class.tap do |contract_class|
-      ast = ::Unparser.parse(source)
-      creation_code = ast.inspect
-      init_code_hash = ::Digest::Keccak256.hexdigest(creation_code)
+    artifact.dependencies_and_self.each do |dep|
+      builder = new(registry, dep.source_code, dep.name, 1)
+      new_class = builder.instance_eval_with_isolation
       
-      contract_class.instance_variable_set(:@source_code, source)
-      contract_class.instance_variable_set(:@creation_code, creation_code)
-      contract_class.instance_variable_set(:@init_code_hash, init_code_hash)
+      new_class.tap do |contract_class|
+        contract_class.instance_variable_set(:@source_code, dep.source_code)
+        contract_class.instance_variable_set(:@init_code_hash, dep.init_code_hash)
+        registry[dep.name] = contract_class
+        
+        contract_class.instance_variable_set(
+          :@available_contracts,
+          registry.deep_dup
+        )
+      end
     end
+    
+    registry[artifact.name]
   end
 
   def instance_eval_with_isolation
@@ -24,12 +26,7 @@ class ContractBuilder < BasicObject
       remove_instance_variable(:@source)
       remove_instance_variable(:@filename)
       remove_instance_variable(:@line_number)
-      remove_instance_variable(:@available_contracts)
     end
-  end
-  
-  def remove_instance_variable(var)
-    ::Object.instance_method(:remove_instance_variable).bind(self).call(var)
   end
   
   def initialize(available_contracts, source, filename, line_number)
@@ -45,7 +42,7 @@ class ContractBuilder < BasicObject
   def contract(name, is: [], abstract: false, upgradeable: false, &block)
     available_contracts = @available_contracts
     
-    implementation_klass = ::Class.new(::ContractImplementation) do
+    ::Class.new(::ContractImplementation) do
       @parent_contracts = []
       
       ::Array.wrap(is).each do |dep|
@@ -59,11 +56,16 @@ class ContractBuilder < BasicObject
       @is_upgradeable = upgradeable
       @is_abstract_contract = abstract
       @name = name.to_s
-      @available_contracts = available_contracts.merge(@name => self)
       
       define_singleton_method(:evaluate_block, &block)
       evaluate_block
       singleton_class.remove_method(:evaluate_block)
     end
+  end
+  
+  private
+  
+  def remove_instance_variable(var)
+    ::Object.instance_method(:remove_instance_variable).bind(self).call(var)
   end
 end

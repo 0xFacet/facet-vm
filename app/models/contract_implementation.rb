@@ -3,7 +3,7 @@ class ContractImplementation
   include ForLoop
   
   class << self
-    attr_reader :name, :is_abstract_contract, :source_code, :creation_code,
+    attr_reader :name, :is_abstract_contract, :source_code,
     :init_code_hash, :parent_contracts, :available_contracts, :source_file,
     :is_upgradeable
     
@@ -226,12 +226,6 @@ class ContractImplementation
     
     if contract_class.is_abstract_contract
       raise "Cannot instantiate abstract contract"
-    end
-    
-    Object.new.tap do |proxy|
-      proxy.define_singleton_method(:creationCode) do
-        contract_class.creation_code
-      end
     end
   end
   

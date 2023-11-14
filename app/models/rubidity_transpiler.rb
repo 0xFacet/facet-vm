@@ -4,32 +4,16 @@ class RubidityTranspiler
   attr_accessor :filename
   
   class << self
-    def transpile_multiple(files)
-      if files.is_a?(String) && File.directory?(files)
-        files = Dir.glob(File.join(files, "*.rubidity"))
-      end
-      
-      artifacts = Array.wrap(files).map do |file|
-        file = Rails.root.join(file) unless File.exist?(file)
-        transpile_file(file)
-      end
-      
-      artifacts.flatten
-    end
-    
     def transpile_file(filename)
       new(filename).generate_contract_artifacts
     end
     
-    def transpile_code_string(string)
-      new(string).generate_contract_artifacts
-    end
-    
     def transpile_and_get(contract_type)
-      contract_type, file = contract_type.split(":")
+      unless contract_type.include?(" ")
+        contract_type, file = contract_type.split(":")
+      end
       
-      transpiled = RubidityTranspiler.transpile_file(file || contract_type)
-      transpiled.detect{|i| i.name.to_s == contract_type}
+      new(file || contract_type).get_desired_artifact(contract_type)
     end
   end
   
@@ -74,6 +58,16 @@ class RubidityTranspiler
     file_ast.children.first
   end
   
+  def pragma_lang_and_version
+    pragma_parser = Class.new(BasicObject) do
+      def self.pragma(lang, version)
+        [lang, version]
+      end
+    end
+    
+    pragma_parser.instance_eval(Unparser.unparse(pragma_node))
+  end
+  
   def contract_asts
     contract_nodes = []
     
@@ -115,27 +109,41 @@ class RubidityTranspiler
     Digest::Keccak256.hexdigest(ast.inspect)
   end
   
+  def get_desired_artifact(name_or_init_hash)
+    desired_artifact = generate_contract_artifacts.detect do |artifact|
+      artifact.name.to_s == name_or_init_hash.to_s ||
+      artifact.init_code_hash == name_or_init_hash.to_s
+    end
+    
+    sub_transpiler = self.class.new(desired_artifact.source_code)
+    
+    artifacts = sub_transpiler.generate_contract_artifacts
+  
+    desired_artifact_attributes = artifacts.last.attributes
+    references = artifacts.reject { |i| i.name == desired_artifact.name }
+    
+    ContractArtifact.new(desired_artifact_attributes.merge(references: references))
+  end
+  
   def generate_contract_artifacts
     unless contract_names == contract_names.uniq
       raise "Duplicate contract names in #{filename}: #{contract_names}"
     end
   
-    contract_references = {}.with_indifferent_access
     preprocessed_contract_asts.each_with_object([]) do |contract_ast, artifacts|
-      new_ast = ast_with_pragma(contract_ast)
-      new_source = new_ast.unparse
+      contract_ast = ast_with_pragma(contract_ast)
+
+      new_source = contract_ast.unparse
       contract_name = extract_contract_name(contract_ast)
-      init_code_hash = compute_init_code_hash(new_ast)
+      init_code_hash = compute_init_code_hash(contract_ast)
   
-      artifacts << OpenStruct.new({
+      artifacts << ContractArtifact.new(
         init_code_hash: init_code_hash,
         name: contract_name,
-        ast: new_ast.inspect,
         source_code: new_source,
-        references: contract_references.dup
-      })
-  
-      contract_references[contract_name] = init_code_hash
+        pragma_language: pragma_lang_and_version.first,
+        pragma_version: pragma_lang_and_version.last
+      )
     end
   end
 end

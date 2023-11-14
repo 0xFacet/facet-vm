@@ -183,7 +183,7 @@ CREATE TABLE public.ar_internal_metadata (
 
 CREATE TABLE public.contract_allow_list_versions (
     id bigint NOT NULL,
-    ethscription_id character varying NOT NULL,
+    transaction_hash character varying NOT NULL,
     block_number bigint NOT NULL,
     transaction_index bigint NOT NULL,
     allow_list jsonb DEFAULT '[]'::jsonb NOT NULL,
@@ -219,9 +219,10 @@ CREATE TABLE public.contract_artifacts (
     id bigint NOT NULL,
     name character varying NOT NULL,
     source_code text NOT NULL,
-    ast text NOT NULL,
     init_code_hash character varying NOT NULL,
-    "references" jsonb DEFAULT '{}'::jsonb NOT NULL,
+    "references" jsonb DEFAULT '[]'::jsonb NOT NULL,
+    pragma_language character varying NOT NULL,
+    pragma_version character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_rails_97d3d8e44e CHECK (((init_code_hash)::text ~ '^[a-f0-9]{64}$'::text))
@@ -712,10 +713,10 @@ CREATE UNIQUE INDEX idx_on_block_number_transaction_index_e2ce48ceae ON public.c
 
 
 --
--- Name: index_contract_allow_list_versions_on_ethscription_id; Type: INDEX; Schema: public; Owner: -
+-- Name: index_contract_allow_list_versions_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_contract_allow_list_versions_on_ethscription_id ON public.contract_allow_list_versions USING btree (ethscription_id);
+CREATE UNIQUE INDEX index_contract_allow_list_versions_on_transaction_hash ON public.contract_allow_list_versions USING btree (transaction_hash);
 
 
 --
@@ -1037,11 +1038,11 @@ ALTER TABLE ONLY public.contract_states
 
 
 --
--- Name: contract_allow_list_versions fk_rails_61e3ad3da6; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: contract_allow_list_versions fk_rails_791881fb33; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.contract_allow_list_versions
-    ADD CONSTRAINT fk_rails_61e3ad3da6 FOREIGN KEY (ethscription_id) REFERENCES public.ethscriptions(ethscription_id) ON DELETE CASCADE;
+    ADD CONSTRAINT fk_rails_791881fb33 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(ethscription_id) ON DELETE CASCADE;
 
 
 --
@@ -1084,7 +1085,6 @@ SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
 ('20231113223006'),
-('20231113184826'),
 ('20231110173854'),
 ('20231102162109'),
 ('20231001152142'),

@@ -1,6 +1,51 @@
 require 'rails_helper'
 
 RSpec.describe ContractImplementation, type: :model do
+  before(:all) do
+    hashes = RubidityTranspiler.transpile_file("ERC20Receiver").map(&:init_code_hash)
+    
+    ContractTestHelper.update_contract_allow_list(*hashes)
+    
+    trigger_contract_interaction_and_expect_success(
+      from: "0x" + "0" * 40,
+      payload: {
+        data: {
+          type: "ERC20Minimal:ERC20Receiver",
+          args: ["a", "b", 1]
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: "0x" + "0" * 40,
+      payload: {
+        data: {
+          type: "AddressArg:ERC20Receiver",
+          args: "0x" + "0" * 40
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: "0x" + "0" * 40,
+      payload: {
+        data: {
+          type: "CallerTwo:ERC20Receiver",
+          args: "0x" + "0" * 40
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: "0x" + "0" * 40,
+      payload: {
+        data: {
+          type: "MultiDeployer:ERC20Receiver",
+        }
+      }
+    )
+  end
+  
   it "sets msg.sender correctly when one contract calls another" do
     caller_deploy_receipt = trigger_contract_interaction_and_expect_success(
       command: 'deploy',
