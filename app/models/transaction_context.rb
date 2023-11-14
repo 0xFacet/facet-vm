@@ -1,7 +1,7 @@
 class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
-  attribute :call_stack, :current_call,
+  attribute :call_stack, :current_call, :allow_list_contracts,
   :transaction_hash, :transaction_index, :current_transaction
   
   delegate :get_active_contract, to: :current_transaction
@@ -30,6 +30,17 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     
       Struct.new(*struct_params).new(*struct_values)
     end
+  end
+  
+  def allow_listed_contract_class(init_code_hash, source_code = nil)
+    unless allow_list_contracts.include?(init_code_hash)
+      raise %{Contract hash not on allow list: #{init_code_hash.inspect}}
+    end
+    
+    ContractArtifact.class_from_init_code_hash_or_source_code!(
+      init_code_hash,
+      source_code
+    )
   end
   
   def log_event(event)

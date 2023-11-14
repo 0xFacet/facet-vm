@@ -5,7 +5,10 @@ RSpec.describe Contract, type: :model do
   let(:trusted_address) { "0x019824B229400345510A3a7EFcFB77fD6A78D8d0" }
   
   before(:all) do
-    ContractArtifact.create_artifacts_from_files('spec/fixtures/ERC20LiquidityPool.rubidity')
+    h1 = RubidityTranspiler.transpile_file("EtherBridge").map(&:init_code_hash)
+    h2 = RubidityTranspiler.transpile_file("EtherBridgeV2").map(&:init_code_hash)
+    
+    ContractTestHelper.update_contract_allow_list(h1, h2)
   end
   
   before do
@@ -59,11 +62,15 @@ RSpec.describe Contract, type: :model do
     end
     
     it "will simulate a deploy transaction" do
+      transpiled = RubidityTranspiler.transpile_file("PublicMintERC20")
+      item = transpiled.detect{|i| i.name.to_s == "PublicMintERC20"}
+
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
       data = {
         to: nil,
         data: {
-          type: "PublicMintERC20",
+          source_code: item.source_code,
+          init_code_hash: item.init_code_hash,
           args: {
             "name": "My Fun Token",
             "symbol": "FUN",
@@ -284,16 +291,16 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      v1_hash = "0x" + ContractArtifact.class_from_name("EtherBridge").init_code_hash
-      v2_hash = "0x" + ContractArtifact.class_from_name("EtherBridgeV2").init_code_hash
-
+      v1_hash = RubidityTranspiler.transpile_and_get("EtherBridge").init_code_hash
+      v2 = RubidityTranspiler.transpile_and_get("EtherBridgeV2")
+      
       upgrade_tx = trigger_contract_interaction_and_expect_success(
         from: user_address,
         payload: {
           to: bridge.contract_address,
           data: {
             function: "upgrade",
-            args: v2_hash
+            args: [v2.init_code_hash, v2.source_code]
           }
         }
       )
@@ -303,7 +310,7 @@ RSpec.describe Contract, type: :model do
       end
 
       expect(contract_upgraded_event['data']['oldHash']).to eq(v1_hash)
-      expect(contract_upgraded_event['data']['newHash']).to eq(v2_hash)
+      expect(contract_upgraded_event['data']['newHash']).to eq(v2.init_code_hash)
       
       bridge = trigger_contract_interaction_and_expect_success(
         from: user_address,
@@ -355,6 +362,8 @@ RSpec.describe Contract, type: :model do
         }
       }
       
+      v2 = RubidityTranspiler.transpile_and_get("EtherBridgeV2")
+      
       upgrade_tx = trigger_contract_interaction_and_expect_success(
         from: user_address,
         payload: {
@@ -362,7 +371,8 @@ RSpec.describe Contract, type: :model do
           data: {
             function: "upgradeAndCall",
             args: {
-              newHash: v2_hash,
+              newHash: v2.init_code_hash,
+              newSource: '',
               migrationCalldata: migrationCalldata.to_json
             }
           }
@@ -374,7 +384,7 @@ RSpec.describe Contract, type: :model do
       end
 
       expect(contract_upgraded_event['data']['oldHash']).to eq(v1_hash)
-      expect(contract_upgraded_event['data']['newHash']).to eq(v2_hash)
+      expect(contract_upgraded_event['data']['newHash']).to eq(v2.init_code_hash)
       
       bal = ContractTransaction.make_static_call(
         contract: bridge.contract_address,
@@ -391,13 +401,15 @@ RSpec.describe Contract, type: :model do
       expect(bal).to eq(300)
       expect(pending).to eq(200)
       
+      v1 = RubidityTranspiler.transpile_and_get("EtherBridge")
+      
       upgrade_tx = trigger_contract_interaction_and_expect_success(
         from: user_address,
         payload: {
           to: bridge.contract_address,
           data: {
             function: "upgrade",
-            args: v1_hash
+            args: [v1.init_code_hash, v1.source_code]
           }
         }
       )
@@ -406,8 +418,8 @@ RSpec.describe Contract, type: :model do
         i['event'] == 'ContractUpgraded'
       end
 
-      expect(contract_upgraded_event['data']['oldHash']).to eq(v2_hash)
-      expect(contract_upgraded_event['data']['newHash']).to eq(v1_hash)
+      expect(contract_upgraded_event['data']['oldHash']).to eq(v2.init_code_hash)
+      expect(contract_upgraded_event['data']['newHash']).to eq(v1.init_code_hash)
       
       bal = ContractTransaction.make_static_call(
         contract: bridge.contract_address,

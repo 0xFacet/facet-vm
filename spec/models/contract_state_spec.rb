@@ -11,7 +11,7 @@ RSpec.describe Contract, type: :model do
     EthBlock.create!(
       block_number: block_number,
       blockhash: blockhash,
-      parent_blockhash: blockhash,
+      parent_blockhash: block&.blockhash || "0x" + SecureRandom.hex(32),
       timestamp: Time.zone.now.to_i,
       imported_at: Time.zone.now,
       processing_state: "complete"
@@ -52,7 +52,7 @@ RSpec.describe Contract, type: :model do
     @contract = Contract.create!(
       transaction_hash: @ethscription.ethscription_id,
       current_type: 'SomeType',
-      current_init_code_hash: SecureRandom.hex(32),
+      current_init_code_hash: "0x" + SecureRandom.hex(32),
       created_at: Time.now,
       updated_at: Time.now,
       address: '0x' + SecureRandom.hex(20),
@@ -129,7 +129,7 @@ RSpec.describe Contract, type: :model do
     it 'updates the current_state, current_type, and current_init_code_hash of the Contract' do
       new_state = { key: 'value' }
       new_type = 'NewType'
-      new_init_code_hash = SecureRandom.hex(32)
+      new_init_code_hash = "0x" + SecureRandom.hex(32)
   
       ContractState.create!(
         transaction_hash: @ethscription.ethscription_id,

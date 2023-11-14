@@ -4,30 +4,42 @@ class RubidityTranspiler
   attr_accessor :filename
   
   class << self
-    def transpile_multiple(files)
-      if files.is_a?(String) && File.directory?(files)
-        files = Dir.glob(File.join(files, "*.rubidity"))
-      end
-      
-      artifacts = Array.wrap(files).map do |file|
-        file = Rails.root.join(file) unless File.exist?(file)
-        transpile_file(file)
-      end
-      
-      artifacts.flatten
-    end
-    
     def transpile_file(filename)
       new(filename).generate_contract_artifacts
     end
-  end
     
-  def initialize(filename)
-    self.filename = filename
+    def transpile_and_get(contract_type)
+      unless contract_type.include?(" ")
+        contract_type, file = contract_type.split(":")
+      end
+      
+      new(file || contract_type).get_desired_artifact(contract_type)
+    end
+  end
+  
+  def initialize(filename_or_string)
+    if File.exist?(filename_or_string)
+      self.filename = filename_or_string
+    else
+      with_suffix = "#{filename_or_string}.rubidity"
+      contracts_path = Rails.root.join('app', 'models', 'contracts', with_suffix)
+      if File.exist?(contracts_path)
+        self.filename = contracts_path
+      else
+        # Check if the file exists in "spec/fixtures"
+        fixtures_path = Rails.root.join('spec', 'fixtures', with_suffix)
+        if File.exist?(fixtures_path)
+          self.filename = fixtures_path
+        else
+          # If the file doesn't exist in any of the directories, treat the input as a code string
+          @file_ast = Unparser.parse(filename_or_string)
+        end
+      end
+    end
   end
   
   def filename=(filename)
-    absolute_path = if filename.start_with?("./")
+    absolute_path = if filename.to_s.start_with?("./")
       base_dir = File.dirname(filename)
       File.join(base_dir, filename[2..])
     else
@@ -38,12 +50,22 @@ class RubidityTranspiler
   end
   
   def file_ast
-    ImportResolver.process(filename)
+    @file_ast || ImportResolver.process(filename)
   end
   memoize :file_ast
   
   def pragma_node
     file_ast.children.first
+  end
+  
+  def pragma_lang_and_version
+    pragma_parser = Class.new(BasicObject) do
+      def self.pragma(lang, version)
+        [lang, version]
+      end
+    end
+    
+    pragma_parser.instance_eval(Unparser.unparse(pragma_node))
   end
   
   def contract_asts
@@ -84,7 +106,23 @@ class RubidityTranspiler
   end
   
   def compute_init_code_hash(ast)
-    Digest::Keccak256.hexdigest(ast.inspect)
+    "0x" + Digest::Keccak256.hexdigest(ast.inspect)
+  end
+  
+  def get_desired_artifact(name_or_init_hash)
+    desired_artifact = generate_contract_artifacts.detect do |artifact|
+      artifact.name.to_s == name_or_init_hash.to_s ||
+      artifact.init_code_hash == name_or_init_hash.to_s
+    end
+    
+    sub_transpiler = self.class.new(desired_artifact.source_code)
+    
+    new_artifacts = sub_transpiler.generate_contract_artifacts
+  
+    references = new_artifacts.reject { |i| i.name == desired_artifact.name }
+    
+    desired_artifact.references = references
+    desired_artifact
   end
   
   def generate_contract_artifacts
@@ -92,22 +130,20 @@ class RubidityTranspiler
       raise "Duplicate contract names in #{filename}: #{contract_names}"
     end
   
-    contract_references = {}.with_indifferent_access
     preprocessed_contract_asts.each_with_object([]) do |contract_ast, artifacts|
-      new_ast = ast_with_pragma(contract_ast)
-      new_source = new_ast.unparse
+      contract_ast = ast_with_pragma(contract_ast)
+
+      new_source = contract_ast.unparse
       contract_name = extract_contract_name(contract_ast)
-      init_code_hash = compute_init_code_hash(new_ast)
+      init_code_hash = compute_init_code_hash(contract_ast)
   
-      artifacts << {
+      artifacts << ContractArtifact.new(
         init_code_hash: init_code_hash,
         name: contract_name,
-        ast: new_ast.inspect,
         source_code: new_source,
-        references: contract_references.dup
-      }
-  
-      contract_references[contract_name] = init_code_hash
+        pragma_language: pragma_lang_and_version.first,
+        pragma_version: pragma_lang_and_version.last
+      )
     end
   end
 end

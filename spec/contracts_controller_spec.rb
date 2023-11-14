@@ -1,13 +1,20 @@
 require 'rails_helper'
 
 RSpec.describe ContractsController, type: :controller do
+  let(:item) { RubidityTranspiler.transpile_and_get("PublicMintERC20") }
+  
+  before(:all) do
+    update_contract_allow_list("PublicMintERC20")
+  end
+  
   describe 'GET #simulate_transaction' do
     it 'simulates success' do
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
       data = {
         to: nil,
         data: {
-          type: "PublicMintERC20",
+          source_code: item.source_code,
+          init_code_hash: item.init_code_hash,
           args: {
             "name": "My Fun Token",
             "symbol": "FUN",
@@ -56,7 +63,8 @@ RSpec.describe ContractsController, type: :controller do
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
       data = {
         data: {
-          type: "PublicMintERC20",
+          source_code: item.source_code,
+          init_code_hash: item.init_code_hash,
           args: {
             "name": "My Fun Token",
             "symbol": "FUN",

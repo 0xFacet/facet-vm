@@ -143,7 +143,6 @@ contract :MultiDeployer do
 
   function :deployContracts, { deployerAddress: :address }, :public, returns: :address do
     contract = new CallerTwo(deployerAddress)
-    # ::Kernel.binding.pry
     testNoArgs = new MultiDeployer()
     
     contract.callDeployer()

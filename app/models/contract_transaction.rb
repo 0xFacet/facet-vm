@@ -66,8 +66,8 @@ class ContractTransaction < ApplicationRecord
       # TODO: change this format?
       # At least "data" at the top level should be a JSON-encoded string
       initial_call_info: {
-        to_contract_type: data['type'],
         to_contract_init_code_hash: data['init_code_hash'],
+        to_contract_source_code: data['source_code'],
         to_contract_address: payload['to']&.downcase,
         function: data['function'],
         args: data['args'],
@@ -95,7 +95,13 @@ class ContractTransaction < ApplicationRecord
   end
   
   def self.simulate_transaction(from:, tx_payload:)
-    cache_key = [:simulate_transaction, ContractState.all, from, tx_payload]
+    cache_key = [
+      :simulate_transaction,
+      ContractState.all,
+      ContractAllowListVersion.all,
+      from,
+      tx_payload
+    ]
   
     Rails.cache.fetch(cache_key) do
       mimetype = ContractTransaction.required_mimetype
@@ -157,6 +163,7 @@ class ContractTransaction < ApplicationRecord
   
   def with_global_context
     TransactionContext.set(
+      allow_list_contracts: ContractAllowListVersion.current_list,
       call_stack: CallStack.new,
       current_transaction: self,
       tx_origin: tx_origin,

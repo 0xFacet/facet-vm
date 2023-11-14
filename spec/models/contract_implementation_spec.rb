@@ -2,7 +2,48 @@ require 'rails_helper'
 
 RSpec.describe ContractImplementation, type: :model do
   before(:all) do
-    ContractArtifact.create_artifacts_from_files('spec/fixtures/ERC20Receiver.rubidity')
+    hashes = RubidityTranspiler.transpile_file("ERC20Receiver").map(&:init_code_hash)
+    
+    ContractTestHelper.update_contract_allow_list(*hashes)
+    
+    trigger_contract_interaction_and_expect_success(
+      from: "0x" + "0" * 40,
+      payload: {
+        data: {
+          type: "ERC20Minimal:ERC20Receiver",
+          args: ["a", "b", 1]
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: "0x" + "0" * 40,
+      payload: {
+        data: {
+          type: "AddressArg:ERC20Receiver",
+          args: "0x" + "0" * 40
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: "0x" + "0" * 40,
+      payload: {
+        data: {
+          type: "CallerTwo:ERC20Receiver",
+          args: "0x" + "0" * 40
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: "0x" + "0" * 40,
+      payload: {
+        data: {
+          type: "MultiDeployer:ERC20Receiver",
+        }
+      }
+    )
   end
   
   it "sets msg.sender correctly when one contract calls another" do
@@ -10,7 +51,7 @@ RSpec.describe ContractImplementation, type: :model do
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "protocol": "Caller",
+        "protocol": "Caller:ERC20Receiver",
         "constructorArgs": {},
       }
     )
@@ -19,7 +60,7 @@ RSpec.describe ContractImplementation, type: :model do
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "protocol": "Receiver",
+        "protocol": "Receiver:ERC20Receiver",
         "constructorArgs": {},
       }
     )
@@ -69,7 +110,7 @@ RSpec.describe ContractImplementation, type: :model do
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "protocol": "Caller",
+        "protocol": "Caller:ERC20Receiver",
         "constructorArgs": {},
       }
     )
@@ -78,7 +119,7 @@ RSpec.describe ContractImplementation, type: :model do
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "protocol": "ERC20Receiver",
+        "protocol": "ERC20Receiver:ERC20Receiver",
         "constructorArgs": {},
       }
     )
@@ -87,7 +128,7 @@ RSpec.describe ContractImplementation, type: :model do
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "protocol": "Receiver",
+        "protocol": "Receiver:ERC20Receiver",
         "constructorArgs": {},
       }
     )
@@ -122,7 +163,7 @@ RSpec.describe ContractImplementation, type: :model do
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "protocol": "Deployer",
+        "protocol": "Deployer:ERC20Receiver",
         "constructorArgs": {},
       }
     )
@@ -147,7 +188,7 @@ RSpec.describe ContractImplementation, type: :model do
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "protocol": "Deployer",
+        "protocol": "Deployer:ERC20Receiver",
         "constructorArgs": {},
       }
     )
@@ -169,7 +210,7 @@ RSpec.describe ContractImplementation, type: :model do
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "protocol": "ERC20Minimal",
+        "protocol": "ERC20Minimal:ERC20Receiver",
         "constructorArgs": ["name", 'symbol', 10],
       }
     )
@@ -179,7 +220,7 @@ RSpec.describe ContractImplementation, type: :model do
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "protocol": "Deployer",
+        "protocol": "Deployer:ERC20Receiver",
         "constructorArgs": {},
       }
     )
@@ -231,7 +272,7 @@ RSpec.describe ContractImplementation, type: :model do
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "protocol": "Deployer",
+        "protocol": "Deployer:ERC20Receiver",
         "constructorArgs": {},
       }
     )
@@ -241,7 +282,7 @@ RSpec.describe ContractImplementation, type: :model do
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       data: {
-        "protocol": "MultiDeployer",
+        "protocol": "MultiDeployer:ERC20Receiver",
       }
     )
 

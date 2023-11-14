@@ -23,7 +23,7 @@ class CreateContractStates < ActiveRecord::Migration[7.0]
       
       t.check_constraint "contract_id ~ '^0x[a-f0-9]{64}$'"
       t.check_constraint "ethscription_id ~ '^0x[a-f0-9]{64}$'"
-      t.check_constraint "init_code_hash::text ~ '^[a-f0-9]{64}$'"
+      t.check_constraint "init_code_hash::text ~ '^0x[a-f0-9]{64}$'"
     end
     
     execute <<-SQL

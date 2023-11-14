@@ -4,7 +4,8 @@ describe 'Upgrading Contracts' do
   let(:user_address) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
 
   before(:all) do
-    ContractArtifact.create_artifacts_from_files('spec/fixtures/UpgradeableTest.rubidity')
+    hashes = RubidityTranspiler.transpile_file("UpgradeableTest").map(&:init_code_hash)
+    ContractTestHelper.update_contract_allow_list(hashes)
   end
   
   it 'is upgradeable' do
@@ -13,7 +14,7 @@ describe 'Upgrading Contracts' do
       payload: {
         to: nil,
         data: {
-          type: "UpgradeableV1"
+          type: "UpgradeableV1:UpgradeableTest"
         }
       }
     )
@@ -33,15 +34,15 @@ describe 'Upgrading Contracts' do
     
     expect(version).to eq(1)
 
-    hash = ContractArtifact.class_from_name("UpgradeableV2").init_code_hash
-    
+    v2 = RubidityTranspiler.transpile_and_get("UpgradeableV2:UpgradeableTest")
+
     upgrade_tx = trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
         to: v1.contract_address,
         data: {
           function: "upgradeFromV1",
-          args: "0x" + hash
+          args: [v2.init_code_hash, v2.source_code]
         }
       }
     )
@@ -78,7 +79,7 @@ describe 'Upgrading Contracts' do
       from: user_address,
       payload: {
         data: {
-          type: "callStackDepth1"
+          type: "callStackDepth1:UpgradeableTest"
         }
       }
     )
@@ -87,7 +88,7 @@ describe 'Upgrading Contracts' do
       from: user_address,
       payload: {
         data: {
-          type: "callStackDepth2"
+          type: "callStackDepth2:UpgradeableTest"
         }
       }
     )
@@ -111,7 +112,7 @@ describe 'Upgrading Contracts' do
       payload: {
         to: nil,
         data: {
-          type: "UpgradeableV1"
+          type: "UpgradeableV1:UpgradeableTest"
         }
       }
     )
@@ -147,7 +148,7 @@ describe 'Upgrading Contracts' do
       payload: {
         to: nil,
         data: {
-          type: "UpgradeableV1"
+          type: "UpgradeableV1:UpgradeableTest"
         }
       }
     )
@@ -183,14 +184,15 @@ describe 'Upgrading Contracts' do
       payload: {
         to: nil,
         data: {
-          type: "MaliciousReentrancy"
+          type: "MaliciousReentrancy:UpgradeableTest"
         }
       }
     )
   
     # Attempt to perform a re-entrancy attack via the malicious contract
     # Assuming that the hash used here is valid
-    valid_hash = ContractArtifact.class_from_name("UpgradeableV2").init_code_hash
+    v2 = RubidityTranspiler.transpile_and_get("UpgradeableV2:UpgradeableTest")
+    valid_hash = v2.init_code_hash
   
     # This should fail, hence expect_error
     trigger_contract_interaction_and_expect_error(
@@ -228,20 +230,21 @@ describe 'Upgrading Contracts' do
       payload: {
         to: nil,
         data: {
-          type: "UpgradeableV1"
+          type: "UpgradeableV1:UpgradeableTest"
         }
       }
     )
   
     # Upgrade to v2
-    hash_v2 = ContractArtifact.class_from_name("UpgradeableV2").init_code_hash
+    v2 = RubidityTranspiler.transpile_and_get("UpgradeableV2:UpgradeableTest")
+    hash_v2 = v2.init_code_hash
     trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
         to: v1.contract_address,
         data: {
           function: "upgradeFromV1",
-          args: "0x" + hash_v2
+          args: [hash_v2, v2.source_code]
         }
       }
     )
@@ -253,7 +256,8 @@ describe 'Upgrading Contracts' do
     expect(version).to eq(2)
   
     # Upgrade to v3
-    hash_v3 = ContractArtifact.class_from_name("UpgradeableV3").init_code_hash
+    v3 = RubidityTranspiler.transpile_and_get("UpgradeableV3:UpgradeableTest")
+    hash_v3 = v3.init_code_hash
     
     # First fail
     trigger_contract_interaction_and_expect_error(
@@ -263,7 +267,7 @@ describe 'Upgrading Contracts' do
         to: v1.contract_address,
         data: {
           function: "upgradeAndRevert",  # Assuming you have a similar function in V2 for further upgrades
-          args: "0x" + hash_v3
+          args: [hash_v3, v3.source_code]
         }
       }
     )
@@ -272,7 +276,7 @@ describe 'Upgrading Contracts' do
       contract: v1.address,
       function_name: "lastUpgradeHash",
     )
-    expect(lastUpgradeHash).to eq("0x" + hash_v2)
+    expect(lastUpgradeHash).to eq(hash_v2)
     
     expect(Contract.find_by_address(v1.contract_address).current_init_code_hash).to eq(hash_v2)
     
@@ -282,7 +286,7 @@ describe 'Upgrading Contracts' do
         to: v1.contract_address,
         data: {
           function: "upgradeFromV2",  # Assuming you have a similar function in V2 for further upgrades
-          args: "0x" + hash_v3
+          args: [hash_v3, v3.source_code]
         }
       }
     )
@@ -308,12 +312,13 @@ describe 'Upgrading Contracts' do
       from: user_address,
       payload: {
         data: {
-          type: "NotUpgradeable"
+          type: "NotUpgradeable:UpgradeableTest"
         }
       }
     )
   
-    hash_v2 = ContractArtifact.class_from_name("UpgradeableV2").init_code_hash
+    v2 = RubidityTranspiler.transpile_and_get("UpgradeableV2:UpgradeableTest")
+    hash_v2 = v2.init_code_hash
     
     trigger_contract_interaction_and_expect_error(
       error_msg_includes: 'Contract is not upgradeable',
@@ -322,7 +327,7 @@ describe 'Upgrading Contracts' do
         to: v1.contract_address,
         data: {
           function: "upgradeFromV1",
-          args: "0x" + hash_v2
+          args: [hash_v2, v2.source_code]
         }
       }
     )
@@ -330,12 +335,14 @@ describe 'Upgrading Contracts' do
   
   it 'handles complex upgrade chain correctly' do
 # Deploy A1 and B1 as before
+
+    # binding.pry
     a1 = trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
         to: nil,
         data: {
-          type: "A1"
+          type: "A1:UpgradeableTest"
         }
       }
     )
@@ -345,7 +352,7 @@ describe 'Upgrading Contracts' do
       payload: {
         to: nil,
         data: {
-          type: "B1"
+          type: "B1:UpgradeableTest"
         }
       }
     )
@@ -375,21 +382,23 @@ describe 'Upgrading Contracts' do
 
     # Set the next upgrade hash for A1 and B1
     # Assume hash_a2 and hash_b2 are the calculated hashes for A2 and B2
-    hash_a2 = ContractArtifact.class_from_name("A2").init_code_hash
+    a2 = RubidityTranspiler.transpile_and_get("A2:UpgradeableTest")
+    hash_a2 = a2.init_code_hash
 
-    
+    # binding.pry
     trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
         to: a1.address,
         data: {
           function: "setNextUpgradeHash",
-          args: "0x" + hash_a2
+          args: [hash_a2, a2.source_code]
         }
       }
     )
-
-    hash_b2 = ContractArtifact.class_from_name("B2").init_code_hash
+    
+    b2 = RubidityTranspiler.transpile_and_get("B2:UpgradeableTest")
+    hash_b2 = b2.init_code_hash
 
     trigger_contract_interaction_and_expect_success(
       from: user_address,
@@ -397,7 +406,7 @@ describe 'Upgrading Contracts' do
         to: b1.address,
         data: {
           function: "setNextUpgradeHash",
-          args: "0x" + hash_b2
+          args: [hash_b2, b2.source_code]
         }
       }
     )

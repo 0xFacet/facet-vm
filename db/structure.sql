@@ -178,6 +178,40 @@ CREATE TABLE public.ar_internal_metadata (
 
 
 --
+-- Name: contract_allow_list_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.contract_allow_list_versions (
+    id bigint NOT NULL,
+    transaction_hash character varying NOT NULL,
+    block_number bigint NOT NULL,
+    transaction_index bigint NOT NULL,
+    allow_list jsonb DEFAULT '[]'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: contract_allow_list_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.contract_allow_list_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: contract_allow_list_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.contract_allow_list_versions_id_seq OWNED BY public.contract_allow_list_versions.id;
+
+
+--
 -- Name: contract_artifacts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -185,12 +219,13 @@ CREATE TABLE public.contract_artifacts (
     id bigint NOT NULL,
     name character varying NOT NULL,
     source_code text NOT NULL,
-    ast text NOT NULL,
     init_code_hash character varying NOT NULL,
-    "references" jsonb DEFAULT '{}'::jsonb NOT NULL,
+    "references" jsonb DEFAULT '[]'::jsonb NOT NULL,
+    pragma_language character varying NOT NULL,
+    pragma_version character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT chk_rails_97d3d8e44e CHECK (((init_code_hash)::text ~ '^[a-f0-9]{64}$'::text))
+    CONSTRAINT chk_rails_e07e6a7a0d CHECK (((init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
 
@@ -223,7 +258,6 @@ CREATE TABLE public.contract_calls (
     internal_transaction_index bigint NOT NULL,
     from_address character varying NOT NULL,
     to_contract_address character varying,
-    to_contract_type character varying,
     created_contract_address character varying,
     effective_contract_address character varying,
     function character varying,
@@ -281,9 +315,9 @@ CREATE TABLE public.contract_states (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     contract_address character varying NOT NULL,
-    CONSTRAINT chk_rails_05016dab2f CHECK (((init_code_hash)::text ~ '^[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_0d9a27b31a CHECK (((contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_e8714d0639 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
+    CONSTRAINT chk_rails_e8714d0639 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_ec7c2a761e CHECK (((init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
 
@@ -400,7 +434,7 @@ CREATE TABLE public.contracts (
     address character varying NOT NULL,
     CONSTRAINT chk_rails_6d0039a684 CHECK (((address)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_c653bcbc93 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT chk_rails_cc2872e127 CHECK (((current_init_code_hash)::text ~ '^[a-f0-9]{64}$'::text))
+    CONSTRAINT chk_rails_e1095f7a6a CHECK (((current_init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
 
@@ -521,6 +555,13 @@ CREATE TABLE public.schema_migrations (
 
 
 --
+-- Name: contract_allow_list_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_allow_list_versions ALTER COLUMN id SET DEFAULT nextval('public.contract_allow_list_versions_id_seq'::regclass);
+
+
+--
 -- Name: contract_artifacts id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -582,6 +623,14 @@ ALTER TABLE ONLY public.ethscriptions ALTER COLUMN id SET DEFAULT nextval('publi
 
 ALTER TABLE ONLY public.ar_internal_metadata
     ADD CONSTRAINT ar_internal_metadata_pkey PRIMARY KEY (key);
+
+
+--
+-- Name: contract_allow_list_versions contract_allow_list_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_allow_list_versions
+    ADD CONSTRAINT contract_allow_list_versions_pkey PRIMARY KEY (id);
 
 
 --
@@ -657,6 +706,20 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: idx_on_block_number_transaction_index_e2ce48ceae; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_block_number_transaction_index_e2ce48ceae ON public.contract_allow_list_versions USING btree (block_number, transaction_index);
+
+
+--
+-- Name: index_contract_allow_list_versions_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_contract_allow_list_versions_on_transaction_hash ON public.contract_allow_list_versions USING btree (transaction_hash);
+
+
+--
 -- Name: index_contract_artifacts_on_init_code_hash; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -667,7 +730,7 @@ CREATE UNIQUE INDEX index_contract_artifacts_on_init_code_hash ON public.contrac
 -- Name: index_contract_artifacts_on_name; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_contract_artifacts_on_name ON public.contract_artifacts USING btree (name);
+CREATE INDEX index_contract_artifacts_on_name ON public.contract_artifacts USING btree (name);
 
 
 --
@@ -975,6 +1038,14 @@ ALTER TABLE ONLY public.contract_states
 
 
 --
+-- Name: contract_allow_list_versions fk_rails_791881fb33; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_allow_list_versions
+    ADD CONSTRAINT fk_rails_791881fb33 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(ethscription_id) ON DELETE CASCADE;
+
+
+--
 -- Name: contract_calls fk_rails_84969f6044; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1013,6 +1084,7 @@ ALTER TABLE ONLY public.contract_states
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20231113223006'),
 ('20231110173854'),
 ('20231102162109'),
 ('20231001152142'),

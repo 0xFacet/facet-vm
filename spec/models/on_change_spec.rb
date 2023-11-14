@@ -2,10 +2,6 @@ require 'rails_helper'
 
 describe 'On Change and State Proxy Dirty Tracking' do
   let(:user_address) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
-
-  before(:all) do
-    ContractArtifact.create_artifacts_from_files('spec/fixtures/TestOnChange.rubidity')
-  end
   
   it 'does a basic static call' do
     tester = trigger_contract_interaction_and_expect_success(

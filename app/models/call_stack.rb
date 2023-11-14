@@ -14,8 +14,8 @@ class CallStack
   
   def execute_in_new_frame(
     to_contract_address: nil,
-    to_contract_type: nil,
     to_contract_init_code_hash: nil,
+    to_contract_source_code: nil,
     function: nil,
     args: {},
     type:,
@@ -29,8 +29,8 @@ class CallStack
     
     call = TransactionContext.current_transaction.contract_calls.build(
       to_contract_address: to_contract_address,
-      to_contract_type: to_contract_type,
       to_contract_init_code_hash: to_contract_init_code_hash,
+      to_contract_source_code: to_contract_source_code,
       function: function,
       args: args,
       call_type: type,

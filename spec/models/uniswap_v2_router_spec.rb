@@ -2,7 +2,62 @@ require 'rails_helper'
 
 describe 'UniswapV2Router contract' do
   before(:all) do
-    ContractArtifact.create_artifacts_from_files('spec/fixtures/StubERC20.rubidity')
+    update_contract_allow_list(
+      'UniswapV2Factory',
+      'UnsafeNoApprovalERC20',
+      'UniswapV2Router',
+      'UniswapV2Pair'
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: "0x" + "0" * 40,
+      payload: {
+        data: {
+          type: "UnsafeNoApprovalERC20",
+          args: ["a", "b"]
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: "0x" + "0" * 40,
+      payload: {
+        data: {
+          type: "PublicMintERC20",
+          args: ["a", "b", 1, 1, 1]
+        }
+      }
+    )
+    
+    
+    trigger_contract_interaction_and_expect_success(
+      from: "0x" + "0" * 40,
+      payload: {
+        data: {
+          type: "UniswapV2Router",
+          args: ["0x" + "0" * 40, "0x" + "0" * 40]
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: "0x" + "0" * 40,
+      payload: {
+        data: {
+          type: "UniswapV2Pair",
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: "0x" + "0" * 40,
+      payload: {
+        data: {
+          type: "UniswapV2Factory",
+          args: "0x" + "0" * 40
+        }
+      }
+    )
   end
   
   def sqrt(integer)
