@@ -172,13 +172,6 @@ module ContractTestHelper
       
       payload['data']['source_code'] = item.source_code
       payload['data']['init_code_hash'] = item.init_code_hash
-      
-      required_hashes = [item.init_code_hash]
-      
-      unless required_hashes.all? { |hash| ContractAllowListVersion.current_list.include?(hash) }
-        missing_hashes = required_hashes.reject { |hash| ContractAllowListVersion.current_list.include?(hash) }
-        update_contract_allow_list(*missing_hashes)
-      end
     end
     
     mimetype = ContractTransaction.required_mimetype

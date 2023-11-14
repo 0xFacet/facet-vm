@@ -1,6 +1,10 @@
 require 'rails_helper'
 
 RSpec.describe "UniswapV2Pair", type: :model do
+  before(:all) do
+    update_contract_allow_list("UniswapV2CalleeTester")
+  end
+  
   it 'executes the Uniswap V2 process' do
     # Deploy the ERC20 tokens
     tokenA_deploy_receipt = trigger_contract_interaction_and_expect_success(

@@ -340,6 +340,7 @@ class ContractImplementation
       **contract_initializer.merge(
         type: :create,
         to_contract_init_code_hash: target_implementation.init_code_hash,
+        to_contract_source_code: target_implementation.source_code,
       )
     )
     

@@ -40,6 +40,8 @@ RSpec.configure do |config|
   
   config.before(:suite) do
     EthBlock.delete_all
+    ContractArtifact.delete_all
+    ContractTestHelper.set_initial_allow_list
   end
   
   # You can uncomment this line to turn off ActiveRecord support entirely.
