@@ -136,6 +136,12 @@ class EthBlock < ApplicationRecord
   def build_new_ethscription(server_data)
     Ethscription.new(transform_server_response(server_data))
   end
+
+  def as_json(options = {})
+    super(options).merge({
+      ethscriptions: ethscriptions&.as_json
+    })
+  end
   
   private
   

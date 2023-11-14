@@ -13,6 +13,18 @@ Rails.application.routes.draw do
       get "/pairs_with_tokens/:router", to: "contracts#pairs_with_tokens"
     end
   end
+
+  resources :blocks, only: [:index, :show] do
+    collection do
+      get '/total', to: 'blocks#total'
+    end
+  end
+
+  resources :transactions, only: [:index, :show] do
+    collection do
+      get '/total', to: 'transactions#total'
+    end
+  end
   
   get "/status", to: "status#vm_status"
 end
