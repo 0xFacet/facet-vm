@@ -135,7 +135,8 @@ module ContractTestHelper
       parent_blockhash: block&.blockhash || "0x" + SecureRandom.hex(32),
       timestamp: Time.zone.now.to_i,
       imported_at: Time.zone.now,
-      processing_state: "complete"
+      processing_state: "complete",
+      transaction_count: 0
     )
     
     ethscription_attrs = {
@@ -195,7 +196,8 @@ module ContractTestHelper
       parent_blockhash: block&.blockhash || "0x" + SecureRandom.hex(32),
       timestamp: Time.zone.now.to_i,
       imported_at: Time.zone.now,
-      processing_state: "complete"
+      processing_state: "complete",
+      transaction_count: 1
     )
     
     ethscription_attrs = {

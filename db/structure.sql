@@ -357,6 +357,8 @@ CREATE TABLE public.contract_transaction_receipts (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     contract_address character varying,
+    block_number bigint NOT NULL,
+    transaction_index bigint NOT NULL,
     CONSTRAINT chk_rails_6a479b86d0 CHECK (((contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_bb3c17a6f6 CHECK (((caller)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_fac62f5815 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
@@ -471,8 +473,10 @@ CREATE TABLE public.eth_blocks (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     processing_state character varying NOT NULL,
+    transaction_count bigint,
     CONSTRAINT chk_rails_1c105acdac CHECK (((parent_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT chk_rails_7e9881ece2 CHECK (((blockhash)::text ~ '^0x[a-f0-9]{64}$'::text))
+    CONSTRAINT chk_rails_7e9881ece2 CHECK (((blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT transaction_count_check CHECK ((((processing_state)::text <> 'complete'::text) OR (transaction_count IS NOT NULL)))
 );
 
 
@@ -706,6 +710,13 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: idx_on_block_number_transaction_index_7c69b816b7; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_block_number_transaction_index_7c69b816b7 ON public.contract_transaction_receipts USING btree (block_number, transaction_index);
+
+
+--
 -- Name: idx_on_block_number_transaction_index_e2ce48ceae; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -829,13 +840,6 @@ CREATE INDEX index_contract_transaction_receipts_on_contract_address ON public.c
 --
 
 CREATE UNIQUE INDEX index_contract_transaction_receipts_on_transaction_hash ON public.contract_transaction_receipts USING btree (transaction_hash);
-
-
---
--- Name: index_contract_transaction_receipts_on_tx_hash_and_created_at; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_contract_transaction_receipts_on_tx_hash_and_created_at ON public.contract_transaction_receipts USING btree (transaction_hash, created_at);
 
 
 --
@@ -1084,6 +1088,7 @@ ALTER TABLE ONLY public.contract_states
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20231114212909'),
 ('20231113223006'),
 ('20231110173854'),
 ('20231102162109'),
