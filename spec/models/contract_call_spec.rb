@@ -4,12 +4,7 @@ RSpec.describe ContractCall, type: :model do
   let(:from_address) { '0xc2172a6315c1d7f6855768f843c420ebb36eda97' }
 
   before(:all) do
-    update_contract_allow_list("UniswapV2Pair")
-    
-    trigger_contract_interaction_and_expect_success(
-      from: "0x" + "0" * 40,
-      payload: { data: { type: "UniswapV2Pair" } }
-    )
+    update_contract_allow_list("UniswapV2Pair", "StubERC20B")
   end
   
   it 'calculates eoa_nonce correctly' do

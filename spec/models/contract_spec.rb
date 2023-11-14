@@ -9,6 +9,7 @@ RSpec.describe Contract, type: :model do
     h2 = RubidityTranspiler.transpile_file("EtherBridgeV2").map(&:init_code_hash)
     
     ContractTestHelper.update_contract_allow_list(h1, h2)
+    update_contract_allow_list("ERC20LiquidityPool")
   end
   
   before do

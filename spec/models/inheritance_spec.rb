@@ -1,6 +1,14 @@
 require 'rails_helper'
 
 RSpec.describe AbiProxy, type: :model do
+  before(:all) do
+    update_contract_allow_list(
+      "TestContract",
+      "ERC20",
+      "TestContractMultipleInheritance:TestContract",
+      "TestContractNoOverride:TestContract")
+  end
+  
   it "won't deploy abstract contract" do
     deploy_receipt = trigger_contract_interaction_and_expect_deploy_error(
       command: 'deploy',
