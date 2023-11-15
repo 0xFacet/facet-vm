@@ -63,11 +63,14 @@ class ContractAllowListVersion < ApplicationRecord
   end
   
   def self.current_artifacts
-    Rails.cache.fetch([all]) do
+    artifacts = Rails.cache.fetch([all]) do
       current_list.map do |item|
         RubidityTranspiler.find_and_transpile(item)
       end
-    end
+    end.deep_dup
+    
+    artifacts.each(&:set_abi)
+    artifacts
   end
   
   def as_json(options = {})

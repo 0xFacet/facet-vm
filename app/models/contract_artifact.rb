@@ -4,6 +4,8 @@ class ContractArtifact < ApplicationRecord
   
   CodeIntegrityError = Class.new(StandardError)
   
+  attr_accessor :abi
+  
   after_find :verify_ast_and_hash
   before_validation :verify_ast_and_hash_on_save
   
@@ -101,6 +103,10 @@ class ContractArtifact < ApplicationRecord
     end
   end
   
+  def set_abi
+    self.abi = build_class.public_abi
+  end
+  
   def dependencies_and_self
     as_objs = references.map do |dep|
       self.class.new(dep.to_h)
@@ -148,8 +154,9 @@ class ContractArtifact < ApplicationRecord
         only: [
           :name,
           :source_code,
-          :init_code_hash,
-        ]
+          :init_code_hash
+        ],
+        methods: :abi
       )
     )
   end
