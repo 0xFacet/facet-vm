@@ -119,8 +119,10 @@ class EthBlock < ApplicationRecord
       creation_timestamp: timestamp,
       previous_owner: server_data['previous_owner'],
       content_uri: server_data['content_uri'],
-      content_sha: Digest::SHA256.hexdigest(server_data['content_uri']),
-      mimetype: server_data['mimetype']
+      mimetype: server_data['mimetype'],
+      gas_price: server_data['gas_price'],
+      gas_used: server_data['gas_price'],
+      transaction_fee: server_data['gas_price'],
     }
   end
 end

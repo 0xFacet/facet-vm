@@ -28,7 +28,6 @@ RSpec.describe Contract, type: :model do
       current_owner: '0x' + SecureRandom.hex(20),
       creation_timestamp: Time.now,
       content_uri: "data:,hi",
-      content_sha: SecureRandom.hex(32),
       mimetype: 'text/plain',
       created_at: Time.now,
       updated_at: Time.now
@@ -44,7 +43,6 @@ RSpec.describe Contract, type: :model do
       current_owner: '0x' + SecureRandom.hex(20),
       creation_timestamp: Time.now,
       content_uri: "data:,hi",
-      content_sha: SecureRandom.hex(32),
       mimetype: 'text/plain',
       created_at: Time.now,
       updated_at: Time.now

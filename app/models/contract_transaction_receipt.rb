@@ -58,7 +58,10 @@ class ContractTransactionReceipt < ApplicationRecord
           :logs,
           :block_blockhash,
           :block_number,
-          :transaction_index
+          :transaction_index,
+          :gas_price,
+          :gas_used,
+          :transaction_fee,
         ]
       )
     ).with_indifferent_access

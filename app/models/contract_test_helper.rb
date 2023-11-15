@@ -149,7 +149,6 @@ module ContractTestHelper
       "initial_owner"=>'0x0000000000000000000000000000000000000000',
       "transaction_index"=>transaction_index,
       "content_uri"=> uri,
-      "content_sha"=>sha,
       mimetype: mimetype
     }
     
@@ -220,7 +219,6 @@ module ContractTestHelper
       "initial_owner"=>'0x0000000000000000000000000000000000000000',
       "transaction_index"=>transaction_index,
       "content_uri"=> uri,
-      "content_sha"=>sha,
       mimetype: mimetype
     }
     

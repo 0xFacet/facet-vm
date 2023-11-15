@@ -368,6 +368,9 @@ CREATE TABLE public.contract_transaction_receipts (
     return_value jsonb,
     runtime_ms integer NOT NULL,
     call_type character varying NOT NULL,
+    gas_price numeric,
+    gas_used numeric,
+    transaction_fee numeric,
     CONSTRAINT chk_rails_6a479b86d0 CHECK (((contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_bb3c17a6f6 CHECK (((caller)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_ec6dc7521c CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
@@ -525,13 +528,14 @@ CREATE TABLE public.ethscriptions (
     creation_timestamp bigint NOT NULL,
     previous_owner character varying,
     content_uri text NOT NULL,
-    content_sha character varying NOT NULL,
     mimetype character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     contract_actions_processed_at timestamp(6) without time zone,
+    gas_price numeric,
+    gas_used numeric,
+    transaction_fee numeric,
     CONSTRAINT ethscriptions_block_blockhash_format CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT ethscriptions_content_sha_format CHECK (((content_sha)::text ~ '^[a-f0-9]{64}$'::text)),
     CONSTRAINT ethscriptions_creator_format CHECK (((creator)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT ethscriptions_current_owner_format CHECK (((current_owner)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT ethscriptions_ethscription_id_format CHECK (((ethscription_id)::text ~ '^0x[a-f0-9]{64}$'::text)),
@@ -969,13 +973,6 @@ CREATE INDEX index_eth_blocks_on_timestamp ON public.eth_blocks USING btree ("ti
 --
 
 CREATE UNIQUE INDEX index_ethscriptions_on_block_number_and_transaction_index ON public.ethscriptions USING btree (block_number, transaction_index);
-
-
---
--- Name: index_ethscriptions_on_content_sha; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_ethscriptions_on_content_sha ON public.ethscriptions USING btree (content_sha);
 
 
 --

@@ -46,6 +46,5 @@ class Ethscription < ApplicationRecord
     self.current_owner = current_owner.downcase
     self.initial_owner = initial_owner.downcase
     self.previous_owner = previous_owner.downcase if previous_owner.present?
-    self.content_sha = content_sha.downcase
   end
 end

@@ -89,7 +89,10 @@ class ContractTransaction < ApplicationRecord
       status: status,
       contract_address: initial_call.effective_contract_address,
       error_message: initial_call.error,
-      runtime_ms: initial_call.calculated_runtime_ms
+      runtime_ms: initial_call.calculated_runtime_ms,
+      gas_price: ethscription.gas_price,
+      gas_used: ethscription.gas_used,
+      transaction_fee: ethscription.transaction_fee,
     )
   end
   
