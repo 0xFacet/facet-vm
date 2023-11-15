@@ -5,11 +5,11 @@ RSpec.describe Contract, type: :model do
   let(:trusted_address) { "0x019824B229400345510A3a7EFcFB77fD6A78D8d0" }
   
   before(:all) do
-    h1 = RubidityTranspiler.transpile_file("EtherBridge").map(&:init_code_hash)
-    h2 = RubidityTranspiler.transpile_file("EtherBridgeV2").map(&:init_code_hash)
-    
-    ContractTestHelper.update_contract_allow_list(h1, h2)
-    update_contract_allow_list("ERC20LiquidityPool")
+    update_contract_allow_list(
+      "ERC20LiquidityPool",
+      "EtherBridgeV1Test",
+      "EtherBridgeV2Test"
+    )
   end
   
   before do
@@ -208,7 +208,7 @@ RSpec.describe Contract, type: :model do
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "protocol": "EtherBridge",
+          "protocol": "EtherBridgeV1Test",
           constructorArgs: {
             name: "Bridge Native 1",
             symbol: "PT1",
@@ -284,7 +284,7 @@ RSpec.describe Contract, type: :model do
         from: user_address,
         payload: {
           data: {
-            type: "EtherBridge",
+            type: "EtherBridgeV1Test",
             args: {
               name: "Bridge Native 1",
               symbol: "PT1",
@@ -294,8 +294,8 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      v1_hash = RubidityTranspiler.transpile_and_get("EtherBridge").init_code_hash
-      v2 = RubidityTranspiler.transpile_and_get("EtherBridgeV2")
+      v1_hash = RubidityTranspiler.transpile_and_get("EtherBridgeV1Test").init_code_hash
+      v2 = RubidityTranspiler.transpile_and_get("EtherBridgeV2Test")
       
       upgrade_tx = trigger_contract_interaction_and_expect_success(
         from: user_address,
@@ -319,7 +319,7 @@ RSpec.describe Contract, type: :model do
         from: user_address,
         payload: {
           data: {
-            type: "EtherBridge",
+            type: "EtherBridgeV1Test",
             args: {
               name: "Bridge Native 1",
               symbol: "PT1",
@@ -365,7 +365,7 @@ RSpec.describe Contract, type: :model do
         }
       }
       
-      v2 = RubidityTranspiler.transpile_and_get("EtherBridgeV2")
+      v2 = RubidityTranspiler.transpile_and_get("EtherBridgeV2Test")
       
       upgrade_tx = trigger_contract_interaction_and_expect_success(
         from: user_address,
@@ -404,7 +404,7 @@ RSpec.describe Contract, type: :model do
       expect(bal).to eq(300)
       expect(pending).to eq(200)
       
-      v1 = RubidityTranspiler.transpile_and_get("EtherBridge")
+      v1 = RubidityTranspiler.transpile_and_get("EtherBridgeV1Test")
       
       upgrade_tx = trigger_contract_interaction_and_expect_success(
         from: user_address,
