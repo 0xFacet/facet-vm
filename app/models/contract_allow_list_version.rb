@@ -34,7 +34,8 @@ class ContractAllowListVersion < ApplicationRecord
       end
       
       if content['op'] != 'updateSupportedContracts'
-        raise "Unexpected op: #{content['op']}"
+        Rails.logger.info "Unexpected op: #{content['op']}"
+        return
       end
       
       data = content['data']
