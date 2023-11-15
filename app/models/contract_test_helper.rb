@@ -29,7 +29,6 @@ module ContractTestHelper
   def self.set_initial_allow_list
     new_names = [
       "EtherBridge",
-      "EtherBridgeV2",
       "EthscriptionERC20Bridge",
       "GenerativeERC721",
       "OpenEditionERC721",
@@ -39,7 +38,6 @@ module ContractTestHelper
       "UniswapV2Pair",
       "UniswapV2Router",
       "UniswapV2RouterWithRewards",
-      "UnsafeNoApprovalERC20",
     ]
     
     new_hashes = new_names.map do |name|
