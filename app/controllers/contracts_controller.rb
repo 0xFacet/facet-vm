@@ -4,7 +4,7 @@ class ContractsController < ApplicationController
     per_page = (params[:per_page] || 50).to_i
     per_page = 50 if per_page > 50
     
-    scope = Contract.where(current_type: Contract.deployable_contracts.map(&:name)).order(created_at: :desc)
+    scope = Contract.order(created_at: :desc)
     
     if params[:base_type]
       scope = scope.where(
@@ -26,7 +26,7 @@ class ContractsController < ApplicationController
 
   def allow_list_artifacts
     render json: {
-      result: ContractAllowListVersions.current_artifacts
+      result: ContractAllowListVersion.current_artifacts
     }
   end
   

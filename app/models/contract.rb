@@ -116,6 +116,8 @@ class Contract < ApplicationRecord
         only: [
           :address,
           :transaction_hash,
+          :current_init_code_hash,
+          :current_type
         ]
       )
     ).tap do |json|
