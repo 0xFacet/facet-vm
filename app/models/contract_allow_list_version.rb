@@ -3,7 +3,7 @@ class ContractAllowListVersion < ApplicationRecord
   primary_key: 'ethscription_id', foreign_key: 'transaction_hash',
   touch: true, optional: true
   
-  # TODO: permissioned address
+  PERMISSIONED_ADDRESS = "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
   
   scope :newest_first, -> {
     order(block_number: :desc, transaction_index: :desc) 
@@ -20,6 +20,10 @@ class ContractAllowListVersion < ApplicationRecord
       end
       
       content = JSON.parse(eths.content)
+      
+      if eths.creator != PERMISSIONED_ADDRESS
+        raise "Unexpected from: #{eths.from}"
+      end
       
       if eths.initial_owner != "0x" + "0" * 40
         raise "Unexpected initial_owner: #{eths.initial_owner}"
