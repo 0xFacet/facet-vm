@@ -111,7 +111,7 @@ module ContractTestHelper
     current_list += new_hashes
     
     payload = {
-      op: "updateContractAllowList",
+      op: "updateSupportedContracts",
       data: current_list.flatten
     }
     

@@ -33,7 +33,7 @@ class ContractAllowListVersion < ApplicationRecord
         raise "Unexpected mimetype: #{eths.mimetype}"
       end
       
-      if content['op'] != 'updateContractAllowList'
+      if content['op'] != 'updateSupportedContracts'
         raise "Unexpected op: #{content['op']}"
       end
       
