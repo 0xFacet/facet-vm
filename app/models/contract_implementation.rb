@@ -281,10 +281,10 @@ class ContractImplementation
       raise TransactionError.new("Invalid contract version: #{to_contract_init_code_hash}")
     end
     
-    salt_hex = Integer(salt, 16).to_s(16)
-    
-    if salt_hex.length != 64
-      raise TransactionError.new("Salt must be 32 bytes")
+    salt_hex = salt.gsub(/\A0x/, '').downcase
+        
+    if salt_hex !~ /\A[0-9a-f]+\z/ || salt_hex.length != 64
+      raise TransactionError.new("Salt must be 32 hex bytes")
     end
 
     padded_from = from_address.to_s[2..-1].rjust(64, "0")
