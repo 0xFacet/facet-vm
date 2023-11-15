@@ -45,7 +45,7 @@ contract :UpgradeableV2, upgradeable: true do
     require(msg.sender == s.upgradeAdmin, "NOT_AUTHORIZED")
     
     s.lastUpgradeHash = newHash
-    esc.upgradeContract(newHash, newSource)
+    this.upgradeImplementation(newHash, newSource)
     address(this).call('{"function":"migration"}')
     
     emit :NotifyOfVersion, version: s.version, from: "v2"
@@ -82,7 +82,7 @@ contract :UpgradeableV1, upgradeable: true do
     require(msg.sender == s.upgradeAdmin, "NOT_AUTHORIZED")
     
     s.lastUpgradeHash = newHash
-    esc.upgradeContract(newHash, newSource)
+    this.upgradeImplementation(newHash, newSource)
     address(this).call('{"function":"migration","args":"hello"}')
     
     emit :NotifyOfVersion, version: s.version, from: "v1"
@@ -168,7 +168,7 @@ contract :A1, is: :AbstractA, upgradeable: true do
   end
 
   function :migration, :override, :public do
-    esc.upgradeContract(s.nextUpgradeHash, s.nextUpgradeSource)
+    this.upgradeImplementation(s.nextUpgradeHash, s.nextUpgradeSource)
     s.version += 1
     address(this).call('{"function":"migration"}')
     nil
@@ -198,7 +198,7 @@ contract :B1, is: :AbstractB, upgradeable: true do
 
   function :initiateUpgrade, :override, :public do
     AbstractA(s.relatedA).migration
-    esc.upgradeContract(s.nextUpgradeHash, s.nextUpgradeSource)
+    this.upgradeImplementation(s.nextUpgradeHash, s.nextUpgradeSource)
     address(this).call('{"function":"migration"}')
     nil
   end
@@ -235,7 +235,7 @@ contract :NotUpgradeable do
   constructor() {}
   
   function :upgradeFromV1, { newHash: :bytes32, newSource: :string }, :public do
-    esc.upgradeContract(newHash, newSource)
+    this.upgradeImplementation(newHash, newSource)
     nil
   end
 end

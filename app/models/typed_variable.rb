@@ -19,6 +19,10 @@ class TypedVariable
     if type == Type.create(:address)
       define_singleton_method(:call, method(:address_call))
     end
+    
+    if type == Type.create(:string)
+      define_singleton_method(:base64Encode, method(:string_base64Encode))
+    end
   end
   
   def self.create(type, value = nil, on_change: nil, **options)
@@ -140,6 +144,10 @@ class TypedVariable
   end
   
   private
+  
+  def string_base64Encode
+    Base64.strict_encode64(value)
+  end
   
   def address_call(json_call_data = '{}')
     calldata = JSON.parse(json_call_data)

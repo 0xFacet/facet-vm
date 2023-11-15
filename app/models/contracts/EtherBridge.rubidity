@@ -45,7 +45,7 @@ contract :EtherBridge, is: [:ERC20, :Upgradeable], upgradeable: true do
     
     _burn(from: msg.sender, amount: amount)
     
-    withdrawalId = esc.currentTransactionHash
+    withdrawalId = tx.current_transaction_hash
     
     s.pendingWithdrawalAmounts[msg.sender] += amount
     s.pendingUserWithdrawalIds[msg.sender].push(withdrawalId)

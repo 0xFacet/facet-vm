@@ -51,7 +51,7 @@ contract :GenerativeERC721, is: :ERC721 do
     
     html = getHTML(seed: s.tokenIdToSeed[id])
     
-    html_as_base_64_data_uri = "data:text/html;base64," + esc.base64Encode(html)
+    html_as_base_64_data_uri = "data:text/html;base64," + html.base64Encode
     
     json_data = {
       name: "#{s.name} ##{string(id)}",

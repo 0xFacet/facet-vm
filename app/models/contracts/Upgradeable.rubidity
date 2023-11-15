@@ -26,11 +26,11 @@ contract :Upgradeable, abstract: true do
   end
   
   function :upgrade, { newHash: :bytes32, newSource: :string }, :public do
-    currentHash = esc.getImplementationHash
+    currentHash = this.currentInitCodeHash
     
     require(msg.sender == s.upgradeAdmin, "NOT_AUTHORIZED")
     
-    esc.upgradeContract(newHash, newSource)
+    this.upgradeImplementation(newHash, newSource)
     
     emit :ContractUpgraded, oldHash: currentHash, newHash: newHash
   end
