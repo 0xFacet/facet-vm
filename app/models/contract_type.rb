@@ -19,34 +19,32 @@ class ContractType < TypedVariable
     include ContractErrors
     extend AttrPublicReadPrivateWrite
     
-    attr_public_read_private_write :contract_type, :address,
-      :uncast_address, :contract_interface
+    attr_public_read_private_write :contract_class, :address, :uncast_address
 
     def ==(other)
       return false unless other.is_a?(self.class)
       
-      other.contract_type == contract_type &&
+      other.contract_class.init_code_hash == contract_class.init_code_hash &&
       other.address == address
     end
     
-    def initialize(contract_type:, address:, contract_interface:)
+    def initialize(address:, contract_class:)
       self.uncast_address = address
       address = TypedVariable.create_or_validate(:address, address).value
     
-      self.contract_type = contract_type
       self.address = address
-      self.contract_interface = contract_interface
+      self.contract_class = contract_class
     end
     
     def method_missing(name, *args, **kwargs, &block)
       computed_args = args.presence || kwargs
       
-      super unless contract_interface
+      super unless contract_class
       
-      known_function = contract_interface.public_abi[name]
+      known_function = contract_class.public_abi[name]
       
       unless known_function && known_function.args.length == computed_args.length
-        raise ContractError.new("Contract doesn't implement interface: #{contract_type}, #{name}")
+        raise ContractError.new("Contract doesn't implement interface: #{contract_class.name}, #{name}")
       end
       
       TransactionContext.call_stack.execute_in_new_frame(
@@ -58,7 +56,58 @@ class ContractType < TypedVariable
     end
     
     def respond_to_missing?(name, include_private = false)
-      !!contract_interface.public_abi[name] || super
-    end    
+      !!contract_class.public_abi[name] || super
+    end
+    
+    def contract_type
+      contract_class.name
+    end
+    
+    def currentInitCodeHash
+      TypedVariable.create(:bytes32, contract_class.init_code_hash)
+    end
+    
+    def upgradeImplementation(new_init_code_hash, new_source_code)
+      typed = TypedVariable.create_or_validate(:bytes32, new_init_code_hash)
+      typed_source = TypedVariable.create_or_validate(:string, new_source_code)
+      
+      new_init_code_hash = typed.value
+      
+      target = TransactionContext.current_contract
+      
+      unless address == target.address
+        raise ContractError.new("Contracts can only upgrade themselves", target)
+      end
+      
+      begin
+        new_implementation_class = TransactionContext.allow_listed_contract_class(
+          new_init_code_hash,
+          typed_source.value.presence
+        )
+      rescue UnknownInitCodeHash => e
+        raise ContractError.new(e.message, target)
+      end
+      
+      unless target.implementation_class.is_upgradeable
+        raise ContractError.new(
+          "Contract is not upgradeable: #{target.implementation_class.name}",
+          target
+        )
+      end
+      
+      unless new_implementation_class
+        raise ContractError.new(
+          "Implementation not found: #{new_init_code_hash}",
+          target
+        )
+      end
+      
+      target.assign_attributes(
+        current_type: new_implementation_class.name,
+        current_init_code_hash: new_init_code_hash
+      )
+      
+      nil
+    end
   end
 end

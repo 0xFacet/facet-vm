@@ -120,7 +120,7 @@ class Type
     when array?
       ArrayType::Proxy.new(value_type: value_type, initial_length: initial_length)
     when contract?
-      ContractType::Proxy.new(contract_interface: metadata[:interface], address: nil, contract_type: nil)
+      ContractType::Proxy.new(contract_class: metadata[:interface], address: nil)
     else
       raise "Unknown default value for #{self.inspect}"
     end

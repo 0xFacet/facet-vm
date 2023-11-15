@@ -10,7 +10,7 @@ class ContractImplementation
     attr_accessor :state_variable_definitions, :events
   end
   
-  delegate :block, :blockhash, :tx, :esc, :msg, :log_event, :call_stack,
+  delegate :block, :blockhash, :tx, :msg, :log_event, :call_stack,
            :current_address, to: :current_context
   
   attr_reader :current_context
@@ -407,8 +407,7 @@ class ContractImplementation
   
   def handle_contract_type_cast(contract_type, other_address)
     proxy = ContractType::Proxy.new(
-      contract_type: contract_type,
-      contract_interface: self.class.available_contracts[contract_type],
+      contract_class: self.class.available_contracts[contract_type],
       address: other_address
     )
     

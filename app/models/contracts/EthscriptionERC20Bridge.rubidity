@@ -44,7 +44,7 @@ contract :EthscriptionERC20Bridge, is: [:ERC20, :Upgradeable], upgradeable: true
   end
   
   function :bridgeOut, { amount: :uint256 }, :public do
-    withdrawalId = esc.currentTransactionHash
+    withdrawalId = tx.current_transaction_hash
     require(
       s.userWithdrawalId[msg.sender] == bytes32(0),
       "Withdrawal pending"

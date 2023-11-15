@@ -174,10 +174,10 @@ class ContractTransaction < ApplicationRecord
       call_stack: CallStack.new,
       current_transaction: self,
       tx_origin: tx_origin,
+      tx_current_transaction_hash: transaction_hash,
       block_number: block_number,
       block_timestamp: block_timestamp,
       block_blockhash: block_blockhash,
-      transaction_hash: transaction_hash,
       transaction_index: transaction_index
     ) do
       yield

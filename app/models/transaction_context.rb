@@ -2,13 +2,13 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
   attribute :call_stack, :current_call, :allow_list_contracts,
-  :transaction_hash, :transaction_index, :current_transaction
+    :transaction_index, :current_transaction
   
   delegate :get_active_contract, to: :current_transaction
   
   STRUCT_DETAILS = {
     msg:    { attributes: { sender: :address } },
-    tx:     { attributes: { origin: :address } },
+    tx:     { attributes: { origin: :address, current_transaction_hash: :bytes32 } },
     block:  { attributes: { number: :uint256, timestamp: :uint256, blockhash: :string } },
   }.freeze
 
@@ -30,6 +30,10 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     
       Struct.new(*struct_params).new(*struct_values)
     end
+  end
+  
+  def transaction_hash
+    tx.current_transaction_hash
   end
   
   def allow_listed_contract_class(init_code_hash, source_code = nil)
@@ -66,9 +70,5 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     end
     
     block_blockhash
-  end
-  
-  def esc
-    Esc.new
   end
 end
