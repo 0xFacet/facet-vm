@@ -12,6 +12,10 @@ class ContractsController < ApplicationController
       )
     end
     
+    if params[:init_code_hash]
+      scope = scope.where(current_init_code_hash: params[:init_code_hash])
+    end
+    
     cache_key = ["contracts_index", scope, page, per_page]
   
     result = Rails.cache.fetch(cache_key) do
