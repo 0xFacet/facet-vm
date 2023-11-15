@@ -217,6 +217,7 @@ ALTER SEQUENCE public.contract_allow_list_versions_id_seq OWNED BY public.contra
 
 CREATE TABLE public.contract_artifacts (
     id bigint NOT NULL,
+    transaction_hash character varying NOT NULL,
     name character varying NOT NULL,
     source_code text NOT NULL,
     init_code_hash character varying NOT NULL,
@@ -1056,6 +1057,14 @@ ALTER TABLE ONLY public.contract_states
 
 
 --
+-- Name: contract_artifacts fk_rails_6aff674b66; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_artifacts
+    ADD CONSTRAINT fk_rails_6aff674b66 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(ethscription_id) ON DELETE CASCADE;
+
+
+--
 -- Name: contract_allow_list_versions fk_rails_791881fb33; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1102,6 +1111,7 @@ ALTER TABLE ONLY public.contract_states
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20231115183116'),
 ('20231115174848'),
 ('20231115173939'),
 ('20231115171429'),

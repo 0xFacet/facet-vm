@@ -275,7 +275,7 @@ class ContractImplementation
   end
   
   def self.calculate_new_contract_address_with_salt(salt, from_address, to_contract_init_code_hash)
-    target_implementation = ContractArtifact.class_from_init_code_hash!(to_contract_init_code_hash)
+    target_implementation = TransactionContext.allow_listed_contract_class(to_contract_init_code_hash)
     
     unless target_implementation.present?
       raise TransactionError.new("Invalid contract version: #{to_contract_init_code_hash}")

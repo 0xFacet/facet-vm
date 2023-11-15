@@ -178,41 +178,28 @@ RSpec.describe AbiProxy, type: :model do
   it "raises an error when declaring override without overriding anything" do
     expect {
       item = RubidityTranspiler.transpile_and_get("TestContractOverrideNonVirtual2")
-      
-      ContractArtifact.class_from_init_code_hash_or_source_code!(
-        item.init_code_hash, item.source_code
-      )
+      item.build_class
     }.to raise_error(ContractErrors::InvalidOverrideError)
   end
   
   it "raises an error when trying to override a non-virtual function" do
     expect {
       item = RubidityTranspiler.transpile_and_get("TestContractOverrideNonVirtual")
-      
-      ContractArtifact.class_from_init_code_hash_or_source_code!(
-        item.init_code_hash, item.source_code
-      )
+      item.build_class
     }.to raise_error(ContractErrors::InvalidOverrideError)
   end
   
   it "raises an error when trying to override a virtual function without the override modifier" do
     expect {
       item = RubidityTranspiler.transpile_and_get("TestContractOverrideWithoutModifier")
-      
-      ContractArtifact.class_from_init_code_hash_or_source_code!(
-        item.init_code_hash, item.source_code
-      )
+      item.build_class
     }.to raise_error(ContractErrors::InvalidOverrideError)
   end
   
   it "raises an error when defining the same function twice in a contract" do
     expect {
       item = RubidityTranspiler.transpile_and_get("TestContractDuplicateFunction")
-      
-      ContractArtifact.class_from_init_code_hash_or_source_code!(
-        item.init_code_hash, item.source_code
-      )
-
+      item.build_class
     }.to raise_error(ContractErrors::FunctionAlreadyDefinedError)
   end
 end

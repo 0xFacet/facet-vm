@@ -8,6 +8,7 @@ class ContractTransaction < ApplicationRecord
   has_many :contract_states, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_calls, foreign_key: :transaction_hash, primary_key: :transaction_hash, inverse_of: :contract_transaction
   has_many :contracts, foreign_key: :transaction_hash, primary_key: :transaction_hash
+  has_many :contract_artifacts, foreign_key: :transaction_hash, primary_key: :transaction_hash
   belongs_to :contract, primary_key: 'address', foreign_key: 'to_contract_address', optional: true
 
   attr_accessor :tx_origin, :initial_call_info, :payload

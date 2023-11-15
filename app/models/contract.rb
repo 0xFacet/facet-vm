@@ -29,7 +29,9 @@ class Contract < ApplicationRecord
   end
   
   def implementation_class
-    ContractArtifact.class_from_init_code_hash!(current_init_code_hash)
+    TransactionContext.allow_listed_contract_class(
+      current_init_code_hash, validate: false
+    )
   end
   
   def self.types_that_implement(base_type)

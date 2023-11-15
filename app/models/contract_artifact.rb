@@ -2,6 +2,8 @@ class ContractArtifact < ApplicationRecord
   include ContractErrors
   extend Memoist
   
+  belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
+  
   CodeIntegrityError = Class.new(StandardError)
   
   attr_accessor :abi
@@ -24,32 +26,6 @@ class ContractArtifact < ApplicationRecord
       all.map(&:build_class).index_by(&:init_code_hash).with_indifferent_access
     end
     memoize :all_contract_classes
-    
-    def class_from_init_code_hash_or_source_code!(init_code_hash, source_code = nil)
-      existing = ContractArtifact.find_by_init_code_hash(init_code_hash)
-      
-      return existing.build_class if existing
-      
-      unless source_code
-        raise "Need source code without init code hash"
-      end
-      
-      new_artifact = RubidityTranspiler.new(source_code).get_desired_artifact(init_code_hash)
-      
-      new_artifact.save!
-      
-      new_artifact.build_class
-    end
-    
-    def class_from_init_code_hash!(init_code_hash)
-      artifact = find_by_init_code_hash(init_code_hash)
-      
-      unless artifact
-        raise UnknownInitCodeHash.new("No contract found with init code hash: #{init_code_hash.inspect}")
-      end
-      
-      artifact.build_class
-    end
     
     # TODO: remove
     def class_from_name(name)

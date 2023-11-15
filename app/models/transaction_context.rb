@@ -36,15 +36,12 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     tx.current_transaction_hash
   end
   
-  def allow_listed_contract_class(init_code_hash, source_code = nil)
-    unless allow_list_contracts.include?(init_code_hash)
-      raise ContractError.new("Contract is not supported: #{init_code_hash.inspect}")
-    end
+  def allow_listed_contract_class(init_code_hash, source_code = nil, validate: true)
+    validate_contract_support(init_code_hash) if validate
+  
+    artifact = find_artifact(init_code_hash) || create_artifact(init_code_hash, source_code)
     
-    ContractArtifact.class_from_init_code_hash_or_source_code!(
-      init_code_hash,
-      source_code
-    )
+    artifact.build_class
   end
   
   def log_event(event)
@@ -70,5 +67,31 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     end
     
     block_blockhash
+  end
+  
+  private
+  
+  def validate_contract_support(init_code_hash)
+    unless allow_list_contracts.include?(init_code_hash)
+      raise ContractError.new("Contract is not supported: #{init_code_hash.inspect}")
+    end
+  end
+  
+  def find_artifact(init_code_hash)
+    current = TransactionContext.current_transaction.contract_artifacts.detect do |artifact|
+      artifact.init_code_hash == init_code_hash
+    end
+  
+    current || ContractArtifact.find_by_init_code_hash(init_code_hash)
+  end
+  
+  def create_artifact(init_code_hash, source_code = nil)
+    raise "Need source code to create new artifact" unless source_code
+  
+    artifact = RubidityTranspiler.new(source_code).get_desired_artifact(init_code_hash)
+    
+    TransactionContext.current_transaction.contract_artifacts.build(artifact.attributes)
+    
+    artifact
   end
 end
