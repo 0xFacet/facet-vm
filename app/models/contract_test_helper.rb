@@ -171,10 +171,20 @@ module ContractTestHelper
     payload = transform_old_format_to_new(data || payload).with_indifferent_access
     
     if payload['data'] && payload['data']['type']
-      item = RubidityTranspiler.transpile_and_get(payload['data']['type'])
+      item = RubidityTranspiler.transpile_and_get(payload['data'].delete('type'))
       
       payload['data']['source_code'] = item.source_code
       payload['data']['init_code_hash'] = item.init_code_hash
+    end
+    
+    if !payload['op']
+      if payload['to']
+        payload = { 'op' => 'call' }.merge(payload)
+        payload['data'] = { 'to' => payload.delete('to') }.merge(payload['data'])
+      else
+        payload.delete('to')
+        payload = { 'op' => 'create' }.merge(payload)
+      end
     end
     
     mimetype = ContractTransaction.transaction_mimetype

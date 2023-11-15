@@ -11,7 +11,7 @@ RSpec.describe ContractsController, type: :controller do
     it 'simulates success' do
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
       data = {
-        to: nil,
+        op: :create,
         data: {
           source_code: item.source_code,
           init_code_hash: item.init_code_hash,
@@ -40,8 +40,9 @@ RSpec.describe ContractsController, type: :controller do
     it 'simulates call to non-existent contract' do
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
       data = {
-        to: "0xe9ff6048004823961bb53d7a0629e570fe2c1c59",
+        op: :call,
         data: {
+          to: "0xe9ff6048004823961bb53d7a0629e570fe2c1c59",
           function: "mint",
           args: {"amount":"1000000000000000000000"}
         }
@@ -62,6 +63,7 @@ RSpec.describe ContractsController, type: :controller do
     it 'simulates failure' do
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
       data = {
+        op: :call,
         data: {
           source_code: item.source_code,
           init_code_hash: item.init_code_hash,

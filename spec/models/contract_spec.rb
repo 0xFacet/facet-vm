@@ -68,7 +68,7 @@ RSpec.describe Contract, type: :model do
 
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
       data = {
-        to: nil,
+        op: :create,
         data: {
           source_code: item.source_code,
           init_code_hash: item.init_code_hash,
@@ -113,8 +113,9 @@ RSpec.describe Contract, type: :model do
       call_receipt_success = ContractTransaction.simulate_transaction(
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         tx_payload: {
-          "to": deploy_receipt.address,
+          op: "call",
           data: {
+            "to": deploy_receipt.address,
             "function": "mint",
             "args": {
               "amount": "5"
@@ -131,8 +132,9 @@ RSpec.describe Contract, type: :model do
       call_receipt_fail = ContractTransaction.simulate_transaction(
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         tx_payload: {
-          "to": deploy_receipt.address,
+          op: :call,
           data: {
+            "to": deploy_receipt.address,
             "function": "mint",
             "args": {
               "amount": "5000"
