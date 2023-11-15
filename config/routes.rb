@@ -27,5 +27,8 @@ Rails.application.routes.draw do
     end
   end
   
+  resources :contract_calls, only: [:index] do
+  end
+  
   get "/status", to: "status#vm_status"
 end

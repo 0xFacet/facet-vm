@@ -36,7 +36,9 @@ class CallStack
       call_type: type,
       salt: salt,
       internal_transaction_index: @push_count,
-      from_address: from_address
+      from_address: from_address,
+      block_number: TransactionContext.current_transaction.block_number,
+      transaction_index: TransactionContext.current_transaction.transaction_index,
     )
     
     TransactionContext.set(current_call: call) do

@@ -10,6 +10,12 @@ class ContractCall < ApplicationRecord
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true, inverse_of: :contract_calls
   
   belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'transaction_hash', optional: true
+  
+  scope :newest_first, -> { order(
+    block_number: :desc,
+    transaction_index: :desc,
+    internal_transaction_index: :desc
+  ) }
 
   def execute!
     self.pending_logs = []
@@ -149,5 +155,28 @@ class ContractCall < ApplicationRecord
   def log_event(event)
     pending_logs << event
     nil
+  end
+  
+  def as_json(options = {})
+    super(
+      options.merge(
+        only: [
+          :transaction_hash,
+          :block_number,
+          :transaction_index,
+          :internal_transaction_index,
+          :from_address,
+          :to_contract_address,
+          :effective_contract_address,
+          :function,
+          :args,
+          :call_type,
+          :return_value,
+          :logs,
+          :error,
+          :status,
+        ]
+      )
+    )
   end
 end

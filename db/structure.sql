@@ -269,6 +269,8 @@ CREATE TABLE public.contract_calls (
     status integer NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    block_number bigint NOT NULL,
+    transaction_index bigint NOT NULL,
     CONSTRAINT call_type_2_error_or_created_contract_address CHECK (((call_type <> 2) OR (error IS NOT NULL) OR (created_contract_address IS NOT NULL))),
     CONSTRAINT call_type_2_error_or_created_contract_address2 CHECK ((((call_type = 2) AND (error IS NULL)) OR (created_contract_address IS NULL))),
     CONSTRAINT created_contract_address_format CHECK (((created_contract_address IS NULL) OR ((created_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
@@ -727,6 +729,13 @@ CREATE UNIQUE INDEX idx_on_block_number_transaction_index_e2ce48ceae ON public.c
 
 
 --
+-- Name: idx_on_block_number_transaction_index_internal_tran_e578f91173; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_block_number_transaction_index_internal_tran_e578f91173 ON public.contract_calls USING btree (block_number, transaction_index, internal_transaction_index);
+
+
+--
 -- Name: index_contract_allow_list_versions_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1091,6 +1100,7 @@ ALTER TABLE ONLY public.contract_states
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20231115173939'),
 ('20231115171429'),
 ('20231114212909'),
 ('20231113223006'),
