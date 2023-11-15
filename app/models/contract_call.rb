@@ -1,6 +1,8 @@
 class ContractCall < ApplicationRecord
   include ContractErrors
   
+  before_validation :ensure_runtime_ms
+  
   enum :call_type, [ :call, :static_call, :create ], prefix: :is
   enum :status, [ :failure, :success ]
   
@@ -35,10 +37,10 @@ class ContractCall < ApplicationRecord
     assign_attributes(
       return_value: result,
       status: :success,
-      logs: pending_logs
+      logs: pending_logs,
+      effective_contract_address: to_contract.address,
+      end_time: Time.current
     )
-    
-    self.effective_contract_address = to_contract.address
     
     if is_create?
       self.created_contract = to_contract
@@ -47,7 +49,7 @@ class ContractCall < ApplicationRecord
       result
     end
   rescue ContractError, TransactionError => e
-    assign_attributes(error: e.message, status: :failure)
+    assign_attributes(error: e.message, status: :failure, end_time: Time.current)
     raise
   end
   
@@ -175,8 +177,21 @@ class ContractCall < ApplicationRecord
           :logs,
           :error,
           :status,
+          :runtime_ms
         ]
       )
     )
+  end
+  
+  def calculated_runtime_ms
+    (end_time - start_time) * 1000
+  end
+  
+  private
+  
+  def ensure_runtime_ms
+    return if runtime_ms
+    
+    self.runtime_ms = calculated_runtime_ms
   end
 end

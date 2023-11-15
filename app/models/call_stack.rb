@@ -39,6 +39,7 @@ class CallStack
       from_address: from_address,
       block_number: TransactionContext.current_transaction.block_number,
       transaction_index: TransactionContext.current_transaction.transaction_index,
+      start_time: Time.current
     )
     
     TransactionContext.set(current_call: call) do
@@ -54,7 +55,8 @@ class CallStack
     if @push_count > MAX_CALL_COUNT
       current_frame.assign_attributes(
         error: "Too many internal transactions",
-        status: :failure
+        status: :failure,
+        end_time: Time.current
       )
       
       raise ContractError.new("Too many internal transactions")

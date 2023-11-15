@@ -271,6 +271,9 @@ CREATE TABLE public.contract_calls (
     updated_at timestamp(6) without time zone NOT NULL,
     block_number bigint NOT NULL,
     transaction_index bigint NOT NULL,
+    start_time timestamp(6) without time zone NOT NULL,
+    end_time timestamp(6) without time zone NOT NULL,
+    runtime_ms integer NOT NULL,
     CONSTRAINT call_type_2_error_or_created_contract_address CHECK (((call_type <> 2) OR (error IS NOT NULL) OR (created_contract_address IS NOT NULL))),
     CONSTRAINT call_type_2_error_or_created_contract_address2 CHECK ((((call_type = 2) AND (error IS NULL)) OR (created_contract_address IS NULL))),
     CONSTRAINT created_contract_address_format CHECK (((created_contract_address IS NULL) OR ((created_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
@@ -363,6 +366,8 @@ CREATE TABLE public.contract_transaction_receipts (
     transaction_index bigint NOT NULL,
     block_blockhash character varying NOT NULL,
     return_value jsonb,
+    runtime_ms integer NOT NULL,
+    call_type character varying NOT NULL,
     CONSTRAINT chk_rails_6a479b86d0 CHECK (((contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_bb3c17a6f6 CHECK (((caller)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_ec6dc7521c CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
@@ -1100,6 +1105,7 @@ ALTER TABLE ONLY public.contract_states
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20231115174848'),
 ('20231115173939'),
 ('20231115171429'),
 ('20231114212909'),

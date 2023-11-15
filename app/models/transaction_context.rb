@@ -38,7 +38,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   
   def allow_listed_contract_class(init_code_hash, source_code = nil)
     unless allow_list_contracts.include?(init_code_hash)
-      raise ContractError.new("Contract hash not on allow list: #{init_code_hash.inspect}")
+      raise ContractError.new("Contract is not supported: #{init_code_hash.inspect}")
     end
     
     ContractArtifact.class_from_init_code_hash_or_source_code!(

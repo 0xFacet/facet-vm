@@ -76,6 +76,7 @@ class ContractTransaction < ApplicationRecord
   def build_transaction_receipt
     self.contract_transaction_receipt = ContractTransactionReceipt.new(
       transaction_hash: transaction_hash,
+      call_type: initial_call.call_type,
       block_number: block_number,
       block_blockhash: block_blockhash,
       transaction_index: transaction_index,
@@ -87,7 +88,8 @@ class ContractTransaction < ApplicationRecord
       return_value: initial_call.return_value,
       status: status,
       contract_address: initial_call.effective_contract_address,
-      error_message: initial_call.error
+      error_message: initial_call.error,
+      runtime_ms: initial_call.calculated_runtime_ms
     )
   end
   

@@ -46,6 +46,8 @@ class ContractTransactionReceipt < ApplicationRecord
       options.merge(
         only: [
           :transaction_hash,
+          :call_type,
+          :runtime_ms,
           :timestamp,
           :contract_address,
           :caller,
