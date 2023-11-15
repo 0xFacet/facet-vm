@@ -360,6 +360,7 @@ CREATE TABLE public.contract_transaction_receipts (
     block_number bigint NOT NULL,
     transaction_index bigint NOT NULL,
     block_blockhash character varying NOT NULL,
+    return_value jsonb,
     CONSTRAINT chk_rails_6a479b86d0 CHECK (((contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_bb3c17a6f6 CHECK (((caller)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_ec6dc7521c CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
@@ -1090,6 +1091,7 @@ ALTER TABLE ONLY public.contract_states
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20231115171429'),
 ('20231114212909'),
 ('20231113223006'),
 ('20231110173854'),

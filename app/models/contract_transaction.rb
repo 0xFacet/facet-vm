@@ -84,6 +84,7 @@ class ContractTransaction < ApplicationRecord
       function_name: initial_call.function,
       function_args: initial_call.args,
       logs: contract_calls.sort_by(&:internal_transaction_index).map(&:logs).flatten,
+      return_value: initial_call.return_value,
       status: status,
       contract_address: initial_call.effective_contract_address,
       error_message: initial_call.error
