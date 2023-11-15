@@ -51,8 +51,14 @@ class ContractTransaction < ApplicationRecord
     begin
       self.payload = JSON.parse(ethscription.content)
       data = payload['data']
+      op = payload['op']
     rescue JSON::ParserError => e
       Rails.logger.info "JSON parse error: #{e.message}"
+      return
+    end
+    
+    unless data && %w(create call).include?(op)
+      Rails.logger.info "Invalid op: #{op.inspect} or data: #{data.inspect}"
       return
     end
     
@@ -63,15 +69,13 @@ class ContractTransaction < ApplicationRecord
       transaction_index: ethscription.transaction_index,
       tx_origin: ethscription.creator,
       
-      # TODO: change this format?
-      # At least "data" at the top level should be a JSON-encoded string
       initial_call_info: {
         to_contract_init_code_hash: data['init_code_hash'],
         to_contract_source_code: data['source_code'],
-        to_contract_address: payload['to']&.downcase,
+        to_contract_address: data['to']&.downcase,
         function: data['function'],
         args: data['args'],
-        type: (payload['to'].nil? ? :create : :call),
+        type: op,
       }
     )
   end
