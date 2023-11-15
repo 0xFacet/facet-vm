@@ -105,7 +105,7 @@ module ContractTestHelper
   
   def self.update_contract_allow_list(*new_hashes)
     block_timestamp = Time.current.to_i
-    from = '0x0000000000000000000000000000000000000000'
+    from = ContractAllowListVersion::PERMISSIONED_ADDRESS
     mimetype = ContractAllowListVersion.system_mimetype
     
     current_list = ContractAllowListVersion.current_list
