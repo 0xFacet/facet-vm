@@ -25,23 +25,21 @@ class ContractsController < ApplicationController
   end
 
   def allow_list_artifacts
-    cache_key = ["allow_list_artifacts", ContractAllowListVersion.all]
-
-    result = Rails.cache.fetch(cache_key) do
-      ContractAllowListVersion.current_artifacts
-    end
-    
     render json: {
-      result: result
+      result: ContractAllowListVersions.current_artifacts
     }
   end
   
   def all_abis
-    render json: Contract.all_abis
+    render json: {
+      result: Contract.all_abis
+    }
   end
 
   def deployable_contracts
-    render json: Contract.all_abis(deployable_only: true)
+    render json: {
+      result: Contract.all_abis(deployable_only: true)
+    }
   end
 
   def show

@@ -63,8 +63,10 @@ class ContractAllowListVersion < ApplicationRecord
   end
   
   def self.current_artifacts
-    current_list.map do |item|
-      RubidityTranspiler.find_and_transpile(item)
+    Rails.cache.fetch([all]) do
+      current_list.map do |item|
+        RubidityTranspiler.find_and_transpile(item)
+      end
     end
   end
   
