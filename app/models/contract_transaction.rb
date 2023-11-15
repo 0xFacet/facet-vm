@@ -12,8 +12,8 @@ class ContractTransaction < ApplicationRecord
 
   attr_accessor :tx_origin, :initial_call_info, :payload
   
-  def self.required_mimetype
-    "application/vnd.esc"
+  def self.transaction_mimetype
+    "application/vnd.facet.tx+json"
   end
   
   def self.create_from_ethscription!(ethscription)
@@ -107,7 +107,7 @@ class ContractTransaction < ApplicationRecord
     ]
   
     Rails.cache.fetch(cache_key) do
-      mimetype = ContractTransaction.required_mimetype
+      mimetype = ContractTransaction.transaction_mimetype
       uri = %{#{mimetype},#{tx_payload.to_json}}
   
       block_number = EthBlock.maximum(:block_number).to_i + 1
@@ -232,7 +232,7 @@ class ContractTransaction < ApplicationRecord
   end
   
   def mimetype_and_to_valid?
-    unless ethscription.initial_owner == ("0x" + "0" * 40) && ethscription.mimetype == ContractTransaction.required_mimetype
+    unless ethscription.initial_owner == ("0x" + "0" * 40) && ethscription.mimetype == ContractTransaction.transaction_mimetype
       Rails.logger.info("#{ethscription.inspect} does not trigger contract interaction")
       return false
     end

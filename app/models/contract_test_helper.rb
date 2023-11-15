@@ -106,7 +106,7 @@ module ContractTestHelper
   def self.update_contract_allow_list(*new_hashes)
     block_timestamp = Time.current.to_i
     from = '0x0000000000000000000000000000000000000000'
-    mimetype = "application/vnd.facet.system+json"
+    mimetype = ContractAllowListVersion.system_mimetype
     
     current_list = ContractAllowListVersion.current_list
     
@@ -117,7 +117,7 @@ module ContractTestHelper
       data: current_list.flatten
     }
     
-    uri = %{#{mimetype},#{payload.to_json}}
+    uri = %{#{mimetype};rule=esip6,#{payload.to_json}}
     
     tx_hash = "0x" + SecureRandom.hex(32)
     sha = Digest::SHA256.hexdigest(uri)
@@ -177,7 +177,7 @@ module ContractTestHelper
       payload['data']['init_code_hash'] = item.init_code_hash
     end
     
-    mimetype = ContractTransaction.required_mimetype
+    mimetype = ContractTransaction.transaction_mimetype
     uri = %{#{mimetype},#{payload.to_json}}
     
     tx_hash = "0x" + SecureRandom.hex(32)

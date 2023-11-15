@@ -9,6 +9,10 @@ class ContractAllowListVersion < ApplicationRecord
     order(block_number: :desc, transaction_index: :desc) 
   }
   
+  def self.system_mimetype
+    "application/vnd.facet.system+json"
+  end
+  
   def self.create_from_ethscription!(eths)
     ContractAllowListVersion.transaction do
       if eths.contract_actions_processed_at.present?
@@ -17,7 +21,11 @@ class ContractAllowListVersion < ApplicationRecord
       
       content = JSON.parse(eths.content)
       
-      if eths.mimetype != "application/vnd.facet.system+json"
+      if eths.initial_owner != "0x" + "0" * 40
+        raise "Unexpected initial_owner: #{eths.initial_owner}"
+      end
+      
+      if eths.mimetype != system_mimetype
         raise "Unexpected mimetype: #{eths.mimetype}"
       end
       

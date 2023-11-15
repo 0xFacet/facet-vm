@@ -71,14 +71,12 @@ class EthBlock < ApplicationRecord
       #   1000 / (Benchmark.ms{100.times{EthBlock.process_contract_actions_for_next_block_with_ethscriptions}} /  100.0)
       # end
       
-      ethscriptions.each do |e|
-        ContractTransaction.create_from_ethscription!(e)
-      end
+      ethscriptions.each(&:process!)
   
       locked_next_block.update_columns(
         processing_state: "complete",
         updated_at: Time.current,
-        transaction_count: contract_transaction_receipts.count
+        transaction_count: locked_next_block.contract_transaction_receipts.count
       )
   
       ethscriptions.length
