@@ -16,12 +16,25 @@ class Ethscription < ApplicationRecord
   end
   
   def process!
-    if mimetype == ContractTransaction.transaction_mimetype
-      ContractTransaction.create_from_ethscription!(self)
-    elsif mimetype == ContractAllowListVersion.system_mimetype
-      ContractAllowListVersion.create_from_ethscription!(self)
-    else
-      raise "Unexpected mimetype: #{mimetype}"
+    ContractAllowListVersion.transaction do
+      if contract_actions_processed_at.present?
+        raise "ContractTransaction already created for #{eths.inspect}"
+      end
+      
+      if mimetype == ContractTransaction.transaction_mimetype
+        ContractTransaction.create_from_ethscription!(self)
+      elsif mimetype == ContractAllowListVersion.system_mimetype
+        ContractAllowListVersion.create_from_ethscription!(self)
+      else
+        raise "Unexpected mimetype: #{mimetype}"
+      end
+      
+      end_time = Time.current
+        
+      update_columns(
+        contract_actions_processed_at: end_time,
+        updated_at: end_time
+      )
     end
   end
   
