@@ -82,7 +82,7 @@ class ContractTransaction < ApplicationRecord
       block_blockhash: block_blockhash,
       transaction_index: transaction_index,
       caller: initial_call.from_address,
-      timestamp: Time.zone.at(block_timestamp),
+      block_timestamp: block_timestamp,
       function_name: initial_call.function,
       function_args: initial_call.args,
       logs: contract_calls.sort_by(&:internal_transaction_index).map(&:logs).flatten,

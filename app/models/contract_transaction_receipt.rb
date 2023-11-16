@@ -48,7 +48,7 @@ class ContractTransactionReceipt < ApplicationRecord
           :transaction_hash,
           :call_type,
           :runtime_ms,
-          :timestamp,
+          :block_timestamp,
           :contract_address,
           :caller,
           :status,

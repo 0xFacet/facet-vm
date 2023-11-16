@@ -7,7 +7,7 @@ class CreateContractTransactionReceipts < ActiveRecord::Migration[7.1]
       t.string :function_name
       t.jsonb :function_args, default: {}, null: false
       t.jsonb :logs, default: [], null: false
-      t.datetime :timestamp, null: false
+      t.bigint :block_timestamp, null: false
       t.string :error_message
       t.string :contract_address
       t.bigint :block_number, null: false

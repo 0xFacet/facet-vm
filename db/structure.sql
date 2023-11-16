@@ -359,7 +359,7 @@ CREATE TABLE public.contract_transaction_receipts (
     function_name character varying,
     function_args jsonb DEFAULT '{}'::jsonb NOT NULL,
     logs jsonb DEFAULT '[]'::jsonb NOT NULL,
-    "timestamp" timestamp(6) without time zone NOT NULL,
+    block_timestamp bigint NOT NULL,
     error_message character varying,
     contract_address character varying,
     block_number bigint NOT NULL,
