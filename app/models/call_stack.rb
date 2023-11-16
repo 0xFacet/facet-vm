@@ -54,7 +54,7 @@ class CallStack
     
     if @push_count > MAX_CALL_COUNT
       current_frame.assign_attributes(
-        error: "Too many internal transactions",
+        error_message: "Too many internal transactions",
         status: :failure,
         end_time: Time.current
       )

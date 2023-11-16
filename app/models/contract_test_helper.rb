@@ -20,7 +20,7 @@ module ContractTestHelper
     expect(interaction.status).to eq(status), failure_message(interaction)
     
     if status == "error" && params[:error_msg_includes]
-      expect(interaction.error).to include(params[:error_msg_includes])
+      expect(interaction.error['message']).to include(params[:error_msg_includes])
     end
     
     interaction

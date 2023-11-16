@@ -49,8 +49,14 @@ class ContractCall < ApplicationRecord
       result
     end
   rescue ContractError, TransactionError => e
-    assign_attributes(error: e.message, status: :failure, end_time: Time.current)
+    assign_attributes(error_message: e.message, status: :failure, end_time: Time.current)
     raise
+  end
+  
+  def error_message=(msg)
+    self.error = {
+      message: msg.strip
+    }
   end
   
   def args=(args)

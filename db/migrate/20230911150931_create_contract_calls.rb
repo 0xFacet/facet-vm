@@ -12,7 +12,7 @@ class CreateContractCalls < ActiveRecord::Migration[7.1]
       t.integer :call_type, null: false
       t.jsonb :return_value
       t.jsonb :logs, default: [], null: false
-      t.string :error
+      t.jsonb :error
       t.integer :status, null: false
       t.bigint :block_number, null: false
       t.bigint :transaction_index, null: false
