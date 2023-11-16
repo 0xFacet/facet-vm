@@ -18,6 +18,14 @@ class ContractCallsController < ApplicationController
       )
     end
     
+    if params[:to_or_from].present?
+      to_or_from = params[:to_or_from].downcase
+      scope = scope.where(
+        "from_address = :addr OR effective_contract_address = :addr",
+        addr: to_or_from
+      )
+    end
+    
     cache_key = ["contract_calls_index", scope, page, per_page]
   
     result = Rails.cache.fetch(cache_key) do
