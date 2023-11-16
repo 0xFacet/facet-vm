@@ -16,7 +16,7 @@ module StateTestingUtils
   end
   
   def production_tester2
-    # heroku run rails runner "puts ContractTransactionReceipt.all.to_json" > ct.json -a ethscriptions-vm-server 
+    # heroku run rails runner "puts TransactionReceipt.all.to_json" > ct.json -a ethscriptions-vm-server 
     # heroku run rails runner "puts Contract.all.map{|i| {address: i.address, latest_state: i.current_state}}.to_json" > contracts.json -a ethscriptions-vm-server 
   
     j = JSON.parse(IO.read("ct.json"))
@@ -25,7 +25,7 @@ module StateTestingUtils
   
     them = j.map{|i| [i['transaction_hash'], i['logs']]}.to_h
   
-    us = ContractTransactionReceipt.pluck(:transaction_hash, :logs).to_h
+    us = TransactionReceipt.pluck(:transaction_hash, :logs).to_h
   
     differing_statuses = us.select { |hash, logs| them[hash] && them[hash] != logs }
   
@@ -56,7 +56,7 @@ module StateTestingUtils
     them = JSON.parse(IO.read("ctr.json")).sort_by{|i| [i['block_number'], i['transaction_index']]}
     max_block = them.map{|i| i['block_number']}.max
     
-    us = ContractTransactionReceipt.includes(:contract_transaction).all.map(&:as_json).
+    us = TransactionReceipt.includes(:contract_transaction).all.map(&:as_json).
       select{|i| i['block_number'] <= max_block}.sort_by{|i| [i['block_number'], i['transaction_index']]}; nil
     
     different_values = them.select do |theirs|
@@ -69,7 +69,7 @@ module StateTestingUtils
     them = JSON.parse(IO.read("ct.json")).index_by { |i| i['transaction_hash'] }
     max_block = them.values.map { |i| i['block_number'] }.max
   
-    us = ContractTransactionReceipt.includes(:contract_transaction).all.map(&:as_json).
+    us = TransactionReceipt.includes(:contract_transaction).all.map(&:as_json).
       select{|i| i['block_number'] <= max_block}.sort_by{|i| [i['block_number'], i['transaction_index']]}.index_by { |i| i['transaction_hash'] }; nil
     
       different_values = {}

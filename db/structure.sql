@@ -348,58 +348,6 @@ ALTER SEQUENCE public.contract_states_id_seq OWNED BY public.contract_states.id;
 
 
 --
--- Name: contract_transaction_receipts; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.contract_transaction_receipts (
-    id bigint NOT NULL,
-    transaction_hash character varying NOT NULL,
-    from_address character varying NOT NULL,
-    status integer NOT NULL,
-    function character varying,
-    args jsonb DEFAULT '{}'::jsonb NOT NULL,
-    logs jsonb DEFAULT '[]'::jsonb NOT NULL,
-    block_timestamp bigint NOT NULL,
-    error jsonb,
-    effective_contract_address character varying,
-    block_number bigint NOT NULL,
-    transaction_index bigint NOT NULL,
-    block_blockhash character varying NOT NULL,
-    return_value jsonb,
-    runtime_ms integer NOT NULL,
-    call_type character varying NOT NULL,
-    gas_price numeric,
-    gas_used numeric,
-    transaction_fee numeric,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT chk_rails_0670cd4f8a CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT chk_rails_9e8117958e CHECK (((from_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_a9f40174b2 CHECK (((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_ec6dc7521c CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text))
-);
-
-
---
--- Name: contract_transaction_receipts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.contract_transaction_receipts_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: contract_transaction_receipts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.contract_transaction_receipts_id_seq OWNED BY public.contract_transaction_receipts.id;
-
-
---
 -- Name: contract_transactions; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -571,6 +519,58 @@ CREATE TABLE public.schema_migrations (
 
 
 --
+-- Name: transaction_receipts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.transaction_receipts (
+    id bigint NOT NULL,
+    transaction_hash character varying NOT NULL,
+    from_address character varying NOT NULL,
+    status integer NOT NULL,
+    function character varying,
+    args jsonb DEFAULT '{}'::jsonb NOT NULL,
+    logs jsonb DEFAULT '[]'::jsonb NOT NULL,
+    block_timestamp bigint NOT NULL,
+    error jsonb,
+    effective_contract_address character varying,
+    block_number bigint NOT NULL,
+    transaction_index bigint NOT NULL,
+    block_blockhash character varying NOT NULL,
+    return_value jsonb,
+    runtime_ms integer NOT NULL,
+    call_type character varying NOT NULL,
+    gas_price numeric,
+    gas_used numeric,
+    transaction_fee numeric,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_rails_06c0d4e0bb CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_8b922d101f CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_b5311d68b7 CHECK (((from_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_e2780a945e CHECK (((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))
+);
+
+
+--
+-- Name: transaction_receipts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.transaction_receipts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: transaction_receipts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.transaction_receipts_id_seq OWNED BY public.transaction_receipts.id;
+
+
+--
 -- Name: contract_allow_list_versions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -599,13 +599,6 @@ ALTER TABLE ONLY public.contract_states ALTER COLUMN id SET DEFAULT nextval('pub
 
 
 --
--- Name: contract_transaction_receipts id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.contract_transaction_receipts ALTER COLUMN id SET DEFAULT nextval('public.contract_transaction_receipts_id_seq'::regclass);
-
-
---
 -- Name: contract_transactions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -631,6 +624,13 @@ ALTER TABLE ONLY public.eth_blocks ALTER COLUMN id SET DEFAULT nextval('public.e
 --
 
 ALTER TABLE ONLY public.ethscriptions ALTER COLUMN id SET DEFAULT nextval('public.ethscriptions_id_seq'::regclass);
+
+
+--
+-- Name: transaction_receipts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.transaction_receipts ALTER COLUMN id SET DEFAULT nextval('public.transaction_receipts_id_seq'::regclass);
 
 
 --
@@ -674,14 +674,6 @@ ALTER TABLE ONLY public.contract_states
 
 
 --
--- Name: contract_transaction_receipts contract_transaction_receipts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.contract_transaction_receipts
-    ADD CONSTRAINT contract_transaction_receipts_pkey PRIMARY KEY (id);
-
-
---
 -- Name: contract_transactions contract_transactions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -722,6 +714,14 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: transaction_receipts transaction_receipts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.transaction_receipts
+    ADD CONSTRAINT transaction_receipts_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: idx_on_block_number_transaction_index_e2ce48ceae; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -733,13 +733,6 @@ CREATE UNIQUE INDEX idx_on_block_number_transaction_index_e2ce48ceae ON public.c
 --
 
 CREATE UNIQUE INDEX idx_on_block_number_txi_internal_txi ON public.contract_calls USING btree (block_number, transaction_index, internal_transaction_index);
-
-
---
--- Name: idx_on_effective_contract_address_04215beae1; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_on_effective_contract_address_04215beae1 ON public.contract_transaction_receipts USING btree (effective_contract_address);
 
 
 --
@@ -855,13 +848,6 @@ CREATE INDEX index_contract_states_on_transaction_hash ON public.contract_states
 
 
 --
--- Name: index_contract_transaction_receipts_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_contract_transaction_receipts_on_transaction_hash ON public.contract_transaction_receipts USING btree (transaction_hash);
-
-
---
 -- Name: index_contract_transactions_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -872,7 +858,7 @@ CREATE UNIQUE INDEX index_contract_transactions_on_transaction_hash ON public.co
 -- Name: index_contract_tx_receipts_on_block_number_and_tx_index; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_contract_tx_receipts_on_block_number_and_tx_index ON public.contract_transaction_receipts USING btree (block_number, transaction_index);
+CREATE UNIQUE INDEX index_contract_tx_receipts_on_block_number_and_tx_index ON public.transaction_receipts USING btree (block_number, transaction_index);
 
 
 --
@@ -995,6 +981,20 @@ CREATE UNIQUE INDEX index_ethscriptions_on_transaction_hash ON public.ethscripti
 
 
 --
+-- Name: index_transaction_receipts_on_effective_contract_address; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_transaction_receipts_on_effective_contract_address ON public.transaction_receipts USING btree (effective_contract_address);
+
+
+--
+-- Name: index_transaction_receipts_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_transaction_receipts_on_transaction_hash ON public.transaction_receipts USING btree (transaction_hash);
+
+
+--
 -- Name: eth_blocks check_block_sequence_trigger; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1100,11 +1100,11 @@ ALTER TABLE ONLY public.contracts
 
 
 --
--- Name: contract_transaction_receipts fk_rails_dcbb6dfe66; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: transaction_receipts fk_rails_e9589fbc7a; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.contract_transaction_receipts
-    ADD CONSTRAINT fk_rails_dcbb6dfe66 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
+ALTER TABLE ONLY public.transaction_receipts
+    ADD CONSTRAINT fk_rails_e9589fbc7a FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
 
 
 --

@@ -1,7 +1,7 @@
 class EthBlock < ApplicationRecord
   extend StateTestingUtils
   has_many :ethscriptions, foreign_key: :block_number, primary_key: :block_number
-  has_many :contract_transaction_receipts, foreign_key: :block_number, primary_key: :block_number
+  has_many :transaction_receipts, foreign_key: :block_number, primary_key: :block_number
   
   scope :newest_first, -> { order(block_number: :desc) }
   scope :oldest_first, -> { order(block_number: :asc) }
@@ -76,7 +76,7 @@ class EthBlock < ApplicationRecord
       locked_next_block.update_columns(
         processing_state: "complete",
         updated_at: Time.current,
-        transaction_count: locked_next_block.contract_transaction_receipts.count
+        transaction_count: locked_next_block.transaction_receipts.count
       )
   
       ethscriptions.length
@@ -99,8 +99,8 @@ class EthBlock < ApplicationRecord
         :transaction_count,
       ]
     )).tap do |json|
-      if association(:contract_transaction_receipts).loaded?
-        json[:contract_transaction_receipts] = contract_transaction_receipts.map(&:as_json)
+      if association(:transaction_receipts).loaded?
+        json[:transaction_receipts] = transaction_receipts.map(&:as_json)
       end
     end.with_indifferent_access
   end

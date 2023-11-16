@@ -85,7 +85,7 @@ RSpec.describe Contract, type: :model do
       expect {
         receipt = ContractTransaction.simulate_transaction(from: from, tx_payload: data)
     
-        expect(receipt).to be_a(ContractTransactionReceipt)
+        expect(receipt).to be_a(TransactionReceipt)
         expect(receipt.status).to eq("success")
         expect(Ethscription.find_by(transaction_hash: receipt.transaction_hash)).to be_nil
         
@@ -124,7 +124,7 @@ RSpec.describe Contract, type: :model do
         }
       )
     
-      expect(call_receipt_success).to be_a(ContractTransactionReceipt)
+      expect(call_receipt_success).to be_a(TransactionReceipt)
       expect(call_receipt_success.status).to eq("success")
       
       expect(Ethscription.find_by(transaction_hash: call_receipt_success.transaction_hash)).to be_nil
@@ -143,7 +143,7 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      expect(call_receipt_fail).to be_a(ContractTransactionReceipt)
+      expect(call_receipt_fail).to be_a(TransactionReceipt)
       expect(call_receipt_fail.status).to eq("error")
       
       expect(Ethscription.find_by(transaction_hash: call_receipt_fail.transaction_hash)).to be_nil

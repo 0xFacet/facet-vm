@@ -1,4 +1,4 @@
-class ContractTransactionReceipt < ApplicationRecord
+class TransactionReceipt < ApplicationRecord
   belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, touch: true
 
   belongs_to :contract, primary_key: 'address', foreign_key: 'contract_address', touch: true, optional: true

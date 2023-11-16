@@ -2,7 +2,7 @@ class Ethscription < ApplicationRecord
   belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, touch: true, optional: true
   
   has_many :contracts, primary_key: 'transaction_hash', foreign_key: 'transaction_hash'
-  has_one :contract_transaction_receipt, primary_key: 'transaction_hash', foreign_key: 'transaction_hash'
+  has_one :transaction_receipt, primary_key: 'transaction_hash', foreign_key: 'transaction_hash'
   has_one :contract_transaction, primary_key: 'transaction_hash', foreign_key: 'transaction_hash'
   has_many :contract_states, primary_key: 'transaction_hash', foreign_key: 'transaction_hash'
 
