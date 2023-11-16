@@ -52,7 +52,7 @@ class SystemConfigVersion < ApplicationRecord
   
   def self.current_supported_contract_artifacts
     artifacts = Rails.cache.fetch([all]) do
-      current_list.map do |item|
+      current_supported_contracts.map do |item|
         RubidityTranspiler.find_and_transpile(item)
       end
     end.deep_dup
