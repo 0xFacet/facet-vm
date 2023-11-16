@@ -30,7 +30,7 @@ class ContractsController < ApplicationController
 
   def supported_contract_artifacts
     render json: {
-      result: SystemConfigVersion.current_artifacts
+      result: SystemConfigVersion.current_supported_contract_artifacts
     }
   end
   
