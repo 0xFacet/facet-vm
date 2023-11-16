@@ -68,6 +68,7 @@ class ContractTransactionReceipt < ApplicationRecord
           :gas_price,
           :gas_used,
           :transaction_fee,
+          :return_value
         ],
         methods: [:to, :from]
       )

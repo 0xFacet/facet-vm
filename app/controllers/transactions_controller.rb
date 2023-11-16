@@ -13,7 +13,8 @@ class TransactionsController < ApplicationController
     cache_key = ["transactions_index", scope, page, per_page]
   
     result = Rails.cache.fetch(cache_key) do
-      scope.page(page).per(per_page).to_a
+      res = scope.page(page).per(per_page).to_a
+      convert_int_to_string(res)
     end
   
     render json: {
@@ -30,7 +31,7 @@ class TransactionsController < ApplicationController
     end
 
     render json: {
-      result: transaction
+      result: convert_int_to_string(transaction)
     }
   end
 
@@ -38,7 +39,7 @@ class TransactionsController < ApplicationController
     total_transactions = ContractTransactionReceipt.count
 
     render json: {
-      result: total_transactions
+      result: convert_int_to_string(total_transactions)
     }
   end
 end

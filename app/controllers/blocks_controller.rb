@@ -9,7 +9,8 @@ class BlocksController < ApplicationController
     cache_key = ["blocks_index", scope, page, per_page]
   
     result = Rails.cache.fetch(cache_key) do
-      scope.page(page).per(per_page).to_a
+      res = scope.page(page).per(per_page).to_a
+      convert_int_to_string(res)
     end
   
     render json: {
@@ -26,7 +27,7 @@ class BlocksController < ApplicationController
     end
 
     render json: {
-      result: eth_block
+      result: convert_int_to_string(eth_block)
     }
   end
 
@@ -34,7 +35,7 @@ class BlocksController < ApplicationController
     total_blocks = EthBlock.count
 
     render json: {
-      result: total_blocks
+      result: convert_int_to_string(total_blocks)
     }
   end
 end

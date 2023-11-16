@@ -172,6 +172,8 @@ class ContractCall < ApplicationRecord
       options.merge(
         only: [
           :transaction_hash,
+          :block_blockhash,
+          :block_timestamp,
           :block_number,
           :transaction_index,
           :internal_transaction_index,
