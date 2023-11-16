@@ -106,7 +106,7 @@ module ContractTestHelper
     from = SystemConfigVersion::PERMISSIONED_ADDRESS
     mimetype = SystemConfigVersion.system_mimetype
     
-    current_list = SystemConfigVersion.current_list
+    current_list = SystemConfigVersion.current_supported_contracts
     
     current_list += new_hashes
     

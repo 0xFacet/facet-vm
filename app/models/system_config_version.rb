@@ -46,7 +46,7 @@ class SystemConfigVersion < ApplicationRecord
     )
   end
   
-  def self.current_list
+  def self.current_supported_contracts
     newest_first.first&.supported_contracts || []
   end
   
