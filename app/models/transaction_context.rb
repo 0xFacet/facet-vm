@@ -1,7 +1,7 @@
 class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
-  attribute :call_stack, :current_call, :allow_list_contracts,
+  attribute :call_stack, :current_call, :supported_contracts,
     :transaction_index, :current_transaction
   
   delegate :get_active_contract, to: :current_transaction
@@ -36,7 +36,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     tx.current_transaction_hash
   end
   
-  def allow_listed_contract_class(init_code_hash, source_code = nil, validate: true)
+  def supported_contract_class(init_code_hash, source_code = nil, validate: true)
     validate_contract_support(init_code_hash) if validate
   
     artifact = find_artifact(init_code_hash) || create_artifact(init_code_hash, source_code)
@@ -72,7 +72,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   private
   
   def validate_contract_support(init_code_hash)
-    unless allow_list_contracts.include?(init_code_hash)
+    unless supported_contracts.include?(init_code_hash)
       raise ContractError.new("Contract is not supported: #{init_code_hash.inspect}")
     end
   end

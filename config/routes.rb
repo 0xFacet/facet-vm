@@ -7,7 +7,7 @@ Rails.application.routes.draw do
       get "/simulate", to: "contracts#simulate_transaction"
       
       get "/all-abis", to: "contracts#all_abis"
-      get "/allow-list-artifacts", to: "contracts#allow_list_artifacts"
+      get "/supported-contract-artifacts", to: "contracts#supported_contract_artifacts"
       get "/deployable-contracts", to: "contracts#deployable_contracts"
       
       

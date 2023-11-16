@@ -5,7 +5,7 @@ RSpec.describe Contract, type: :model do
   let(:trusted_address) { "0x019824B229400345510A3a7EFcFB77fD6A78D8d0" }
   
   before(:all) do
-    update_contract_allow_list(
+    update_supported_contracts(
       "ERC20LiquidityPool",
       "EtherBridgeV1Test",
       "EtherBridgeV2Test"

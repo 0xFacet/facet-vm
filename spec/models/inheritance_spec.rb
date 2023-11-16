@@ -2,7 +2,7 @@ require 'rails_helper'
 
 RSpec.describe AbiProxy, type: :model do
   before(:all) do
-    update_contract_allow_list(
+    update_supported_contracts(
       "TestContract",
       "ERC20",
       "TestContractMultipleInheritance:TestContract",

@@ -2,7 +2,7 @@ require 'rails_helper'
 
 RSpec.describe "UniswapV2Pair", type: :model do
   before(:all) do
-    update_contract_allow_list("UniswapV2CalleeTester")
+    update_supported_contracts("UniswapV2CalleeTester")
   end
   
   it 'executes the Uniswap V2 process' do

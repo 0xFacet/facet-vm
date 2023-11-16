@@ -2,7 +2,7 @@ require 'rails_helper'
 
 describe 'UniswapV2Router contract' do
   before(:all) do
-    update_contract_allow_list(
+    update_supported_contracts(
       'UniswapV2Factory',
       'UnsafeNoApprovalERC20',
       'UniswapV2Router',

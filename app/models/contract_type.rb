@@ -80,7 +80,7 @@ class ContractType < TypedVariable
       end
       
       begin
-        new_implementation_class = TransactionContext.allow_listed_contract_class(
+        new_implementation_class = TransactionContext.supported_contract_class(
           new_init_code_hash,
           typed_source.value.presence
         )

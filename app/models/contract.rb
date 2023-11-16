@@ -29,7 +29,7 @@ class Contract < ApplicationRecord
   end
   
   def implementation_class
-    TransactionContext.allow_listed_contract_class(
+    TransactionContext.supported_contract_class(
       current_init_code_hash, validate: false
     )
   end

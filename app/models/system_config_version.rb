@@ -1,4 +1,4 @@
-class ContractAllowListVersion < ApplicationRecord
+class SystemConfigVersion < ApplicationRecord
   belongs_to :ethscription,
   primary_key: 'transaction_hash', foreign_key: 'transaction_hash',
   touch: true, optional: true
@@ -42,12 +42,12 @@ class ContractAllowListVersion < ApplicationRecord
       transaction_hash: eths.transaction_hash,
       block_number: eths.block_number,
       transaction_index: eths.transaction_index,
-      allow_list: data.uniq
+      supported_contracts: data.uniq
     )
   end
   
   def self.current_list
-    newest_first.first&.allow_list || []
+    newest_first.first&.supported_contracts || []
   end
   
   def self.current_artifacts
@@ -65,7 +65,7 @@ class ContractAllowListVersion < ApplicationRecord
     super(
       options.merge(
         only: [
-          :allow_list,
+          :supported_contracts,
           :block_number,
           :transaction_index,
         ]

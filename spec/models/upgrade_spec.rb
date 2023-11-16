@@ -5,7 +5,7 @@ describe 'Upgrading Contracts' do
 
   before(:all) do
     hashes = RubidityTranspiler.transpile_file("UpgradeableTest").map(&:init_code_hash)
-    ContractTestHelper.update_contract_allow_list(hashes)
+    ContractTestHelper.update_supported_contracts(hashes)
   end
   
   it 'is upgradeable' do

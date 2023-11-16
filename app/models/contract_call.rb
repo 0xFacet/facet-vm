@@ -81,7 +81,7 @@ class ContractCall < ApplicationRecord
       raise ContractError.new("Cannot call function on contract creation")
     end
     
-    to_contract_implementation = TransactionContext.allow_listed_contract_class(
+    to_contract_implementation = TransactionContext.supported_contract_class(
       to_contract_init_code_hash,
       to_contract_source_code
     )

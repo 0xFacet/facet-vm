@@ -28,9 +28,9 @@ class ContractsController < ApplicationController
     }
   end
 
-  def allow_list_artifacts
+  def supported_contract_artifacts
     render json: {
-      result: ContractAllowListVersion.current_artifacts
+      result: SystemConfigVersion.current_artifacts
     }
   end
   

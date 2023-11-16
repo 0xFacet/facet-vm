@@ -68,7 +68,7 @@ class ContractArtifact < ApplicationRecord
     end
     
     def all_abis(deployable_only: false)
-      current_artifact_classes = ContractAllowListVersion.current_artifacts.map(&:build_class)
+      current_artifact_classes = SystemConfigVersion.current_artifacts.map(&:build_class)
       contract_classes = all_contract_classes.values + current_artifact_classes
       contract_classes = contract_classes.uniq(&:init_code_hash)
       contract_classes.reject!(&:is_abstract_contract) if deployable_only
