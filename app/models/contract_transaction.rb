@@ -54,7 +54,7 @@ class ContractTransaction < ApplicationRecord
     
     assign_attributes(
       block_blockhash: ethscription.block_blockhash,
-      block_timestamp: ethscription.creation_timestamp,
+      block_timestamp: ethscription.block_timestamp,
       block_number: ethscription.block_number,
       transaction_index: ethscription.transaction_index,
       tx_origin: ethscription.creator,
@@ -117,7 +117,7 @@ class ContractTransaction < ApplicationRecord
         block_number: block_number,
         block_blockhash: "0x" + SecureRandom.hex(32),
         creator: from.downcase,
-        creation_timestamp: Time.zone.now.to_i,
+        block_timestamp: Time.zone.now.to_i,
         transaction_index: 1,
         content_uri: uri
       }

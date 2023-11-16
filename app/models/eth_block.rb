@@ -115,7 +115,7 @@ class EthBlock < ApplicationRecord
       transaction_index: server_data['transaction_index'],
       creator: server_data['creator'],
       initial_owner: server_data['initial_owner'],
-      creation_timestamp: timestamp,
+      block_timestamp: timestamp,
       content_uri: server_data['content_uri'],
       mimetype: server_data['mimetype'],
       gas_price: server_data['gas_price'],

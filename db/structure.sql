@@ -526,7 +526,7 @@ CREATE TABLE public.ethscriptions (
     transaction_index bigint NOT NULL,
     creator character varying NOT NULL,
     initial_owner character varying NOT NULL,
-    creation_timestamp bigint NOT NULL,
+    block_timestamp bigint NOT NULL,
     content_uri text NOT NULL,
     mimetype character varying NOT NULL,
     contract_actions_processed_at timestamp(6) without time zone,

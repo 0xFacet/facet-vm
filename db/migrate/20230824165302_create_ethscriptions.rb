@@ -7,7 +7,7 @@ class CreateEthscriptions < ActiveRecord::Migration[7.1]
       t.bigint :transaction_index, null: false
       t.string :creator, null: false
       t.string :initial_owner, null: false
-      t.bigint :creation_timestamp, null: false
+      t.bigint :block_timestamp, null: false
       t.text :content_uri, null: false
       t.string :mimetype, null: false
       t.datetime :contract_actions_processed_at
