@@ -11,9 +11,9 @@ class CreateEthscriptions < ActiveRecord::Migration[7.1]
       t.text :content_uri, null: false
       t.string :mimetype, null: false
       t.datetime :contract_actions_processed_at
-      t.decimal :gas_price
-      t.decimal :gas_used
-      t.decimal :transaction_fee
+      t.bigint :gas_price
+      t.bigint :gas_used
+      t.bigint :transaction_fee
       
       t.index [:block_number, :transaction_index], unique: true
       t.index :transaction_hash, unique: true

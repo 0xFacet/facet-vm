@@ -118,9 +118,9 @@ class EthBlock < ApplicationRecord
       block_timestamp: timestamp,
       content_uri: server_data['content_uri'],
       mimetype: server_data['mimetype'],
-      gas_price: server_data['gas_price'],
-      gas_used: server_data['gas_used'],
-      transaction_fee: server_data['transaction_fee'],
+      gas_price: server_data['gas_price'].to_i,
+      gas_used: server_data['gas_used'].to_i,
+      transaction_fee: server_data['transaction_fee'].to_i,
     }
   end
 end
