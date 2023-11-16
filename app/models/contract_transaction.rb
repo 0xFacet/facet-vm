@@ -1,6 +1,4 @@
 class ContractTransaction < ApplicationRecord
-  self.inheritance_column = :_type_disabled
-
   include ContractErrors
   
   belongs_to :ethscription, primary_key: :transaction_hash, foreign_key: :transaction_hash, optional: true
@@ -9,7 +7,6 @@ class ContractTransaction < ApplicationRecord
   has_many :contract_calls, foreign_key: :transaction_hash, primary_key: :transaction_hash, inverse_of: :contract_transaction
   has_many :contracts, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_artifacts, foreign_key: :transaction_hash, primary_key: :transaction_hash
-  belongs_to :contract, primary_key: 'address', foreign_key: 'to_contract_address', optional: true
 
   attr_accessor :tx_origin, :initial_call_info, :payload
   
@@ -228,7 +225,7 @@ class ContractTransaction < ApplicationRecord
   end
   
   def status
-    contract_calls.any?(&:failure?) ? :error : :success
+    contract_calls.any?(&:failure?) ? :failure : :success
   end
   
   def mimetype_and_to_valid?

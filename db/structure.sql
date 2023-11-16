@@ -92,6 +92,25 @@ CREATE FUNCTION public.check_ethscription_sequence() RETURNS trigger
 
 
 --
+-- Name: check_status(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.check_status() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+      DECLARE
+        call_status TEXT;
+      BEGIN
+        SELECT status INTO call_status FROM contract_calls WHERE transaction_hash = NEW.transaction_hash AND internal_transaction_index = 0;
+        IF NEW.status <> call_status THEN
+          RAISE EXCEPTION 'Receipt status must equal the status of the corresponding call';
+        END IF;
+        RETURN NEW;
+      END;
+      $$;
+
+
+--
 -- Name: delete_later_blocks(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -529,7 +548,7 @@ CREATE TABLE public.transaction_receipts (
     id bigint NOT NULL,
     transaction_hash character varying NOT NULL,
     from_address character varying NOT NULL,
-    status integer NOT NULL,
+    status character varying NOT NULL,
     function character varying,
     args jsonb DEFAULT '{}'::jsonb NOT NULL,
     logs jsonb DEFAULT '[]'::jsonb NOT NULL,
@@ -550,6 +569,7 @@ CREATE TABLE public.transaction_receipts (
     CONSTRAINT chk_rails_06c0d4e0bb CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_8b922d101f CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_b5311d68b7 CHECK (((from_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_dab1f5e22a CHECK (((status)::text = ANY ((ARRAY['success'::character varying, 'failure'::character varying])::text[]))),
     CONSTRAINT chk_rails_e2780a945e CHECK (((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))
 );
 
@@ -1009,6 +1029,13 @@ CREATE TRIGGER check_block_sequence_trigger BEFORE UPDATE OF processing_state ON
 --
 
 CREATE TRIGGER check_ethscription_sequence_trigger BEFORE UPDATE OF contract_actions_processed_at ON public.ethscriptions FOR EACH ROW EXECUTE FUNCTION public.check_ethscription_sequence();
+
+
+--
+-- Name: transaction_receipts check_status_trigger; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER check_status_trigger BEFORE INSERT OR UPDATE OF status ON public.transaction_receipts FOR EACH ROW EXECUTE FUNCTION public.check_status();
 
 
 --

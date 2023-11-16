@@ -144,7 +144,7 @@ RSpec.describe Contract, type: :model do
       )
       
       expect(call_receipt_fail).to be_a(TransactionReceipt)
-      expect(call_receipt_fail.status).to eq("error")
+      expect(call_receipt_fail.status).to eq("failure")
       
       expect(Ethscription.find_by(transaction_hash: call_receipt_fail.transaction_hash)).to be_nil
       

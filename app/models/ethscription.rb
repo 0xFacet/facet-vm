@@ -16,9 +16,9 @@ class Ethscription < ApplicationRecord
   end
   
   def process!
-    SystemConfigVersion.transaction do
+    Ethscription.transaction do
       if contract_actions_processed_at.present?
-        raise "ContractTransaction already created for #{eths.inspect}"
+        raise "Ethscription already processed: #{eths.inspect}"
       end
       
       if mimetype == ContractTransaction.transaction_mimetype

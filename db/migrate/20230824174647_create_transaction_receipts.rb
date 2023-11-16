@@ -3,7 +3,7 @@ class CreateTransactionReceipts < ActiveRecord::Migration[7.1]
     create_table :transaction_receipts, force: :cascade do |t|
       t.string :transaction_hash, null: false
       t.string :from_address, null: false
-      t.integer :status, null: false
+      t.string :status, null: false
       t.string :function
       t.jsonb :args, default: {}, null: false
       t.jsonb :logs, default: [], null: false
@@ -28,10 +28,30 @@ class CreateTransactionReceipts < ActiveRecord::Migration[7.1]
       t.check_constraint "from_address ~ '^0x[a-f0-9]{40}$'"
       t.check_constraint "block_blockhash ~ '^0x[a-f0-9]{64}$'"
       t.check_constraint "transaction_hash ~ '^0x[a-f0-9]{64}$'"
-    
+      t.check_constraint "status IN ('success', 'failure')"
+      
       t.foreign_key :ethscriptions, column: :transaction_hash, primary_key: :transaction_hash, on_delete: :cascade
     
       t.timestamps
-    end    
+    end
+    
+    execute <<-SQL
+      CREATE OR REPLACE FUNCTION check_status()
+      RETURNS TRIGGER AS $$
+      DECLARE
+        call_status TEXT;
+      BEGIN
+        SELECT status INTO call_status FROM contract_calls WHERE transaction_hash = NEW.transaction_hash AND internal_transaction_index = 0;
+        IF NEW.status <> call_status THEN
+          RAISE EXCEPTION 'Receipt status must equal the status of the corresponding call';
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      CREATE TRIGGER check_status_trigger
+      BEFORE INSERT OR UPDATE OF status ON transaction_receipts
+      FOR EACH ROW EXECUTE FUNCTION check_status();
+    SQL
   end
 end

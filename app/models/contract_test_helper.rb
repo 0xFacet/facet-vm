@@ -1,10 +1,10 @@
 module ContractTestHelper
   def trigger_contract_interaction_and_expect_call_error(**params)
-    trigger_contract_interaction_and_expect_status(status: "error", **params)
+    trigger_contract_interaction_and_expect_status(status: "failure", **params)
   end
   
   def trigger_contract_interaction_and_expect_error(**params)
-    trigger_contract_interaction_and_expect_status(status: "error", **params)
+    trigger_contract_interaction_and_expect_status(status: "failure", **params)
   end
   
   def trigger_contract_interaction_and_expect_success(**params)
@@ -12,14 +12,14 @@ module ContractTestHelper
   end
   
   def trigger_contract_interaction_and_expect_deploy_error(**params)
-    trigger_contract_interaction_and_expect_status(status: "error", **params)
+    trigger_contract_interaction_and_expect_status(status: "failure", **params)
   end
   
   def trigger_contract_interaction_and_expect_status(status:, **params)
     interaction = ContractTestHelper.trigger_contract_interaction(**params.except(:error_msg_includes))
     expect(interaction.status).to eq(status), failure_message(interaction)
     
-    if status == "error" && params[:error_msg_includes]
+    if status == "failure" && params[:error_msg_includes]
       expect(interaction.error['message']).to include(params[:error_msg_includes])
     end
     
