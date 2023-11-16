@@ -22,6 +22,7 @@ class CreateEthBlocks < ActiveRecord::Migration[7.1]
       t.check_constraint "blockhash ~ '^0x[a-f0-9]{64}$'"
       t.check_constraint "parent_blockhash ~ '^0x[a-f0-9]{64}$'"
       t.check_constraint "processing_state <> 'complete' OR transaction_count IS NOT NULL"
+      t.check_constraint "processing_state IN ('complete', 'pending', 'no_ethscriptions')"
       
       t.timestamps
     end

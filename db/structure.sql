@@ -405,7 +405,8 @@ CREATE TABLE public.eth_blocks (
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_rails_1c105acdac CHECK (((parent_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_4f6ef583f4 CHECK ((((processing_state)::text <> 'complete'::text) OR (transaction_count IS NOT NULL))),
-    CONSTRAINT chk_rails_7e9881ece2 CHECK (((blockhash)::text ~ '^0x[a-f0-9]{64}$'::text))
+    CONSTRAINT chk_rails_7e9881ece2 CHECK (((blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_e632888d63 CHECK (((processing_state)::text = ANY ((ARRAY['complete'::character varying, 'pending'::character varying, 'no_ethscriptions'::character varying])::text[])))
 );
 
 
