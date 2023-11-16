@@ -3,9 +3,6 @@ class ContractCall < ApplicationRecord
   
   before_validation :ensure_runtime_ms
   
-  enum :call_type, [ :call, :static_call, :create ], prefix: :is
-  enum :status, [ :failure, :success ]
-  
   attr_accessor :to_contract, :salt, :pending_logs, :to_contract_init_code_hash, :to_contract_source_code
   
   belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
@@ -199,6 +196,26 @@ class ContractCall < ApplicationRecord
   
   def calculated_runtime_ms
     (end_time - start_time) * 1000
+  end
+  
+  def is_static_call?
+    call_type.to_s == "static_call"
+  end
+  
+  def is_create?
+    call_type.to_s == "create"
+  end
+  
+  def is_call?
+    call_type.to_s == "call"
+  end
+  
+  def failure?
+    status.to_s == 'failure'
+  end
+  
+  def success?
+    status.to_s == 'success'
   end
   
   private
