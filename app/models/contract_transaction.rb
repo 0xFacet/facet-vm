@@ -101,7 +101,7 @@ class ContractTransaction < ApplicationRecord
     cache_key = [
       :simulate_transaction,
       ContractState.all,
-      ContractAllowListVersion.all,
+      SystemConfigVersion.all,
       from,
       tx_payload
     ]
@@ -166,7 +166,7 @@ class ContractTransaction < ApplicationRecord
   
   def with_global_context
     TransactionContext.set(
-      allow_list_contracts: ContractAllowListVersion.current_list,
+      supported_contracts: SystemConfigVersion.current_list,
       call_stack: CallStack.new,
       current_transaction: self,
       tx_origin: tx_origin,

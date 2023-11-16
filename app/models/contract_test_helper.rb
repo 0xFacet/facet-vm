@@ -26,7 +26,7 @@ module ContractTestHelper
     interaction
   end
   
-  def self.set_initial_allow_list
+  def self.set_initial_supported_contracts
     new_names = [
       "EtherBridge",
       "EthscriptionERC20Bridge",
@@ -45,16 +45,16 @@ module ContractTestHelper
       item.init_code_hash
     end
     
-    ContractTestHelper.update_contract_allow_list(*new_hashes)
+    ContractTestHelper.update_supported_contracts(*new_hashes)
   end
   
-  def update_contract_allow_list(*new_names)
+  def update_supported_contracts(*new_names)
     new_hashes = new_names.map do |name|
       item = RubidityTranspiler.transpile_and_get(name)
       item.init_code_hash
     end
     
-    ContractTestHelper.update_contract_allow_list(*new_hashes)
+    ContractTestHelper.update_supported_contracts(*new_hashes)
   end
   
   def failure_message(interaction)
@@ -63,7 +63,7 @@ module ContractTestHelper
   end
   
   def self.dep
-    ContractTestHelper.set_initial_allow_list
+    ContractTestHelper.set_initial_supported_contracts
     
     @creation_receipt = ContractTestHelper.trigger_contract_interaction(
       command: 'deploy',
@@ -101,12 +101,12 @@ module ContractTestHelper
     payload
   end
   
-  def self.update_contract_allow_list(*new_hashes)
+  def self.update_supported_contracts(*new_hashes)
     block_timestamp = Time.current.to_i
-    from = ContractAllowListVersion::PERMISSIONED_ADDRESS
-    mimetype = ContractAllowListVersion.system_mimetype
+    from = SystemConfigVersion::PERMISSIONED_ADDRESS
+    mimetype = SystemConfigVersion.system_mimetype
     
-    current_list = ContractAllowListVersion.current_list
+    current_list = SystemConfigVersion.current_list
     
     current_list += new_hashes
     
@@ -153,7 +153,7 @@ module ContractTestHelper
     
     Ethscription.transaction do
       eth = Ethscription.create!(ethscription_attrs)
-      ContractAllowListVersion.create_from_ethscription!(eth)
+      SystemConfigVersion.create_from_ethscription!(eth)
     end
   end
   

@@ -4,7 +4,7 @@ RSpec.describe ContractImplementation, type: :model do
   before(:all) do
     hashes = RubidityTranspiler.transpile_file("ERC20Receiver").map(&:init_code_hash)
     
-    ContractTestHelper.update_contract_allow_list(*hashes)
+    ContractTestHelper.update_supported_contracts(*hashes)
   end
   
   it "sets msg.sender correctly when one contract calls another" do

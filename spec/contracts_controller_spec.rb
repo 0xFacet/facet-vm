@@ -4,7 +4,7 @@ RSpec.describe ContractsController, type: :controller do
   let(:item) { RubidityTranspiler.transpile_and_get("PublicMintERC20") }
   
   before(:all) do
-    update_contract_allow_list("PublicMintERC20")
+    update_supported_contracts("PublicMintERC20")
   end
   
   describe 'GET #simulate_transaction' do

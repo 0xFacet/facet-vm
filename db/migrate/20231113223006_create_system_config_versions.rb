@@ -1,10 +1,10 @@
-class CreateContractAllowListVersions < ActiveRecord::Migration[7.1]
+class CreateSystemConfigVersions < ActiveRecord::Migration[7.1]
   def change
-    create_table :contract_allow_list_versions, force: :cascade do |t|
+    create_table :system_config_versions, force: :cascade do |t|
       t.string :transaction_hash, null: false
       t.bigint :block_number, null: false
       t.bigint :transaction_index, null: false
-      t.jsonb :allow_list, default: [], null: false
+      t.jsonb :supported_contracts, default: [], null: false
     
       t.index [:block_number, :transaction_index], unique: true
       t.index :transaction_hash, unique: true

@@ -16,15 +16,15 @@ class Ethscription < ApplicationRecord
   end
   
   def process!
-    ContractAllowListVersion.transaction do
+    SystemConfigVersion.transaction do
       if contract_actions_processed_at.present?
         raise "ContractTransaction already created for #{eths.inspect}"
       end
       
       if mimetype == ContractTransaction.transaction_mimetype
         ContractTransaction.create_from_ethscription!(self)
-      elsif mimetype == ContractAllowListVersion.system_mimetype
-        ContractAllowListVersion.create_from_ethscription!(self)
+      elsif mimetype == SystemConfigVersion.system_mimetype
+        SystemConfigVersion.create_from_ethscription!(self)
       else
         raise "Unexpected mimetype: #{mimetype}"
       end

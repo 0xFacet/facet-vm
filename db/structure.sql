@@ -178,40 +178,6 @@ CREATE TABLE public.ar_internal_metadata (
 
 
 --
--- Name: contract_allow_list_versions; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.contract_allow_list_versions (
-    id bigint NOT NULL,
-    transaction_hash character varying NOT NULL,
-    block_number bigint NOT NULL,
-    transaction_index bigint NOT NULL,
-    allow_list jsonb DEFAULT '[]'::jsonb NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
-);
-
-
---
--- Name: contract_allow_list_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.contract_allow_list_versions_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: contract_allow_list_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.contract_allow_list_versions_id_seq OWNED BY public.contract_allow_list_versions.id;
-
-
---
 -- Name: contract_artifacts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -519,6 +485,40 @@ CREATE TABLE public.schema_migrations (
 
 
 --
+-- Name: system_config_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.system_config_versions (
+    id bigint NOT NULL,
+    transaction_hash character varying NOT NULL,
+    block_number bigint NOT NULL,
+    transaction_index bigint NOT NULL,
+    supported_contracts jsonb DEFAULT '[]'::jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: system_config_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.system_config_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: system_config_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.system_config_versions_id_seq OWNED BY public.system_config_versions.id;
+
+
+--
 -- Name: transaction_receipts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -571,13 +571,6 @@ ALTER SEQUENCE public.transaction_receipts_id_seq OWNED BY public.transaction_re
 
 
 --
--- Name: contract_allow_list_versions id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.contract_allow_list_versions ALTER COLUMN id SET DEFAULT nextval('public.contract_allow_list_versions_id_seq'::regclass);
-
-
---
 -- Name: contract_artifacts id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -627,6 +620,13 @@ ALTER TABLE ONLY public.ethscriptions ALTER COLUMN id SET DEFAULT nextval('publi
 
 
 --
+-- Name: system_config_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.system_config_versions ALTER COLUMN id SET DEFAULT nextval('public.system_config_versions_id_seq'::regclass);
+
+
+--
 -- Name: transaction_receipts id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -639,14 +639,6 @@ ALTER TABLE ONLY public.transaction_receipts ALTER COLUMN id SET DEFAULT nextval
 
 ALTER TABLE ONLY public.ar_internal_metadata
     ADD CONSTRAINT ar_internal_metadata_pkey PRIMARY KEY (key);
-
-
---
--- Name: contract_allow_list_versions contract_allow_list_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.contract_allow_list_versions
-    ADD CONSTRAINT contract_allow_list_versions_pkey PRIMARY KEY (id);
 
 
 --
@@ -714,6 +706,14 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: system_config_versions system_config_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.system_config_versions
+    ADD CONSTRAINT system_config_versions_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: transaction_receipts transaction_receipts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -722,10 +722,10 @@ ALTER TABLE ONLY public.transaction_receipts
 
 
 --
--- Name: idx_on_block_number_transaction_index_e2ce48ceae; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_on_block_number_transaction_index_efc8dd9c1d; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_on_block_number_transaction_index_e2ce48ceae ON public.contract_allow_list_versions USING btree (block_number, transaction_index);
+CREATE UNIQUE INDEX idx_on_block_number_transaction_index_efc8dd9c1d ON public.system_config_versions USING btree (block_number, transaction_index);
 
 
 --
@@ -740,13 +740,6 @@ CREATE UNIQUE INDEX idx_on_block_number_txi_internal_txi ON public.contract_call
 --
 
 CREATE UNIQUE INDEX idx_on_tx_hash_internal_txi ON public.contract_calls USING btree (transaction_hash, internal_transaction_index);
-
-
---
--- Name: index_contract_allow_list_versions_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_contract_allow_list_versions_on_transaction_hash ON public.contract_allow_list_versions USING btree (transaction_hash);
 
 
 --
@@ -981,6 +974,13 @@ CREATE UNIQUE INDEX index_ethscriptions_on_transaction_hash ON public.ethscripti
 
 
 --
+-- Name: index_system_config_versions_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_system_config_versions_on_transaction_hash ON public.system_config_versions USING btree (transaction_hash);
+
+
+--
 -- Name: index_transaction_receipts_on_effective_contract_address; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1068,14 +1068,6 @@ ALTER TABLE ONLY public.contract_artifacts
 
 
 --
--- Name: contract_allow_list_versions fk_rails_791881fb33; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.contract_allow_list_versions
-    ADD CONSTRAINT fk_rails_791881fb33 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
-
-
---
 -- Name: contract_calls fk_rails_84969f6044; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1089,6 +1081,14 @@ ALTER TABLE ONLY public.contract_calls
 
 ALTER TABLE ONLY public.contract_transactions
     ADD CONSTRAINT fk_rails_a3a2f6ff66 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
+
+
+--
+-- Name: system_config_versions fk_rails_a7468c93b0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.system_config_versions
+    ADD CONSTRAINT fk_rails_a7468c93b0 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
 
 
 --
