@@ -112,7 +112,8 @@ class ContractsController < ApplicationController
     end
 
     render json: {
-      result: convert_int_to_string(receipts)
+      result: convert_int_to_string(receipts),
+      count: receipts.total_count
     }
   end
   
