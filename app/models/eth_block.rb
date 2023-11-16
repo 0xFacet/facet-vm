@@ -114,15 +114,13 @@ class EthBlock < ApplicationRecord
       block_blockhash: blockhash,
       transaction_index: server_data['transaction_index'],
       creator: server_data['creator'],
-      current_owner: server_data['current_owner'],
       initial_owner: server_data['initial_owner'],
       creation_timestamp: timestamp,
-      previous_owner: server_data['previous_owner'],
       content_uri: server_data['content_uri'],
       mimetype: server_data['mimetype'],
       gas_price: server_data['gas_price'],
-      gas_used: server_data['gas_price'],
-      transaction_fee: server_data['gas_price'],
+      gas_used: server_data['gas_used'],
+      transaction_fee: server_data['transaction_fee'],
     }
   end
 end

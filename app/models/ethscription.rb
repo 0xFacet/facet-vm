@@ -43,8 +43,6 @@ class Ethscription < ApplicationRecord
   def downcase_hex_fields
     self.ethscription_id = ethscription_id.downcase
     self.creator = creator.downcase
-    self.current_owner = current_owner.downcase
     self.initial_owner = initial_owner.downcase
-    self.previous_owner = previous_owner.downcase if previous_owner.present?
   end
 end
