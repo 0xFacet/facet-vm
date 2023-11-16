@@ -16,9 +16,9 @@ class CreateTransactionReceipts < ActiveRecord::Migration[7.1]
       t.jsonb :return_value
       t.integer :runtime_ms, null: false
       t.string :call_type, null: false
-      t.decimal :gas_price
-      t.decimal :gas_used
-      t.decimal :transaction_fee
+      t.bigint :gas_price
+      t.bigint :gas_used
+      t.bigint :transaction_fee
     
       t.index [:block_number, :transaction_index], unique: true, name: :index_contract_tx_receipts_on_block_number_and_tx_index
       t.index :effective_contract_address
