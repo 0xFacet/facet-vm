@@ -78,6 +78,10 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def find_artifact(init_code_hash)
+    unless TransactionContext.current_transaction
+      return ContractArtifact.find_by_init_code_hash(init_code_hash)
+    end
+    
     current = TransactionContext.current_transaction.contract_artifacts.detect do |artifact|
       artifact.init_code_hash == init_code_hash
     end
