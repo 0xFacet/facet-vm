@@ -24,7 +24,8 @@ class ContractsController < ApplicationController
     end
   
     render json: {
-      result: result
+      result: result,
+      count: scope.count
     }
   end
 
