@@ -39,7 +39,7 @@ describe 'Upgrading Contracts' do
     upgrade_tx = trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
-        to: v1.contract_address,
+        to: v1.effective_contract_address,
         data: {
           function: "upgradeFromV1",
           args: [v2.init_code_hash, v2.source_code]
@@ -96,10 +96,10 @@ describe 'Upgrading Contracts' do
     trigger_contract_interaction_and_expect_error(
       from: user_address,
       payload: {
-        to: d2.contract_address,
+        to: d2.effective_contract_address,
         data: {
           function: "callOtherContract",
-          args: d1.contract_address
+          args: d1.effective_contract_address
         }
       }
     )
@@ -124,7 +124,7 @@ describe 'Upgrading Contracts' do
     trigger_contract_interaction_and_expect_error(
       from: unauthorized_address,
       payload: {
-        to: v1.contract_address,
+        to: v1.effective_contract_address,
         data: {
           function: "upgradeFromV1",
           args: "0xSomeHash"
@@ -160,7 +160,7 @@ describe 'Upgrading Contracts' do
     trigger_contract_interaction_and_expect_error(
       from: user_address,
       payload: {
-        to: v1.contract_address,
+        to: v1.effective_contract_address,
         data: {
           function: "upgradeFromV1",
           args: incorrect_hash
@@ -198,7 +198,7 @@ describe 'Upgrading Contracts' do
     trigger_contract_interaction_and_expect_error(
       from: user_address,
       payload: {
-        to: malicious.contract_address,
+        to: malicious.effective_contract_address,
         data: {
           function: "attemptReentrancy",
           args: valid_hash
@@ -241,7 +241,7 @@ describe 'Upgrading Contracts' do
     trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
-        to: v1.contract_address,
+        to: v1.effective_contract_address,
         data: {
           function: "upgradeFromV1",
           args: [hash_v2, v2.source_code]
@@ -264,7 +264,7 @@ describe 'Upgrading Contracts' do
       error_msg_includes: 'Upgrade error',
       from: user_address,
       payload: {
-        to: v1.contract_address,
+        to: v1.effective_contract_address,
         data: {
           function: "upgradeAndRevert",  # Assuming you have a similar function in V2 for further upgrades
           args: [hash_v3, v3.source_code]
@@ -278,12 +278,12 @@ describe 'Upgrading Contracts' do
     )
     expect(lastUpgradeHash).to eq(hash_v2)
     
-    expect(Contract.find_by_address(v1.contract_address).current_init_code_hash).to eq(hash_v2)
+    expect(Contract.find_by_address(v1.effective_contract_address).current_init_code_hash).to eq(hash_v2)
     
     trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
-        to: v1.contract_address,
+        to: v1.effective_contract_address,
         data: {
           function: "upgradeFromV2",  # Assuming you have a similar function in V2 for further upgrades
           args: [hash_v3, v3.source_code]
@@ -324,7 +324,7 @@ describe 'Upgrading Contracts' do
       error_msg_includes: 'Contract is not upgradeable',
       from: user_address,
       payload: {
-        to: v1.contract_address,
+        to: v1.effective_contract_address,
         data: {
           function: "upgradeFromV1",
           args: [hash_v2, v2.source_code]
@@ -415,7 +415,7 @@ describe 'Upgrading Contracts' do
     trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
-        to: a1.contract_address,
+        to: a1.effective_contract_address,
         data: {
           function: "triggerChain"
         }

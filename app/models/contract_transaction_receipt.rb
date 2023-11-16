@@ -28,7 +28,7 @@ class ContractTransactionReceipt < ApplicationRecord
   end
   
   def address
-    contract_address
+    effective_contract_address
   end
   
   def no_contract_on_deploy_error
@@ -41,6 +41,14 @@ class ContractTransactionReceipt < ApplicationRecord
     end
   end
   
+  def to
+    effective_contract_address
+  end
+  
+  def from
+    from_address
+  end
+  
   def as_json(options = {})
     super(
       options.merge(
@@ -48,13 +56,11 @@ class ContractTransactionReceipt < ApplicationRecord
           :transaction_hash,
           :call_type,
           :runtime_ms,
-          :timestamp,
-          :contract_address,
-          :caller,
+          :block_timestamp,
           :status,
-          :function_name,
-          :function_args,
-          :error_message,
+          :function,
+          :args,
+          :error,
           :logs,
           :block_blockhash,
           :block_number,
@@ -62,7 +68,9 @@ class ContractTransactionReceipt < ApplicationRecord
           :gas_price,
           :gas_used,
           :transaction_fee,
-        ]
+          :return_value
+        ],
+        methods: [:to, :from]
       )
     ).with_indifferent_access
   end
@@ -70,7 +78,7 @@ class ContractTransactionReceipt < ApplicationRecord
   private
 
   def status_or_errors_check
-    if !success? && error_message.blank?
+    if !success? && error.blank?
       errors.add(:base, "Status must be success or errors must be non-empty")
     end
   end

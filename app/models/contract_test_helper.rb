@@ -20,7 +20,7 @@ module ContractTestHelper
     expect(interaction.status).to eq(status), failure_message(interaction)
     
     if status == "error" && params[:error_msg_includes]
-      expect(interaction.error_message).to include(params[:error_msg_includes])
+      expect(interaction.error).to include(params[:error_msg_includes])
     end
     
     interaction
@@ -59,7 +59,7 @@ module ContractTestHelper
   
   def failure_message(interaction)
     test_location = caller_locations.find { |location| location.path.include?('/spec/') }
-    "\nCall error: #{interaction.error_message}\nTest failed at: #{test_location}"
+    "\nCall error: #{interaction.error}\nTest failed at: #{test_location}"
   end
   
   def self.dep

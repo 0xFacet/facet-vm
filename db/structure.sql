@@ -354,14 +354,14 @@ ALTER SEQUENCE public.contract_states_id_seq OWNED BY public.contract_states.id;
 CREATE TABLE public.contract_transaction_receipts (
     id bigint NOT NULL,
     transaction_hash character varying NOT NULL,
-    caller character varying NOT NULL,
+    from_address character varying NOT NULL,
     status integer NOT NULL,
-    function_name character varying,
-    function_args jsonb DEFAULT '{}'::jsonb NOT NULL,
+    function character varying,
+    args jsonb DEFAULT '{}'::jsonb NOT NULL,
     logs jsonb DEFAULT '[]'::jsonb NOT NULL,
-    "timestamp" timestamp(6) without time zone NOT NULL,
-    error_message character varying,
-    contract_address character varying,
+    block_timestamp bigint NOT NULL,
+    error character varying,
+    effective_contract_address character varying,
     block_number bigint NOT NULL,
     transaction_index bigint NOT NULL,
     block_blockhash character varying NOT NULL,
@@ -374,8 +374,8 @@ CREATE TABLE public.contract_transaction_receipts (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_rails_0670cd4f8a CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT chk_rails_741f472893 CHECK (((caller)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_a900b0f6e5 CHECK (((contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_9e8117958e CHECK (((from_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_a9f40174b2 CHECK (((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_ec6dc7521c CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
@@ -736,6 +736,13 @@ CREATE UNIQUE INDEX idx_on_block_number_txi_internal_txi ON public.contract_call
 
 
 --
+-- Name: idx_on_effective_contract_address_04215beae1; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_on_effective_contract_address_04215beae1 ON public.contract_transaction_receipts USING btree (effective_contract_address);
+
+
+--
 -- Name: idx_on_tx_hash_internal_txi; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -845,13 +852,6 @@ CREATE INDEX index_contract_states_on_state ON public.contract_states USING gin 
 --
 
 CREATE INDEX index_contract_states_on_transaction_hash ON public.contract_states USING btree (transaction_hash);
-
-
---
--- Name: index_contract_transaction_receipts_on_contract_address; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_contract_transaction_receipts_on_contract_address ON public.contract_transaction_receipts USING btree (contract_address);
 
 
 --

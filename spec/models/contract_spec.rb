@@ -300,7 +300,7 @@ RSpec.describe Contract, type: :model do
       upgrade_tx = trigger_contract_interaction_and_expect_success(
         from: user_address,
         payload: {
-          to: bridge.contract_address,
+          to: bridge.effective_contract_address,
           data: {
             function: "upgrade",
             args: [v2.init_code_hash, v2.source_code]
@@ -332,7 +332,7 @@ RSpec.describe Contract, type: :model do
       trigger_contract_interaction_and_expect_success(
         from: trusted_address,
         payload: {
-          to: bridge.contract_address,
+          to: bridge.effective_contract_address,
           data: {
             function: "bridgeIn",
             args: [
@@ -346,7 +346,7 @@ RSpec.describe Contract, type: :model do
       bridge_out = trigger_contract_interaction_and_expect_success(
         from: user_address,
         payload: {
-          to: bridge.contract_address,
+          to: bridge.effective_contract_address,
           data: {
             function: "bridgeOut",
             args: 200
@@ -370,7 +370,7 @@ RSpec.describe Contract, type: :model do
       upgrade_tx = trigger_contract_interaction_and_expect_success(
         from: user_address,
         payload: {
-          to: bridge.contract_address,
+          to: bridge.effective_contract_address,
           data: {
             function: "upgradeAndCall",
             args: {
@@ -390,13 +390,13 @@ RSpec.describe Contract, type: :model do
       expect(contract_upgraded_event['data']['newHash']).to eq(v2.init_code_hash)
       
       bal = ContractTransaction.make_static_call(
-        contract: bridge.contract_address,
+        contract: bridge.effective_contract_address,
         function_name: "balanceOf",
         function_args: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       )
       
       pending = ContractTransaction.make_static_call(
-        contract: bridge.contract_address,
+        contract: bridge.effective_contract_address,
         function_name: "withdrawalIdAmount",
         function_args: withdrawal_id
       )
@@ -409,7 +409,7 @@ RSpec.describe Contract, type: :model do
       upgrade_tx = trigger_contract_interaction_and_expect_success(
         from: user_address,
         payload: {
-          to: bridge.contract_address,
+          to: bridge.effective_contract_address,
           data: {
             function: "upgrade",
             args: [v1.init_code_hash, v1.source_code]
@@ -425,7 +425,7 @@ RSpec.describe Contract, type: :model do
       expect(contract_upgraded_event['data']['newHash']).to eq(v1.init_code_hash)
       
       bal = ContractTransaction.make_static_call(
-        contract: bridge.contract_address,
+        contract: bridge.effective_contract_address,
         function_name: "balanceOf",
         function_args: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       )

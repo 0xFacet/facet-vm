@@ -16,6 +16,6 @@ class StatusController < ApplicationController
       ethscriptions_behind: total_newer_ethscriptions
     }
         
-    render json: resp
+    render json: convert_int_to_string(resp)
   end
 end
