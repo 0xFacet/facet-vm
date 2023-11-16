@@ -15,6 +15,8 @@ class CreateContractCalls < ActiveRecord::Migration[7.1]
       t.jsonb :error
       t.string :status, null: false
       t.bigint :block_number, null: false
+      t.bigint :block_timestamp, null: false
+      t.string :block_blockhash, null: false
       t.bigint :transaction_index, null: false
       t.datetime :start_time, null: false
       t.datetime :end_time, null: false

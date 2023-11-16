@@ -27,6 +27,8 @@ class CallStack
       TransactionContext.tx_origin :
       current_frame.to_contract.address
     
+    current_transaction = TransactionContext.current_transaction
+      
     call = TransactionContext.current_transaction.contract_calls.build(
       to_contract_address: to_contract_address,
       to_contract_init_code_hash: to_contract_init_code_hash,
@@ -37,8 +39,10 @@ class CallStack
       salt: salt,
       internal_transaction_index: @push_count,
       from_address: from_address,
-      block_number: TransactionContext.current_transaction.block_number,
-      transaction_index: TransactionContext.current_transaction.transaction_index,
+      block_number: current_transaction.block_number,
+      block_blockhash: current_transaction.block_blockhash,
+      block_timestamp: current_transaction.block_timestamp,
+      transaction_index: current_transaction.transaction_index,
       start_time: Time.current
     )
     

@@ -254,6 +254,8 @@ CREATE TABLE public.contract_calls (
     error jsonb,
     status character varying NOT NULL,
     block_number bigint NOT NULL,
+    block_timestamp bigint NOT NULL,
+    block_blockhash character varying NOT NULL,
     transaction_index bigint NOT NULL,
     start_time timestamp(6) without time zone NOT NULL,
     end_time timestamp(6) without time zone NOT NULL,
