@@ -10,6 +10,14 @@ class TransactionsController < ApplicationController
       scope = scope.where(block_number: params[:block_number])
     end
     
+    if params[:from].present?
+      scope = scope.where(from_address: params[:from].downcase)
+    end
+    
+    if params[:to].present?
+      scope = scope.where(effective_contract_address: params[:to].downcase)
+    end
+    
     cache_key = ["transactions_index", scope, page, per_page]
   
     result = Rails.cache.fetch(cache_key) do
