@@ -268,22 +268,23 @@ CREATE TABLE public.contract_calls (
     logs jsonb DEFAULT '[]'::jsonb NOT NULL,
     error character varying,
     status integer NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
     block_number bigint NOT NULL,
     transaction_index bigint NOT NULL,
     start_time timestamp(6) without time zone NOT NULL,
     end_time timestamp(6) without time zone NOT NULL,
     runtime_ms integer NOT NULL,
-    CONSTRAINT call_type_2_error_or_created_contract_address CHECK (((call_type <> 2) OR (error IS NOT NULL) OR (created_contract_address IS NOT NULL))),
-    CONSTRAINT call_type_2_error_or_created_contract_address2 CHECK ((((call_type = 2) AND (error IS NULL)) OR (created_contract_address IS NULL))),
-    CONSTRAINT created_contract_address_format CHECK (((created_contract_address IS NULL) OR ((created_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
-    CONSTRAINT effective_contract_address_correct CHECK ((((call_type = 2) AND ((effective_contract_address)::text = (created_contract_address)::text)) OR ((call_type <> 2) AND ((effective_contract_address)::text = (to_contract_address)::text)))),
-    CONSTRAINT from_address_format CHECK (((from_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT status_0_error_or_status_not_0_error CHECK ((((status = 0) AND (error IS NOT NULL)) OR ((status <> 0) AND (error IS NULL)))),
-    CONSTRAINT status_0_logs_empty_or_status_not_0 CHECK ((((status = 0) AND (logs = '[]'::jsonb)) OR (status <> 0))),
-    CONSTRAINT to_contract_address_format CHECK (((to_contract_address IS NULL) OR ((to_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
-    CONSTRAINT transaction_hash_format CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_rails_01c57eb38c CHECK ((((call_type = 2) AND (error IS NULL)) OR (created_contract_address IS NULL))),
+    CONSTRAINT chk_rails_0351aa702f CHECK (((created_contract_address IS NULL) OR ((created_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
+    CONSTRAINT chk_rails_634aef3d55 CHECK (((effective_contract_address IS NULL) OR ((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
+    CONSTRAINT chk_rails_721fc4efbf CHECK ((((status = 0) AND (error IS NOT NULL)) OR ((status <> 0) AND (error IS NULL)))),
+    CONSTRAINT chk_rails_921300a070 CHECK ((((call_type = 2) AND ((effective_contract_address)::text = (created_contract_address)::text)) OR ((call_type <> 2) AND ((effective_contract_address)::text = (to_contract_address)::text)))),
+    CONSTRAINT chk_rails_98aa717f15 CHECK (((call_type <> 2) OR (error IS NOT NULL) OR (created_contract_address IS NOT NULL))),
+    CONSTRAINT chk_rails_afaf44fac1 CHECK ((((status = 0) AND (logs = '[]'::jsonb)) OR (status <> 0))),
+    CONSTRAINT chk_rails_b5e513ec63 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_cebfc1a4ba CHECK (((to_contract_address IS NULL) OR ((to_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
+    CONSTRAINT chk_rails_f785dc90f8 CHECK (((from_address)::text ~ '^0x[a-f0-9]{40}$'::text))
 );
 
 
@@ -318,12 +319,12 @@ CREATE TABLE public.contract_states (
     state jsonb DEFAULT '{}'::jsonb NOT NULL,
     block_number bigint NOT NULL,
     transaction_index bigint NOT NULL,
+    contract_address character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    contract_address character varying NOT NULL,
-    CONSTRAINT chk_rails_0d9a27b31a CHECK (((contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_e8714d0639 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT chk_rails_ec7c2a761e CHECK (((init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
+    CONSTRAINT chk_rails_0db74a781b CHECK (((contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_2be3a94567 CHECK (((init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_c9c6d246ab CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
 
@@ -360,8 +361,6 @@ CREATE TABLE public.contract_transaction_receipts (
     logs jsonb DEFAULT '[]'::jsonb NOT NULL,
     "timestamp" timestamp(6) without time zone NOT NULL,
     error_message character varying,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
     contract_address character varying,
     block_number bigint NOT NULL,
     transaction_index bigint NOT NULL,
@@ -372,10 +371,12 @@ CREATE TABLE public.contract_transaction_receipts (
     gas_price numeric,
     gas_used numeric,
     transaction_fee numeric,
-    CONSTRAINT chk_rails_6a479b86d0 CHECK (((contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_bb3c17a6f6 CHECK (((caller)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_ec6dc7521c CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT chk_rails_fac62f5815 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_rails_0670cd4f8a CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_741f472893 CHECK (((caller)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_a900b0f6e5 CHECK (((contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_ec6dc7521c CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
 
@@ -411,8 +412,8 @@ CREATE TABLE public.contract_transactions (
     transaction_index bigint NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT block_blockhash_format CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT transaction_hash_format CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
+    CONSTRAINT chk_rails_5494b20f4d CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_d696e6a11b CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
 
@@ -445,11 +446,11 @@ CREATE TABLE public.contracts (
     current_type character varying NOT NULL,
     current_init_code_hash character varying NOT NULL,
     current_state jsonb DEFAULT '{}'::jsonb NOT NULL,
+    address character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    address character varying NOT NULL,
-    CONSTRAINT chk_rails_6d0039a684 CHECK (((address)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_c653bcbc93 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_03af4f4a44 CHECK (((address)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_afbe49f1ac CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_e1095f7a6a CHECK (((current_init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
@@ -484,13 +485,13 @@ CREATE TABLE public.eth_blocks (
     blockhash character varying NOT NULL,
     parent_blockhash character varying NOT NULL,
     imported_at timestamp(6) without time zone NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
     processing_state character varying NOT NULL,
     transaction_count bigint,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_rails_1c105acdac CHECK (((parent_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT chk_rails_7e9881ece2 CHECK (((blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT transaction_count_check CHECK ((((processing_state)::text <> 'complete'::text) OR (transaction_count IS NOT NULL)))
+    CONSTRAINT chk_rails_4f6ef583f4 CHECK ((((processing_state)::text <> 'complete'::text) OR (transaction_count IS NOT NULL))),
+    CONSTRAINT chk_rails_7e9881ece2 CHECK (((blockhash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
 
@@ -525,23 +526,19 @@ CREATE TABLE public.ethscriptions (
     transaction_index bigint NOT NULL,
     creator character varying NOT NULL,
     initial_owner character varying NOT NULL,
-    current_owner character varying NOT NULL,
     creation_timestamp bigint NOT NULL,
-    previous_owner character varying,
     content_uri text NOT NULL,
     mimetype character varying NOT NULL,
-    created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL,
     contract_actions_processed_at timestamp(6) without time zone,
     gas_price numeric,
     gas_used numeric,
     transaction_fee numeric,
-    CONSTRAINT ethscriptions_block_blockhash_format CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT ethscriptions_creator_format CHECK (((creator)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT ethscriptions_current_owner_format CHECK (((current_owner)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT ethscriptions_ethscription_id_format CHECK (((ethscription_id)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT ethscriptions_initial_owner_format CHECK (((initial_owner)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT ethscriptions_previous_owner_format CHECK (((previous_owner IS NULL) OR ((previous_owner)::text ~ '^0x[a-f0-9]{40}$'::text)))
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_rails_788fa87594 CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_b178831a0b CHECK (((ethscription_id)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_b577b97822 CHECK (((creator)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_df21fdbe02 CHECK (((initial_owner)::text ~ '^0x[a-f0-9]{40}$'::text))
 );
 
 
@@ -725,13 +722,6 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
--- Name: idx_on_block_number_transaction_index_7c69b816b7; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_on_block_number_transaction_index_7c69b816b7 ON public.contract_transaction_receipts USING btree (block_number, transaction_index);
-
-
---
 -- Name: idx_on_block_number_transaction_index_e2ce48ceae; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -739,10 +729,17 @@ CREATE UNIQUE INDEX idx_on_block_number_transaction_index_e2ce48ceae ON public.c
 
 
 --
--- Name: idx_on_block_number_transaction_index_internal_tran_e578f91173; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_on_block_number_txi_internal_txi; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX idx_on_block_number_transaction_index_internal_tran_e578f91173 ON public.contract_calls USING btree (block_number, transaction_index, internal_transaction_index);
+CREATE UNIQUE INDEX idx_on_block_number_txi_internal_txi ON public.contract_calls USING btree (block_number, transaction_index, internal_transaction_index);
+
+
+--
+-- Name: idx_on_tx_hash_internal_txi; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_tx_hash_internal_txi ON public.contract_calls USING btree (transaction_hash, internal_transaction_index);
 
 
 --
@@ -771,13 +768,6 @@ CREATE INDEX index_contract_artifacts_on_name ON public.contract_artifacts USING
 --
 
 CREATE INDEX index_contract_calls_on_call_type ON public.contract_calls USING btree (call_type);
-
-
---
--- Name: index_contract_calls_on_contract_tx_id_and_internal_tx_index; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_contract_calls_on_contract_tx_id_and_internal_tx_index ON public.contract_calls USING btree (transaction_hash, internal_transaction_index);
 
 
 --
@@ -820,6 +810,13 @@ CREATE INDEX index_contract_calls_on_status ON public.contract_calls USING btree
 --
 
 CREATE INDEX index_contract_calls_on_to_contract_address ON public.contract_calls USING btree (to_contract_address);
+
+
+--
+-- Name: index_contract_states_on_addr_block_number_tx_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_contract_states_on_addr_block_number_tx_index ON public.contract_states USING btree (contract_address, block_number, transaction_index);
 
 
 --
@@ -872,6 +869,13 @@ CREATE UNIQUE INDEX index_contract_transactions_on_transaction_hash ON public.co
 
 
 --
+-- Name: index_contract_tx_receipts_on_block_number_and_tx_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_contract_tx_receipts_on_block_number_and_tx_index ON public.contract_transaction_receipts USING btree (block_number, transaction_index);
+
+
+--
 -- Name: index_contract_txs_on_block_number_and_tx_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -890,6 +894,13 @@ CREATE UNIQUE INDEX index_contracts_on_address ON public.contracts USING btree (
 --
 
 CREATE INDEX index_contracts_on_current_init_code_hash ON public.contracts USING btree (current_init_code_hash);
+
+
+--
+-- Name: index_contracts_on_current_state; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contracts_on_current_state ON public.contracts USING gin (current_state);
 
 
 --
@@ -1041,14 +1052,6 @@ ALTER TABLE ONLY public.ethscriptions
 
 
 --
--- Name: contract_transaction_receipts fk_rails_3ffb1ac226; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.contract_transaction_receipts
-    ADD CONSTRAINT fk_rails_3ffb1ac226 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(ethscription_id) ON DELETE CASCADE;
-
-
---
 -- Name: contract_states fk_rails_54fdb5b7e7; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1097,6 +1100,14 @@ ALTER TABLE ONLY public.contracts
 
 
 --
+-- Name: contract_transaction_receipts fk_rails_dcbb6dfe66; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_transaction_receipts
+    ADD CONSTRAINT fk_rails_dcbb6dfe66 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(ethscription_id) ON DELETE CASCADE;
+
+
+--
 -- Name: contract_states fk_rails_ea304e7236; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1111,22 +1122,13 @@ ALTER TABLE ONLY public.contract_states
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
-('20231115183116'),
-('20231115174848'),
-('20231115173939'),
-('20231115171429'),
-('20231114212909'),
 ('20231113223006'),
 ('20231110173854'),
-('20231102162109'),
-('20231001152142'),
-('20230928185853'),
-('20230911151706'),
 ('20230911150931'),
 ('20230911143056'),
-('20230908205257'),
 ('20230824174647'),
 ('20230824171752'),
 ('20230824170608'),
-('20230824165302');
+('20230824165302'),
+('20230824165301');
 
