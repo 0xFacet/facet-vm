@@ -3,7 +3,7 @@ class ContractTransaction < ApplicationRecord
 
   include ContractErrors
   
-  belongs_to :ethscription, primary_key: :ethscription_id, foreign_key: :transaction_hash, optional: true
+  belongs_to :ethscription, primary_key: :transaction_hash, foreign_key: :transaction_hash, optional: true
   has_one :contract_transaction_receipt, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_states, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_calls, foreign_key: :transaction_hash, primary_key: :transaction_hash, inverse_of: :contract_transaction
@@ -113,7 +113,7 @@ class ContractTransaction < ApplicationRecord
       block_number = EthBlock.maximum(:block_number).to_i + 1
       
       ethscription_attrs = {
-        ethscription_id: "0x" + SecureRandom.hex(32),
+        transaction_hash: "0x" + SecureRandom.hex(32),
         block_number: block_number,
         block_blockhash: "0x" + SecureRandom.hex(32),
         creator: from.downcase,

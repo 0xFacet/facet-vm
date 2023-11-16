@@ -109,7 +109,7 @@ class EthBlock < ApplicationRecord
   
   def transform_server_response(server_data)
     {
-      ethscription_id: server_data['transaction_hash'],
+      transaction_hash: server_data['transaction_hash'],
       block_number: block_number,
       block_blockhash: blockhash,
       transaction_index: server_data['transaction_index'],

@@ -520,7 +520,7 @@ ALTER SEQUENCE public.eth_blocks_id_seq OWNED BY public.eth_blocks.id;
 
 CREATE TABLE public.ethscriptions (
     id bigint NOT NULL,
-    ethscription_id character varying NOT NULL,
+    transaction_hash character varying NOT NULL,
     block_number bigint NOT NULL,
     block_blockhash character varying NOT NULL,
     transaction_index bigint NOT NULL,
@@ -536,7 +536,7 @@ CREATE TABLE public.ethscriptions (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_rails_788fa87594 CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT chk_rails_b178831a0b CHECK (((ethscription_id)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_84591e2730 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_b577b97822 CHECK (((creator)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_df21fdbe02 CHECK (((initial_owner)::text ~ '^0x[a-f0-9]{40}$'::text))
 );
@@ -988,10 +988,10 @@ CREATE UNIQUE INDEX index_ethscriptions_on_block_number_and_transaction_index ON
 
 
 --
--- Name: index_ethscriptions_on_ethscription_id; Type: INDEX; Schema: public; Owner: -
+-- Name: index_ethscriptions_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_ethscriptions_on_ethscription_id ON public.ethscriptions USING btree (ethscription_id);
+CREATE UNIQUE INDEX index_ethscriptions_on_transaction_hash ON public.ethscriptions USING btree (transaction_hash);
 
 
 --
@@ -1056,7 +1056,7 @@ ALTER TABLE ONLY public.ethscriptions
 --
 
 ALTER TABLE ONLY public.contract_states
-    ADD CONSTRAINT fk_rails_54fdb5b7e7 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(ethscription_id) ON DELETE CASCADE;
+    ADD CONSTRAINT fk_rails_54fdb5b7e7 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
 
 
 --
@@ -1064,7 +1064,7 @@ ALTER TABLE ONLY public.contract_states
 --
 
 ALTER TABLE ONLY public.contract_artifacts
-    ADD CONSTRAINT fk_rails_6aff674b66 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(ethscription_id) ON DELETE CASCADE;
+    ADD CONSTRAINT fk_rails_6aff674b66 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
 
 
 --
@@ -1072,7 +1072,7 @@ ALTER TABLE ONLY public.contract_artifacts
 --
 
 ALTER TABLE ONLY public.contract_allow_list_versions
-    ADD CONSTRAINT fk_rails_791881fb33 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(ethscription_id) ON DELETE CASCADE;
+    ADD CONSTRAINT fk_rails_791881fb33 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
 
 
 --
@@ -1080,7 +1080,7 @@ ALTER TABLE ONLY public.contract_allow_list_versions
 --
 
 ALTER TABLE ONLY public.contract_calls
-    ADD CONSTRAINT fk_rails_84969f6044 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(ethscription_id) ON DELETE CASCADE;
+    ADD CONSTRAINT fk_rails_84969f6044 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
 
 
 --
@@ -1088,7 +1088,7 @@ ALTER TABLE ONLY public.contract_calls
 --
 
 ALTER TABLE ONLY public.contract_transactions
-    ADD CONSTRAINT fk_rails_a3a2f6ff66 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(ethscription_id) ON DELETE CASCADE;
+    ADD CONSTRAINT fk_rails_a3a2f6ff66 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
 
 
 --
@@ -1096,7 +1096,7 @@ ALTER TABLE ONLY public.contract_transactions
 --
 
 ALTER TABLE ONLY public.contracts
-    ADD CONSTRAINT fk_rails_caa9d9df8b FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(ethscription_id) ON DELETE CASCADE;
+    ADD CONSTRAINT fk_rails_caa9d9df8b FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
 
 
 --
@@ -1104,7 +1104,7 @@ ALTER TABLE ONLY public.contracts
 --
 
 ALTER TABLE ONLY public.contract_transaction_receipts
-    ADD CONSTRAINT fk_rails_dcbb6dfe66 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(ethscription_id) ON DELETE CASCADE;
+    ADD CONSTRAINT fk_rails_dcbb6dfe66 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
 
 
 --

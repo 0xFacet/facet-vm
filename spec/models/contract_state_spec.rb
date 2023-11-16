@@ -19,7 +19,7 @@ RSpec.describe Contract, type: :model do
     )
     
     @ethscription = Ethscription.create!(
-      ethscription_id: '0x' + SecureRandom.hex(32),
+      transaction_hash: '0x' + SecureRandom.hex(32),
       block_number: block_number,
       block_blockhash: '0x' + SecureRandom.hex(32),
       transaction_index: 1,
@@ -33,7 +33,7 @@ RSpec.describe Contract, type: :model do
     )
     
     @ethscription2 = Ethscription.create!(
-      ethscription_id: '0x' + SecureRandom.hex(32),
+      transaction_hash: '0x' + SecureRandom.hex(32),
       block_number: block_number,
       block_blockhash: '0x' + SecureRandom.hex(32),
       transaction_index: 2,
@@ -47,7 +47,7 @@ RSpec.describe Contract, type: :model do
     )
 
     @contract = Contract.create!(
-      transaction_hash: @ethscription.ethscription_id,
+      transaction_hash: @ethscription.transaction_hash,
       current_type: 'SomeType',
       current_init_code_hash: "0x" + SecureRandom.hex(32),
       created_at: Time.now,
@@ -61,7 +61,7 @@ RSpec.describe Contract, type: :model do
     it 'updates the current_state of the Contract' do
       new_state = { key: 'value' }
       ContractState.create!(
-        transaction_hash: @ethscription.ethscription_id,
+        transaction_hash: @ethscription.transaction_hash,
         state: new_state,
         type: @contract.current_type,
         init_code_hash: @contract.current_init_code_hash,
@@ -84,7 +84,7 @@ RSpec.describe Contract, type: :model do
       old_state = { key: 'old_value' }
       
       ContractState.create!(
-        transaction_hash: @ethscription.ethscription_id,
+        transaction_hash: @ethscription.transaction_hash,
         state: old_state,
         type: @contract.current_type,
         init_code_hash: @contract.current_init_code_hash,
@@ -101,7 +101,7 @@ RSpec.describe Contract, type: :model do
       new_state = { key: 'new_value' }
       
       contract_state = ContractState.create!(
-        transaction_hash: @ethscription2.ethscription_id,
+        transaction_hash: @ethscription2.transaction_hash,
         state: new_state,
         type: @contract.current_type,
         init_code_hash: @contract.current_init_code_hash,
@@ -129,7 +129,7 @@ RSpec.describe Contract, type: :model do
       new_init_code_hash = "0x" + SecureRandom.hex(32)
   
       ContractState.create!(
-        transaction_hash: @ethscription.ethscription_id,
+        transaction_hash: @ethscription.transaction_hash,
         state: new_state,
         type: new_type,
         init_code_hash: new_init_code_hash,

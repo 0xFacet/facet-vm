@@ -1,6 +1,6 @@
 class ContractAllowListVersion < ApplicationRecord
   belongs_to :ethscription,
-  primary_key: 'ethscription_id', foreign_key: 'transaction_hash',
+  primary_key: 'transaction_hash', foreign_key: 'transaction_hash',
   touch: true, optional: true
   
   PERMISSIONED_ADDRESS = "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
@@ -39,7 +39,7 @@ class ContractAllowListVersion < ApplicationRecord
     end
     
     create!(
-      transaction_hash: eths.ethscription_id,
+      transaction_hash: eths.transaction_hash,
       block_number: eths.block_number,
       transaction_index: eths.transaction_index,
       allow_list: data.uniq

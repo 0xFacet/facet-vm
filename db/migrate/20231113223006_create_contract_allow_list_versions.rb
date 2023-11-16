@@ -9,7 +9,7 @@ class CreateContractAllowListVersions < ActiveRecord::Migration[7.1]
       t.index [:block_number, :transaction_index], unique: true
       t.index :transaction_hash, unique: true
     
-      t.foreign_key :ethscriptions, column: :transaction_hash, primary_key: :ethscription_id, on_delete: :cascade
+      t.foreign_key :ethscriptions, column: :transaction_hash, primary_key: :transaction_hash, on_delete: :cascade
     
       t.timestamps
     end    

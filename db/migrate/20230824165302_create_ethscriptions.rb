@@ -1,7 +1,7 @@
 class CreateEthscriptions < ActiveRecord::Migration[7.1]
   def change
     create_table :ethscriptions, force: :cascade do |t|
-      t.string :ethscription_id, null: false
+      t.string :transaction_hash, null: false
       t.bigint :block_number, null: false
       t.string :block_blockhash, null: false
       t.bigint :transaction_index, null: false
@@ -16,11 +16,11 @@ class CreateEthscriptions < ActiveRecord::Migration[7.1]
       t.decimal :transaction_fee
       
       t.index [:block_number, :transaction_index], unique: true
-      t.index :ethscription_id, unique: true
+      t.index :transaction_hash, unique: true
     
       t.check_constraint "block_blockhash ~ '^0x[a-f0-9]{64}$'"
       t.check_constraint "creator ~ '^0x[a-f0-9]{40}$'"
-      t.check_constraint "ethscription_id ~ '^0x[a-f0-9]{64}$'"
+      t.check_constraint "transaction_hash ~ '^0x[a-f0-9]{64}$'"
       t.check_constraint "initial_owner ~ '^0x[a-f0-9]{40}$'"
     
       t.foreign_key :eth_blocks, column: :block_number, primary_key: :block_number, on_delete: :cascade

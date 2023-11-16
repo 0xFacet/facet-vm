@@ -140,7 +140,7 @@ module ContractTestHelper
     )
     
     ethscription_attrs = {
-      "ethscription_id"=>tx_hash,
+      "transaction_hash"=>tx_hash,
       "block_number"=> block_number,
       "block_blockhash"=> blockhash,
       "creator"=>from.downcase,
@@ -209,7 +209,7 @@ module ContractTestHelper
     )
     
     ethscription_attrs = {
-      "ethscription_id"=>tx_hash,
+      "transaction_hash"=>tx_hash,
       "block_number"=> block_number,
       "block_blockhash"=> blockhash,
       "creator"=>from.downcase,

@@ -41,7 +41,7 @@ class CreateContractCalls < ActiveRecord::Migration[7.1]
       t.check_constraint "effective_contract_address IS NULL OR effective_contract_address ~ '^0x[a-f0-9]{40}$'"
       t.check_constraint "transaction_hash ~ '^0x[a-f0-9]{64}$'"
     
-      t.foreign_key :ethscriptions, column: :transaction_hash, primary_key: :ethscription_id, on_delete: :cascade
+      t.foreign_key :ethscriptions, column: :transaction_hash, primary_key: :transaction_hash, on_delete: :cascade
     
       t.timestamps
     end    

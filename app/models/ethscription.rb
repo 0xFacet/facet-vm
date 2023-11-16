@@ -1,10 +1,10 @@
 class Ethscription < ApplicationRecord
   belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, touch: true, optional: true
   
-  has_many :contracts, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
-  has_one :contract_transaction_receipt, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
-  has_one :contract_transaction, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
-  has_many :contract_states, primary_key: 'ethscription_id', foreign_key: 'transaction_hash'
+  has_many :contracts, primary_key: 'transaction_hash', foreign_key: 'transaction_hash'
+  has_one :contract_transaction_receipt, primary_key: 'transaction_hash', foreign_key: 'transaction_hash'
+  has_one :contract_transaction, primary_key: 'transaction_hash', foreign_key: 'transaction_hash'
+  has_many :contract_states, primary_key: 'transaction_hash', foreign_key: 'transaction_hash'
 
   before_validation :downcase_hex_fields
   
@@ -41,7 +41,7 @@ class Ethscription < ApplicationRecord
   private
   
   def downcase_hex_fields
-    self.ethscription_id = ethscription_id.downcase
+    self.transaction_hash = transaction_hash.downcase
     self.creator = creator.downcase
     self.initial_owner = initial_owner.downcase
   end
