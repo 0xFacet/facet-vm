@@ -1,7 +1,7 @@
 class PostgresClient
   DB_USER = `whoami`.chomp
   DATABASE_THATS_ALWAYS_THERE = 'postgres'
-  ACTUAL_DATABASE_NAME = "ethscriptions_vm_development"
+  ACTUAL_DATABASE_NAME = Rails.configuration.database_configuration["development"]["database"]
   SWAP_IN_DATABASE_NAME = "#{ACTUAL_DATABASE_NAME}-fresh"
   SWAP_OUT_DATABASE_NAME = "#{ACTUAL_DATABASE_NAME}-old"
   
