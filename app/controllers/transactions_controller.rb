@@ -18,6 +18,14 @@ class TransactionsController < ApplicationController
       scope = scope.where(effective_contract_address: params[:to].downcase)
     end
     
+    if params[:to_or_from].present?
+      to_or_from = params[:to_or_from].downcase
+      scope = scope.where(
+        "from_address = :addr OR effective_contract_address = :addr",
+        addr: to_or_from
+      )
+    end
+    
     cache_key = ["transactions_index", scope, page, per_page]
   
     result = Rails.cache.fetch(cache_key) do
