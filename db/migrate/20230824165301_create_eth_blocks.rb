@@ -1,4 +1,4 @@
-class CreateEthBlocks < ActiveRecord::Migration[7.0]
+class CreateEthBlocks < ActiveRecord::Migration[7.1]
   def change
     create_table :eth_blocks, force: :cascade do |t|
       t.bigint :block_number, null: false

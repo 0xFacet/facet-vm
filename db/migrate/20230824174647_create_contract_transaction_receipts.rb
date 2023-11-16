@@ -1,4 +1,4 @@
-class CreateContractTransactionReceipts < ActiveRecord::Migration[7.0]
+class CreateContractTransactionReceipts < ActiveRecord::Migration[7.1]
   def change
     create_table :contract_transaction_receipts, force: :cascade do |t|
       t.string :transaction_hash, null: false
