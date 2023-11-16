@@ -4,7 +4,7 @@ class TransactionsController < ApplicationController
     per_page = (params[:per_page] || 50).to_i
     per_page = 50 if per_page > 50
     
-    scope = ContractTransactionReceipt.newest_first
+    scope = TransactionReceipt.newest_first
     
     if params[:block_number].present?
       scope = scope.where(block_number: params[:block_number])
@@ -23,7 +23,7 @@ class TransactionsController < ApplicationController
   end
 
   def show
-    transaction = ContractTransactionReceipt.find_by(transaction_hash: params[:id])
+    transaction = TransactionReceipt.find_by(transaction_hash: params[:id])
 
     if transaction.blank?
       render json: { error: "Transaction not found" }, status: 404
@@ -36,7 +36,7 @@ class TransactionsController < ApplicationController
   end
 
   def total
-    total_transactions = ContractTransactionReceipt.count
+    total_transactions = TransactionReceipt.count
 
     render json: {
       result: convert_int_to_string(total_transactions)

@@ -94,7 +94,7 @@ rails s -p 4000
 
 Now you can see all your contract interactions at `http://localhost:4000/contracts/:contract_id/call-receipts` and call contract static functions at `http://localhost:4000/contracts/:contract_id/static-call/:function_name`.
 
-If you want to debug your app you can run `rails c` to open up a console. Once in the console you can run things like `Ethscription.count` to see the total number of ethscriptions that have been processed and `ContractTransactionReceipt.all` to list all contract transaction receipts.
+If you want to debug your app you can run `rails c` to open up a console. Once in the console you can run things like `Ethscription.count` to see the total number of ethscriptions that have been processed and `TransactionReceipt.all` to list all contract transaction receipts.
 
 ## Creating Dumb Contracts
 

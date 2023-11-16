@@ -10,7 +10,7 @@ class Contract < ApplicationRecord
   
   has_many :contract_calls, foreign_key: :effective_contract_address, primary_key: :address
   has_many :contract_transactions, through: :contract_calls
-  has_many :contract_transaction_receipts, through: :contract_transactions
+  has_many :transaction_receipts, through: :contract_transactions
   
   has_one :creating_contract_call, class_name: 'ContractCall', foreign_key: 'created_contract_address', primary_key: 'address'
 

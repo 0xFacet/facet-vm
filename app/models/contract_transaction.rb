@@ -4,7 +4,7 @@ class ContractTransaction < ApplicationRecord
   include ContractErrors
   
   belongs_to :ethscription, primary_key: :transaction_hash, foreign_key: :transaction_hash, optional: true
-  has_one :contract_transaction_receipt, foreign_key: :transaction_hash, primary_key: :transaction_hash
+  has_one :transaction_receipt, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_states, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_calls, foreign_key: :transaction_hash, primary_key: :transaction_hash, inverse_of: :contract_transaction
   has_many :contracts, foreign_key: :transaction_hash, primary_key: :transaction_hash
@@ -75,7 +75,7 @@ class ContractTransaction < ApplicationRecord
   end
   
   def build_transaction_receipt
-    self.contract_transaction_receipt = ContractTransactionReceipt.new(
+    self.transaction_receipt = TransactionReceipt.new(
       transaction_hash: transaction_hash,
       call_type: initial_call.call_type,
       block_number: block_number,
@@ -127,7 +127,7 @@ class ContractTransaction < ApplicationRecord
       tx = ContractTransaction.new_from_ethscription(eth)
       tx.execute_transaction(persist: false)
       
-      tx.contract_transaction_receipt
+      tx.transaction_receipt
     end
   end
   

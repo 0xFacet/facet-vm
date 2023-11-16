@@ -223,7 +223,7 @@ module ContractTestHelper
     eth = Ethscription.create!(ethscription_attrs)
     ContractTransaction.create_from_ethscription!(eth)
     
-    eth.contract_transaction_receipt
+    eth.transaction_receipt
   end
   
   def self.test_api
