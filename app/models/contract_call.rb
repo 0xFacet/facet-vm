@@ -159,6 +159,14 @@ class ContractCall < ApplicationRecord
     nil
   end
   
+  def to
+    effective_contract_address
+  end
+  
+  def from
+    from_address
+  end
+  
   def as_json(options = {})
     super(
       options.merge(
@@ -167,9 +175,6 @@ class ContractCall < ApplicationRecord
           :block_number,
           :transaction_index,
           :internal_transaction_index,
-          :from_address,
-          :to_contract_address,
-          :effective_contract_address,
           :function,
           :args,
           :call_type,
@@ -178,7 +183,8 @@ class ContractCall < ApplicationRecord
           :error,
           :status,
           :runtime_ms
-        ]
+        ],
+        methods: [:to, :from]
       )
     )
   end

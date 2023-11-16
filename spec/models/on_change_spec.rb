@@ -15,14 +15,14 @@ describe 'On Change and State Proxy Dirty Tracking' do
     
     expect {
       ContractTransaction.make_static_call(
-        contract: tester.contract_address,
+        contract: tester.effective_contract_address,
         function_name: "staticCallShouldSucceed",
       )
     }.not_to raise_error
     
     expect {
       ContractTransaction.make_static_call(
-        contract: tester.contract_address,
+        contract: tester.effective_contract_address,
         function_name: "staticCallShouldFail",
       )
     }.to raise_error(Contract::StaticCallError)
@@ -30,7 +30,7 @@ describe 'On Change and State Proxy Dirty Tracking' do
     (1..2).each do |i|
       expect {
         ContractTransaction.make_static_call(
-          contract: tester.contract_address,
+          contract: tester.effective_contract_address,
           function_name: "arraySucceed#{i}",
         )
       }.not_to raise_error
@@ -39,7 +39,7 @@ describe 'On Change and State Proxy Dirty Tracking' do
     (1..2).each do |i|
       expect {
         ContractTransaction.make_static_call(
-          contract: tester.contract_address,
+          contract: tester.effective_contract_address,
           function_name: "mappingSucceed#{i}",
         )
       }.not_to raise_error
@@ -48,7 +48,7 @@ describe 'On Change and State Proxy Dirty Tracking' do
     (1..5).each do |i|
       expect {
         ContractTransaction.make_static_call(
-          contract: tester.contract_address,
+          contract: tester.effective_contract_address,
           function_name: "mappingFail#{i}",
         )
       }.to raise_error(Contract::StaticCallError)
@@ -57,7 +57,7 @@ describe 'On Change and State Proxy Dirty Tracking' do
     (1..4).each do |i|
       expect {
         ContractTransaction.make_static_call(
-          contract: tester.contract_address,
+          contract: tester.effective_contract_address,
           function_name: "arrayFail#{i}",
         )
       }.to raise_error(Contract::StaticCallError)
@@ -65,7 +65,7 @@ describe 'On Change and State Proxy Dirty Tracking' do
     
     expect {
       ContractTransaction.make_static_call(
-        contract: tester.contract_address,
+        contract: tester.effective_contract_address,
         function_name: "staticCallAttemptModifySymbol",
       )
     }.to raise_error(Contract::StaticCallError)

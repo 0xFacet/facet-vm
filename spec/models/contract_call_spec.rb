@@ -18,7 +18,7 @@ RSpec.describe ContractCall, type: :model do
       }
     )
     
-    deployed = receipt.contract_address
+    deployed = receipt.effective_contract_address
 
     trigger_contract_interaction_and_expect_success(
       from: from_address,
@@ -64,7 +64,7 @@ RSpec.describe ContractCall, type: :model do
       }
     )
   
-    factory_address = factory_deploy_receipt.contract_address
+    factory_address = factory_deploy_receipt.effective_contract_address
     
     create_pair_receipt = trigger_contract_interaction_and_expect_success(
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
@@ -130,7 +130,7 @@ RSpec.describe ContractCall, type: :model do
       }
     )
     
-    deployed = receipt.contract_address
+    deployed = receipt.effective_contract_address
     
     expect {
       ContractTransaction.make_static_call(
