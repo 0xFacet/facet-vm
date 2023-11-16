@@ -1,4 +1,4 @@
-class CreateEthscriptions < ActiveRecord::Migration[7.0]
+class CreateEthscriptions < ActiveRecord::Migration[7.1]
   def change
     create_table :ethscriptions, force: :cascade do |t|
       t.string :ethscription_id, null: false
