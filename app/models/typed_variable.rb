@@ -16,12 +16,16 @@ class TypedVariable
       raise TypeError.new("Use literals instead of TypedVariable for booleans")
     end
     
-    if type == Type.create(:address)
+    if type.address?
       define_singleton_method(:call, method(:address_call))
     end
     
-    if type == Type.create(:string)
+    if type.string?
       define_singleton_method(:base64Encode, method(:string_base64Encode))
+    end
+    
+    if type.is_int? || type.is_uint?
+      define_singleton_method(:toString, method(:int_toString))
     end
   end
   
@@ -58,6 +62,10 @@ class TypedVariable
     create(type, value, on_change: on_change)
   end
   
+  def self.validated_value(type, value)
+    create_or_validate(type, value).value
+  end
+  
   def as_json(args = {})
     serialize
   end
@@ -67,8 +75,8 @@ class TypedVariable
   end
   
   def to_s
-    if value.is_a?(String) || value.is_a?(Integer)
-      value.to_s
+    if type.string?
+      value
     else
       raise "No string conversion"
     end
@@ -144,6 +152,10 @@ class TypedVariable
   end
   
   private
+  
+  def int_toString
+    value.to_s
+  end
   
   def string_base64Encode
     Base64.strict_encode64(value)

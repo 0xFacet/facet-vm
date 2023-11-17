@@ -275,6 +275,7 @@ class ContractImplementation
   end
   
   def self.calculate_new_contract_address_with_salt(salt, from_address, to_contract_init_code_hash)
+    from_address = TypedVariable.validated_value(:address, from_address)
     target_implementation = TransactionContext.supported_contract_class(to_contract_init_code_hash)
     
     unless target_implementation.present?

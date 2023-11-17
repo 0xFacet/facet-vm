@@ -91,12 +91,12 @@ contract :UniswapSetupZapV2 do
     factory = new UniswapV2Factory(_feeToSetter: msg.sender)
     
     tokenA = new UnsafeNoApprovalERC20(
-      name: "TokenA (#{block.number})",
+      name: "TokenA (#{block.number.toString()})",
       symbol: "TKA",
     )
     
     tokenB = new UnsafeNoApprovalERC20(
-      name: "TokenB (#{block.number})",
+      name: "TokenB (#{block.number.toString()})",
       symbol: "TKB",
     )
     

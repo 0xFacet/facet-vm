@@ -27,6 +27,10 @@ class CallStack
       TransactionContext.tx_origin :
       current_frame.to_contract.address
     
+    from_address = TypedVariable.validated_value(:address, from_address)
+    to_contract_init_code_hash = TypedVariable.validated_value(:bytes32, to_contract_init_code_hash)
+    to_contract_address = TypedVariable.validated_value(:address, to_contract_address)
+    
     current_transaction = TransactionContext.current_transaction
       
     call = TransactionContext.current_transaction.contract_calls.build(
