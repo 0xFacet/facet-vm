@@ -6,10 +6,7 @@ module TypedObject
   end
 
   def serialize
-    self
-  end
-
-  def deserialize(*)
+    value
   end
 
   def value
