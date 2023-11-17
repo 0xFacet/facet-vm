@@ -1,7 +1,7 @@
 module ForLoop
-  MAX_LOOPS = 100
+  MAX_LOOPS = 25
   
-  def forLoop(start: 0, condition:, step: 1, max_iterations:)
+  def forLoop(start: 0, condition:, step: 1, max_iterations: MAX_LOOPS)
     if max_iterations > MAX_LOOPS
       raise ArgumentError, "Max iterations cannot exceed #{MAX_LOOPS}"
     end

@@ -12,7 +12,7 @@ RSpec.describe ForLoop do
       ary = (1..10).to_a
       result = []
 
-      dummy_class.forLoop(start: 0, condition: ->(i) { i < ary.length }, step: 1, max_iterations: 100) do |i|
+      dummy_class.forLoop(start: 0, condition: ->(i) { i < ary.length }, step: 1) do |i|
         next if i.even?
         result << i
       end
@@ -24,7 +24,7 @@ RSpec.describe ForLoop do
       ary = (1..10).to_a
       result = []
 
-      dummy_class.forLoop(start: 0, condition: ->(i) { i < ary.length }, step: 1, max_iterations: 100) do |i|
+      dummy_class.forLoop(start: 0, condition: ->(i) { i < ary.length }, step: 1) do |i|
         break if i > 5
         result << i
       end
@@ -43,7 +43,7 @@ RSpec.describe ForLoop do
     
     it 'runs with default arguments' do
       result = []
-      dummy_class.forLoop(condition: ->(i) { i < 5 }, max_iterations: 100) do |i|
+      dummy_class.forLoop(condition: ->(i) { i < 5 }) do |i|
         result << i
       end
       expect(result).to eq([0, 1, 2, 3, 4])
@@ -51,7 +51,7 @@ RSpec.describe ForLoop do
     
     it 'decrements with a negative step' do
       result = []
-      dummy_class.forLoop(start: 5, condition: ->(i) { i >= 0 }, step: -1, max_iterations: 100) do |i|
+      dummy_class.forLoop(start: 5, condition: ->(i) { i >= 0 }, step: -1) do |i|
         result << i
       end
       expect(result).to eq([5, 4, 3, 2, 1, 0])
@@ -59,7 +59,7 @@ RSpec.describe ForLoop do
     
     it 'never runs if condition is immediately false' do
       result = []
-      dummy_class.forLoop(start: 10, condition: ->(i) { i < 5 }, max_iterations: 100) do |i|
+      dummy_class.forLoop(start: 10, condition: ->(i) { i < 5 }) do |i|
         result << i
       end
       expect(result).to be_empty
@@ -67,7 +67,7 @@ RSpec.describe ForLoop do
     
     it 'handles non-integer steps' do
       result = []
-      dummy_class.forLoop(start: 0, condition: ->(i) { i < 5 }, step: 0.5, max_iterations: 100) do |i|
+      dummy_class.forLoop(start: 0, condition: ->(i) { i < 5 }, step: 0.5) do |i|
         result << i
       end
       expect(result).to eq([0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5])
@@ -75,7 +75,7 @@ RSpec.describe ForLoop do
     
     it 'increments by custom step value' do
       result = []
-      dummy_class.forLoop(start: 0, condition: ->(i) { i < 10 }, step: 2, max_iterations: 100) do |i|
+      dummy_class.forLoop(start: 0, condition: ->(i) { i < 10 }, step: 2) do |i|
         result << i
       end
       expect(result).to eq([0, 2, 4, 6, 8])
