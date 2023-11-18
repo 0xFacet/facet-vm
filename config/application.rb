@@ -20,6 +20,7 @@ module FacetVm
     config.middleware.use ActionDispatch::Session::CookieStore
     
     config.autoload_paths << Rails.root.join('lib')
+    config.eager_load_paths << Rails.root.join('lib')
     
     config.active_record.schema_format = :sql
     
