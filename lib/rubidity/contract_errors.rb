@@ -19,16 +19,13 @@ module ContractErrors
   
   class StaticCallError < StandardError; end  
   class TransactionError < StandardError; end
-  class ContractRuntimeError < ContractError; end
   class ContractDefinitionError < ContractError; end
-  class StateVariableTypeError < StandardError; end
   class VariableTypeError < StandardError; end
   class StateVariableMutabilityError < StandardError; end
   class ContractArgumentError < StandardError; end
   class CallingNonExistentContractError < TransactionError; end
   class InvalidOverrideError < StandardError; end
   class FunctionAlreadyDefinedError < StandardError; end
-  class InvalidEthscriptionError < StandardError; end
   class InvalidDestructuringError < StandardError; end
   class InvalidStateVariableChange < StandardError; end
   class UnknownInitCodeHash < StandardError; end

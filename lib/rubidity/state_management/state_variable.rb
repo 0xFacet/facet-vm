@@ -123,9 +123,7 @@ class StateVariable
     end
   rescue StateVariableMutabilityError => e
     message = "immutability error for #{var.name}: #{e.message}"
-    raise ContractRuntimeError.new(message, contract)
-  rescue StateVariableTypeError => e
-    raise ContractRuntimeError.new(e.message, contract)
+    raise ContractError.new(message, contract)
   end
   
   def ==(other)
