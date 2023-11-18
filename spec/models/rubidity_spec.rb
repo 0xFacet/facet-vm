@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe AbiProxy::FunctionProxy, type: :model do
+RSpec.describe FunctionProxy, type: :model do
   describe '#convert_args_to_typed_variables_struct' do
     let(:function_proxy) do
       described_class.new(

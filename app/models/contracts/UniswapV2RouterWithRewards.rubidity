@@ -50,6 +50,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
       feeAdmin: feeAdmin
     )
     
+    # Temporary hack to make FacetScan work
     s.decimals = 18
     
     UniswapV2Router.constructor(_factory: _factory, _WETH: _WETH)

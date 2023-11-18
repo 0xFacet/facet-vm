@@ -174,12 +174,12 @@ class TypedVariable
       type: :call
     ).to_json
     
-    AbiProxy::DestructureOnly.new( 
+    DestructureOnly.new( 
       success: true,
       data: TypedVariable.create(:string, data)
     )
   rescue ContractError, TransactionError, JSON::ParserError
-    return AbiProxy::DestructureOnly.new(
+    return DestructureOnly.new(
       success: false,
       data: TypedVariable.create(:string)
     )
