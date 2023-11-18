@@ -123,6 +123,9 @@ class Contract < ApplicationRecord
         [name, func.as_json.except('implementation')]
       end.to_h
       
+      json['deployment_transaction'] = transaction_receipts.oldest_first.
+        first.as_json
+      
       json['current_state'] = if options[:include_current_state]
         current_state
       else
