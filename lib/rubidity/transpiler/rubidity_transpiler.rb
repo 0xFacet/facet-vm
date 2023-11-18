@@ -1,4 +1,6 @@
 class RubidityTranspiler
+  extend ContractErrors  
+  
   extend Memoist
   
   attr_accessor :filename
@@ -27,7 +29,7 @@ class RubidityTranspiler
           return transpiler.get_desired_artifact(init_code_hash)
         end
       end
-      raise "No contract found with init code hash: #{init_code_hash.inspect}"
+      raise UnknownInitCodeHash.new("No contract found with init code hash: #{init_code_hash.inspect}")
     end
     memoize :find_and_transpile
   end

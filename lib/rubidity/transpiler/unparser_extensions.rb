@@ -9,9 +9,11 @@ module UnparserExtensions
     class << self
       extend Memoist
       
-      alias_method :original_unparse, :unparse
-      memoize :original_unparse
-      memoize :parse
+      unless method_defined?(:original_unparse)
+        alias_method :original_unparse, :unparse
+        memoize :original_unparse
+        memoize :parse
+      end
   
       def unparse(node)
         code = original_unparse(node)

@@ -1,4 +1,6 @@
 class SystemConfigVersion < ApplicationRecord
+  include ContractErrors  
+  
   belongs_to :ethscription,
   primary_key: 'transaction_hash', foreign_key: 'transaction_hash',
   touch: true, optional: true
@@ -53,7 +55,11 @@ class SystemConfigVersion < ApplicationRecord
   def self.current_supported_contract_artifacts
     artifacts = Rails.cache.fetch([all]) do
       current_supported_contracts.map do |item|
-        RubidityTranspiler.find_and_transpile(item)
+        begin
+          RubidityTranspiler.find_and_transpile(item)
+        rescue UnknownInitCodeHash => e
+          ContractArtifact.find_by_init_code_hash!(item)
+        end
       end
     end.deep_dup
     

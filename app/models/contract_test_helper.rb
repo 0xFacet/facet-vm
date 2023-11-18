@@ -45,7 +45,7 @@ module ContractTestHelper
       item.init_code_hash
     end
     
-    ContractTestHelper.update_supported_contracts(*new_hashes)
+    ContractTestHelper.update_supported_contracts(*new_hashes, replace: true)
   end
   
   def update_supported_contracts(*new_names)
@@ -101,14 +101,14 @@ module ContractTestHelper
     payload
   end
   
-  def self.update_supported_contracts(*new_hashes)
+  def self.update_supported_contracts(*new_hashes, replace: false)
     block_timestamp = Time.current.to_i
     from = SystemConfigVersion::PERMISSIONED_ADDRESS
     mimetype = SystemConfigVersion.system_mimetype
     
     current_list = SystemConfigVersion.current_supported_contracts
     
-    current_list += new_hashes
+    current_list = replace ? new_hashes : current_list + new_hashes
     
     payload = {
       op: "updateSupportedContracts",
