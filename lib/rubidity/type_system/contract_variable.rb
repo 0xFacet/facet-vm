@@ -1,4 +1,4 @@
-class ContractType < TypedVariable  
+class ContractVariable < TypedVariable  
   def initialize(...)
     super(...)
   end
@@ -15,7 +15,7 @@ class ContractType < TypedVariable
     value.respond_to?(name, include_private) || super
   end
 
-  class Proxy
+  class Value
     include ContractErrors
     extend AttrPublicReadPrivateWrite
     

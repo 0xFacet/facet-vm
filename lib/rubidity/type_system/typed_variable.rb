@@ -40,11 +40,11 @@ class TypedVariable
     options[:on_change] = on_change
     
     if type.mapping?
-      MappingType.new(type, value, **options)
+      MappingVariable.new(type, value, **options)
     elsif type.array?
-      ArrayType.new(type, value, **options)
+      ArrayVariable.new(type, value, **options)
     elsif type.contract?
-      ContractType.new(type, value, **options)
+      ContractVariable.new(type, value, **options)
     else
       new(type, value, **options)
     end

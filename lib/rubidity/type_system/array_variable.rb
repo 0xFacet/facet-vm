@@ -1,4 +1,4 @@
-class ArrayType < TypedVariable
+class ArrayVariable < TypedVariable
   def initialize(...)
     super(...)
     value.on_change = on_change
@@ -8,7 +8,7 @@ class ArrayType < TypedVariable
     value.data.map(&:serialize)
   end
   
-  class Proxy
+  class Value
     extend AttrPublicReadPrivateWrite
     
     attr_accessor :on_change

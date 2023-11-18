@@ -184,7 +184,7 @@ class ContractImplementation
     end
 
     log_event({
-      contractType: self.class.name,
+      ContractVariable: self.class.name,
       contractAddress: current_address,
       event: event_name,
       data: args
@@ -407,7 +407,7 @@ class ContractImplementation
   end
   
   def handle_contract_type_cast(contract_type, other_address)
-    proxy = ContractType::Proxy.new(
+    proxy = ContractVariable::Value.new(
       contract_class: self.class.available_contracts[contract_type],
       address: other_address
     )

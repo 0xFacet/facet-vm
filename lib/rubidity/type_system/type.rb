@@ -116,11 +116,11 @@ class Type
     when bool?
       false
     when mapping?
-      MappingType::Proxy.new(key_type: key_type, value_type: value_type)
+      MappingVariable::Value.new(key_type: key_type, value_type: value_type)
     when array?
-      ArrayType::Proxy.new(value_type: value_type, initial_length: initial_length)
+      ArrayVariable::Value.new(value_type: value_type, initial_length: initial_length)
     when contract?
-      ContractType::Proxy.new(contract_class: metadata[:interface], address: nil)
+      ContractVariable::Value.new(contract_class: metadata[:interface], address: nil)
     else
       raise "Unknown default value for #{self.inspect}"
     end
@@ -148,7 +148,7 @@ class Type
     end
     
     if address?
-      if literal.is_a?(ContractType::Proxy)
+      if literal.is_a?(ContractVariable::Value)
         return literal.address
       end
       
@@ -214,7 +214,7 @@ class Type
         raise_variable_type_error(literal)
       end
     elsif mapping?
-      if literal.is_a?(MappingType::Proxy)
+      if literal.is_a?(MappingVariable::Value)
         return literal
       end
       
@@ -222,11 +222,11 @@ class Type
         raise VariableTypeError.new("invalid #{literal}")
       end
     
-      proxy = MappingType::Proxy.new(literal, key_type: key_type, value_type: value_type)
+      proxy = MappingVariable::Value.new(literal, key_type: key_type, value_type: value_type)
       
       return proxy
     elsif array?
-      if literal.is_a?(ArrayType::Proxy)
+      if literal.is_a?(ArrayVariable::Value)
         return literal
       end
       
@@ -238,11 +238,11 @@ class Type
         TypedVariable.create(value_type, value)
       end
     
-      proxy = ArrayType::Proxy.new(data, value_type: value_type, initial_length: initial_length)
+      proxy = ArrayVariable::Value.new(data, value_type: value_type, initial_length: initial_length)
       
       return proxy
     elsif contract?
-      if literal.is_a?(ContractType::Proxy)
+      if literal.is_a?(ContractVariable::Value)
         return literal
       else
         raise_variable_type_error("No literals allowed for contract types")

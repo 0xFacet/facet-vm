@@ -1,4 +1,4 @@
-class MappingType < TypedVariable
+class MappingVariable < TypedVariable
   def initialize(...)
     super(...)
     value.on_change = on_change
@@ -8,7 +8,7 @@ class MappingType < TypedVariable
     value.serialize
   end
   
-  class Proxy
+  class Value
     extend AttrPublicReadPrivateWrite
     
     attr_accessor :on_change
