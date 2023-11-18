@@ -70,10 +70,6 @@ class TypedVariable
     serialize
   end
   
-  def serialize
-    value
-  end
-  
   def to_s
     if type.string?
       value
