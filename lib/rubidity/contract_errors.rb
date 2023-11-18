@@ -9,11 +9,11 @@ module ContractErrors
     end
     
     def message
-      return super if contract.blank?
+      return super unless contract
       
       trace = !Rails.env.production? ? backtrace.join("\n") : ''
-      
-      "#{contract.class.name} error: " + super
+      name = ::Object.instance_method(:class).bind(contract).call
+      "#{name} error: " + super
     end
   end
   

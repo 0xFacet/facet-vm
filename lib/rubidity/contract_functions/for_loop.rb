@@ -6,7 +6,9 @@ module ForLoop
       raise ArgumentError, "Max iterations cannot exceed #{MAX_LOOPS}"
     end
     
-    raise ArgumentError, 'Block is required' unless block_given?
+    unless Kernel.instance_method(:block_given?).bind(self).call
+      raise ArgumentError, 'Block is required'
+    end
     
     current_val = start
     iteration_count = 0
