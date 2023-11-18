@@ -1,4 +1,4 @@
-class ContractAstPreprocessor
+class ContractAstProcessor
   include AST::Processor::Mixin
   
   attr_accessor :available_contracts, :contracts_referenced_by

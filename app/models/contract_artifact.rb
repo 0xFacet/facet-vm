@@ -18,10 +18,6 @@ class ContractArtifact < ApplicationRecord
     include ContractErrors
     extend Memoist
     
-    def main_files
-      Dir.glob(Rails.root.join("app/models/contracts/*.rubidity"))
-    end
-    
     def all_contract_classes
       all.map(&:build_class).index_by(&:init_code_hash).with_indifferent_access
     end

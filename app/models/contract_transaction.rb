@@ -164,7 +164,7 @@ class ContractTransaction < ApplicationRecord
   def with_global_context
     TransactionContext.set(
       supported_contracts: SystemConfigVersion.current_supported_contracts,
-      call_stack: CallStack.new,
+      call_stack: CallStack.new(TransactionContext),
       current_transaction: self,
       tx_origin: tx_origin,
       tx_current_transaction_hash: transaction_hash,

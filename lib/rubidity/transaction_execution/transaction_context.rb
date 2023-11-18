@@ -78,11 +78,11 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def find_artifact(init_code_hash)
-    unless TransactionContext.current_transaction
+    unless current_transaction
       return ContractArtifact.find_by_init_code_hash(init_code_hash)
     end
     
-    current = TransactionContext.current_transaction.contract_artifacts.detect do |artifact|
+    current = current_transaction.contract_artifacts.detect do |artifact|
       artifact.init_code_hash == init_code_hash
     end
   
@@ -94,7 +94,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   
     artifact = RubidityTranspiler.new(source_code).get_desired_artifact(init_code_hash)
     
-    TransactionContext.current_transaction.contract_artifacts.build(artifact.attributes)
+    current_transaction.contract_artifacts.build(artifact.attributes)
     
     artifact
   end

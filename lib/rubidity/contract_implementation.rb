@@ -239,8 +239,7 @@ class ContractImplementation < BasicObject
     ::Object.instance_method(:send).bind(self).call(...)
   end
   
-  protected
-  # private
+  private
 
   def abi
     ::Object.new.tap do |proxy|

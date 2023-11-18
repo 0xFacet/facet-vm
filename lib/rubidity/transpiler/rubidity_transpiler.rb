@@ -108,7 +108,7 @@ class RubidityTranspiler
   
   def preprocessed_contract_asts
     contract_asts.map do |contract_ast|
-      ContractAstPreprocessor.process(contract_ast)
+      ContractAstProcessor.process(contract_ast)
     end
   end
   

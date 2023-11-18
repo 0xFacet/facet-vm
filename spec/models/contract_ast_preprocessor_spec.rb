@@ -1,12 +1,12 @@
 require 'rails_helper'
 
-RSpec.describe ContractAstPreprocessor do
+RSpec.describe ContractAstProcessor do
   let(:unused_reference) { File.expand_path('../../fixtures/TestUnusedReference.rubidity', __FILE__) }
   let(:dupe_contract) { File.expand_path('../../fixtures/TestDuplicateContract.rubidity', __FILE__) }
   
   def test_preprocessor(code, expected_output)
     contract_ast = Unparser.parse(code)
-    ast = ContractAstPreprocessor.process(contract_ast)
+    ast = ContractAstProcessor.process(contract_ast)
     code = ast.unparse
     
     expect(code).to eq(expected_output)
