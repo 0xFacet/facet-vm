@@ -8,7 +8,8 @@ class Contract < ApplicationRecord
   
   has_many :contract_calls, foreign_key: :effective_contract_address, primary_key: :address
   has_many :contract_transactions, through: :contract_calls
-  has_many :transaction_receipts, through: :contract_transactions
+  has_many :transaction_receipts, primary_key: 'address', foreign_key: 'effective_contract_address'
+
 
   attr_reader :implementation
   
@@ -123,8 +124,11 @@ class Contract < ApplicationRecord
         [name, func.as_json.except('implementation')]
       end.to_h
       
-      json['deployment_transaction'] = transaction_receipts.oldest_first.
-        first.as_json
+      if association(:transaction_receipts).loaded?
+        json['deployment_transaction'] = transaction_receipts.sort_by do |r|
+          [r.block_number, r.transaction_index]
+        end.first.as_json
+      end
       
       json['current_state'] = if options[:include_current_state]
         current_state
