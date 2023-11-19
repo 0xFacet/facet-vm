@@ -519,8 +519,10 @@ CREATE TABLE public.system_config_versions (
     transaction_index bigint NOT NULL,
     supported_contracts jsonb DEFAULT '[]'::jsonb NOT NULL,
     start_block_number bigint,
+    admin_address character varying,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_rails_63a4680c0e CHECK (((admin_address)::text ~ '^0x[a-f0-9]{40}$'::text))
 );
 
 

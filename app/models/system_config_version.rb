@@ -5,8 +5,6 @@ class SystemConfigVersion < ApplicationRecord
   primary_key: 'transaction_hash', foreign_key: 'transaction_hash',
   touch: true, optional: true
   
-  PERMISSIONED_ADDRESS = "0xc2172a6315c1d7f6855768f843c420ebb36eda97"
-  
   scope :newest_first, -> {
     order(block_number: :desc, transaction_index: :desc) 
   }
@@ -29,7 +27,8 @@ class SystemConfigVersion < ApplicationRecord
     
     operations = {
       'updateSupportedContracts' => :update_supported_contracts!,
-      'updateStartBlockNumber' => :update_start_block_number!
+      'updateStartBlockNumber' => :update_start_block_number!,
+      'updateAdminAddress' => :update_admin_address!
     }
   
     operation = ethscription.parsed_content['op']
@@ -95,7 +94,25 @@ class SystemConfigVersion < ApplicationRecord
     )
   end
   
+  def self.current_admin_address
+    current.admin_address || ENV.fetch("INITIAL_SYSTEM_CONFIG_ADMIN_ADDRESS")
+  end
+  
   private
+  
+  def update_admin_address!
+    new_address = operation_data
+      
+    unless new_address.is_a?(String) && new_address =~ /\A0x[a-f0-9]{40}\z/
+      raise "Invalid data: #{data.inspect}"
+    end
+    
+    if new_address == self.class.current_admin_address
+      raise "No change to admin address proposed"
+    end
+    
+    update!(admin_address: new_address)
+  end
   
   def update_supported_contracts!
     data = operation_data
@@ -104,12 +121,20 @@ class SystemConfigVersion < ApplicationRecord
       raise "Invalid data: #{data.inspect}"
     end
     
+    if data == self.class.current.supported_contracts
+      raise "No change to supported contracts proposed"
+    end
+    
     update!(supported_contracts: data.uniq)
   end
   
   def update_start_block_number!
     old_number = self.class.current.start_block_number
     new_number = operation_data
+    
+    if new_number == old_number
+      raise "Start block already set to #{new_number}"
+    end
     
     unless new_number.is_a?(Integer)
       raise "Invalid data: #{new_number.inspect}"
@@ -127,7 +152,7 @@ class SystemConfigVersion < ApplicationRecord
   end
   
   def valid_ethscription?
-    if ethscription.creator != PERMISSIONED_ADDRESS
+    if ethscription.creator != self.class.current_admin_address
       Rails.logger.info "Unexpected from: #{ethscription.from}"
       return
     end
