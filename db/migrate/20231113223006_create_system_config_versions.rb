@@ -5,7 +5,7 @@ class CreateSystemConfigVersions < ActiveRecord::Migration[7.1]
       t.bigint :block_number, null: false
       t.bigint :transaction_index, null: false
       t.jsonb :supported_contracts, default: [], null: false
-      t.bigint :start_block_number#, null: false
+      t.bigint :start_block_number
     
       t.index [:block_number, :transaction_index], unique: true
       t.index :transaction_hash, unique: true
