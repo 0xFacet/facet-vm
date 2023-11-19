@@ -6,7 +6,6 @@ RSpec.describe "UniswapV2Pair", type: :model do
   end
   
   it 'executes the Uniswap V2 process' do
-    # Deploy the ERC20 tokens
     tokenA_deploy_receipt = trigger_contract_interaction_and_expect_success(
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       payload: {
@@ -80,7 +79,6 @@ RSpec.describe "UniswapV2Pair", type: :model do
     )
 # binding.pry
     pair_address = create_pair_receipt.logs.find { |log| log['event'] == 'PairCreated' }['data']['pair']
-
     # The user decides how much liquidity they would provide
     
     deploy_receipts = {
@@ -97,7 +95,7 @@ RSpec.describe "UniswapV2Pair", type: :model do
           data: {
             function: "mint",
             args: {
-              amount: 1000e18.to_i
+              amount: 1000.ether
             }
           }
         }
@@ -111,7 +109,7 @@ RSpec.describe "UniswapV2Pair", type: :model do
             function: "approve",
             args: {
               spender: pair_address,
-              amount: 1000e18.to_i
+              amount: 1000.ether
             }
           }
         }
@@ -126,7 +124,7 @@ RSpec.describe "UniswapV2Pair", type: :model do
           function: "transfer",
           args: {
             to: pair_address,
-            amount: 300e18.to_i
+            amount: 300.ether
           }
         }
       }
@@ -140,7 +138,7 @@ RSpec.describe "UniswapV2Pair", type: :model do
           function: "transfer",
           args: {
             to: pair_address,
-            amount: 600e18.to_i
+            amount: 600.ether
           }
         }
       }
@@ -170,7 +168,7 @@ RSpec.describe "UniswapV2Pair", type: :model do
           function: "transfer",
           args: {
             to: pair_address,
-            amount: 100e18.to_i
+            amount: 100.ether
           }
         }
       }
@@ -208,13 +206,13 @@ RSpec.describe "UniswapV2Pair", type: :model do
           function: "approve",
           args: {
             spender: pair_address,
-            amount: 500e18.to_i
+            amount: 500.ether
           }
         }
       }
     )
     
-    inputAmount = 200e18.to_i
+    inputAmount = 200.ether
     
     trigger_contract_interaction_and_expect_success(
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
@@ -243,12 +241,21 @@ RSpec.describe "UniswapV2Pair", type: :model do
       }
     ).address
     
+    token0 = ContractTransaction.make_static_call(
+      contract: pair_address,
+      function_name: "token0"
+    )
+    
     reserves = ContractTransaction.make_static_call(
       contract: pair_address,
       function_name: "getReserves"
     )
     
-    reserveA, reserveB = reserves.values_at("_reserve0", "_reserve1")
+    if deploy_receipts["tokenA"].address == token0
+      reserveA, reserveB = reserves.values_at("_reserve0", "_reserve1")
+    else
+      reserveB, reserveA = reserves.values_at("_reserve0", "_reserve1")
+    end
     
     numerator = inputAmount * 997 * reserveA;
     denominator = (reserveB * 1000) + (inputAmount * 997);
@@ -280,7 +287,7 @@ RSpec.describe "UniswapV2Pair", type: :model do
           function: "transfer",
           args: {
             to: pair_address,
-            amount: 50e18.to_i
+            amount: 50.ether
           }
         }
       }
