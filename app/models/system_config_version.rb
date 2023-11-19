@@ -1,6 +1,4 @@
 class SystemConfigVersion < ApplicationRecord
-  Object.const_set('SystemConfig', self)
-  
   include ContractErrors  
   
   belongs_to :ethscription,
@@ -18,7 +16,8 @@ class SystemConfigVersion < ApplicationRecord
   end
   
   def self.create_from_ethscription!(ethscription)
-    record = new(ethscription: ethscription)
+    record = current.deep_dup
+    record.ethscription = ethscription
     
     record.perform_operation!
   end
@@ -26,7 +25,7 @@ class SystemConfigVersion < ApplicationRecord
   def perform_operation!
     raise "Already performed" unless new_record?
     
-    validate_ethscription!
+    return unless valid_ethscription?
     
     operations = {
       'updateSupportedContracts' => :update_supported_contracts!,
@@ -109,31 +108,40 @@ class SystemConfigVersion < ApplicationRecord
   end
   
   def update_start_block_number!
-    old_number = current.start_block_number
-    new_number = Integer(operation_data, 10)
+    old_number = self.class.current.start_block_number
+    new_number = operation_data
     
-    if block_number >= old_number
+    unless new_number.is_a?(Integer)
+      raise "Invalid data: #{new_number.inspect}"
+    end
+    
+    if old_number && (block_number >= old_number)
       raise "Can't set start block after already started"
     end
     
-    unless new_number > block_number + 50
-      raise "Can't set start block within 50 blocks of current block"
+    unless new_number > block_number
+      raise "Start block must be in the future"
     end
     
     update!(start_block_number: new_number)
   end
   
-  def validate_ethscription!
+  def valid_ethscription?
     if ethscription.creator != PERMISSIONED_ADDRESS
-      raise "Unexpected from: #{eths.from}"
+      Rails.logger.info "Unexpected from: #{ethscription.from}"
+      return
     end
     
     if ethscription.initial_owner != "0x" + "0" * 40
-      raise "Unexpected initial_owner: #{eths.initial_owner}"
+      Rails.logger.info "Unexpected initial_owner: #{ethscription.initial_owner}"
+      return
     end
     
     if ethscription.mimetype != self.class.system_mimetype
-      raise "Unexpected mimetype: #{eths.mimetype}"
+      Rails.logger.info "Unexpected mimetype: #{ethscription.mimetype}"
+      return
     end
+    
+    true
   end
 end
