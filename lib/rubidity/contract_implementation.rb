@@ -186,7 +186,7 @@ class ContractImplementation < BasicObject
     end
 
     log_event({
-      ContractVariable: self.class.name,
+      contractType: self.class.name,
       contractAddress: current_address,
       event: event_name,
       data: args
