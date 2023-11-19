@@ -285,27 +285,22 @@ class ContractImplementation < BasicObject
   end
   
   def self.calculate_new_contract_address_with_salt(salt, from_address, to_contract_init_code_hash)
-    from_address = ::TypedVariable.validated_value(:address, from_address)
     target_implementation = ::TransactionContext.supported_contract_class(to_contract_init_code_hash)
     
-    unless target_implementation.present?
-      raise ::TransactionError.new("Invalid contract version: #{to_contract_init_code_hash}")
-    end
-    
-    salt_hex = salt.gsub(/\A0x/, '').downcase
-        
-    if salt_hex !~ /\A[0-9a-f]+\z/ || salt_hex.length != 64
-      raise ::TransactionError.new("Salt must be 32 hex bytes")
-    end
+    from_address = ::TypedVariable.validated_value(:address, from_address).sub(/\A0x/, '')
+    salt = ::TypedVariable.validated_value(:bytes32, salt).sub(/\A0x/, '')
+    to_contract_init_code_hash = ::TypedVariable.validated_value(
+      :bytes32,
+      to_contract_init_code_hash
+    ).sub(/\A0x/, '')
 
-    padded_from = from_address.to_s[2..-1].rjust(64, "0")
-    to_contract_init_code_hash = Integer(to_contract_init_code_hash, 16).to_s(16)
+    padded_from = from_address.rjust(64, "0")
     
-    data = "0xff" + padded_from + salt_hex + to_contract_init_code_hash
+    data = "0xff" + padded_from + salt + to_contract_init_code_hash
 
     hash = ::Digest::Keccak256.hexdigest(::Eth::Util.hex_to_bin(data))
 
-    "0x" + hash[24..-1]
+    "0x" + hash.last(40)
   end
   
   def create2_address(salt:, deployer:, contract_type:)
