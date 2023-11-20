@@ -104,10 +104,14 @@ class ContractCall < ApplicationRecord
       return calculate_new_contract_address_with_salt
     end
     
-    rlp_encoded = Eth::Rlp.encode([Integer(from_address, 16), current_nonce])
+    rlp_encoded = Eth::Rlp.encode([
+      Integer(from_address, 16),
+      current_nonce,
+      "facet"
+    ])
     
     hash = Digest::Keccak256.hexdigest(rlp_encoded)
-    "0x" + hash[24..-1]
+    "0x" + hash.last(40)
   end
   
   def calculate_new_contract_address_with_salt
