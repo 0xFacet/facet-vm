@@ -53,10 +53,16 @@ class TransactionsController < ApplicationController
   end
 
   def total
-    total_transactions = TransactionReceipt.count
-
+    transaction_count = TransactionReceipt.count
+    unique_from_address_count = TransactionReceipt.distinct.count(:from_address)
+    
+    result = {
+      transaction_count: transaction_count,
+      unique_from_address_count: unique_from_address_count
+    }
+    
     render json: {
-      result: convert_int_to_string(total_transactions)
+      result: convert_int_to_string(result)
     }
   end
 end
