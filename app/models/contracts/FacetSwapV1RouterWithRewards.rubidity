@@ -30,8 +30,6 @@ contract :FacetSwapV1RouterWithRewards, is: :FacetSwapV1Router, upgradeable: tru
   mapping ({ address: :uint256 }), :public, :feesGeneratedBySwapper
   mapping ({ address: :uint256 }), :public, :swapperRewards
   
-  uint256 :public, :decimals
-  
   constructor(
     _factory: :address,
     _WETH: :address,
