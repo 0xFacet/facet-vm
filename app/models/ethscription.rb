@@ -22,7 +22,7 @@ class Ethscription < ApplicationRecord
   def process!
     Ethscription.transaction do
       if contract_actions_processed_at.present?
-        raise "Ethscription already processed: #{eths.inspect}"
+        raise "Ethscription already processed: #{inspect}"
       end
       
       if mimetype == ContractTransaction.transaction_mimetype
