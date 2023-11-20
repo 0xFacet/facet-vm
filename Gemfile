@@ -50,7 +50,7 @@ group :development do
 end
 
 
-gem "dotenv-rails", "~> 2.8", groups: [:development]
+gem "dotenv-rails", "~> 2.8", groups: [:development, :test]
 
 gem "httpparty", "~> 0.2.0"
 

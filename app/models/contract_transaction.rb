@@ -20,7 +20,10 @@ class ContractTransaction < ApplicationRecord
     ContractTransaction.transaction do
       record = new_from_ethscription(ethscription)
       
-      if record.mimetype_and_to_valid?
+      system_start_block = SystemConfigVersion.current.start_block_number
+      current_block_valid = system_start_block && record.block_number >= system_start_block
+      
+      if record.mimetype_and_to_valid? && current_block_valid
         record.execute_transaction(persist: true)
       end
     end
@@ -163,7 +166,7 @@ class ContractTransaction < ApplicationRecord
   
   def with_global_context
     TransactionContext.set(
-      supported_contracts: SystemConfigVersion.current_supported_contracts,
+      system_config: SystemConfigVersion.current,
       call_stack: CallStack.new(TransactionContext),
       current_transaction: self,
       tx_origin: tx_origin,
