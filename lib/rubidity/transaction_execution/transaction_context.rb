@@ -1,7 +1,7 @@
 class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
-  attribute :call_stack, :current_call, :supported_contracts,
+  attribute :call_stack, :current_call, :system_config,
     :transaction_index, :current_transaction
   
   delegate :get_active_contract, to: :current_transaction
@@ -72,7 +72,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   private
   
   def validate_contract_support(init_code_hash)
-    unless supported_contracts.include?(init_code_hash)
+    unless system_config.contract_supported?(init_code_hash)
       raise ContractError.new("Contract is not supported: #{init_code_hash.inspect}")
     end
   end

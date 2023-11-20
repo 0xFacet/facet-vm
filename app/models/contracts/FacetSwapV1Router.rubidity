@@ -1,14 +1,16 @@
 pragma :rubidity, "1.0.0"
 
-import './UniswapV2Factory.rubidity'
+import './Upgradeable.rubidity'
+import './FacetSwapV1Factory.rubidity'
 
-contract :UniswapV2Router do
+contract :FacetSwapV1Router, is: :Upgradeable, upgradeable: true do
   address :public, :factory
   address :public, :WETH
   
   constructor(_factory: :address, _WETH: :address) {
     s.factory = _factory
     s.WETH = _WETH
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
   }
   
   function :_addLiquidity, {
@@ -19,8 +21,8 @@ contract :UniswapV2Router do
     amountAMin: :uint256,
     amountBMin: :uint256
   }, :internal, :virtual, returns: { amountA: :uint256, amountB: :uint256 } do
-    if UniswapV2Factory(factory).getPair(tokenA, tokenB) == address(0)
-      UniswapV2Factory(factory).createPair(tokenA, tokenB)
+    if FacetSwapV1Factory(factory).getPair(tokenA, tokenB) == address(0)
+      FacetSwapV1Factory(factory).createPair(tokenA, tokenB)
     end
     
     reserveA, reserveB = getReserves(s.factory, tokenA, tokenB)
@@ -31,7 +33,7 @@ contract :UniswapV2Router do
       amountBOptimal = quote(amountADesired, reserveA, reserveB)
       
       if amountBOptimal <= amountBDesired
-        require(amountBOptimal >= amountBMin, 'UniswapV2Router: INSUFFICIENT_B_AMOUNT')
+        require(amountBOptimal >= amountBMin, 'FacetSwapV1Router: INSUFFICIENT_B_AMOUNT')
         
         return { amountA: amountADesired, amountB: amountBOptimal }
       else
@@ -39,7 +41,7 @@ contract :UniswapV2Router do
         
         require(amountAOptimal <= amountADesired, "ASSERT")
         
-        require(amountAOptimal >= amountAMin, 'UniswapV2Router: INSUFFICIENT_A_AMOUNT')
+        require(amountAOptimal >= amountAMin, 'FacetSwapV1Router: INSUFFICIENT_A_AMOUNT')
         
         return { amountA: amountAOptimal, amountB: amountBDesired }
       end
@@ -56,7 +58,7 @@ contract :UniswapV2Router do
     to: :address,
     deadline: :uint256
   }, :public, :virtual, returns: { amountA: :uint256, amountB: :uint256, liquidity: :uint256 } do
-    require(deadline >= block.timestamp, 'UniswapV2Router: EXPIRED');
+    require(deadline >= block.timestamp, 'FacetSwapV1Router: EXPIRED');
     
     amountA, amountB = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin)
     
@@ -65,7 +67,7 @@ contract :UniswapV2Router do
     _safeTransferFrom(token: tokenA, from: msg.sender, to: pair, value: amountA)
     _safeTransferFrom(token: tokenB, from: msg.sender, to: pair, value: amountB)
     
-    liquidity = UniswapV2Pair(pair).mint(to: to)
+    liquidity = FacetSwapV1Pair(pair).mint(to: to)
     
     return { amountA: amountA, amountB: amountB, liquidity: liquidity }
   end
@@ -79,19 +81,19 @@ contract :UniswapV2Router do
     to: :address,
     deadline: :uint256
   }, :public, :virtual, returns: { amountA: :uint256, amountB: :uint256 } do
-    require(deadline >= block.timestamp, 'UniswapV2Router: EXPIRED');
+    require(deadline >= block.timestamp, 'FacetSwapV1Router: EXPIRED');
     
     pair = pairFor(s.factory, tokenA, tokenB)
-    UniswapV2Pair(pair).transferFrom(msg.sender, pair, liquidity)
+    FacetSwapV1Pair(pair).transferFrom(msg.sender, pair, liquidity)
     
-    amount0, amount1 = UniswapV2Pair(pair).burn(to)
+    amount0, amount1 = FacetSwapV1Pair(pair).burn(to)
     
     token0, _ = sortTokens(tokenA, tokenB)
 
     (amountA, amountB) = tokenA == token0 ? [amount0, amount1] : [amount1, amount0]
     
-    require(amountA >= amountAMin, 'UniswapV2Router: INSUFFICIENT_A_AMOUNT')
-    require(amountB >= amountBMin, 'UniswapV2Router: INSUFFICIENT_B_AMOUNT')
+    require(amountA >= amountAMin, 'FacetSwapV1Router: INSUFFICIENT_A_AMOUNT')
+    require(amountB >= amountBMin, 'FacetSwapV1Router: INSUFFICIENT_B_AMOUNT')
     
     return { amountA: amountA, amountB: amountB }
   end
@@ -103,11 +105,11 @@ contract :UniswapV2Router do
     to: :address, 
     deadline: :uint256 
   }, :public, :virtual, returns: [:uint256] do
-    require(deadline >= block.timestamp, 'UniswapV2Router: EXPIRED');
+    require(deadline >= block.timestamp, 'FacetSwapV1Router: EXPIRED');
 
     amounts = getAmountsOut(factory, amountIn, path)
     
-    require(amounts[amounts.length - 1] >= amountOutMin, 'UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT')
+    require(amounts[amounts.length - 1] >= amountOutMin, 'FacetSwapV1Router: INSUFFICIENT_OUTPUT_AMOUNT')
     
     _safeTransferFrom(
       path[0], msg.sender, pairFor(factory, path[0], path[1]), amounts[0]
@@ -125,10 +127,10 @@ contract :UniswapV2Router do
     to: :address,
     deadline: :uint256
   }, :public, :virtual, returns: [:uint256] do
-    require(deadline >= block.timestamp, 'UniswapV2Router: EXPIRED');
+    require(deadline >= block.timestamp, 'FacetSwapV1Router: EXPIRED');
     
     amounts = getAmountsIn(factory, amountOut, path)
-    require(amounts[0] <= amountInMax, 'UniswapV2Router: EXCESSIVE_INPUT_AMOUNT')
+    require(amounts[0] <= amountInMax, 'FacetSwapV1Router: EXCESSIVE_INPUT_AMOUNT')
   
     _safeTransferFrom(
       path[0], msg.sender, pairFor(factory, path[0], path[1]), amounts[0]
@@ -153,7 +155,7 @@ contract :UniswapV2Router do
       amount0Out, amount1Out = input == token0 ? [0, amountOut] : [amountOut, 0]
       to = i < path.length - 2 ? pairFor(factory, output, path[i + 2]) : _to
 
-      UniswapV2Pair(pairFor(factory, input, output)).swap(amount0Out, amount1Out, to, "")
+      FacetSwapV1Pair(pairFor(factory, input, output)).swap(amount0Out, amount1Out, to, "")
     end
     
     return nil
@@ -162,7 +164,7 @@ contract :UniswapV2Router do
   function :_safeTransferFrom, { token: :address, from: :address, to: :address, value: :uint256 }, :private do
     result = ERC20(token).transferFrom(from: from, to: to, amount: value)
     
-    require(result, "ScribeSwap: TRANSFER_FAILED")
+    require(result, "FacetSwapV1: TRANSFER_FAILED")
   end
   
   function :getAmountsOut, {
@@ -170,7 +172,7 @@ contract :UniswapV2Router do
     amountIn: :uint256,
     path: [:address]
   }, :public, :view, returns: [:uint256] do
-    require(path.length >= 2, 'UniswapV2Library: INVALID_PATH')
+    require(path.length >= 2, 'FacetSwapV1Library: INVALID_PATH')
     
     amounts = array(:uint256, path.length)
     amounts[0] = amountIn
@@ -188,8 +190,8 @@ contract :UniswapV2Router do
     reserveIn: :uint256,
     reserveOut: :uint256
   }, :public, :view, returns: :uint256 do
-    require(amountIn > 0, 'UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT');
-    require(reserveIn > 0 && reserveOut > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY');
+    require(amountIn > 0, 'FacetSwapV1Library: INSUFFICIENT_INPUT_AMOUNT');
+    require(reserveIn > 0 && reserveOut > 0, 'FacetSwapV1Library: INSUFFICIENT_LIQUIDITY');
     
     amountInWithFee = amountIn * 997;
     numerator = amountInWithFee * reserveOut
@@ -204,7 +206,7 @@ contract :UniswapV2Router do
     amountOut: :uint256,
     path: [:address]
   }, :public, :view, returns: [:uint256] do
-    require(path.length >= 2, 'UniswapV2Library: INVALID_PATH')
+    require(path.length >= 2, 'FacetSwapV1Library: INVALID_PATH')
   
     amounts = array(:uint256, path.length)
     amounts[amounts.length - 1] = amountOut
@@ -222,8 +224,8 @@ contract :UniswapV2Router do
     reserveIn: :uint256,
     reserveOut: :uint256
   }, :public, :view, returns: :uint256 do
-    require(amountOut > 0, 'UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT')
-    require(reserveIn > 0 && reserveOut > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY')
+    require(amountOut > 0, 'FacetSwapV1Library: INSUFFICIENT_OUTPUT_AMOUNT')
+    require(reserveIn > 0 && reserveOut > 0, 'FacetSwapV1Library: INSUFFICIENT_LIQUIDITY')
   
     numerator = reserveIn * amountOut * 1000
     denominator = (reserveOut - amountOut) * 997
@@ -237,8 +239,8 @@ contract :UniswapV2Router do
     reserveA: :uint256,
     reserveB: :uint256
   }, :public, :pure, returns: :uint256 do
-    require(amountA > 0, 'UniswapV2Library: INSUFFICIENT_AMOUNT');
-    require(reserveA > 0 && reserveB > 0, 'UniswapV2Library: INSUFFICIENT_LIQUIDITY');
+    require(amountA > 0, 'FacetSwapV1Library: INSUFFICIENT_AMOUNT');
+    require(reserveA > 0 && reserveB > 0, 'FacetSwapV1Library: INSUFFICIENT_LIQUIDITY');
     
     return (amountA * reserveB).div(reserveA);
   end
@@ -250,7 +252,7 @@ contract :UniswapV2Router do
   }, :public, :view, returns: { reserveA: :uint256, reserveB: :uint256 } do
     token0, _ = sortTokens(tokenA, tokenB)
     
-    reserve0, reserve1, _ = UniswapV2Pair(pairFor(factory, tokenA, tokenB)).getReserves();
+    reserve0, reserve1, _ = FacetSwapV1Pair(pairFor(factory, tokenA, tokenB)).getReserves();
     
     (reserveA, reserveB) = tokenA == token0 ? [reserve0, reserve1] : [reserve1, reserve0]
     
@@ -270,16 +272,16 @@ contract :UniswapV2Router do
     return create2_address(
       salt: keccak256(abi.encodePacked(token0, token1)),
       deployer: factory,
-      contract_type: "UniswapV2Pair"
+      contract_type: "FacetSwapV1Pair"
     )
   end
   
   function :sortTokens, { tokenA: :address, tokenB: :address }, :internal, :pure, returns: { token0: :address, token1: :address } do
-    require(tokenA != tokenB, 'UniswapV2Library: IDENTICAL_ADDRESSES')
+    require(tokenA != tokenB, 'FacetSwapV1Library: IDENTICAL_ADDRESSES')
     
     token0, token1 = tokenA.cast(:uint256) < tokenB.cast(:uint256) ? [tokenA, tokenB] : [tokenB, tokenA]
     
-    require(token0 != address(0), 'UniswapV2Library: ZERO_ADDRESS')
+    require(token0 != address(0), 'FacetSwapV1Library: ZERO_ADDRESS')
     
     return { token0: token0, token1: token1 }
   end
@@ -302,11 +304,11 @@ contract :UniswapV2Router do
     tokenBReserves = 0
     userLPBalance = 0
     
-    if UniswapV2Factory(s.factory).getPair(tokenA, tokenB) != address(0)
+    if FacetSwapV1Factory(s.factory).getPair(tokenA, tokenB) != address(0)
       tokenAReserves, tokenBReserves = getReserves(s.factory, tokenA, tokenB)
       
-      pair = UniswapV2Factory(s.factory).getPair(tokenA, tokenB)
-      userLPBalance = UniswapV2ERC20(pair).balanceOf(user)
+      pair = FacetSwapV1Factory(s.factory).getPair(tokenA, tokenB)
+      userLPBalance = FacetSwapV1ERC20(pair).balanceOf(user)
     end
     
     return {

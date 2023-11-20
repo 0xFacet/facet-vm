@@ -1,9 +1,9 @@
 pragma :rubidity, "1.0.0"
 
-import '/app/models/contracts/UniswapV2Callee.rubidity'
-import '/app/models/contracts/UniswapV2Pair.rubidity'
+import '/app/models/contracts/FacetSwapV1Callee.rubidity'
+import '/app/models/contracts/FacetSwapV1Pair.rubidity'
 
-contract :UniswapV2CalleeTester, is: :UniswapV2Callee do
+contract :FacetSwapV1CalleeTester, is: :FacetSwapV1Callee do
   address :public, :pair
   
   address :public, :token0
@@ -13,13 +13,13 @@ contract :UniswapV2CalleeTester, is: :UniswapV2Callee do
   
   constructor(pair: :address, extraAmount: :uint256) {
     s.pair = pair
-    s.token0 = UniswapV2Pair(pair).token0();
-    s.token1 = UniswapV2Pair(pair).token1();
+    s.token0 = FacetSwapV1Pair(pair).token0();
+    s.token1 = FacetSwapV1Pair(pair).token1();
     
     s.extraAmount = extraAmount
   }
   
-  function :uniswapV2Call, {
+  function :facetSwapV1Call, {
     sender: :address,
     amount0: :uint256,
     amount1: :uint256,

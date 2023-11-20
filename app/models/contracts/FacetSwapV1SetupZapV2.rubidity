@@ -1,11 +1,11 @@
 pragma :rubidity, "1.0.0"
 
-import './UniswapV2Factory.rubidity'
+import './FacetSwapV1Factory.rubidity'
 import './UnsafeNoApprovalERC20.rubidity'
-import './UniswapV2Router.rubidity'
+import './FacetSwapV1Router.rubidity'
 import './PublicMintERC20.rubidity'
 
-contract :UniswapSetupZapV2 do
+contract :FacetSwapV1SetupZapV2 do
   array :address, :public, :factories
   array :address, :public, :tokenAs
   array :address, :public, :tokenBs
@@ -17,7 +17,7 @@ contract :UniswapSetupZapV2 do
   event :ZapOneSetup, { factory: :address, tokenA: :address, tokenB: :address, pair: :address, router: :address }
   
   constructor() {
-    s.name = 'UniswapSetupZapV2'
+    s.name = 'FacetSwapV1SetupZapV2'
   }
   
   function :zapDumbSwap, { etherAddress: :address, admin: :address }, :public do
@@ -26,11 +26,11 @@ contract :UniswapSetupZapV2 do
     
     require(etherBalance > 10.ether, 'Not enough ether')
     
-    factory = new UniswapV2Factory(_feeToSetter: address(this))
+    factory = new FacetSwapV1Factory(_feeToSetter: address(this))
     factory.setFeeTo(admin)
     factory.setFeeToSetter(admin)
     
-    router = new UniswapV2Router(
+    router = new FacetSwapV1Router(
       _factory: factory,
       _WETH: address(0)
     )
@@ -88,7 +88,7 @@ contract :UniswapSetupZapV2 do
   end
   
   function :doZapOld, :public do
-    factory = new UniswapV2Factory(_feeToSetter: msg.sender)
+    factory = new FacetSwapV1Factory(_feeToSetter: msg.sender)
     
     tokenA = new UnsafeNoApprovalERC20(
       name: "TokenA (#{block.number.toString()})",
@@ -100,7 +100,7 @@ contract :UniswapSetupZapV2 do
       symbol: "TKB",
     )
     
-    router = new UniswapV2Router(
+    router = new FacetSwapV1Router(
       _factory: factory,
       _WETH: address(this)
     )
@@ -142,15 +142,15 @@ contract :UniswapSetupZapV2 do
     tokenBReserves: :uint256,
     userLPBalance: :uint256
   } do
-    tokenAReserves, tokenBReserves = UniswapV2Router(router).getReserves(factory, tokenA, tokenB)
-    pair = UniswapV2Factory(factory).getPair(tokenA, tokenB)
+    tokenAReserves, tokenBReserves = FacetSwapV1Router(router).getReserves(factory, tokenA, tokenB)
+    pair = FacetSwapV1Factory(factory).getPair(tokenA, tokenB)
     
     return {
       userTokenABalance: ERC20(tokenA).balanceOf(user),
       userTokenBBalance: ERC20(tokenB).balanceOf(user),
       tokenAReserves: tokenAReserves,
       tokenBReserves: tokenBReserves,
-      userLPBalance: UniswapV2ERC20(pair).balanceOf(user)
+      userLPBalance: FacetSwapV1ERC20(pair).balanceOf(user)
     }
   end
 end

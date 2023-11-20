@@ -1,9 +1,8 @@
 pragma :rubidity, "1.0.0"
 
-import './Upgradeable.rubidity'
-import './UniswapV2Router.rubidity'
+import './FacetSwapV1Router.rubidity'
 
-contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgradeable: true do
+contract :FacetSwapV1RouterWithRewards, is: :FacetSwapV1Router, upgradeable: true do
   event :FeeAccrued, {
     total: :uint256,
     toStakers: :uint256,
@@ -31,8 +30,6 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
   mapping ({ address: :uint256 }), :public, :feesGeneratedBySwapper
   mapping ({ address: :uint256 }), :public, :swapperRewards
   
-  uint256 :public, :decimals
-  
   constructor(
     _factory: :address,
     _WETH: :address,
@@ -49,12 +46,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
       protocolFeePct: protocolFeePct,
       feeAdmin: feeAdmin
     )
-    
-    # Temporary hack to make FacetScan work
-    s.decimals = 18
-    
-    UniswapV2Router.constructor(_factory: _factory, _WETH: _WETH)
-    Upgradeable.constructor(upgradeAdmin: msg.sender)
+    FacetSwapV1Router.constructor(_factory: _factory, _WETH: _WETH)
   }
   
   function :updateFees, {
@@ -82,7 +74,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
   end
   
   function :stakeLP, { lpToken: :address, amount: :uint256 }, :public, returns: :bool do
-    lpPair = UniswapV2Pair(lpToken)
+    lpPair = FacetSwapV1Pair(lpToken)
     token0 = lpPair.token0()
     token1 = lpPair.token1()
     
@@ -144,7 +136,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     to: :address,
     deadline: :uint256
   }, :public, :virtual, :override, returns: [:uint256] do
-    amounts = UniswapV2Router.swapExactTokensForTokens(
+    amounts = FacetSwapV1Router.swapExactTokensForTokens(
       amountIn: amountIn - calculateFeeAmount(amountIn),
       amountOutMin: amountOutMin,
       path: path,
@@ -181,7 +173,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     to: :address,
     deadline: :uint256
   }, :public, :virtual, :override, returns: [:uint256] do
-    amounts = UniswapV2Router.swapTokensForExactTokens(
+    amounts = FacetSwapV1Router.swapTokensForExactTokens(
       amountOut: amountOut + calculateFeeAmount(amountOut),
       amountInMax: amountInMax,
       path: path,
@@ -260,7 +252,7 @@ contract :UniswapV2RouterWithRewards, is: [:UniswapV2Router, :Upgradeable], upgr
     path[0] = token
     path[1] = s.WETH
     
-    feeInWETH = UniswapV2Router.swapExactTokensForTokens(
+    feeInWETH = FacetSwapV1Router.swapExactTokensForTokens(
       amountIn: feeAmount,
       amountOutMin: 0,
       path: path,

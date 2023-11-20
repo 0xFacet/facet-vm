@@ -1,13 +1,13 @@
 require 'rails_helper'
 
-describe 'UniswapV2Router contract' do
+describe 'FacetSwapV1Router contract' do
   before(:all) do
     update_supported_contracts(
-      'UniswapV2Factory',
+      'FacetSwapV1Factory',
       'UnsafeNoApprovalERC20',
-      'UniswapV2Router',
-      'UniswapV2Pair',
-      'UniswapSetupZapV2',
+      'FacetSwapV1Router',
+      'FacetSwapV1Pair',
+      'FacetSwapV1SetupZapV2',
       'StubERC20',
       'PublicMintERC20'
     )
@@ -27,7 +27,7 @@ describe 'UniswapV2Router contract' do
       payload: {
         to: nil,
         data: {
-          type: "UniswapSetupZapV2"
+          type: "FacetSwapV1SetupZapV2"
           # init_code_hash: "6452bb1dce6ad53b4683dfef17858bc97b2e36c71ad80d79f16b17a9dc1ea2dd"
         }
       }
@@ -103,7 +103,7 @@ describe 'UniswapV2Router contract' do
       payload: {
         to: nil,
         data: {
-          type: "UniswapV2Factory",
+          type: "FacetSwapV1Factory",
           args: { _feeToSetter: user_address }
         }
       }
@@ -141,7 +141,7 @@ describe 'UniswapV2Router contract' do
       payload: {
         to: nil,
         data: {
-          type: "UniswapV2Router",
+          type: "FacetSwapV1Router",
           args: { _factory: factory_address, _WETH: weth_address }
         }
       }

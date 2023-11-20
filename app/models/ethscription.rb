@@ -15,6 +15,10 @@ class Ethscription < ApplicationRecord
     content_uri[/.*?,(.*)/, 1]
   end
   
+  def parsed_content
+    JSON.parse(content)
+  end
+  
   def process!
     Ethscription.transaction do
       if contract_actions_processed_at.present?

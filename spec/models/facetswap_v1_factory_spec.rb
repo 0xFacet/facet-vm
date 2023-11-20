@@ -1,13 +1,13 @@
 require 'rails_helper'
 
-RSpec.describe "UniswapV2Factory", type: :model do
+RSpec.describe "FacetSwapV1Factory", type: :model do
   it 'creates a new pair successfully' do
     factory_deploy_receipt = trigger_contract_interaction_and_expect_success(
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       payload: {
         to: nil,
         data: {
-          type: "UniswapV2Factory",
+          type: "FacetSwapV1Factory",
           args: { _feeToSetter: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97" }
         }
       }
@@ -48,14 +48,14 @@ RSpec.describe "UniswapV2Factory", type: :model do
       payload: {
         to: nil,
         data: {
-          type: "UniswapV2Factory",
+          type: "FacetSwapV1Factory",
           args: { _feeToSetter: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97" }
         }
       }
     )
   
     trigger_contract_interaction_and_expect_error(
-      error_msg_includes: 'Scribeswap: IDENTICAL_ADDRESSES',
+      error_msg_includes: 'FacetSwapV1: IDENTICAL_ADDRESSES',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       payload: {
         to: factory_deploy_receipt.address,
@@ -76,7 +76,7 @@ RSpec.describe "UniswapV2Factory", type: :model do
       payload: {
         to: nil,
         data: {
-          type: "UniswapV2Factory",
+          type: "FacetSwapV1Factory",
           args: { _feeToSetter: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97" }
         }
       }

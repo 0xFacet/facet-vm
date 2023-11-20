@@ -4,7 +4,7 @@ RSpec.describe ContractCall, type: :model do
   let(:from_address) { '0xc2172a6315c1d7f6855768f843c420ebb36eda97' }
 
   before(:all) do
-    update_supported_contracts("UniswapV2Pair", "StubERC20B")
+    update_supported_contracts("FacetSwapV1Pair", "StubERC20B")
   end
   
   it 'calculates eoa_nonce correctly' do
@@ -58,7 +58,7 @@ RSpec.describe ContractCall, type: :model do
       payload: {
         to: nil,
         data: {
-          type: "UniswapV2Factory",
+          type: "FacetSwapV1Factory",
           args: { _feeToSetter: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97" }
         }
       }

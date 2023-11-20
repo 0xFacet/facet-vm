@@ -12,8 +12,8 @@ module ContractErrors
       return super unless contract
       
       trace = !Rails.env.production? ? backtrace.join("\n") : ''
-      name = ::Object.instance_method(:class).bind(contract).call
-      "#{name} error: " + super
+      klass = ::Object.instance_method(:class).bind(contract).call
+      "#{klass.name} error: " + super
     end
   end
   

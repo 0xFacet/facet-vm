@@ -2,11 +2,11 @@ pragma :rubidity, "1.0.0"
 
 import './ERC20.rubidity'
 
-contract :UniswapV2ERC20, is: :ERC20, abstract: true do
+contract :FacetSwapV1ERC20, is: :ERC20, abstract: true do
   constructor() {
     ERC20.constructor(
-      name: "ScribeSwap V2",
-      symbol: "SCR",
+      name: "FacetSwap V1 ERC20",
+      symbol: "FACET-V1",
       decimals: 18
     )
   }
