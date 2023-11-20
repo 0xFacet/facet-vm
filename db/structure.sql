@@ -522,6 +522,7 @@ CREATE TABLE public.system_config_versions (
     admin_address character varying,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_rails_31e7c0e109 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_63a4680c0e CHECK (((admin_address)::text ~ '^0x[a-f0-9]{40}$'::text))
 );
 

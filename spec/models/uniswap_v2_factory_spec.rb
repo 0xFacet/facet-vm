@@ -55,7 +55,7 @@ RSpec.describe "UniswapV2Factory", type: :model do
     )
   
     trigger_contract_interaction_and_expect_error(
-      error_msg_includes: 'Scribeswap: IDENTICAL_ADDRESSES',
+      error_msg_includes: 'UniswapV2: IDENTICAL_ADDRESSES',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       payload: {
         to: factory_deploy_receipt.address,

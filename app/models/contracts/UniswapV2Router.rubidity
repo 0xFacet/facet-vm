@@ -162,7 +162,7 @@ contract :UniswapV2Router do
   function :_safeTransferFrom, { token: :address, from: :address, to: :address, value: :uint256 }, :private do
     result = ERC20(token).transferFrom(from: from, to: to, amount: value)
     
-    require(result, "ScribeSwap: TRANSFER_FAILED")
+    require(result, "UniswapV2: TRANSFER_FAILED")
   end
   
   function :getAmountsOut, {
