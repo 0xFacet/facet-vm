@@ -1,11 +1,11 @@
 require 'rails_helper'
 
-RSpec.describe "UniswapV2Pair", type: :model do
+RSpec.describe "FacetSwapV1Pair", type: :model do
   before(:all) do
-    update_supported_contracts("UniswapV2CalleeTester")
+    update_supported_contracts("FacetSwapV1CalleeTester")
   end
   
-  it 'executes the Uniswap V2 process' do
+  it 'executes the FacetSwapV1 process' do
     tokenA_deploy_receipt = trigger_contract_interaction_and_expect_success(
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       payload: {
@@ -40,13 +40,13 @@ RSpec.describe "UniswapV2Pair", type: :model do
       }
     )
 
-    # Deploy the UniswapV2Factory contract 
+    # Deploy the FacetSwapV1Factory contract 
     factory_deploy_receipt = trigger_contract_interaction_and_expect_success(
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       payload: {
         to: nil,
         data: {
-          type: "UniswapV2Factory",
+          type: "FacetSwapV1Factory",
           args: { _feeToSetter: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97" }
         }
       }
@@ -63,7 +63,7 @@ RSpec.describe "UniswapV2Pair", type: :model do
       }
     )
 
-    # Create a pair using the UniswapV2Factory contract
+    # Create a pair using the FacetSwapV1Factory contract
     create_pair_receipt = trigger_contract_interaction_and_expect_success(
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       payload: {
@@ -230,12 +230,12 @@ RSpec.describe "UniswapV2Pair", type: :model do
     
     extraAmount = 10
     
-    UniswapV2CalleeTester = trigger_contract_interaction_and_expect_success(
+    FacetSwapV1CalleeTester = trigger_contract_interaction_and_expect_success(
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       payload: {
         to: nil,
         data: {
-          type: "UniswapV2CalleeTester",
+          type: "FacetSwapV1CalleeTester",
           args: [pair_address, extraAmount]
         }
       }
@@ -272,7 +272,7 @@ RSpec.describe "UniswapV2Pair", type: :model do
           args: {
             amount0Out: expectedOut,
             amount1Out: 0,
-            to: UniswapV2CalleeTester,
+            to: FacetSwapV1CalleeTester,
             data: "0x01"
           }
         }

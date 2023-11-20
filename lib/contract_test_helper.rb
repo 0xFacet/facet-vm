@@ -135,11 +135,11 @@ module ContractTestHelper
       "GenerativeERC721",
       "OpenEditionERC721",
       "PublicMintERC20",
-      "UniswapSetupZapV2",
-      "UniswapV2Factory",
-      "UniswapV2Pair",
-      "UniswapV2Router",
-      "UniswapV2RouterWithRewards",
+      "FacetSwapV1SetupZapV2",
+      "FacetSwapV1Factory",
+      "FacetSwapV1Pair",
+      "FacetSwapV1Router",
+      "FacetSwapV1RouterWithRewards",
     ]
     
     new_hashes = new_names.map do |name|

@@ -1,8 +1,8 @@
 pragma :rubidity, "1.0.0"
 
-import './UniswapV2Pair.rubidity'
+import './FacetSwapV1Pair.rubidity'
 
-contract :UniswapV2Factory do
+contract :FacetSwapV1Factory do
   address :public, :feeTo
   address :public, :feeToSetter
 
@@ -24,16 +24,16 @@ contract :UniswapV2Factory do
   end
 
   function :createPair, { tokenA: :address, tokenB: :address }, :public, returns: :address do
-    require(tokenA != tokenB, 'UniswapV2: IDENTICAL_ADDRESSES')
+    require(tokenA != tokenB, 'FacetSwapV1: IDENTICAL_ADDRESSES')
     
     token0, token1 = tokenA.cast(:uint256) < tokenB.cast(:uint256) ? [tokenA, tokenB] : [tokenB, tokenA]
     
-    require(token0 != address(0), "UniswapV2: ZERO_ADDRESS");
-    require(s.getPair[token0][token1] == address(0), "UniswapV2: PAIR_EXISTS");
+    require(token0 != address(0), "FacetSwapV1: ZERO_ADDRESS");
+    require(s.getPair[token0][token1] == address(0), "FacetSwapV1: PAIR_EXISTS");
     
     salt = keccak256(abi.encodePacked(token0, token1))
     
-    pair = new UniswapV2Pair({ salt: salt })
+    pair = new FacetSwapV1Pair({ salt: salt })
     pair.init(token0, token1)
     
     s.getPair[token0][token1] = pair;
@@ -46,7 +46,7 @@ contract :UniswapV2Factory do
   end
 
   function :setFeeTo, { _feeTo: :address }, :public do
-    require(msg.sender == feeToSetter, "UniswapV2: FORBIDDEN")
+    require(msg.sender == feeToSetter, "FacetSwapV1: FORBIDDEN")
     
     s.feeTo = _feeTo
     
@@ -54,7 +54,7 @@ contract :UniswapV2Factory do
   end
 
   function :setFeeToSetter, { _feeToSetter: :address }, :public do
-    require(msg.sender == feeToSetter, "UniswapV2: FORBIDDEN")
+    require(msg.sender == feeToSetter, "FacetSwapV1: FORBIDDEN")
     
     s.feeToSetter = _feeToSetter
     

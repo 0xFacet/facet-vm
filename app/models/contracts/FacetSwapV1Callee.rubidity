@@ -1,7 +1,7 @@
 pragma :rubidity, "1.0.0"
 
-contract :UniswapV2Callee, abstract: true do
-  function :uniswapV2Call, {
+contract :FacetSwapV1Callee, abstract: true do
+  function :facetSwapV1Call, {
     sender: :address,
     amount0: :uint256,
     amount1: :uint256,

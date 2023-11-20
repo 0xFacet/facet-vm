@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-describe 'UniswapV2Router contract' do
+describe 'FacetSwapV1Router contract' do
   let(:user_address) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
   let(:alice) { "0x000000000000000000000000000000000000000a" }
   let(:bob) { "0x000000000000000000000000000000000000000b" }
@@ -21,7 +21,7 @@ describe 'UniswapV2Router contract' do
       payload: {
         to: nil,
         data: {
-          type: "UniswapV2Factory",
+          type: "FacetSwapV1Factory",
           args: { _feeToSetter: user_address }
         }
       }
@@ -59,7 +59,7 @@ describe 'UniswapV2Router contract' do
       payload: {
         to: nil,
         data: {
-          type: "UniswapV2RouterWithRewards",
+          type: "FacetSwapV1RouterWithRewards",
           args: {
             _factory: factory_address,
             _WETH: weth_address,
