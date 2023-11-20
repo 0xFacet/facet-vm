@@ -16,17 +16,7 @@ class TypedVariable
       raise TypeError.new("Use literals instead of TypedVariable for booleans")
     end
     
-    if type.address?
-      define_singleton_method(:call, method(:address_call))
-    end
-    
-    if type.string?
-      define_singleton_method(:base64Encode, method(:string_base64Encode))
-    end
-    
-    if type.is_int? || type.is_uint?
-      define_singleton_method(:toString, method(:int_toString))
-    end
+    extend_with_type_methods
   end
   
   def self.create(type, value = nil, on_change: nil, **options)
@@ -149,35 +139,17 @@ class TypedVariable
   
   private
   
-  def int_toString
-    value.to_s
-  end
-  
-  def string_base64Encode
-    Base64.strict_encode64(value)
-  end
-  
-  def address_call(json_call_data = '{}')
-    calldata = JSON.parse(json_call_data)
-
-    function = calldata['function']
-    args = calldata['args']
+  def extend_with_type_methods
+    if type.address?
+      extend RubidityTypeExtensions::AddressMethods
+    end
     
-    data = TransactionContext.call_stack.execute_in_new_frame(
-      to_contract_address: self,
-      function: function,
-      args: args,
-      type: :call
-    ).to_json
+    if type.string?
+      extend RubidityTypeExtensions::StringMethods
+    end
     
-    DestructureOnly.new( 
-      success: true,
-      data: TypedVariable.create(:string, data)
-    )
-  rescue ContractError, TransactionError, JSON::ParserError
-    return DestructureOnly.new(
-      success: false,
-      data: TypedVariable.create(:string)
-    )
+    if type.is_int? || type.is_uint?
+      extend RubidityTypeExtensions::UintOrIntMethods
+    end
   end
 end
