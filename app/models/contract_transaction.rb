@@ -162,6 +162,16 @@ class ContractTransaction < ApplicationRecord
     end
   end
   
+  def current_chainid
+    if ENV.fetch("ETHEREUM_NETWORK") == "eth-mainnet"
+      1
+    elsif ENV.fetch("ETHEREUM_NETWORK") == "eth-goerli"
+      5
+    else
+      raise "Unknown network: #{ENV.fetch("ETHEREUM_NETWORK")}"
+    end
+  end
+  
   def with_global_context
     TransactionContext.set(
       system_config: SystemConfigVersion.current,
@@ -172,6 +182,7 @@ class ContractTransaction < ApplicationRecord
       block_number: block_number,
       block_timestamp: block_timestamp,
       block_blockhash: block_blockhash,
+      block_chainid: current_chainid,
       transaction_index: transaction_index
     ) do
       yield

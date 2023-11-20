@@ -33,7 +33,7 @@ contract :ERC721, abstract: true do
   end
   
   function :approve, { spender: :address, id: :uint256 }, :public, :virtual do
-    owner = s._ownerOf[id];
+    owner = ownerOf(id);
     
     require(msg.sender == owner || s.isApprovedForAll[owner][msg.sender], "NOT_AUTHORIZED");
     
@@ -49,13 +49,11 @@ contract :ERC721, abstract: true do
   end
   
   function :transferFrom, { from: :address, to: :address, id: :uint256 }, :public, :virtual do
-    require(from == s._ownerOf[id], "ERC721: transfer of token that is not own");
+    require(from == ownerOf(id), "ERC721: transfer of token that is not own");
     require(to != address(0), "ERC721: transfer to the zero address");
     
     require(
-      msg.sender == from ||
-      s.getApproved[id] == msg.sender ||
-      isApprovedForAll[from][msg.sender],
+      _isApprovedOrOwner(spender: msg.sender, id: id),
       "NOT_AUTHORIZED"
     );
     
@@ -67,6 +65,14 @@ contract :ERC721, abstract: true do
     s.getApproved[id] = address(0);
     
     return nil
+  end
+  
+  function :_isApprovedOrOwner, { spender: :address, id: :uint256 }, :internal, :virtual, returns: :bool do
+    owner = ownerOf(id)
+    
+    spender == owner ||
+    s.getApproved[id] == spender ||
+    s.isApprovedForAll[owner][spender]
   end
   
   function :_exists, { id: :uint256 }, :internal, :virtual, returns: :bool do

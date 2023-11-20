@@ -60,6 +60,12 @@ class ContractImplementation < BasicObject
   def self.array(*args, **kwargs)
     value_type = args.first
     metadata = {value_type: value_type}.merge(kwargs)
+    
+    if args.length == 2
+      metadata.merge!(initial_length: args.last)
+      args.pop
+    end
+    
     type = ::Type.create(:array, metadata)
     
     if args.length == 1

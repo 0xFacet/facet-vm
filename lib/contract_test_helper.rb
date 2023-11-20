@@ -135,6 +135,7 @@ module ContractTestHelper
       "GenerativeERC721",
       "OpenEditionERC721",
       "PublicMintERC20",
+      "NameRegistry",
       "FacetSwapV1SetupZapV2",
       "FacetSwapV1Factory",
       "FacetSwapV1Pair",
