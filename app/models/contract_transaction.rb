@@ -15,8 +15,6 @@ class ContractTransaction < ApplicationRecord
   end
   
   def self.create_from_ethscription!(ethscription)
-    return unless ENV.fetch('ETHEREUM_NETWORK') == "eth-goerli" || Rails.env.development?
-    
     ContractTransaction.transaction do
       record = new_from_ethscription(ethscription)
       
