@@ -1,14 +1,16 @@
 pragma :rubidity, "1.0.0"
 
+import './Upgradeable.rubidity'
 import './FacetSwapV1Factory.rubidity'
 
-contract :FacetSwapV1Router do
+contract :FacetSwapV1Router, is: :Upgradeable, upgradeable: true do
   address :public, :factory
   address :public, :WETH
   
   constructor(_factory: :address, _WETH: :address) {
     s.factory = _factory
     s.WETH = _WETH
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
   }
   
   function :_addLiquidity, {

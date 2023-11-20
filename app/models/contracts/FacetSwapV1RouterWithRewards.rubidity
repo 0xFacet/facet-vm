@@ -1,9 +1,8 @@
 pragma :rubidity, "1.0.0"
 
-import './Upgradeable.rubidity'
 import './FacetSwapV1Router.rubidity'
 
-contract :FacetSwapV1RouterWithRewards, is: [:FacetSwapV1Router, :Upgradeable], upgradeable: true do
+contract :FacetSwapV1RouterWithRewards, is: :FacetSwapV1Router, upgradeable: true do
   event :FeeAccrued, {
     total: :uint256,
     toStakers: :uint256,
@@ -49,12 +48,7 @@ contract :FacetSwapV1RouterWithRewards, is: [:FacetSwapV1Router, :Upgradeable], 
       protocolFeePct: protocolFeePct,
       feeAdmin: feeAdmin
     )
-    
-    # Temporary hack to make FacetScan work
-    s.decimals = 18
-    
     FacetSwapV1Router.constructor(_factory: _factory, _WETH: _WETH)
-    Upgradeable.constructor(upgradeAdmin: msg.sender)
   }
   
   function :updateFees, {

@@ -1,8 +1,9 @@
 pragma :rubidity, "1.0.0"
 
+import './Upgradeable.rubidity'
 import './FacetSwapV1Pair.rubidity'
 
-contract :FacetSwapV1Factory do
+contract :FacetSwapV1Factory, is: :Upgradeable, upgradeable: true do
   address :public, :feeTo
   address :public, :feeToSetter
 
@@ -13,6 +14,7 @@ contract :FacetSwapV1Factory do
 
   constructor(_feeToSetter: :address) {
     s.feeToSetter = _feeToSetter
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
   }
 
   function :allPairsLength, :public, :view, returns: :uint256 do
