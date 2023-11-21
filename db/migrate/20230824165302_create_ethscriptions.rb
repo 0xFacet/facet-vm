@@ -93,4 +93,3 @@ class CreateEthscriptions < ActiveRecord::Migration[7.1]
     SQL
   end
 end
-
