@@ -101,15 +101,15 @@ class SystemConfigVersion < ApplicationRecord
   end
   
   def self.current_admin_address
-    current.admin_address || ENV.fetch("INITIAL_SYSTEM_CONFIG_ADMIN_ADDRESS")
+    current.admin_address || ENV.fetch("INITIAL_SYSTEM_CONFIG_ADMIN_ADDRESS").downcase
   end
   
   private
   
   def update_admin_address
     new_address = operation_data
-      
-    unless new_address.is_a?(String) && new_address =~ /\A0x[a-f0-9]{40}\z/
+    
+    unless new_address.is_a?(String) && new_address =~ /\A0x[a-f0-9]{40}\z/i
       raise InvalidEthscriptionError.new("Invalid data: #{operation_data.inspect}")
     end
     
@@ -117,7 +117,7 @@ class SystemConfigVersion < ApplicationRecord
       raise InvalidEthscriptionError.new("No change to admin address proposed")
     end
     
-    assign_attributes(admin_address: new_address)
+    assign_attributes(admin_address: new_address.downcase)
   end
   
   def update_supported_contracts
