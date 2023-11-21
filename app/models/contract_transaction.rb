@@ -19,7 +19,7 @@ class ContractTransaction < ApplicationRecord
       record = new_from_ethscription(ethscription)
       
       system_start_block = SystemConfigVersion.current.start_block_number
-      current_block_valid = system_start_block && record.block_number >= system_start_block
+      current_block_valid = system_start_block && record.block_number && record.block_number >= system_start_block
       
       if record.mimetype_and_to_valid? && current_block_valid
         record.execute_transaction(persist: true)
