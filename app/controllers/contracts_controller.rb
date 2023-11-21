@@ -4,7 +4,10 @@ class ContractsController < ApplicationController
     per_page = (params[:per_page] || 50).to_i
     per_page = 50 if per_page > 50
     
-    scope = Contract.order(created_at: :desc).includes(:transaction_receipt)
+    scope = Contract.
+      order(created_at: :desc).
+      where.not(current_init_code_hash: nil).
+      includes(:transaction_receipt)
     
     if params[:base_type]
       scope = scope.where(
