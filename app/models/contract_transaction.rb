@@ -55,7 +55,7 @@ class ContractTransaction < ApplicationRecord
     end
     
     op = payload.op&.to_sym
-    data_keys = self.payload.data.keys.map(&:to_sym).to_set
+    data_keys = payload.data.keys.map(&:to_sym).to_set
 
     unless [:create, :call, :static_call].include?(op)
       raise InvalidEthscriptionError.new("Invalid op: #{op}")
