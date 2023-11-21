@@ -55,7 +55,7 @@ class ContractCall < ApplicationRecord
   def assign_contract
     if is_create?
       self.created_contract = effective_contract
-    else
+    elsif is_call? && effective_contract
       self.called_contract = effective_contract
     end
   end
