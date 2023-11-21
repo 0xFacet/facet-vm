@@ -4,8 +4,8 @@ class CreateContracts < ActiveRecord::Migration[7.1]
       t.string :transaction_hash, null: false
       t.bigint :block_number, null: false
       t.bigint :transaction_index, null: false
-      t.string :current_type, null: false
-      t.string :current_init_code_hash, null: false
+      t.string :current_type
+      t.string :current_init_code_hash
       t.jsonb :current_state, default: {}, null: false
       t.string :address, null: false
     

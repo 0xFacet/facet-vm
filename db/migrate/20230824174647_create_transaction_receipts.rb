@@ -9,7 +9,9 @@ class CreateTransactionReceipts < ActiveRecord::Migration[7.1]
       t.jsonb :logs, default: [], null: false
       t.bigint :block_timestamp, null: false
       t.jsonb :error
+      t.string :to_contract_address
       t.string :effective_contract_address
+      t.string :created_contract_address
       t.bigint :block_number, null: false
       t.bigint :transaction_index, null: false
       t.string :block_blockhash, null: false
@@ -22,9 +24,13 @@ class CreateTransactionReceipts < ActiveRecord::Migration[7.1]
     
       t.index [:block_number, :transaction_index], unique: true, name: :index_contract_tx_receipts_on_block_number_and_tx_index
       t.index :effective_contract_address
+      t.index :created_contract_address
+      t.index :to_contract_address
       t.index :transaction_hash, unique: true
     
       t.check_constraint "effective_contract_address ~ '^0x[a-f0-9]{40}$'"
+      t.check_constraint "to_contract_address IS NULL OR to_contract_address ~ '^0x[a-f0-9]{40}$'"
+      t.check_constraint "created_contract_address IS NULL OR created_contract_address ~ '^0x[a-f0-9]{40}$'"
       t.check_constraint "from_address ~ '^0x[a-f0-9]{40}$'"
       t.check_constraint "block_blockhash ~ '^0x[a-f0-9]{64}$'"
       t.check_constraint "transaction_hash ~ '^0x[a-f0-9]{64}$'"

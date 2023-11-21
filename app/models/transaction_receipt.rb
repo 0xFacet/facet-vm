@@ -19,11 +19,19 @@ class TransactionReceipt < ApplicationRecord
   end
   
   def to
-    effective_contract_address
+    to_contract_address
   end
   
   def from
     from_address
+  end
+  
+  def contract_address
+    created_contract_address
+  end
+  
+  def to_or_contract_address
+    effective_contract_address
   end
   
   def as_json(options = {})
@@ -47,7 +55,7 @@ class TransactionReceipt < ApplicationRecord
           :transaction_fee,
           :return_value
         ],
-        methods: [:to, :from]
+        methods: [:to, :from, :contract_address, :to_or_contract_address]
       )
     ).with_indifferent_access
   end

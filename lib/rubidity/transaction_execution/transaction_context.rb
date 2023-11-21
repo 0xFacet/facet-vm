@@ -53,7 +53,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def current_contract
-    current_call.to_contract
+    current_call.effective_contract
   end
   
   def current_address
