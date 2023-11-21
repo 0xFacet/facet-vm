@@ -268,13 +268,13 @@ CREATE TABLE public.contract_calls (
     CONSTRAINT chk_rails_27a87dcd58 CHECK (((call_type)::text = ANY ((ARRAY['call'::character varying, 'create'::character varying])::text[]))),
     CONSTRAINT chk_rails_399807917b CHECK (((((status)::text = 'failure'::text) AND (logs = '[]'::jsonb)) OR ((status)::text = 'success'::text))),
     CONSTRAINT chk_rails_39b26367fa CHECK (((((status)::text = 'failure'::text) AND (error IS NOT NULL)) OR (((status)::text = 'success'::text) AND (error IS NULL)))),
-    CONSTRAINT chk_rails_566710a5b9 CHECK (((((call_type)::text = 'create'::text) AND (error IS NULL)) OR (created_contract_address IS NULL))),
     CONSTRAINT chk_rails_60a50bca74 CHECK (((((call_type)::text = 'create'::text) AND ((effective_contract_address)::text = (created_contract_address)::text)) OR (((call_type)::text <> 'create'::text) AND ((effective_contract_address)::text = (to_contract_address)::text)))),
     CONSTRAINT chk_rails_634aef3d55 CHECK (((effective_contract_address IS NULL) OR ((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_b5e513ec63 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_cebfc1a4ba CHECK (((to_contract_address IS NULL) OR ((to_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_db6bb5ee1f CHECK (((status)::text = ANY ((ARRAY['success'::character varying, 'failure'::character varying])::text[]))),
     CONSTRAINT chk_rails_e0ca5e6f98 CHECK ((((call_type)::text <> 'create'::text) OR (error IS NOT NULL) OR (created_contract_address IS NOT NULL))),
+    CONSTRAINT chk_rails_ec382938ea CHECK ((((call_type)::text <> 'create'::text) OR ((error IS NULL) <> (created_contract_address IS NULL)))),
     CONSTRAINT chk_rails_f785dc90f8 CHECK (((from_address)::text ~ '^0x[a-f0-9]{40}$'::text))
 );
 
