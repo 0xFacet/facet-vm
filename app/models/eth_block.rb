@@ -86,7 +86,9 @@ class EthBlock < ApplicationRecord
   end
   
   def build_new_ethscription(server_data)
-    Ethscription.new(transform_server_response(server_data))
+    Ethscription.new(transform_server_response(server_data)).tap do |e|
+      e.processing_state = "pending"
+    end
   end
 
   def as_json(options = {})

@@ -134,9 +134,7 @@ class EthscriptionSync
       new_blocks << new_block
 
       block['ethscriptions'].each do |ethscription_data|
-        new_ethscription = new_block.build_new_ethscription(
-          ethscription_data.merge(processing_state: "pending")
-        )
+        new_ethscription = new_block.build_new_ethscription(ethscription_data)
         
         new_ethscriptions << new_ethscription
       end
