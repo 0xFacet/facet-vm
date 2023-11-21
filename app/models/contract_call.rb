@@ -182,11 +182,15 @@ class ContractCall < ApplicationRecord
   end
   
   def to
-    effective_contract_address
+    to_contract_address
   end
   
   def from
     from_address
+  end
+  
+  def contract_address
+    created_contract_address
   end
   
   def as_json(options = {})
@@ -206,9 +210,10 @@ class ContractCall < ApplicationRecord
           :logs,
           :error,
           :status,
-          :runtime_ms
+          :runtime_ms,
+          :effective_contract_address
         ],
-        methods: [:to, :from]
+        methods: [:to, :from, :contract_address]
       )
     )
   end
