@@ -110,7 +110,7 @@ class SystemConfigVersion < ApplicationRecord
     new_address = operation_data
       
     unless new_address.is_a?(String) && new_address =~ /\A0x[a-f0-9]{40}\z/
-      raise InvalidEthscriptionError.new("Invalid data: #{data.inspect}")
+      raise InvalidEthscriptionError.new("Invalid data: #{operation_data.inspect}")
     end
     
     if new_address == self.class.current_admin_address
@@ -124,7 +124,7 @@ class SystemConfigVersion < ApplicationRecord
     data = operation_data
       
     unless data.is_a?(Array) && data.all? { |el| el.to_s =~ /\A0x[a-f0-9]{64}\z/ }
-      raise InvalidEthscriptionError.new("Invalid data: #{data.inspect}")
+      raise InvalidEthscriptionError.new("Invalid data: #{operation_data.inspect}")
     end
     
     if data == self.class.current.supported_contracts
