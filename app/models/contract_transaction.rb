@@ -237,8 +237,10 @@ class ContractTransaction < ApplicationRecord
     build_transaction_receipt
     
     if persist
-      save!
-      persist_contract_state_if_success!
+      ContractTransaction.transaction do
+        save!
+        persist_contract_state_if_success!
+      end
     end
   end
   
