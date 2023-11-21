@@ -26,6 +26,8 @@ class Contract < ApplicationRecord
   end
   
   def implementation_class
+    return unless current_init_code_hash
+    
     TransactionContext.supported_contract_class(
       current_init_code_hash, validate: false
     )
@@ -120,9 +122,11 @@ class Contract < ApplicationRecord
         ]
       )
     ).tap do |json|
-      json['abi'] = implementation_class.new.public_abi.map do |name, func|
-        [name, func.as_json.except('implementation')]
-      end.to_h
+      if implementation_class
+        json['abi'] = implementation_class.new.public_abi.map do |name, func|
+          [name, func.as_json.except('implementation')]
+        end.to_h
+      end
       
       if association(:transaction_receipts).loaded?
         json['deployment_transaction'] = transaction_receipts.sort_by do |r|
@@ -141,7 +145,7 @@ class Contract < ApplicationRecord
       json['source_code'] = [
         {
           language: 'ruby',
-          code: implementation_class.source_code
+          code: implementation_class&.source_code
         }
       ]
     end
