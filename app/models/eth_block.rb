@@ -7,7 +7,7 @@ class EthBlock < ApplicationRecord
   scope :oldest_first, -> { order(block_number: :asc) }
   
   def self.process_contract_actions_until_done
-    unprocessed_ethscriptions = Ethscription.where(contract_actions_processed_at: nil).count
+    unprocessed_ethscriptions = Ethscription.unprocessed.count
     unimported_ethscriptions = Rails.cache.read("future_ethscriptions").to_i
     
     total_remaining = unprocessed_ethscriptions + unimported_ethscriptions
@@ -71,8 +71,10 @@ class EthBlock < ApplicationRecord
       #   1000 / (Benchmark.ms{100.times{EthBlock.process_contract_actions_for_next_block_with_ethscriptions}} /  100.0)
       # end
       
-      ethscriptions.each(&:process!)
-  
+      ethscriptions.each do |ethscription|
+        ethscription.process!(persist: true)
+      end
+      
       locked_next_block.update_columns(
         processing_state: "complete",
         updated_at: Time.current,

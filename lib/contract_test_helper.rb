@@ -68,13 +68,11 @@ module ContractTestHelper
       "initial_owner"=>'0x0000000000000000000000000000000000000000',
       "transaction_index"=>transaction_index,
       "content_uri"=> uri,
-      mimetype: mimetype
+      mimetype: mimetype,
+      processing_state: :pending,
     }
     
-    Ethscription.transaction do
-      eth = Ethscription.create!(ethscription_attrs)
-      SystemConfigVersion.create_from_ethscription!(eth)
-    end
+    Ethscription.new(ethscription_attrs).process!(persist: true)
   end
   
   def self.set_initial_start_block
@@ -119,13 +117,11 @@ module ContractTestHelper
       "initial_owner"=>'0x0000000000000000000000000000000000000000',
       "transaction_index"=>transaction_index,
       "content_uri"=> uri,
-      mimetype: mimetype
+      mimetype: mimetype,
+      processing_state: 'pending'
     }
     
-    Ethscription.transaction do
-      eth = Ethscription.create!(ethscription_attrs)
-      SystemConfigVersion.create_from_ethscription!(eth)
-    end
+    Ethscription.new(ethscription_attrs).process!(persist: true)
   end
   
   def self.set_initial_supported_contracts
@@ -250,13 +246,11 @@ module ContractTestHelper
       "initial_owner"=>'0x0000000000000000000000000000000000000000',
       "transaction_index"=>transaction_index,
       "content_uri"=> uri,
-      mimetype: mimetype
+      mimetype: mimetype,
+      processing_state: :pending
     }
     
-    Ethscription.transaction do
-      eth = Ethscription.create!(ethscription_attrs)
-      SystemConfigVersion.create_from_ethscription!(eth)
-    end
+    Ethscription.new(ethscription_attrs).process!(persist: true)
   end
   
   def self.trigger_contract_interaction(
@@ -319,11 +313,12 @@ module ContractTestHelper
       "initial_owner"=>'0x0000000000000000000000000000000000000000',
       "transaction_index"=>transaction_index,
       "content_uri"=> uri,
-      mimetype: mimetype
+      mimetype: mimetype,
+      processing_state: :pending
     }
     
-    eth = Ethscription.create!(ethscription_attrs)
-    ContractTransaction.create_from_ethscription!(eth)
+    eth = Ethscription.new(ethscription_attrs)
+    eth.process!(persist: true)
     
     eth.transaction_receipt
   end

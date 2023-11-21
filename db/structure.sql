@@ -73,14 +73,14 @@ CREATE FUNCTION public.check_ethscription_sequence() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
       BEGIN
-        IF NEW.contract_actions_processed_at IS NOT NULL THEN
+        IF NEW.processing_state != 'pending' THEN
           IF EXISTS (
             SELECT 1
             FROM ethscriptions
             WHERE 
-              (block_number < NEW.block_number AND contract_actions_processed_at IS NULL)
+              (block_number < NEW.block_number AND processing_state = 'pending')
               OR 
-              (block_number = NEW.block_number AND transaction_index < NEW.transaction_index AND contract_actions_processed_at IS NULL)
+              (block_number = NEW.block_number AND transaction_index < NEW.transaction_index AND processing_state = 'pending')
             LIMIT 1
           ) THEN
             RAISE EXCEPTION 'Previous ethscription with either a lower block number or a lower transaction index in the same block not yet processed';
@@ -430,10 +430,10 @@ CREATE TABLE public.eth_blocks (
     transaction_count bigint,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_rails_11dbe1957f CHECK (((processing_state)::text = ANY ((ARRAY['no_ethscriptions'::character varying, 'pending'::character varying, 'complete'::character varying])::text[]))),
     CONSTRAINT chk_rails_1c105acdac CHECK (((parent_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_4f6ef583f4 CHECK ((((processing_state)::text <> 'complete'::text) OR (transaction_count IS NOT NULL))),
-    CONSTRAINT chk_rails_7e9881ece2 CHECK (((blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT chk_rails_e632888d63 CHECK (((processing_state)::text = ANY ((ARRAY['complete'::character varying, 'pending'::character varying, 'no_ethscriptions'::character varying])::text[])))
+    CONSTRAINT chk_rails_7e9881ece2 CHECK (((blockhash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
 
@@ -471,15 +471,21 @@ CREATE TABLE public.ethscriptions (
     block_timestamp bigint NOT NULL,
     content_uri text NOT NULL,
     mimetype character varying NOT NULL,
-    contract_actions_processed_at timestamp(6) without time zone,
+    processed_at timestamp(6) without time zone,
+    processing_state character varying NOT NULL,
+    processing_error character varying,
     gas_price bigint,
     gas_used bigint,
     transaction_fee bigint,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_rails_13eacb6a26 CHECK ((((processing_state)::text = 'error'::text) OR (processing_error IS NULL))),
+    CONSTRAINT chk_rails_3165541065 CHECK (((processing_state)::text = ANY ((ARRAY['pending'::character varying, 'success'::character varying, 'error'::character varying])::text[]))),
+    CONSTRAINT chk_rails_7018b50304 CHECK ((((processing_state)::text = 'pending'::text) OR (processed_at IS NOT NULL))),
     CONSTRAINT chk_rails_788fa87594 CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_84591e2730 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_b577b97822 CHECK (((creator)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_d807d90f03 CHECK ((((processing_state)::text <> 'error'::text) OR (processing_error IS NOT NULL))),
     CONSTRAINT chk_rails_df21fdbe02 CHECK (((initial_owner)::text ~ '^0x[a-f0-9]{40}$'::text))
 );
 
@@ -1038,7 +1044,7 @@ CREATE TRIGGER check_block_sequence_trigger BEFORE UPDATE OF processing_state ON
 -- Name: ethscriptions check_ethscription_sequence_trigger; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER check_ethscription_sequence_trigger BEFORE UPDATE OF contract_actions_processed_at ON public.ethscriptions FOR EACH ROW EXECUTE FUNCTION public.check_ethscription_sequence();
+CREATE TRIGGER check_ethscription_sequence_trigger BEFORE UPDATE OF processing_state ON public.ethscriptions FOR EACH ROW EXECUTE FUNCTION public.check_ethscription_sequence();
 
 
 --
