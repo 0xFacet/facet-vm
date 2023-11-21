@@ -89,6 +89,8 @@ class ContractCall < ApplicationRecord
     
     self.to_contract = Contract.new(
       transaction_hash: TransactionContext.transaction_hash.value,
+      block_number: TransactionContext.block.number.value,
+      transaction_index: TransactionContext.transaction_index,
       address: calculate_new_contract_address,
       current_type: to_contract_implementation.name,
       current_init_code_hash: to_contract_init_code_hash

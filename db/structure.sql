@@ -203,6 +203,8 @@ CREATE TABLE public.ar_internal_metadata (
 CREATE TABLE public.contract_artifacts (
     id bigint NOT NULL,
     transaction_hash character varying NOT NULL,
+    block_number bigint NOT NULL,
+    transaction_index bigint NOT NULL,
     name character varying NOT NULL,
     source_code text NOT NULL,
     init_code_hash character varying NOT NULL,
@@ -380,6 +382,8 @@ ALTER SEQUENCE public.contract_transactions_id_seq OWNED BY public.contract_tran
 CREATE TABLE public.contracts (
     id bigint NOT NULL,
     transaction_hash character varying NOT NULL,
+    block_number bigint NOT NULL,
+    transaction_index bigint NOT NULL,
     current_type character varying NOT NULL,
     current_init_code_hash character varying NOT NULL,
     current_state jsonb DEFAULT '{}'::jsonb NOT NULL,
@@ -1080,11 +1084,27 @@ CREATE TRIGGER update_current_state AFTER INSERT OR DELETE ON public.contract_st
 
 
 --
+-- Name: contracts fk_rails_087f9c0a68; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contracts
+    ADD CONSTRAINT fk_rails_087f9c0a68 FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
+
+
+--
 -- Name: ethscriptions fk_rails_104cee2b3d; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.ethscriptions
     ADD CONSTRAINT fk_rails_104cee2b3d FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
+
+
+--
+-- Name: transaction_receipts fk_rails_54b606737e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.transaction_receipts
+    ADD CONSTRAINT fk_rails_54b606737e FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
 
 
 --
@@ -1101,6 +1121,14 @@ ALTER TABLE ONLY public.contract_states
 
 ALTER TABLE ONLY public.contract_artifacts
     ADD CONSTRAINT fk_rails_6aff674b66 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
+
+
+--
+-- Name: system_config_versions fk_rails_71887ba27f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.system_config_versions
+    ADD CONSTRAINT fk_rails_71887ba27f FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
 
 
 --
@@ -1128,11 +1156,27 @@ ALTER TABLE ONLY public.system_config_versions
 
 
 --
+-- Name: contract_transactions fk_rails_aa55c33b67; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_transactions
+    ADD CONSTRAINT fk_rails_aa55c33b67 FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
+
+
+--
 -- Name: contracts fk_rails_caa9d9df8b; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.contracts
     ADD CONSTRAINT fk_rails_caa9d9df8b FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
+
+
+--
+-- Name: contract_artifacts fk_rails_de6793fa43; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_artifacts
+    ADD CONSTRAINT fk_rails_de6793fa43 FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
 
 
 --
@@ -1149,6 +1193,22 @@ ALTER TABLE ONLY public.transaction_receipts
 
 ALTER TABLE ONLY public.contract_states
     ADD CONSTRAINT fk_rails_ea304e7236 FOREIGN KEY (contract_address) REFERENCES public.contracts(address) ON DELETE CASCADE;
+
+
+--
+-- Name: contract_states fk_rails_f5ab73470e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_states
+    ADD CONSTRAINT fk_rails_f5ab73470e FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
+
+
+--
+-- Name: contract_calls fk_rails_f9994c7a07; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_calls
+    ADD CONSTRAINT fk_rails_f9994c7a07 FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
 
 
 --

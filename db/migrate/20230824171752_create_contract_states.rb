@@ -22,6 +22,7 @@ class CreateContractStates < ActiveRecord::Migration[7.1]
     
       t.foreign_key :contracts, column: :contract_address, primary_key: :address, on_delete: :cascade
       t.foreign_key :ethscriptions, column: :transaction_hash, primary_key: :transaction_hash, on_delete: :cascade
+      t.foreign_key :eth_blocks, column: :block_number, primary_key: :block_number, on_delete: :cascade
       
       t.timestamps
     end
