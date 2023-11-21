@@ -479,14 +479,14 @@ CREATE TABLE public.ethscriptions (
     transaction_fee bigint,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT chk_rails_13eacb6a26 CHECK ((((processing_state)::text = 'error'::text) OR (processing_error IS NULL))),
-    CONSTRAINT chk_rails_3165541065 CHECK (((processing_state)::text = ANY ((ARRAY['pending'::character varying, 'success'::character varying, 'error'::character varying])::text[]))),
     CONSTRAINT chk_rails_7018b50304 CHECK ((((processing_state)::text = 'pending'::text) OR (processed_at IS NOT NULL))),
     CONSTRAINT chk_rails_788fa87594 CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_84591e2730 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_b577b97822 CHECK (((creator)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_d807d90f03 CHECK ((((processing_state)::text <> 'error'::text) OR (processing_error IS NOT NULL))),
-    CONSTRAINT chk_rails_df21fdbe02 CHECK (((initial_owner)::text ~ '^0x[a-f0-9]{40}$'::text))
+    CONSTRAINT chk_rails_c97e7f929f CHECK ((((processing_state)::text = 'failure'::text) OR (processing_error IS NULL))),
+    CONSTRAINT chk_rails_ca0ea47752 CHECK (((processing_state)::text = ANY ((ARRAY['pending'::character varying, 'success'::character varying, 'failure'::character varying])::text[]))),
+    CONSTRAINT chk_rails_df21fdbe02 CHECK (((initial_owner)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_fb6493689d CHECK ((((processing_state)::text <> 'failure'::text) OR (processing_error IS NOT NULL)))
 );
 
 
