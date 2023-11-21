@@ -48,7 +48,8 @@ class CreateContractCalls < ActiveRecord::Migration[7.1]
       t.check_constraint "(status = 'failure' AND logs = '[]'::jsonb) OR status = 'success'"
     
       t.foreign_key :ethscriptions, column: :transaction_hash, primary_key: :transaction_hash, on_delete: :cascade
-    
+      t.foreign_key :eth_blocks, column: :block_number, primary_key: :block_number, on_delete: :cascade
+      
       t.timestamps
     end    
   end

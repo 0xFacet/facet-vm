@@ -94,7 +94,12 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   
     artifact = RubidityTranspiler.new(source_code).get_desired_artifact(init_code_hash)
     
-    current_transaction.contract_artifacts.build(artifact.attributes)
+    current_transaction.contract_artifacts.build(
+      artifact.attributes.merge(
+        block_number: block.number.value,
+        transaction_index: transaction_index,
+      )
+    )
     
     artifact
   end

@@ -14,7 +14,8 @@ class CreateContractTransactions < ActiveRecord::Migration[7.1]
       t.check_constraint "transaction_hash ~ '^0x[a-f0-9]{64}$'"
     
       t.foreign_key :ethscriptions, column: :transaction_hash, primary_key: :transaction_hash, on_delete: :cascade
-    
+      t.foreign_key :eth_blocks, column: :block_number, primary_key: :block_number, on_delete: :cascade
+      
       t.timestamps
     end    
   end
