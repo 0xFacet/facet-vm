@@ -36,6 +36,12 @@ class CreateTransactionReceipts < ActiveRecord::Migration[7.1]
       t.check_constraint "transaction_hash ~ '^0x[a-f0-9]{64}$'"
       t.check_constraint "status IN ('success', 'failure')"
       
+      t.check_constraint "call_type IN ('call', 'create')"
+      t.check_constraint "call_type <> 'create' OR created_contract_address IS NOT NULL"
+      t.check_constraint "call_type <> 'call' OR to_contract_address IS NOT NULL"
+      t.check_constraint "(to_contract_address IS NULL) != (created_contract_address IS NULL)"
+      t.check_constraint "(call_type = 'create' AND effective_contract_address = created_contract_address) OR (call_type = 'call' AND effective_contract_address = to_contract_address)"
+      
       t.foreign_key :ethscriptions, column: :transaction_hash, primary_key: :transaction_hash, on_delete: :cascade
       t.foreign_key :eth_blocks, column: :block_number, primary_key: :block_number, on_delete: :cascade
       

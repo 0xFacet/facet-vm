@@ -586,12 +586,17 @@ CREATE TABLE public.transaction_receipts (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_rails_06c0d4e0bb CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_4a6d0a1199 CHECK (((to_contract_address IS NULL) <> (created_contract_address IS NULL))),
+    CONSTRAINT chk_rails_592884e043 CHECK (((((call_type)::text = 'create'::text) AND ((effective_contract_address)::text = (created_contract_address)::text)) OR (((call_type)::text = 'call'::text) AND ((effective_contract_address)::text = (to_contract_address)::text)))),
     CONSTRAINT chk_rails_8b922d101f CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_a636a2bc58 CHECK (((to_contract_address IS NULL) OR ((to_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_a65f1aca4b CHECK (((created_contract_address IS NULL) OR ((created_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
+    CONSTRAINT chk_rails_a983f9ad8b CHECK (((call_type)::text = ANY ((ARRAY['call'::character varying, 'create'::character varying])::text[]))),
     CONSTRAINT chk_rails_b5311d68b7 CHECK (((from_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_c2ccb79365 CHECK ((((call_type)::text <> 'call'::text) OR (to_contract_address IS NOT NULL))),
     CONSTRAINT chk_rails_dab1f5e22a CHECK (((status)::text = ANY ((ARRAY['success'::character varying, 'failure'::character varying])::text[]))),
-    CONSTRAINT chk_rails_e2780a945e CHECK (((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))
+    CONSTRAINT chk_rails_e2780a945e CHECK (((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_f9b075c036 CHECK ((((call_type)::text <> 'create'::text) OR (created_contract_address IS NOT NULL)))
 );
 
 
