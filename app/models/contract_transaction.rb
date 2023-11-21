@@ -92,26 +92,35 @@ class ContractTransaction < ApplicationRecord
   end
   
   def build_transaction_receipt
-    self.transaction_receipt = TransactionReceipt.new(
+    base_attrs = {
       transaction_hash: transaction_hash,
-      call_type: initial_call.call_type,
       block_number: block_number,
       block_blockhash: block_blockhash,
       transaction_index: transaction_index,
-      from_address: initial_call.from_address,
       block_timestamp: block_timestamp,
-      function: initial_call.function,
-      args: initial_call.args,
       logs: contract_calls.sort_by(&:internal_transaction_index).map(&:logs).flatten,
-      return_value: initial_call.return_value,
       status: status,
-      effective_contract_address: initial_call.effective_contract_address,
-      error: initial_call.error,
       runtime_ms: initial_call.calculated_runtime_ms,
       gas_price: ethscription.gas_price,
       gas_used: ethscription.gas_used,
       transaction_fee: ethscription.transaction_fee,
+    }
+    
+    call_attrs = initial_call.attributes.with_indifferent_access.slice(
+      :to_contract_address,
+      :created_contract_address,
+      :effective_contract_address,
+      :call_type,
+      :from_address,
+      :function,
+      :args,
+      :return_value,
+      :error
     )
+    
+    attrs = base_attrs.merge(call_attrs)
+    
+    self.transaction_receipt = TransactionReceipt.new(attrs)
   end
   
   def self.simulate_transaction(from:, tx_payload:)
@@ -247,16 +256,16 @@ class ContractTransaction < ApplicationRecord
   def persist_contract_state_if_success!
     return unless status == :success
     
-    grouped_contracts = contract_calls.group_by { |call| call.to_contract.address }
+    grouped_contracts = contract_calls.group_by { |call| call.effective_contract.address }
 
     grouped_contracts.each do |address, calls|
-      states = calls.map { |call| call.to_contract.current_state }.uniq
+      states = calls.map { |call| call.effective_contract.current_state }.uniq
       if states.length > 1
         raise "Duplicate contracts with different states for address #{address}"
       end
     end
     
-    contract_calls.map(&:to_contract).uniq(&:address).each do |contract|
+    contract_calls.map(&:effective_contract).uniq(&:address).each do |contract|
       contract.save_new_state_if_needed!(
         transaction: self,
       )
@@ -265,8 +274,8 @@ class ContractTransaction < ApplicationRecord
   
   def get_active_contract(address)
     contract_calls.detect do |call|
-      call.to_contract&.address == address
-    end&.to_contract
+      call.effective_contract&.address == address
+    end&.effective_contract
   end
   
   def status

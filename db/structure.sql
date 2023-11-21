@@ -264,17 +264,18 @@ CREATE TABLE public.contract_calls (
     runtime_ms integer NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_rails_028f647531 CHECK ((((call_type)::text <> 'create'::text) OR (created_contract_address IS NOT NULL))),
     CONSTRAINT chk_rails_0351aa702f CHECK (((created_contract_address IS NULL) OR ((created_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
+    CONSTRAINT chk_rails_1a921ba712 CHECK ((((call_type)::text <> 'call'::text) OR (to_contract_address IS NOT NULL))),
     CONSTRAINT chk_rails_27a87dcd58 CHECK (((call_type)::text = ANY ((ARRAY['call'::character varying, 'create'::character varying])::text[]))),
+    CONSTRAINT chk_rails_392c3d2c8e CHECK (((to_contract_address IS NULL) <> (created_contract_address IS NULL))),
     CONSTRAINT chk_rails_399807917b CHECK (((((status)::text = 'failure'::text) AND (logs = '[]'::jsonb)) OR ((status)::text = 'success'::text))),
     CONSTRAINT chk_rails_39b26367fa CHECK (((((status)::text = 'failure'::text) AND (error IS NOT NULL)) OR (((status)::text = 'success'::text) AND (error IS NULL)))),
-    CONSTRAINT chk_rails_60a50bca74 CHECK (((((call_type)::text = 'create'::text) AND ((effective_contract_address)::text = (created_contract_address)::text)) OR (((call_type)::text <> 'create'::text) AND ((effective_contract_address)::text = (to_contract_address)::text)))),
     CONSTRAINT chk_rails_634aef3d55 CHECK (((effective_contract_address IS NULL) OR ((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_b5e513ec63 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_cebfc1a4ba CHECK (((to_contract_address IS NULL) OR ((to_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_db6bb5ee1f CHECK (((status)::text = ANY ((ARRAY['success'::character varying, 'failure'::character varying])::text[]))),
-    CONSTRAINT chk_rails_e0ca5e6f98 CHECK ((((call_type)::text <> 'create'::text) OR (error IS NOT NULL) OR (created_contract_address IS NOT NULL))),
-    CONSTRAINT chk_rails_ec382938ea CHECK ((((call_type)::text <> 'create'::text) OR ((error IS NULL) <> (created_contract_address IS NULL)))),
+    CONSTRAINT chk_rails_dc9b9d8a70 CHECK (((((call_type)::text = 'create'::text) AND ((effective_contract_address)::text = (created_contract_address)::text)) OR (((call_type)::text = 'call'::text) AND ((effective_contract_address)::text = (to_contract_address)::text)))),
     CONSTRAINT chk_rails_f785dc90f8 CHECK (((from_address)::text ~ '^0x[a-f0-9]{40}$'::text))
 );
 
@@ -384,8 +385,8 @@ CREATE TABLE public.contracts (
     transaction_hash character varying NOT NULL,
     block_number bigint NOT NULL,
     transaction_index bigint NOT NULL,
-    current_type character varying NOT NULL,
-    current_init_code_hash character varying NOT NULL,
+    current_type character varying,
+    current_init_code_hash character varying,
     current_state jsonb DEFAULT '{}'::jsonb NOT NULL,
     address character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
@@ -570,7 +571,9 @@ CREATE TABLE public.transaction_receipts (
     logs jsonb DEFAULT '[]'::jsonb NOT NULL,
     block_timestamp bigint NOT NULL,
     error jsonb,
+    to_contract_address character varying,
     effective_contract_address character varying,
+    created_contract_address character varying,
     block_number bigint NOT NULL,
     transaction_index bigint NOT NULL,
     block_blockhash character varying NOT NULL,
@@ -583,10 +586,17 @@ CREATE TABLE public.transaction_receipts (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_rails_06c0d4e0bb CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_4a6d0a1199 CHECK (((to_contract_address IS NULL) <> (created_contract_address IS NULL))),
+    CONSTRAINT chk_rails_592884e043 CHECK (((((call_type)::text = 'create'::text) AND ((effective_contract_address)::text = (created_contract_address)::text)) OR (((call_type)::text = 'call'::text) AND ((effective_contract_address)::text = (to_contract_address)::text)))),
     CONSTRAINT chk_rails_8b922d101f CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_a636a2bc58 CHECK (((to_contract_address IS NULL) OR ((to_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
+    CONSTRAINT chk_rails_a65f1aca4b CHECK (((created_contract_address IS NULL) OR ((created_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
+    CONSTRAINT chk_rails_a983f9ad8b CHECK (((call_type)::text = ANY ((ARRAY['call'::character varying, 'create'::character varying])::text[]))),
     CONSTRAINT chk_rails_b5311d68b7 CHECK (((from_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_c2ccb79365 CHECK ((((call_type)::text <> 'call'::text) OR (to_contract_address IS NOT NULL))),
     CONSTRAINT chk_rails_dab1f5e22a CHECK (((status)::text = ANY ((ARRAY['success'::character varying, 'failure'::character varying])::text[]))),
-    CONSTRAINT chk_rails_e2780a945e CHECK (((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))
+    CONSTRAINT chk_rails_e2780a945e CHECK (((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_f9b075c036 CHECK ((((call_type)::text <> 'create'::text) OR (created_contract_address IS NOT NULL)))
 );
 
 
@@ -1020,10 +1030,24 @@ CREATE UNIQUE INDEX index_system_config_versions_on_transaction_hash ON public.s
 
 
 --
+-- Name: index_transaction_receipts_on_created_contract_address; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_transaction_receipts_on_created_contract_address ON public.transaction_receipts USING btree (created_contract_address);
+
+
+--
 -- Name: index_transaction_receipts_on_effective_contract_address; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX index_transaction_receipts_on_effective_contract_address ON public.transaction_receipts USING btree (effective_contract_address);
+
+
+--
+-- Name: index_transaction_receipts_on_to_contract_address; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_transaction_receipts_on_to_contract_address ON public.transaction_receipts USING btree (to_contract_address);
 
 
 --
@@ -1226,9 +1250,9 @@ SET search_path TO "$user", public;
 INSERT INTO "schema_migrations" (version) VALUES
 ('20231113223006'),
 ('20231110173854'),
-('20230911150931'),
-('20230911143056'),
 ('20230824174647'),
+('20230824174646'),
+('20230824174640'),
 ('20230824171752'),
 ('20230824170608'),
 ('20230824165302'),

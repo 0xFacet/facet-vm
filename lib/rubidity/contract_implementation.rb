@@ -285,8 +285,6 @@ class ContractImplementation < BasicObject
   end
   
   def self.calculate_new_contract_address_with_salt(salt, from_address, to_contract_init_code_hash)
-    target_implementation = ::TransactionContext.supported_contract_class(to_contract_init_code_hash)
-    
     from_address = ::TypedVariable.validated_value(:address, from_address).sub(/\A0x/, '')
     salt = ::TypedVariable.validated_value(:bytes32, salt).sub(/\A0x/, '')
     to_contract_init_code_hash = ::TypedVariable.validated_value(
