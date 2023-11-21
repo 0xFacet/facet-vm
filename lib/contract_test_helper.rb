@@ -16,14 +16,22 @@ module ContractTestHelper
   end
   
   def trigger_contract_interaction_and_expect_status(status:, **params)
-    interaction = ContractTestHelper.trigger_contract_interaction(**params.except(:error_msg_includes))
-    expect(interaction.status).to eq(status), failure_message(interaction)
+    eth = ContractTestHelper.trigger_contract_interaction(**params.except(:error_msg_includes))
     
-    if status == "failure" && params[:error_msg_includes]
-      expect(interaction.error['message']).to include(params[:error_msg_includes])
+    receipt = eth&.contract_transaction&.transaction_receipt
+    
+    if !receipt
+      expect(status).to eq("failure")
+      return eth
     end
     
-    interaction
+    expect(receipt.status).to eq(status), failure_message(receipt)
+    
+    if status == "failure" && params[:error_msg_includes]
+      expect(receipt.error['message']).to include(params[:error_msg_includes])
+    end
+    
+    receipt
   end
   
   def self.set_initial_admin_address
@@ -68,13 +76,11 @@ module ContractTestHelper
       "initial_owner"=>'0x0000000000000000000000000000000000000000',
       "transaction_index"=>transaction_index,
       "content_uri"=> uri,
-      mimetype: mimetype
+      mimetype: mimetype,
+      processing_state: :pending,
     }
     
-    Ethscription.transaction do
-      eth = Ethscription.create!(ethscription_attrs)
-      SystemConfigVersion.create_from_ethscription!(eth)
-    end
+    Ethscription.new(ethscription_attrs).process!(persist: true)
   end
   
   def self.set_initial_start_block
@@ -119,13 +125,11 @@ module ContractTestHelper
       "initial_owner"=>'0x0000000000000000000000000000000000000000',
       "transaction_index"=>transaction_index,
       "content_uri"=> uri,
-      mimetype: mimetype
+      mimetype: mimetype,
+      processing_state: 'pending'
     }
     
-    Ethscription.transaction do
-      eth = Ethscription.create!(ethscription_attrs)
-      SystemConfigVersion.create_from_ethscription!(eth)
-    end
+    Ethscription.new(ethscription_attrs).process!(persist: true)
   end
   
   def self.set_initial_supported_contracts
@@ -250,13 +254,11 @@ module ContractTestHelper
       "initial_owner"=>'0x0000000000000000000000000000000000000000',
       "transaction_index"=>transaction_index,
       "content_uri"=> uri,
-      mimetype: mimetype
+      mimetype: mimetype,
+      processing_state: :pending
     }
     
-    Ethscription.transaction do
-      eth = Ethscription.create!(ethscription_attrs)
-      SystemConfigVersion.create_from_ethscription!(eth)
-    end
+    Ethscription.new(ethscription_attrs).process!(persist: true)
   end
   
   def self.trigger_contract_interaction(
@@ -319,13 +321,14 @@ module ContractTestHelper
       "initial_owner"=>'0x0000000000000000000000000000000000000000',
       "transaction_index"=>transaction_index,
       "content_uri"=> uri,
-      mimetype: mimetype
+      mimetype: mimetype,
+      processing_state: :pending
     }
     
-    eth = Ethscription.create!(ethscription_attrs)
-    ContractTransaction.create_from_ethscription!(eth)
+    eth = Ethscription.new(ethscription_attrs)
+    eth.process!(persist: true)
     
-    eth.transaction_receipt
+    eth
   end
   
   def self.test_api
