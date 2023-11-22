@@ -192,6 +192,10 @@ class ContractCall < ApplicationRecord
   def contract_address
     created_contract_address
   end
+
+  def to_or_contract_address
+    to || contract_address
+  end
   
   def as_json(options = {})
     super(
@@ -213,7 +217,7 @@ class ContractCall < ApplicationRecord
           :runtime_ms,
           :effective_contract_address
         ],
-        methods: [:to, :from, :contract_address]
+        methods: [:to, :from, :contract_address, :to_or_contract_address]
       )
     )
   end
