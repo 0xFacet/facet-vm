@@ -18,19 +18,19 @@ contract :Upgradeable, abstract: true do
     emit :UpgradeAdminChanged, newUpgradeAdmin: newUpgradeAdmin
   end
   
-  function :upgradeAndCall, { newHash: :bytes32, migrationCalldata: :string }, :public do
-    upgrade(newHash: newHash)
+  function :upgradeAndCall, { newHash: :bytes32, newSource: :string, migrationCalldata: :string }, :public do
+    upgrade(newHash: newHash, newSource: newSource)
 
     (success, data) = address(this).call(migrationCalldata)
     require(success, "Migration failed")
   end
   
-  function :upgrade, { newHash: :bytes32 }, :public do
-    currentHash = esc.getImplementationHash
+  function :upgrade, { newHash: :bytes32, newSource: :string }, :public do
+    currentHash = this.currentInitCodeHash
     
     require(msg.sender == s.upgradeAdmin, "NOT_AUTHORIZED")
     
-    esc.upgradeContract(newHash)
+    this.upgradeImplementation(newHash, newSource)
     
     emit :ContractUpgraded, oldHash: currentHash, newHash: newHash
   end

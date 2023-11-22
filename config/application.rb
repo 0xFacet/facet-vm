@@ -19,7 +19,17 @@ module FacetVm
     config.middleware.use ActionDispatch::Cookies
     config.middleware.use ActionDispatch::Session::CookieStore
     
-    config.autoload_paths << Rails.root.join('lib')
+    additional_paths = %w(
+      lib
+      lib/rubidity
+      lib/rubidity/type_system
+      lib/rubidity/state_management
+      lib/rubidity/transpiler
+      lib/rubidity/contract_functions
+      lib/rubidity/transaction_execution
+    ).map{|i| Rails.root.join(i)}
+    config.autoload_paths += additional_paths
+    config.eager_load_paths += additional_paths
     
     config.active_record.schema_format = :sql
     

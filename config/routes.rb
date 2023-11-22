@@ -1,12 +1,13 @@
 Rails.application.routes.draw do
   resources :contracts, only: [:index, :show] do
     collection do
-      get "/:address/call-receipts/", to: "contracts#contract_call_receipts", constraints: { address: /(0x)?[a-zA-Z0-9]{40}/ }
+      get "/:address/transactions/", to: "contracts#contract_call_receipts", constraints: { address: /(0x)?[a-zA-Z0-9]{40}/ }
       get "/:address/static-call/:function", to: "contracts#static_call", constraints: { address: /(0x)?[a-zA-Z0-9]{40}/ }
-      get "/call-receipts/:transaction_hash", to: "contracts#show_call_receipt", constraints: { transaction_hash: /(0x)?[a-zA-Z0-9]{64}/ }
+      get "/transactions/:transaction_hash", to: "contracts#show_call_receipt", constraints: { transaction_hash: /(0x)?[a-zA-Z0-9]{64}/ }
       get "/simulate", to: "contracts#simulate_transaction"
       
       get "/all-abis", to: "contracts#all_abis"
+      get "/supported-contract-artifacts", to: "contracts#supported_contract_artifacts"
       get "/deployable-contracts", to: "contracts#deployable_contracts"
       
       
@@ -24,6 +25,9 @@ Rails.application.routes.draw do
     collection do
       get '/total', to: 'transactions#total'
     end
+  end
+  
+  resources :contract_calls, only: [:index] do
   end
   
   get "/status", to: "status#vm_status"

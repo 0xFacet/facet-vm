@@ -4,7 +4,7 @@ git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 ruby "3.2.2"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
-gem "rails", "~> 7.1.1"
+gem "rails", "~> 7.1.2"
 
 # Use postgresql as the database for Active Record
 gem "pg", "~> 1.1"
@@ -50,7 +50,7 @@ group :development do
 end
 
 
-gem "dotenv-rails", "~> 2.8", groups: [:development]
+gem "dotenv-rails", "~> 2.8", groups: [:development, :test]
 
 gem "httpparty", "~> 0.2.0"
 
@@ -68,7 +68,7 @@ gem "eth", "~> 0.5.11"
 
 gem "activerecord-import", "~> 1.5"
 
-gem "unparser", "~> 0.6.8"
+gem "unparser", "~> 0.6.10"
 
 gem "scout_apm", "~> 5.3"
 

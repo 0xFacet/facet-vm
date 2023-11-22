@@ -2,17 +2,12 @@ class Contract < ApplicationRecord
   include ContractErrors
     
   has_many :states, primary_key: 'address', foreign_key: 'contract_address', class_name: "ContractState"
-  has_one :newest_state, -> { newest_first }, class_name: 'ContractState', primary_key: 'address',
-    foreign_key: 'contract_address'
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
 
-  belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'transaction_hash', optional: true
+  belongs_to :ethscription, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', optional: true
   
   has_many :contract_calls, foreign_key: :effective_contract_address, primary_key: :address
-  has_many :contract_transactions, through: :contract_calls
-  has_many :contract_transaction_receipts, through: :contract_transactions
-  
-  has_one :creating_contract_call, class_name: 'ContractCall', foreign_key: 'created_contract_address', primary_key: 'address'
+  has_one :transaction_receipt, through: :contract_transaction
 
   attr_reader :implementation
   
@@ -29,7 +24,11 @@ class Contract < ApplicationRecord
   end
   
   def implementation_class
-    ContractArtifact.class_from_init_code_hash!(current_init_code_hash)
+    return unless current_init_code_hash
+    
+    TransactionContext.supported_contract_class(
+      current_init_code_hash, validate: false
+    )
   end
   
   def self.types_that_implement(base_type)
@@ -116,12 +115,20 @@ class Contract < ApplicationRecord
         only: [
           :address,
           :transaction_hash,
+          :current_init_code_hash,
+          :current_type
         ]
       )
     ).tap do |json|
-      json['abi'] = implementation_class.new.public_abi.map do |name, func|
-        [name, func.as_json.except('implementation')]
-      end.to_h
+      if implementation_class
+        json['abi'] = implementation_class.new.public_abi.map do |name, func|
+          [name, func.as_json.except('implementation')]
+        end.to_h
+      end
+      
+      if association(:transaction_receipt).loaded?
+        json['deployment_transaction'] = transaction_receipt
+      end
       
       json['current_state'] = if options[:include_current_state]
         current_state
@@ -134,7 +141,7 @@ class Contract < ApplicationRecord
       json['source_code'] = [
         {
           language: 'ruby',
-          code: implementation_class.source_code
+          code: implementation_class&.source_code
         }
       ]
     end

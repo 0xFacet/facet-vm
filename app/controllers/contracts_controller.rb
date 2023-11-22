@@ -4,12 +4,19 @@ class ContractsController < ApplicationController
     per_page = (params[:per_page] || 50).to_i
     per_page = 50 if per_page > 50
     
-    scope = Contract.where(current_type: Contract.deployable_contracts.map(&:name)).order(created_at: :desc)
+    scope = Contract.
+      order(created_at: :desc).
+      where.not(current_init_code_hash: nil).
+      includes(:transaction_receipt)
     
     if params[:base_type]
       scope = scope.where(
         current_type: Contract.types_that_implement(params[:base_type]).map(&:name)
       )
+    end
+    
+    if params[:init_code_hash]
+      scope = scope.where(current_init_code_hash: params[:init_code_hash])
     end
     
     cache_key = ["contracts_index", scope, page, per_page]
@@ -20,16 +27,27 @@ class ContractsController < ApplicationController
     end
   
     render json: {
-      result: result
+      result: result,
+      count: scope.count
     }
   end
 
+  def supported_contract_artifacts
+    render json: {
+      result: SystemConfigVersion.current_supported_contract_artifacts
+    }
+  end
+  
   def all_abis
-    render json: Contract.all_abis
+    render json: {
+      result: Contract.all_abis
+    }
   end
 
   def deployable_contracts
-    render json: Contract.all_abis(deployable_only: true)
+    render json: {
+      result: Contract.all_abis(deployable_only: true)
+    }
   end
 
   def show
@@ -69,7 +87,7 @@ class ContractsController < ApplicationController
   end
 
   def show_call_receipt
-    receipt = ContractTransactionReceipt.includes(:contract_transaction).find_by_transaction_hash(params[:transaction_hash])
+    receipt = TransactionReceipt.includes(:contract_transaction).find_by_transaction_hash(params[:transaction_hash])
 
     if receipt.blank?
       render json: {
@@ -88,7 +106,8 @@ class ContractsController < ApplicationController
     per_page = 25 if per_page > 25
 
     contract = Contract.find_by_address(params[:address])
-    receipts = contract.contract_transaction_receipts.includes(:contract_transaction).order(created_at: :desc).page(page).per(per_page)
+    receipts = contract.transaction_receipts.includes(:contract_transaction).
+      newest_first.page(page).per(per_page)
 
     if contract.blank?
       render json: { error: "Contract not found" }, status: 404
@@ -96,7 +115,8 @@ class ContractsController < ApplicationController
     end
 
     render json: {
-      result: convert_int_to_string(receipts)
+      result: convert_int_to_string(receipts),
+      count: receipts.total_count
     }
   end
   
@@ -177,20 +197,5 @@ class ContractsController < ApplicationController
   
   def make_static_call(**kwargs)
     ContractTransaction.make_static_call(**kwargs)
-  end
-  
-  def convert_int_to_string(result)
-    result = result.as_json
-  
-    case result
-    when Numeric
-      result.to_s
-    when Hash
-      result.deep_transform_values { |value| convert_int_to_string(value) }
-    when Array
-      result.map { |value| convert_int_to_string(value) }
-    else
-      result
-    end
   end
 end

@@ -1,15 +1,23 @@
 class ContractCall < ApplicationRecord
   include ContractErrors
   
-  enum :call_type, [ :call, :static_call, :create ], prefix: :is
-  enum :status, [ :failure, :success ]
+  before_validation :ensure_runtime_ms, :trim_failed_contract_deploys
   
-  attr_accessor :to_contract, :salt, :pending_logs, :to_contract_init_code_hash
+  attr_accessor :to_contract, :salt, :pending_logs, :to_contract_init_code_hash, :to_contract_source_code
   
   belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
+  belongs_to :called_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'to_contract_address', optional: true
+  belongs_to :effective_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'effective_contract_address', optional: true
+  
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true, inverse_of: :contract_calls
   
-  belongs_to :ethscription, primary_key: 'ethscription_id', foreign_key: 'transaction_hash', optional: true
+  belongs_to :ethscription, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', optional: true
+  
+  scope :newest_first, -> { order(
+    block_number: :desc,
+    transaction_index: :desc,
+    internal_transaction_index: :desc
+  ) }
 
   def execute!
     self.pending_logs = []
@@ -20,7 +28,7 @@ class ContractCall < ApplicationRecord
       find_and_validate_existing_contract!
     end
     
-    result = to_contract.execute_function(
+    result = effective_contract.execute_function(
       function,
       args,
       is_static_call: is_static_call?
@@ -29,48 +37,65 @@ class ContractCall < ApplicationRecord
     assign_attributes(
       return_value: result,
       status: :success,
-      logs: pending_logs
+      logs: pending_logs,
+      end_time: Time.current
     )
     
-    self.effective_contract_address = to_contract.address
+    assign_contract
     
-    if is_create?
-      self.created_contract = to_contract
-      to_contract.address
-    else
-      result
-    end
+    is_create? ? created_contract.address : result
   rescue ContractError, TransactionError => e
-    assign_attributes(error: e.message, status: :failure)
+    assign_attributes(error_message: e.message, status: :failure, end_time: Time.current)
+    
+    assign_contract
+    
     raise
   end
   
+  def assign_contract
+    if is_create?
+      self.created_contract = effective_contract
+    elsif is_call? && effective_contract
+      self.called_contract = effective_contract
+    end
+  end
+  
+  def error_message=(msg)
+    self.error = {
+      message: msg.strip
+    }
+  end
+  
   def args=(args)
-    super(args || {})
+    super(args.nil? ? {} : args)
   end
   
   def find_and_validate_existing_contract!
-    self.to_contract = TransactionContext.get_active_contract(to_contract_address) ||
+    self.effective_contract = TransactionContext.get_active_contract(to_contract_address) ||
       Contract.find_by(address: to_contract_address)
     
-    if to_contract.blank?
+    if effective_contract.blank?
       raise CallingNonExistentContractError.new("Contract not found: #{to_contract_address}")
     end
     
     if function&.to_sym == :constructor
-      raise ContractError.new("Cannot call constructor function: #{function}", to_contract)
+      raise ContractError.new("Cannot call constructor function: #{function}", effective_contract)
     end
   end
   
-  def to_contract_init_code_hash
-    @to_contract_init_code_hash ||= ContractArtifact.class_from_name(to_contract_type)&.init_code_hash
-  end
-  
-  def to_contract_implementation
-    ContractArtifact.class_from_init_code_hash!(to_contract_init_code_hash)
-  end
-  
   def create_and_validate_new_contract!
+    self.effective_contract = Contract.new(
+      transaction_hash: TransactionContext.transaction_hash.value,
+      block_number: TransactionContext.block.number.value,
+      transaction_index: TransactionContext.transaction_index,
+      address: calculate_new_contract_address
+    )
+    
+    to_contract_implementation = TransactionContext.supported_contract_class(
+      to_contract_init_code_hash,
+      to_contract_source_code
+    )
+    
     if function
       raise ContractError.new("Cannot call function on contract creation")
     end
@@ -79,16 +104,14 @@ class ContractCall < ApplicationRecord
       raise TransactionError.new("Cannot deploy abstract contract: #{to_contract_implementation.name}")
     end
     
-    self.to_contract = Contract.new(
-      transaction_hash: TransactionContext.transaction_hash,
-      address: calculate_new_contract_address,
+    self.effective_contract.assign_attributes(
       current_type: to_contract_implementation.name,
       current_init_code_hash: to_contract_init_code_hash
     )
     
     self.function = :constructor
   rescue UnknownInitCodeHash => e
-    raise TransactionError.new("Invalid contract: #{to_contract_init_code_hash || to_contract_type}")
+    raise TransactionError.new("Invalid contract: #{to_contract_init_code_hash}")
   end
   
   def calculate_new_contract_address
@@ -96,10 +119,14 @@ class ContractCall < ApplicationRecord
       return calculate_new_contract_address_with_salt
     end
     
-    rlp_encoded = Eth::Rlp.encode([Integer(from_address, 16), current_nonce])
+    rlp_encoded = Eth::Rlp.encode([
+      Integer(from_address, 16),
+      current_nonce,
+      "facet"
+    ])
     
     hash = Digest::Keccak256.hexdigest(rlp_encoded)
-    "0x" + hash[24..-1]
+    "0x" + hash.last(40)
   end
   
   def calculate_new_contract_address_with_salt
@@ -152,5 +179,88 @@ class ContractCall < ApplicationRecord
   def log_event(event)
     pending_logs << event
     nil
+  end
+  
+  def to
+    to_contract_address
+  end
+  
+  def from
+    from_address
+  end
+  
+  def contract_address
+    created_contract_address
+  end
+
+  def to_or_contract_address
+    to || contract_address
+  end
+  
+  def as_json(options = {})
+    super(
+      options.merge(
+        only: [
+          :transaction_hash,
+          :block_blockhash,
+          :block_timestamp,
+          :block_number,
+          :transaction_index,
+          :internal_transaction_index,
+          :function,
+          :args,
+          :call_type,
+          :return_value,
+          :logs,
+          :error,
+          :status,
+          :runtime_ms,
+          :effective_contract_address
+        ],
+        methods: [:to, :from, :contract_address, :to_or_contract_address]
+      )
+    )
+  end
+  
+  def calculated_runtime_ms
+    (end_time - start_time) * 1000
+  end
+  
+  def is_static_call?
+    call_type.to_s == "static_call"
+  end
+  
+  def is_create?
+    call_type.to_s == "create"
+  end
+  
+  def is_call?
+    call_type.to_s == "call"
+  end
+  
+  def failure?
+    status.to_s == 'failure'
+  end
+  
+  def success?
+    status.to_s == 'success'
+  end
+  
+  private
+  
+  def ensure_runtime_ms
+    return if runtime_ms
+    
+    self.runtime_ms = calculated_runtime_ms
+  end
+  
+  def trim_failed_contract_deploys
+    if failure? && created_contract
+      created_contract.assign_attributes(
+        current_init_code_hash: nil,
+        current_type: nil,
+        current_state: {}
+      )
+    end
   end
 end

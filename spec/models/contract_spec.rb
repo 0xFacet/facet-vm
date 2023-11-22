@@ -5,7 +5,11 @@ RSpec.describe Contract, type: :model do
   let(:trusted_address) { "0x019824B229400345510A3a7EFcFB77fD6A78D8d0" }
   
   before(:all) do
-    ContractArtifact.create_artifacts_from_files('spec/fixtures/ERC20LiquidityPool.rubidity')
+    update_supported_contracts(
+      "ERC20LiquidityPool",
+      "EtherBridgeV1Test",
+      "EtherBridgeV2Test"
+    )
   end
   
   before do
@@ -59,11 +63,15 @@ RSpec.describe Contract, type: :model do
     end
     
     it "will simulate a deploy transaction" do
+      transpiled = RubidityTranspiler.transpile_file("PublicMintERC20")
+      item = transpiled.detect{|i| i.name.to_s == "PublicMintERC20"}
+
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
       data = {
-        to: nil,
+        op: :create,
         data: {
-          type: "PublicMintERC20",
+          source_code: item.source_code,
+          init_code_hash: item.init_code_hash,
           args: {
             "name": "My Fun Token",
             "symbol": "FUN",
@@ -75,11 +83,12 @@ RSpec.describe Contract, type: :model do
       }
       
       expect {
-        receipt = ContractTransaction.simulate_transaction(from: from, tx_payload: data)
-    
-        expect(receipt).to be_a(ContractTransactionReceipt)
+        resp = ContractTransaction.simulate_transaction(from: from, tx_payload: data)
+        receipt = resp['transaction_receipt']
+        
+        expect(receipt).to be_a(TransactionReceipt)
         expect(receipt.status).to eq("success")
-        expect(Ethscription.find_by(ethscription_id: receipt.transaction_hash)).to be_nil
+        expect(Ethscription.find_by(transaction_hash: receipt.transaction_hash)).to be_nil
         
       }.to_not change {
         [Contract, ContractState, Ethscription].map{|i| i.all.cache_key_with_version}
@@ -102,11 +111,12 @@ RSpec.describe Contract, type: :model do
         }
       )
     
-      call_receipt_success = ContractTransaction.simulate_transaction(
+      resp = ContractTransaction.simulate_transaction(
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         tx_payload: {
-          "to": deploy_receipt.address,
+          op: "call",
           data: {
+            "to": deploy_receipt.address,
             "function": "mint",
             "args": {
               "amount": "5"
@@ -114,17 +124,20 @@ RSpec.describe Contract, type: :model do
           }
         }
       )
-    
-      expect(call_receipt_success).to be_a(ContractTransactionReceipt)
+        
+      call_receipt_success = resp['transaction_receipt']
+      
+      expect(call_receipt_success).to be_a(TransactionReceipt)
       expect(call_receipt_success.status).to eq("success")
       
-      expect(Ethscription.find_by(ethscription_id: call_receipt_success.transaction_hash)).to be_nil
+      expect(Ethscription.find_by(transaction_hash: call_receipt_success.transaction_hash)).to be_nil
       
-      call_receipt_fail = ContractTransaction.simulate_transaction(
+      resp = ContractTransaction.simulate_transaction(
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         tx_payload: {
-          "to": deploy_receipt.address,
+          op: :call,
           data: {
+            "to": deploy_receipt.address,
             "function": "mint",
             "args": {
               "amount": "5000"
@@ -133,10 +146,12 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      expect(call_receipt_fail).to be_a(ContractTransactionReceipt)
-      expect(call_receipt_fail.status).to eq("error")
+      call_receipt_fail = resp['transaction_receipt']
       
-      expect(Ethscription.find_by(ethscription_id: call_receipt_fail.transaction_hash)).to be_nil
+      expect(call_receipt_fail).to be_a(TransactionReceipt)
+      expect(call_receipt_fail.status).to eq("failure")
+      
+      expect(Ethscription.find_by(transaction_hash: call_receipt_fail.transaction_hash)).to be_nil
       
       expect(deploy_receipt.contract.states.count).to eq(1)
     end
@@ -198,7 +213,7 @@ RSpec.describe Contract, type: :model do
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "protocol": "EtherBridge",
+          "protocol": "EtherBridgeV1Test",
           constructorArgs: {
             name: "Bridge Native 1",
             symbol: "PT1",
@@ -274,7 +289,7 @@ RSpec.describe Contract, type: :model do
         from: user_address,
         payload: {
           data: {
-            type: "EtherBridge",
+            type: "EtherBridgeV1Test",
             args: {
               name: "Bridge Native 1",
               symbol: "PT1",
@@ -284,16 +299,16 @@ RSpec.describe Contract, type: :model do
         }
       )
       
-      v1_hash = "0x" + ContractArtifact.class_from_name("EtherBridge").init_code_hash
-      v2_hash = "0x" + ContractArtifact.class_from_name("EtherBridgeV2").init_code_hash
-
+      v1_hash = RubidityTranspiler.transpile_and_get("EtherBridgeV1Test").init_code_hash
+      v2 = RubidityTranspiler.transpile_and_get("EtherBridgeV2Test")
+      
       upgrade_tx = trigger_contract_interaction_and_expect_success(
         from: user_address,
         payload: {
-          to: bridge.contract_address,
+          to: bridge.effective_contract_address,
           data: {
             function: "upgrade",
-            args: v2_hash
+            args: [v2.init_code_hash, v2.source_code]
           }
         }
       )
@@ -303,13 +318,13 @@ RSpec.describe Contract, type: :model do
       end
 
       expect(contract_upgraded_event['data']['oldHash']).to eq(v1_hash)
-      expect(contract_upgraded_event['data']['newHash']).to eq(v2_hash)
+      expect(contract_upgraded_event['data']['newHash']).to eq(v2.init_code_hash)
       
       bridge = trigger_contract_interaction_and_expect_success(
         from: user_address,
         payload: {
           data: {
-            type: "EtherBridge",
+            type: "EtherBridgeV1Test",
             args: {
               name: "Bridge Native 1",
               symbol: "PT1",
@@ -322,7 +337,7 @@ RSpec.describe Contract, type: :model do
       trigger_contract_interaction_and_expect_success(
         from: trusted_address,
         payload: {
-          to: bridge.contract_address,
+          to: bridge.effective_contract_address,
           data: {
             function: "bridgeIn",
             args: [
@@ -336,7 +351,7 @@ RSpec.describe Contract, type: :model do
       bridge_out = trigger_contract_interaction_and_expect_success(
         from: user_address,
         payload: {
-          to: bridge.contract_address,
+          to: bridge.effective_contract_address,
           data: {
             function: "bridgeOut",
             args: 200
@@ -355,14 +370,17 @@ RSpec.describe Contract, type: :model do
         }
       }
       
+      v2 = RubidityTranspiler.transpile_and_get("EtherBridgeV2Test")
+      
       upgrade_tx = trigger_contract_interaction_and_expect_success(
         from: user_address,
         payload: {
-          to: bridge.contract_address,
+          to: bridge.effective_contract_address,
           data: {
             function: "upgradeAndCall",
             args: {
-              newHash: v2_hash,
+              newHash: v2.init_code_hash,
+              newSource: '',
               migrationCalldata: migrationCalldata.to_json
             }
           }
@@ -374,16 +392,16 @@ RSpec.describe Contract, type: :model do
       end
 
       expect(contract_upgraded_event['data']['oldHash']).to eq(v1_hash)
-      expect(contract_upgraded_event['data']['newHash']).to eq(v2_hash)
+      expect(contract_upgraded_event['data']['newHash']).to eq(v2.init_code_hash)
       
       bal = ContractTransaction.make_static_call(
-        contract: bridge.contract_address,
+        contract: bridge.effective_contract_address,
         function_name: "balanceOf",
         function_args: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       )
       
       pending = ContractTransaction.make_static_call(
-        contract: bridge.contract_address,
+        contract: bridge.effective_contract_address,
         function_name: "withdrawalIdAmount",
         function_args: withdrawal_id
       )
@@ -391,13 +409,15 @@ RSpec.describe Contract, type: :model do
       expect(bal).to eq(300)
       expect(pending).to eq(200)
       
+      v1 = RubidityTranspiler.transpile_and_get("EtherBridgeV1Test")
+      
       upgrade_tx = trigger_contract_interaction_and_expect_success(
         from: user_address,
         payload: {
-          to: bridge.contract_address,
+          to: bridge.effective_contract_address,
           data: {
             function: "upgrade",
-            args: v1_hash
+            args: [v1.init_code_hash, v1.source_code]
           }
         }
       )
@@ -406,11 +426,11 @@ RSpec.describe Contract, type: :model do
         i['event'] == 'ContractUpgraded'
       end
 
-      expect(contract_upgraded_event['data']['oldHash']).to eq(v2_hash)
-      expect(contract_upgraded_event['data']['newHash']).to eq(v1_hash)
+      expect(contract_upgraded_event['data']['oldHash']).to eq(v2.init_code_hash)
+      expect(contract_upgraded_event['data']['newHash']).to eq(v1.init_code_hash)
       
       bal = ContractTransaction.make_static_call(
-        contract: bridge.contract_address,
+        contract: bridge.effective_contract_address,
         function_name: "balanceOf",
         function_args: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
       )

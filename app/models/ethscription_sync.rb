@@ -22,7 +22,10 @@ class EthscriptionSync
     
     query = {
       block_number: new_block_number,
-      mimetypes: [ContractTransaction.required_mimetype],
+      mimetypes: [
+        ContractTransaction.transaction_mimetype,
+        SystemConfigVersion.system_mimetype
+      ],
       # initial_owner: "0x" + "0" * 40,
       max_ethscriptions: max_ethscriptions,
       max_blocks: max_blocks,
@@ -139,23 +142,6 @@ class EthscriptionSync
 
     EthBlock.import!(new_blocks)
     Ethscription.import!(new_ethscriptions)
-  end
-  
-  def self.transform_server_response(server_data)
-    res = {
-      ethscription_id: server_data['transaction_hash'],
-      block_number: server_data['block_number'],
-      block_blockhash: server_data['block_blockhash'],
-      transaction_index: server_data['transaction_index'],
-      creator: server_data['creator'],
-      current_owner: server_data['current_owner'],
-      initial_owner: server_data['initial_owner'] || server_data['current_owner'], # TODO
-      creation_timestamp: server_data['creation_timestamp'],
-      previous_owner: server_data['previous_owner'],
-      content_uri: server_data['content_uri'],
-      content_sha: Digest::SHA256.hexdigest(server_data['content_uri']),
-      mimetype: server_data['mimetype']
-    }.with_indifferent_access
   end
 end
 $s = EthscriptionSync #TODO: remove

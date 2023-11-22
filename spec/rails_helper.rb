@@ -37,12 +37,14 @@ RSpec.configure do |config|
   # examples within a transaction, remove the following line or assign false
   # instead of true.
   config.use_transactional_fixtures = true
+  
   config.before(:suite) do
-    if ActiveRecord::Base.connection.table_exists?('contract_artifacts')
-      ContractArtifact.reset
-    end
+    EthBlock.delete_all
+    ContractTestHelper.set_initial_admin_address
+    ContractTestHelper.set_initial_supported_contracts
+    ContractTestHelper.set_initial_start_block
   end
-
+  
   # You can uncomment this line to turn off ActiveRecord support entirely.
   # config.use_active_record = false
 

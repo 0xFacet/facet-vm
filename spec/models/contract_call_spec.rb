@@ -1,12 +1,12 @@
 require 'rails_helper'
 
 RSpec.describe ContractCall, type: :model do
-  before(:all) do
-    ContractArtifact.create_artifacts_from_files('spec/fixtures/StubERC20B.rubidity')
-  end
-  
   let(:from_address) { '0xc2172a6315c1d7f6855768f843c420ebb36eda97' }
 
+  before(:all) do
+    update_supported_contracts("FacetSwapV1Pair", "StubERC20B")
+  end
+  
   it 'calculates eoa_nonce correctly' do
     receipt = trigger_contract_interaction_and_expect_success(
       from: from_address,
@@ -18,7 +18,7 @@ RSpec.describe ContractCall, type: :model do
       }
     )
     
-    deployed = receipt.contract_address
+    deployed = receipt.effective_contract_address
 
     trigger_contract_interaction_and_expect_success(
       from: from_address,
@@ -58,13 +58,13 @@ RSpec.describe ContractCall, type: :model do
       payload: {
         to: nil,
         data: {
-          type: "UniswapV2Factory",
+          type: "FacetSwapV1Factory",
           args: { _feeToSetter: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97" }
         }
       }
     )
   
-    factory_address = factory_deploy_receipt.contract_address
+    factory_address = factory_deploy_receipt.effective_contract_address
     
     create_pair_receipt = trigger_contract_interaction_and_expect_success(
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
@@ -130,7 +130,7 @@ RSpec.describe ContractCall, type: :model do
       }
     )
     
-    deployed = receipt.contract_address
+    deployed = receipt.effective_contract_address
     
     expect {
       ContractTransaction.make_static_call(
@@ -145,6 +145,18 @@ RSpec.describe ContractCall, type: :model do
         to: deployed,
         data: {
           function: "callOwnUnsafeReadOnly"
+        }
+      }
+    )
+  end
+  
+  it 'deals with malformed ethscription' do
+    trigger_contract_interaction_and_expect_error(
+      from: from_address,
+      payload: {
+        to: from_address.downcase,
+        data: {
+          type: "StubERC20B"
         }
       }
     )

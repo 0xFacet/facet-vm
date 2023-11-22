@@ -4,23 +4,25 @@ import "./ERC20.rubidity"
 import "./Upgradeable.rubidity"
 
 contract :EtherBridge, is: [:ERC20, :Upgradeable], upgradeable: true do
+  event :BridgedIn, { to: :address, amount: :uint256 }
   event :InitiateWithdrawal, { from: :address, amount: :uint256, withdrawalId: :bytes32 }
-  event :WithdrawalComplete, { to: :address, amounts: [:uint256], withdrawalIds: [:bytes32] }
-
+  event :WithdrawalComplete, { to: :address, amount: :uint256, withdrawalId: :bytes32 }
+  
   address :public, :trustedSmartContract
-  mapping ({ address: :uint256 }), :public, :pendingWithdrawalAmounts
-  mapping ({ address: array(:bytes32) }), :public, :pendingUserWithdrawalIds
-
-  bool :public, :bridgeOutPaused
+  
+  mapping ({ bytes32: :uint256 }), :public, :withdrawalIdAmount
+  mapping ({ address: :bytes32 }), :public, :userWithdrawalId
   
   constructor(
     name: :string,
     symbol: :string,
     trustedSmartContract: :address
   ) {
+    require(trustedSmartContract != address(0), "Invalid smart contract")
+
     ERC20.constructor(name: name, symbol: symbol, decimals: 18)
     Upgradeable.constructor(upgradeAdmin: msg.sender)
-    
+
     s.trustedSmartContract = trustedSmartContract
   }
   
@@ -31,85 +33,45 @@ contract :EtherBridge, is: [:ERC20, :Upgradeable], upgradeable: true do
     )
     
     _mint(to: to, amount: amount)
-  end
-  
-  function :setBridgeOutPause, { newState: :bool }, :public do
-    require(msg.sender == s.upgradeAdmin, "Only the pause admin can pause bridge outs")
-    
-    s.bridgeOutPaused = newState
-    nil
+    emit :BridgedIn, to: to, amount: amount
   end
   
   function :bridgeOut, { amount: :uint256 }, :public do
-    require(!s.bridgeOutPaused, "Bridge out is paused")
-    
+    withdrawalId = tx.current_transaction_hash
+    require(
+      s.userWithdrawalId[msg.sender] == bytes32(0),
+      "Withdrawal pending"
+    )
+    require(
+      s.withdrawalIdAmount[withdrawalId] == 0,
+      "Already bridged out"
+    )
+    require(amount > 0, "Invalid amount")
+
+    s.userWithdrawalId[msg.sender] = withdrawalId
+    s.withdrawalIdAmount[withdrawalId] = amount
+      
     _burn(from: msg.sender, amount: amount)
-    
-    withdrawalId = esc.currentTransactionHash
-    
-    s.pendingWithdrawalAmounts[msg.sender] += amount
-    s.pendingUserWithdrawalIds[msg.sender].push(withdrawalId)
-    
     emit :InitiateWithdrawal, from: msg.sender, amount: amount, withdrawalId: withdrawalId
   end
   
   function :markWithdrawalComplete, {
     to: :address,
-    amounts: [:uint256],
-    withdrawalIds: [:bytes32]
+    withdrawalId: :bytes32
   }, :public do
     require(
       msg.sender == s.trustedSmartContract,
       "Only the trusted smart contract can mark withdrawals as complete"
     )
+    require(
+      s.userWithdrawalId[to] == withdrawalId,
+      "Withdrawal id not found"
+    )
     
-    for i in 0...withdrawalIds.length
-      withdrawalId = withdrawalIds[i]
-      amount = amounts[i]
+    amount = s.withdrawalIdAmount[withdrawalId]
+    s.withdrawalIdAmount[withdrawalId] = 0
+    s.userWithdrawalId[to] = bytes32(0)
       
-      require(
-        s.pendingWithdrawalAmounts[to] >= amount,
-        "Insufficient pending withdrawal"
-      )
-      
-      require(
-        _removeFirstOccurenceOfValueFromArray(
-          s.pendingUserWithdrawalIds[to],
-          withdrawalId
-        ),
-        "Withdrawal id not found"
-      )
-      
-      s.pendingWithdrawalAmounts[to] -= amount
-    end
-      
-    emit :WithdrawalComplete, to: to, amounts: amounts, withdrawalIds: withdrawalIds
-  end
-  
-  function :getPendingWithdrawalsForUser, { user: :address }, :public, :view, returns: [:bytes32] do
-    return s.pendingUserWithdrawalIds[user]
-  end
-  
-  function :_removeFirstOccurenceOfValueFromArray, { arr: array(:bytes32), value: :bytes32 }, :internal, returns: :bool do
-    for i in 0...arr.length
-      if arr[i] == value
-        return _removeItemAtIndex(arr: arr, indexToRemove: i)
-      end
-    end
-    
-    return false
-  end
-  
-  function :_removeItemAtIndex, { arr: array(:bytes32), indexToRemove: :uint256 }, :internal, returns: :bool do
-    lastIndex = arr.length - 1
-    
-    if lastIndex != indexToRemove
-      lastItem = arr[lastIndex]
-      arr[indexToRemove] = lastItem
-    end
-    
-    arr.pop
-    
-    return true
+    emit :WithdrawalComplete, to: to, amount: amount, withdrawalId: withdrawalId
   end
 end

@@ -1,0 +1,36 @@
+pragma :rubidity, "1.0.0"
+
+import '/app/models/contracts/FacetSwapV1Callee.rubidity'
+import '/app/models/contracts/FacetSwapV1Pair.rubidity'
+
+contract :FacetSwapV1CalleeTester, is: :FacetSwapV1Callee do
+  address :public, :pair
+  
+  address :public, :token0
+  address :public, :token1
+  
+  uint256 :public, :extraAmount
+  
+  constructor(pair: :address, extraAmount: :uint256) {
+    s.pair = pair
+    s.token0 = FacetSwapV1Pair(pair).token0();
+    s.token1 = FacetSwapV1Pair(pair).token1();
+    
+    s.extraAmount = extraAmount
+  }
+  
+  function :facetSwapV1Call, {
+    sender: :address,
+    amount0: :uint256,
+    amount1: :uint256,
+    data: :bytes
+  }, :override, :external, returns: :bool do
+    balance0 = ERC20(s.token0).balanceOf(address(this))
+    balance1 = ERC20(s.token1).balanceOf(address(this))
+    
+    require(balance0 == amount0, 'Amount0 is incorrect')
+    require(balance1 == amount1, 'Amount1 is incorrect')
+    
+    ERC20(s.token0).transfer(s.pair, s.extraAmount)
+  end
+end
