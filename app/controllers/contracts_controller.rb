@@ -193,6 +193,10 @@ class ContractsController < ApplicationController
     end
   
     render json: { result: pairs }
+  rescue Contract::StaticCallError => e
+    render json: {
+      error: e.message
+    }
   end
   
   def make_static_call(**kwargs)
