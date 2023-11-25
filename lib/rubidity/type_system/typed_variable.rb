@@ -52,7 +52,9 @@ class TypedVariable
     create(type, value, on_change: on_change)
   end
   
-  def self.validated_value(type, value)
+  def self.validated_value(type, value, allow_nil: false)
+    return nil if value.nil? && allow_nil
+    
     create_or_validate(type, value).value
   end
   

@@ -73,14 +73,14 @@ CREATE FUNCTION public.check_ethscription_sequence() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
       BEGIN
-        IF NEW.contract_actions_processed_at IS NOT NULL THEN
+        IF NEW.processing_state != 'pending' THEN
           IF EXISTS (
             SELECT 1
             FROM ethscriptions
             WHERE 
-              (block_number < NEW.block_number AND contract_actions_processed_at IS NULL)
+              (block_number < NEW.block_number AND processing_state = 'pending')
               OR 
-              (block_number = NEW.block_number AND transaction_index < NEW.transaction_index AND contract_actions_processed_at IS NULL)
+              (block_number = NEW.block_number AND transaction_index < NEW.transaction_index AND processing_state = 'pending')
             LIMIT 1
           ) THEN
             RAISE EXCEPTION 'Previous ethscription with either a lower block number or a lower transaction index in the same block not yet processed';
@@ -203,6 +203,8 @@ CREATE TABLE public.ar_internal_metadata (
 CREATE TABLE public.contract_artifacts (
     id bigint NOT NULL,
     transaction_hash character varying NOT NULL,
+    block_number bigint NOT NULL,
+    transaction_index bigint NOT NULL,
     name character varying NOT NULL,
     source_code text NOT NULL,
     init_code_hash character varying NOT NULL,
@@ -262,17 +264,18 @@ CREATE TABLE public.contract_calls (
     runtime_ms integer NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_rails_028f647531 CHECK ((((call_type)::text <> 'create'::text) OR (created_contract_address IS NOT NULL))),
     CONSTRAINT chk_rails_0351aa702f CHECK (((created_contract_address IS NULL) OR ((created_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
+    CONSTRAINT chk_rails_1a921ba712 CHECK ((((call_type)::text <> 'call'::text) OR (to_contract_address IS NOT NULL))),
     CONSTRAINT chk_rails_27a87dcd58 CHECK (((call_type)::text = ANY ((ARRAY['call'::character varying, 'create'::character varying])::text[]))),
+    CONSTRAINT chk_rails_392c3d2c8e CHECK (((to_contract_address IS NULL) <> (created_contract_address IS NULL))),
     CONSTRAINT chk_rails_399807917b CHECK (((((status)::text = 'failure'::text) AND (logs = '[]'::jsonb)) OR ((status)::text = 'success'::text))),
     CONSTRAINT chk_rails_39b26367fa CHECK (((((status)::text = 'failure'::text) AND (error IS NOT NULL)) OR (((status)::text = 'success'::text) AND (error IS NULL)))),
-    CONSTRAINT chk_rails_566710a5b9 CHECK (((((call_type)::text = 'create'::text) AND (error IS NULL)) OR (created_contract_address IS NULL))),
-    CONSTRAINT chk_rails_60a50bca74 CHECK (((((call_type)::text = 'create'::text) AND ((effective_contract_address)::text = (created_contract_address)::text)) OR (((call_type)::text <> 'create'::text) AND ((effective_contract_address)::text = (to_contract_address)::text)))),
     CONSTRAINT chk_rails_634aef3d55 CHECK (((effective_contract_address IS NULL) OR ((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_b5e513ec63 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_cebfc1a4ba CHECK (((to_contract_address IS NULL) OR ((to_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_db6bb5ee1f CHECK (((status)::text = ANY ((ARRAY['success'::character varying, 'failure'::character varying])::text[]))),
-    CONSTRAINT chk_rails_e0ca5e6f98 CHECK ((((call_type)::text <> 'create'::text) OR (error IS NOT NULL) OR (created_contract_address IS NOT NULL))),
+    CONSTRAINT chk_rails_dc9b9d8a70 CHECK (((((call_type)::text = 'create'::text) AND ((effective_contract_address)::text = (created_contract_address)::text)) OR (((call_type)::text = 'call'::text) AND ((effective_contract_address)::text = (to_contract_address)::text)))),
     CONSTRAINT chk_rails_f785dc90f8 CHECK (((from_address)::text ~ '^0x[a-f0-9]{40}$'::text))
 );
 
@@ -380,8 +383,10 @@ ALTER SEQUENCE public.contract_transactions_id_seq OWNED BY public.contract_tran
 CREATE TABLE public.contracts (
     id bigint NOT NULL,
     transaction_hash character varying NOT NULL,
-    current_type character varying NOT NULL,
-    current_init_code_hash character varying NOT NULL,
+    block_number bigint NOT NULL,
+    transaction_index bigint NOT NULL,
+    current_type character varying,
+    current_init_code_hash character varying,
     current_state jsonb DEFAULT '{}'::jsonb NOT NULL,
     address character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
@@ -426,10 +431,10 @@ CREATE TABLE public.eth_blocks (
     transaction_count bigint,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_rails_11dbe1957f CHECK (((processing_state)::text = ANY ((ARRAY['no_ethscriptions'::character varying, 'pending'::character varying, 'complete'::character varying])::text[]))),
     CONSTRAINT chk_rails_1c105acdac CHECK (((parent_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_4f6ef583f4 CHECK ((((processing_state)::text <> 'complete'::text) OR (transaction_count IS NOT NULL))),
-    CONSTRAINT chk_rails_7e9881ece2 CHECK (((blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT chk_rails_e632888d63 CHECK (((processing_state)::text = ANY ((ARRAY['complete'::character varying, 'pending'::character varying, 'no_ethscriptions'::character varying])::text[])))
+    CONSTRAINT chk_rails_7e9881ece2 CHECK (((blockhash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
 
@@ -467,16 +472,22 @@ CREATE TABLE public.ethscriptions (
     block_timestamp bigint NOT NULL,
     content_uri text NOT NULL,
     mimetype character varying NOT NULL,
-    contract_actions_processed_at timestamp(6) without time zone,
+    processed_at timestamp(6) without time zone,
+    processing_state character varying NOT NULL,
+    processing_error character varying,
     gas_price bigint,
     gas_used bigint,
     transaction_fee bigint,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_rails_7018b50304 CHECK ((((processing_state)::text = 'pending'::text) OR (processed_at IS NOT NULL))),
     CONSTRAINT chk_rails_788fa87594 CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_84591e2730 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_b577b97822 CHECK (((creator)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_df21fdbe02 CHECK (((initial_owner)::text ~ '^0x[a-f0-9]{40}$'::text))
+    CONSTRAINT chk_rails_c97e7f929f CHECK ((((processing_state)::text = 'failure'::text) OR (processing_error IS NULL))),
+    CONSTRAINT chk_rails_ca0ea47752 CHECK (((processing_state)::text = ANY ((ARRAY['pending'::character varying, 'success'::character varying, 'failure'::character varying])::text[]))),
+    CONSTRAINT chk_rails_df21fdbe02 CHECK (((initial_owner)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_fb6493689d CHECK ((((processing_state)::text <> 'failure'::text) OR (processing_error IS NOT NULL)))
 );
 
 
@@ -560,7 +571,9 @@ CREATE TABLE public.transaction_receipts (
     logs jsonb DEFAULT '[]'::jsonb NOT NULL,
     block_timestamp bigint NOT NULL,
     error jsonb,
+    to_contract_address character varying,
     effective_contract_address character varying,
+    created_contract_address character varying,
     block_number bigint NOT NULL,
     transaction_index bigint NOT NULL,
     block_blockhash character varying NOT NULL,
@@ -573,10 +586,17 @@ CREATE TABLE public.transaction_receipts (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_rails_06c0d4e0bb CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_4a6d0a1199 CHECK (((to_contract_address IS NULL) <> (created_contract_address IS NULL))),
+    CONSTRAINT chk_rails_592884e043 CHECK (((((call_type)::text = 'create'::text) AND ((effective_contract_address)::text = (created_contract_address)::text)) OR (((call_type)::text = 'call'::text) AND ((effective_contract_address)::text = (to_contract_address)::text)))),
     CONSTRAINT chk_rails_8b922d101f CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_a636a2bc58 CHECK (((to_contract_address IS NULL) OR ((to_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
+    CONSTRAINT chk_rails_a65f1aca4b CHECK (((created_contract_address IS NULL) OR ((created_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
+    CONSTRAINT chk_rails_a983f9ad8b CHECK (((call_type)::text = ANY ((ARRAY['call'::character varying, 'create'::character varying])::text[]))),
     CONSTRAINT chk_rails_b5311d68b7 CHECK (((from_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_c2ccb79365 CHECK ((((call_type)::text <> 'call'::text) OR (to_contract_address IS NOT NULL))),
     CONSTRAINT chk_rails_dab1f5e22a CHECK (((status)::text = ANY ((ARRAY['success'::character varying, 'failure'::character varying])::text[]))),
-    CONSTRAINT chk_rails_e2780a945e CHECK (((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))
+    CONSTRAINT chk_rails_e2780a945e CHECK (((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
+    CONSTRAINT chk_rails_f9b075c036 CHECK ((((call_type)::text <> 'create'::text) OR (created_contract_address IS NOT NULL)))
 );
 
 
@@ -1010,10 +1030,24 @@ CREATE UNIQUE INDEX index_system_config_versions_on_transaction_hash ON public.s
 
 
 --
+-- Name: index_transaction_receipts_on_created_contract_address; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_transaction_receipts_on_created_contract_address ON public.transaction_receipts USING btree (created_contract_address);
+
+
+--
 -- Name: index_transaction_receipts_on_effective_contract_address; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX index_transaction_receipts_on_effective_contract_address ON public.transaction_receipts USING btree (effective_contract_address);
+
+
+--
+-- Name: index_transaction_receipts_on_to_contract_address; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_transaction_receipts_on_to_contract_address ON public.transaction_receipts USING btree (to_contract_address);
 
 
 --
@@ -1034,7 +1068,7 @@ CREATE TRIGGER check_block_sequence_trigger BEFORE UPDATE OF processing_state ON
 -- Name: ethscriptions check_ethscription_sequence_trigger; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER check_ethscription_sequence_trigger BEFORE UPDATE OF contract_actions_processed_at ON public.ethscriptions FOR EACH ROW EXECUTE FUNCTION public.check_ethscription_sequence();
+CREATE TRIGGER check_ethscription_sequence_trigger BEFORE UPDATE OF processing_state ON public.ethscriptions FOR EACH ROW EXECUTE FUNCTION public.check_ethscription_sequence();
 
 
 --
@@ -1080,11 +1114,27 @@ CREATE TRIGGER update_current_state AFTER INSERT OR DELETE ON public.contract_st
 
 
 --
+-- Name: contracts fk_rails_087f9c0a68; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contracts
+    ADD CONSTRAINT fk_rails_087f9c0a68 FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
+
+
+--
 -- Name: ethscriptions fk_rails_104cee2b3d; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.ethscriptions
     ADD CONSTRAINT fk_rails_104cee2b3d FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
+
+
+--
+-- Name: transaction_receipts fk_rails_54b606737e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.transaction_receipts
+    ADD CONSTRAINT fk_rails_54b606737e FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
 
 
 --
@@ -1101,6 +1151,14 @@ ALTER TABLE ONLY public.contract_states
 
 ALTER TABLE ONLY public.contract_artifacts
     ADD CONSTRAINT fk_rails_6aff674b66 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
+
+
+--
+-- Name: system_config_versions fk_rails_71887ba27f; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.system_config_versions
+    ADD CONSTRAINT fk_rails_71887ba27f FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
 
 
 --
@@ -1128,11 +1186,27 @@ ALTER TABLE ONLY public.system_config_versions
 
 
 --
+-- Name: contract_transactions fk_rails_aa55c33b67; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_transactions
+    ADD CONSTRAINT fk_rails_aa55c33b67 FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
+
+
+--
 -- Name: contracts fk_rails_caa9d9df8b; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.contracts
     ADD CONSTRAINT fk_rails_caa9d9df8b FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
+
+
+--
+-- Name: contract_artifacts fk_rails_de6793fa43; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_artifacts
+    ADD CONSTRAINT fk_rails_de6793fa43 FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
 
 
 --
@@ -1152,6 +1226,22 @@ ALTER TABLE ONLY public.contract_states
 
 
 --
+-- Name: contract_states fk_rails_f5ab73470e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_states
+    ADD CONSTRAINT fk_rails_f5ab73470e FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
+
+
+--
+-- Name: contract_calls fk_rails_f9994c7a07; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_calls
+    ADD CONSTRAINT fk_rails_f9994c7a07 FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
@@ -1160,9 +1250,9 @@ SET search_path TO "$user", public;
 INSERT INTO "schema_migrations" (version) VALUES
 ('20231113223006'),
 ('20231110173854'),
-('20230911150931'),
-('20230911143056'),
 ('20230824174647'),
+('20230824174646'),
+('20230824174640'),
 ('20230824171752'),
 ('20230824170608'),
 ('20230824165302'),

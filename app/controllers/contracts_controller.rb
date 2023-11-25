@@ -4,7 +4,10 @@ class ContractsController < ApplicationController
     per_page = (params[:per_page] || 50).to_i
     per_page = 50 if per_page > 50
     
-    scope = Contract.order(created_at: :desc).includes(:transaction_receipts)
+    scope = Contract.
+      order(created_at: :desc).
+      where.not(current_init_code_hash: nil).
+      includes(:transaction_receipt)
     
     if params[:base_type]
       scope = scope.where(
@@ -163,12 +166,12 @@ class ContractsController < ApplicationController
         ]
       end.flatten
       
-      token_contracts = Contract.where(address: token_addresses.map(&:to_s)).index_by(&:address)
+      token_contracts = Contract.where(address: token_addresses.map(&:value)).index_by(&:address)
   
       result = contracts.each_with_object({}) do |contract, hash|
         ["token0", "token1"].each do |token_function|
           token_addr = contract.fresh_implementation_with_current_state.public_send(token_function)
-          contract_implementation = token_contracts[token_addr.to_s].fresh_implementation_with_current_state
+          contract_implementation = token_contracts[token_addr.value].fresh_implementation_with_current_state
   
           token_info = {
             address: token_addr,
@@ -190,6 +193,10 @@ class ContractsController < ApplicationController
     end
   
     render json: { result: pairs }
+  rescue Contract::StaticCallError => e
+    render json: {
+      error: e.message
+    }
   end
   
   def make_static_call(**kwargs)

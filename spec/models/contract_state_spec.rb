@@ -29,7 +29,9 @@ RSpec.describe Contract, type: :model do
       content_uri: "data:,hi",
       mimetype: 'text/plain',
       created_at: Time.now,
-      updated_at: Time.now
+      updated_at: Time.now,
+      processing_state: 'success',
+      processed_at: Time.current
     )
     
     @ethscription2 = Ethscription.create!(
@@ -43,11 +45,15 @@ RSpec.describe Contract, type: :model do
       content_uri: "data:,hi",
       mimetype: 'text/plain',
       created_at: Time.now,
-      updated_at: Time.now
+      updated_at: Time.now,
+      processing_state: 'success',
+      processed_at: Time.current
     )
 
     @contract = Contract.create!(
       transaction_hash: @ethscription.transaction_hash,
+      block_number: block_number,
+      transaction_index: 1,
       current_type: 'SomeType',
       current_init_code_hash: "0x" + SecureRandom.hex(32),
       created_at: Time.now,

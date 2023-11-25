@@ -149,4 +149,16 @@ RSpec.describe ContractCall, type: :model do
       }
     )
   end
+  
+  it 'deals with malformed ethscription' do
+    trigger_contract_interaction_and_expect_error(
+      from: from_address,
+      payload: {
+        to: from_address.downcase,
+        data: {
+          type: "StubERC20B"
+        }
+      }
+    )
+  end
 end

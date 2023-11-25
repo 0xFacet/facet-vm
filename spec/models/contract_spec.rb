@@ -83,8 +83,9 @@ RSpec.describe Contract, type: :model do
       }
       
       expect {
-        receipt = ContractTransaction.simulate_transaction(from: from, tx_payload: data)
-    
+        resp = ContractTransaction.simulate_transaction(from: from, tx_payload: data)
+        receipt = resp['transaction_receipt']
+        
         expect(receipt).to be_a(TransactionReceipt)
         expect(receipt.status).to eq("success")
         expect(Ethscription.find_by(transaction_hash: receipt.transaction_hash)).to be_nil
@@ -110,7 +111,7 @@ RSpec.describe Contract, type: :model do
         }
       )
     
-      call_receipt_success = ContractTransaction.simulate_transaction(
+      resp = ContractTransaction.simulate_transaction(
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         tx_payload: {
           op: "call",
@@ -123,13 +124,15 @@ RSpec.describe Contract, type: :model do
           }
         }
       )
-    
+        
+      call_receipt_success = resp['transaction_receipt']
+      
       expect(call_receipt_success).to be_a(TransactionReceipt)
       expect(call_receipt_success.status).to eq("success")
       
       expect(Ethscription.find_by(transaction_hash: call_receipt_success.transaction_hash)).to be_nil
       
-      call_receipt_fail = ContractTransaction.simulate_transaction(
+      resp = ContractTransaction.simulate_transaction(
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         tx_payload: {
           op: :call,
@@ -142,6 +145,8 @@ RSpec.describe Contract, type: :model do
           }
         }
       )
+      
+      call_receipt_fail = resp['transaction_receipt']
       
       expect(call_receipt_fail).to be_a(TransactionReceipt)
       expect(call_receipt_fail.status).to eq("failure")

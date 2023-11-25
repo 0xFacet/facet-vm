@@ -2,8 +2,7 @@ class SystemConfigVersion < ApplicationRecord
   include ContractErrors  
   
   belongs_to :ethscription,
-  primary_key: 'transaction_hash', foreign_key: 'transaction_hash',
-  touch: true, optional: true
+  primary_key: 'transaction_hash', foreign_key: 'transaction_hash', optional: true
   
   scope :newest_first, -> {
     order(block_number: :desc, transaction_index: :desc) 
@@ -13,22 +12,25 @@ class SystemConfigVersion < ApplicationRecord
     "application/vnd.facet.system+json"
   end
   
-  def self.create_from_ethscription!(ethscription)
-    record = current.deep_dup
-    record.ethscription = ethscription
+  def self.create_from_ethscription!(ethscription, persist:)
+    current.deep_dup.tap do |config_version|
+      config_version.ethscription = ethscription
     
-    record.perform_operation!
+      config_version.perform_operation!(persist: persist)
+    end
   end
   
-  def perform_operation!
+  def perform_operation!(persist:)
     raise "Already performed" unless new_record?
     
-    return unless valid_ethscription?
+    if ethscription.creator != self.class.current_admin_address
+      raise InvalidEthscriptionError.new("Only admin can update system config")
+    end
     
     operations = {
-      'updateSupportedContracts' => :update_supported_contracts!,
-      'updateStartBlockNumber' => :update_start_block_number!,
-      'updateAdminAddress' => :update_admin_address!
+      'updateSupportedContracts' => :update_supported_contracts,
+      'updateStartBlockNumber' => :update_start_block_number,
+      'updateAdminAddress' => :update_admin_address
     }
   
     operation = ethscription.parsed_content['op']
@@ -37,12 +39,16 @@ class SystemConfigVersion < ApplicationRecord
     if method_name
       send(method_name)
     else
-      Rails.logger.info "Unexpected op: #{operation}"
+      raise InvalidEthscriptionError.new("Unexpected op: #{operation}")
     end
+    
+    save! if persist
   end
   
   def operation_data
     JSON.parse(ethscription.content).fetch('data')
+  rescue JSON::ParserError => e
+    raise InvalidEthscriptionError.new("JSON parse error: #{e.message}")
   end
   
   def ethscription=(ethscription)
@@ -95,78 +101,59 @@ class SystemConfigVersion < ApplicationRecord
   end
   
   def self.current_admin_address
-    current.admin_address || ENV.fetch("INITIAL_SYSTEM_CONFIG_ADMIN_ADDRESS")
+    current.admin_address || ENV.fetch("INITIAL_SYSTEM_CONFIG_ADMIN_ADDRESS").downcase
   end
   
   private
   
-  def update_admin_address!
+  def update_admin_address
     new_address = operation_data
-      
-    unless new_address.is_a?(String) && new_address =~ /\A0x[a-f0-9]{40}\z/
-      raise "Invalid data: #{data.inspect}"
+    
+    unless new_address.is_a?(String) && new_address =~ /\A0x[a-f0-9]{40}\z/i
+      raise InvalidEthscriptionError.new("Invalid data: #{operation_data.inspect}")
     end
     
     if new_address == self.class.current_admin_address
-      raise "No change to admin address proposed"
+      raise InvalidEthscriptionError.new("No change to admin address proposed")
     end
     
-    update!(admin_address: new_address)
+    assign_attributes(admin_address: new_address.downcase)
   end
   
-  def update_supported_contracts!
+  def update_supported_contracts
     data = operation_data
       
     unless data.is_a?(Array) && data.all? { |el| el.to_s =~ /\A0x[a-f0-9]{64}\z/ }
-      raise "Invalid data: #{data.inspect}"
+      raise InvalidEthscriptionError.new("Invalid data: #{operation_data.inspect}")
     end
     
     if data == self.class.current.supported_contracts
-      raise "No change to supported contracts proposed"
+      raise InvalidEthscriptionError.new("No change to supported contracts proposed")
     end
     
-    update!(supported_contracts: data.uniq)
+    assign_attributes(supported_contracts: data.uniq)
   end
   
-  def update_start_block_number!
+  def update_start_block_number
     old_number = self.class.current.start_block_number
     new_number = operation_data
     
     if new_number == old_number
-      raise "Start block already set to #{new_number}"
+      raise InvalidEthscriptionError.new("Start block already set to #{new_number}")
     end
     
     unless new_number.is_a?(Integer)
-      raise "Invalid data: #{new_number.inspect}"
+      raise InvalidEthscriptionError.new("Invalid data: #{new_number.inspect}")
     end
     
     if old_number && (block_number >= old_number)
-      raise "Can't set start block after already started"
+      raise InvalidEthscriptionError.new("Can't set start block after already started")
     end
     
     unless new_number > block_number
-      raise "Start block must be in the future"
+      raise InvalidEthscriptionError.new("Start block must be in the future")
     end
     
-    update!(start_block_number: new_number)
-  end
-  
-  def valid_ethscription?
-    if ethscription.creator != self.class.current_admin_address
-      Rails.logger.info "Unexpected from: #{ethscription.from}"
-      return
-    end
-    
-    if ethscription.initial_owner != "0x" + "0" * 40
-      Rails.logger.info "Unexpected initial_owner: #{ethscription.initial_owner}"
-      return
-    end
-    
-    if ethscription.mimetype != self.class.system_mimetype
-      Rails.logger.info "Unexpected mimetype: #{ethscription.mimetype}"
-      return
-    end
-    
-    true
+    assign_attributes(start_block_number: new_number)
   end
 end

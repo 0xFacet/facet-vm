@@ -1,11 +1,14 @@
 class ContractCall < ApplicationRecord
   include ContractErrors
   
-  before_validation :ensure_runtime_ms
+  before_validation :ensure_runtime_ms, :trim_failed_contract_deploys
   
   attr_accessor :to_contract, :salt, :pending_logs, :to_contract_init_code_hash, :to_contract_source_code
   
   belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
+  belongs_to :called_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'to_contract_address', optional: true
+  belongs_to :effective_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'effective_contract_address', optional: true
+  
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true, inverse_of: :contract_calls
   
   belongs_to :ethscription, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', optional: true
@@ -25,7 +28,7 @@ class ContractCall < ApplicationRecord
       find_and_validate_existing_contract!
     end
     
-    result = to_contract.execute_function(
+    result = effective_contract.execute_function(
       function,
       args,
       is_static_call: is_static_call?
@@ -35,19 +38,26 @@ class ContractCall < ApplicationRecord
       return_value: result,
       status: :success,
       logs: pending_logs,
-      effective_contract_address: to_contract.address,
       end_time: Time.current
     )
     
-    if is_create?
-      self.created_contract = to_contract
-      to_contract.address
-    else
-      result
-    end
+    assign_contract
+    
+    is_create? ? created_contract.address : result
   rescue ContractError, TransactionError => e
     assign_attributes(error_message: e.message, status: :failure, end_time: Time.current)
+    
+    assign_contract
+    
     raise
+  end
+  
+  def assign_contract
+    if is_create?
+      self.created_contract = effective_contract
+    elsif is_call? && effective_contract
+      self.called_contract = effective_contract
+    end
   end
   
   def error_message=(msg)
@@ -61,35 +71,40 @@ class ContractCall < ApplicationRecord
   end
   
   def find_and_validate_existing_contract!
-    self.to_contract = TransactionContext.get_active_contract(to_contract_address) ||
+    self.effective_contract = TransactionContext.get_active_contract(to_contract_address) ||
       Contract.find_by(address: to_contract_address)
     
-    if to_contract.blank?
+    if effective_contract.blank?
       raise CallingNonExistentContractError.new("Contract not found: #{to_contract_address}")
     end
     
     if function&.to_sym == :constructor
-      raise ContractError.new("Cannot call constructor function: #{function}", to_contract)
+      raise ContractError.new("Cannot call constructor function: #{function}", effective_contract)
     end
   end
   
   def create_and_validate_new_contract!
-    if function
-      raise ContractError.new("Cannot call function on contract creation")
-    end
+    self.effective_contract = Contract.new(
+      transaction_hash: TransactionContext.transaction_hash.value,
+      block_number: TransactionContext.block.number.value,
+      transaction_index: TransactionContext.transaction_index,
+      address: calculate_new_contract_address
+    )
     
     to_contract_implementation = TransactionContext.supported_contract_class(
       to_contract_init_code_hash,
       to_contract_source_code
     )
     
+    if function
+      raise ContractError.new("Cannot call function on contract creation")
+    end
+    
     if to_contract_implementation.is_abstract_contract
       raise TransactionError.new("Cannot deploy abstract contract: #{to_contract_implementation.name}")
     end
     
-    self.to_contract = Contract.new(
-      transaction_hash: TransactionContext.transaction_hash.value,
-      address: calculate_new_contract_address,
+    self.effective_contract.assign_attributes(
       current_type: to_contract_implementation.name,
       current_init_code_hash: to_contract_init_code_hash
     )
@@ -167,11 +182,19 @@ class ContractCall < ApplicationRecord
   end
   
   def to
-    effective_contract_address
+    to_contract_address
   end
   
   def from
     from_address
+  end
+  
+  def contract_address
+    created_contract_address
+  end
+
+  def to_or_contract_address
+    to || contract_address
   end
   
   def as_json(options = {})
@@ -191,9 +214,10 @@ class ContractCall < ApplicationRecord
           :logs,
           :error,
           :status,
-          :runtime_ms
+          :runtime_ms,
+          :effective_contract_address
         ],
-        methods: [:to, :from]
+        methods: [:to, :from, :contract_address, :to_or_contract_address]
       )
     )
   end
@@ -228,5 +252,15 @@ class ContractCall < ApplicationRecord
     return if runtime_ms
     
     self.runtime_ms = calculated_runtime_ms
+  end
+  
+  def trim_failed_contract_deploys
+    if failure? && created_contract
+      created_contract.assign_attributes(
+        current_init_code_hash: nil,
+        current_type: nil,
+        current_state: {}
+      )
+    end
   end
 end
