@@ -60,6 +60,12 @@ class ContractImplementation < BasicObject
   def self.array(*args, **kwargs)
     value_type = args.first
     metadata = {value_type: value_type}.merge(kwargs)
+    
+    if args.length == 2
+      metadata.merge!(initial_length: args.last)
+      args.pop
+    end
+    
     type = ::Type.create(:array, metadata)
     
     if args.length == 1
@@ -171,7 +177,7 @@ class ContractImplementation < BasicObject
 
   def emit(event_name, args = {})
     unless self.class.events.key?(event_name)
-      raise ::ContractDefinitionError.new("Event #{event_name} is not defined in this contract.", self)
+      raise ContractDefinitionError.new("Event #{event_name} is not defined in this contract.", self)
     end
 
     expected_args = self.class.events[event_name]
@@ -182,7 +188,7 @@ class ContractImplementation < BasicObject
       error_messages = []
       error_messages << "Missing arguments for #{event_name} event: #{missing_args.join(', ')}." if missing_args.any?
       error_messages << "Unexpected arguments provided for #{event_name} event: #{extra_args.join(', ')}." if extra_args.any?
-      raise ::ContractDefinitionError.new(error_messages.join(' '), self)
+      raise ContractDefinitionError.new(error_messages.join(' '), self)
     end
 
     log_event({
@@ -241,6 +247,15 @@ class ContractImplementation < BasicObject
   
   private
 
+  def json
+    ::Object.new.tap do |proxy|
+      def proxy.stringify(*args, **kwargs)
+        res = (args.presence || kwargs).to_json
+        ::TypedVariable.create(:string, res)
+      end
+    end
+  end
+  
   def abi
     ::Object.new.tap do |proxy|
       def proxy.encodePacked(*args)

@@ -53,11 +53,11 @@ contract :GenerativeERC721, is: :ERC721 do
     
     html_as_base_64_data_uri = "data:text/html;base64," + html.base64Encode
     
-    json_data = {
+    json_data = json.stringify(
       name: "#{s.name} ##{string(id)}",
       description: s.description,
       animation_url: html_as_base_64_data_uri,
-    }.to_json
+    )
     
     return "data:application/json,#{json_data}"
   end

@@ -3,6 +3,10 @@ module RubidityTypeExtensions
     def base64Encode
       Base64.strict_encode64(value)
     end
+    
+    def isAlphaNumeric?
+      TypedVariable.create(:bool, !!(value =~ /\A[a-z0-9]+\z/i))
+    end
   end
 
   module UintOrIntMethods
@@ -37,4 +41,48 @@ module RubidityTypeExtensions
     end
   end
   
+  module BytesMethods
+    def verifyTypedDataSignature(
+      type,
+      message,
+      verifyingContract:,
+      domainName:,
+      domainVersion:,
+      signer:
+    )
+      unless type.is_a?(Hash) && type.keys.length == 1  
+        raise ArgumentError.new("Invalid type")
+      end
+  
+      message = message.transform_values do |value|
+        value.respond_to?(:value) ? value.value : value
+      end
+  
+      chainid = TransactionContext.block_chainid.value
+      
+      typed_data = {
+        types: {
+          EIP712Domain: [
+            { name: "name", type: "string" },
+            { name: "version", type: "string" },
+            { name: "chainId", type: "uint256" },
+            { name: "verifyingContract", type: "address" }
+          ]
+        }.merge(type),
+        primaryType: type.keys.first.to_s,
+        domain: {
+          name: domainName.respond_to?(:value) ? domainName.value : domainName,
+          version: domainVersion.respond_to?(:value) ? domainVersion.value : domainVersion,
+          chainId: chainid,
+          verifyingContract: verifyingContract.respond_to?(:value) ? verifyingContract.value : verifyingContract
+        },
+        message: message
+      }
+      
+      signer = signer.respond_to?(:value) ? signer.value : signer
+      signature = value
+  
+      Eth::Signature.verify(typed_data, signature, signer, chainid)
+    end
+  end
 end

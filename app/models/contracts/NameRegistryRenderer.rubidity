@@ -1,0 +1,317 @@
+pragma :rubidity, "1.0.0"
+
+contract :NameRegistryRenderer, abstract: true do
+  string :public, :cardTemplate
+  
+  event :StickerCreated, { stickerId: :uint256, name: :string, description: :string,
+    imageURI: :string, stickerExpiry: :uint256, grantingAddress: :address }
+  
+  event :StickerClaimed, { stickerId: :uint256, claimer: :address }
+  
+  event :StickerPlaced, { stickerId: :uint256, tokenId: :uint256, position: array(:uint256, 2) }
+  
+  event :StickerRepositioned, { stickerId: :uint256, tokenId: :uint256, position: array(:uint256, 2) }
+  
+  event :CardDetailsSet, { tokenId: :uint256, displayName: :string,
+    bio: :string, imageURI: :string, links: [:string] }
+  
+  mapping ({ uint256: :string }), :public, :cardDisplayNames
+  mapping ({ uint256: :string }), :public, :cardBios
+  mapping ({ uint256: :string }), :public, :cardImageURIs
+  mapping ({ uint256: [:string] }), :public, :cardLinks
+  
+  uint256 :public, :nextStickerId
+  mapping ({ uint256: :address }), :public, :stickerIdToSigner
+  mapping ({ uint256: :string }), :public, :stickerIdToName
+  mapping ({ uint256: :string }), :public, :stickerIdToDescription
+  mapping ({ uint256: :string }), :public, :stickerIdToImageURI
+  mapping ({ uint256: :uint256 }), :public, :stickerIdToExpiry
+  
+  mapping ({ address: [:uint256] }), :public, :userToStickerAry
+  mapping ({ address: mapping(uint256: :bool) }), :public, :userToStickerIdsAwardedMap
+
+  mapping ({ uint256: [:uint256] }), :public, :tokenIdToStickerIdsAry
+  mapping ({ uint256: [:uint256] }), :public, :tokenIdToStickerXPositionsAry
+  mapping ({ uint256: [:uint256] }), :public, :tokenIdToStickerYPositionsAry
+  mapping ({ uint256: mapping(uint256: :bool) }), :public, :tokenIdToStickerIdsPlacedMap
+  
+  uint256 :public, :maxStickersPerUser
+  uint256 :public, :maxStickersPerCard
+  uint256 :public, :maxLinksPerCard
+  uint256 :public, :bioMaxLength
+  uint256 :public, :displayNameMaxLength
+  uint256 :public, :uriMaxLength
+  
+  constructor(cardTemplate: :string) {
+    s.maxStickersPerUser = 25
+    s.maxStickersPerCard = s.maxStickersPerUser
+    s.maxLinksPerCard = 5
+    
+    s.bioMaxLength = 1000
+    s.displayNameMaxLength = 100
+    s.uriMaxLength = 96_000
+    
+    require(cardTemplate.length <= s.uriMaxLength, 'cardTemplate too long')
+    
+    s.cardTemplate = cardTemplate
+  }
+  
+  function :renderCard, {
+    tokenId: :uint256
+  }, :public, :view, returns: :string do
+    enforceNotExpired!(tokenId)
+    
+    owner = ownerOf(tokenId)
+    name = s.tokenIdToName[tokenId]
+    
+    stickerIds, stickerXPositions, stickerYPositions, stickerImageURIs = getCardStickers(tokenId)
+    displayName, bio, imageURI, links = getCardDetails(tokenId)
+    
+    storage = json.stringify(
+      tokenId: tokenId.toString(),
+      owner: owner,
+      name: name,
+      stickerIds: stickerIds,
+      stickerXPositions: stickerXPositions,
+      stickerYPositions: stickerYPositions,
+      stickerImages: stickerImageURIs,
+      displayName: displayName,
+      bio: bio,
+      imageURI: imageURI,
+      links: links
+    )
+    
+    template = "`#{s.cardTemplate}`"
+    
+    wrapped = <<~HTML
+      <script>
+        window.s = #{storage};
+        document.open();
+        document.write(#{template});
+        document.close();
+      </script>
+    HTML
+  end
+  
+  function :createSticker, {
+    name: :string,
+    description: :string,
+    imageURI: :string,
+    stickerExpiry: :uint256,
+    grantingAddress: :address
+  }, :public do
+    whenNotPaused!
+    
+    require(name.length > 0, 'Name must be non-empty')
+    require(name.length <= s.displayNameMaxLength, 'Name too long')
+    require(description.length <= s.bioMaxLength, 'description too long')
+    require(imageURI.length <= s.uriMaxLength, 'imageURI too long')
+    require(grantingAddress != address(0), 'Granting address must be non-zero')
+    
+    currentId = s.nextStickerId
+    s.nextStickerId += 1
+    
+    s.stickerIdToName[currentId] = name
+    s.stickerIdToImageURI[currentId] = imageURI
+    s.stickerIdToDescription[currentId] = description
+    s.stickerIdToExpiry[currentId] = stickerExpiry
+    s.stickerIdToSigner[currentId] = grantingAddress
+    
+    emit :StickerCreated,
+      stickerId: currentId,
+      name: name,
+      description: description,
+      imageURI: imageURI,
+      stickerExpiry: stickerExpiry,
+      grantingAddress: grantingAddress
+  end
+  
+  function :claimSticker, {
+    stickerId: :uint256,
+    deadline: :uint256,
+    tokenId: :uint256,
+    position: array(:uint256, 2),
+    signature: :bytes
+  }, :public do
+    whenNotPaused!
+    
+    require(!s.userToStickerIdsAwardedMap[msg.sender][stickerId], "Sticker already awarded")
+    require(s.userToStickerAry[msg.sender].length < s.maxStickersPerUser, "Too many stickers")
+
+    require(deadline > block.timestamp, "Deadline passed")
+    require(s.stickerIdToExpiry[stickerId] > block.timestamp, "Sticker expired")
+    
+    signatureValid = signature.verifyTypedDataSignature(
+      {StickerClaim: [
+        { name: "stickerId", type: "uint256" },
+        { name: "claimer", type: "address" },
+        { name: "deadline", type: "uint256" }
+      ]},
+      {
+        stickerId: stickerId,
+        claimer: msg.sender,
+        deadline: deadline
+      },
+      verifyingContract: address(this),
+      domainName: s.name,
+      domainVersion: "1",
+      signer: s.stickerIdToSigner[stickerId]
+    )
+    
+    require(signatureValid, "Invalid signature")
+    
+    s.userToStickerIdsAwardedMap[msg.sender][stickerId] = true
+    s.userToStickerAry[msg.sender].push(stickerId)
+    
+    if tokenId != 0
+      placeSticker(stickerId, tokenId, position)
+    end
+    
+    emit :StickerClaimed, stickerId: stickerId, claimer: msg.sender
+  end
+  
+  function :placeSticker, {
+    stickerId: :uint256,
+    tokenId: :uint256,
+    position: array(:uint256, 2)
+  }, :public do
+    whenNotPaused!
+    
+    enforceNotExpired!(tokenId)
+    
+    require(ownerOf(tokenId) == msg.sender, "Not the owner")
+    require(s.userToStickerIdsAwardedMap[msg.sender][stickerId], "Sticker not claimed")
+    require(!s.tokenIdToStickerIdsPlacedMap[tokenId][stickerId], "Sticker already placed")
+    
+    require(s.tokenIdToStickerIdsAry[tokenId].length < s.maxStickersPerCard, "Too many stickers")
+    
+    s.tokenIdToStickerIdsAry[tokenId].push(stickerId)
+    s.tokenIdToStickerXPositionsAry[tokenId].push(position[0])
+    s.tokenIdToStickerYPositionsAry[tokenId].push(position[1])
+    
+    s.tokenIdToStickerIdsPlacedMap[tokenId][stickerId] = true
+    
+    emit :StickerPlaced, stickerId: stickerId, tokenId: tokenId, position: position
+  end
+  
+  function :repositionSticker, {
+    stickerIndex: :uint256,
+    tokenId: :uint256,
+    position: array(:uint256, 2)
+  }, :public do
+    whenNotPaused!
+    
+    enforceNotExpired!(tokenId)
+    
+    require(ownerOf(tokenId) == msg.sender, "Not the owner")
+    stickerId = s.tokenIdToStickerIdsAry[tokenId][stickerIndex]
+    require(s.tokenIdToStickerIdsPlacedMap[tokenId][stickerId], "Sticker not placed")
+
+    s.tokenIdToStickerXPositionsAry[tokenId][stickerIndex] = position[0]
+    s.tokenIdToStickerYPositionsAry[tokenId][stickerIndex] = position[1]
+    
+    emit :StickerRepositioned, stickerId: stickerId, tokenId: tokenId, position: position
+  end
+  
+  function :setCardDetails, {
+    tokenId: :uint256,
+    displayName: :string,
+    bio: :string,
+    imageURI: :string,
+    links: [:string]
+  }, :public do
+    whenNotPaused!
+    
+    require(ownerOf(tokenId) == msg.sender, "Not the owner")
+    require(links.length <= s.maxLinksPerCard, "Too many links")
+    require(bio.length <= s.bioMaxLength, "Bio too long")
+    require(displayName.length <= s.displayNameMaxLength, "Display name too long")
+    require(imageURI.length <= s.uriMaxLength, 'imageURI too long')
+    
+    s.cardDisplayNames[tokenId] = displayName
+    s.cardBios[tokenId] = bio
+    s.cardImageURIs[tokenId] = imageURI
+    s.cardLinks[tokenId] = links
+    
+    emit :CardDetailsSet, tokenId: tokenId, displayName: displayName, bio: bio,
+      imageURI: imageURI, links: links
+  end
+  
+  function :getCardDetails, { tokenId: :uint256 }, :public, :view, returns: {
+    displayName: :string,
+    bio: :string,
+    imageURI: :string,
+    links: [:string]
+  } do
+    enforceNotExpired!(tokenId)
+    
+    return {
+      displayName: s.cardDisplayNames[tokenId],
+      bio: s.cardBios[tokenId],
+      imageURI: s.cardImageURIs[tokenId],
+      links: s.cardLinks[tokenId]
+    }
+  end
+  
+  function :getCardStickers, { tokenId: :uint256 }, :public, :view, returns: {
+    stickerIds: [:uint256],
+    stickerXPositions: [:uint256],
+    stickerYPositions: [:uint256],
+    stickerImageURIs: [:string]
+  } do
+    enforceNotExpired!(tokenId)
+    
+    stickerIds = array(:uint256, 0)
+    stickerXPositions = array(:uint256, 0)
+    stickerYPositions = array(:uint256, 0)
+    stickerImageURIs = array(:string, 0)
+    
+    forLoop(
+      condition: -> i { i < s.tokenIdToStickerIdsAry[tokenId].length },
+    ) do |i|
+      stickerId = s.tokenIdToStickerIdsAry[tokenId][i]
+      
+      if (s.stickerIdToExpiry[stickerId] > block.timestamp)
+        stickerIds.push(stickerId)
+        stickerXPositions.push(s.tokenIdToStickerXPositionsAry[tokenId][i])
+        stickerYPositions.push(s.tokenIdToStickerYPositionsAry[tokenId][i])
+        stickerImageURIs.push(s.stickerIdToImageURI[stickerId])
+      end
+    end
+    
+    return {
+      stickerIds: stickerIds,
+      stickerXPositions: stickerXPositions,
+      stickerYPositions: stickerYPositions,
+      stickerImageURIs: stickerImageURIs
+    }
+  end
+  
+  function :_clearCardPersonalInfo, { tokenId: :uint256 }, :internal do
+    _clearCardDetails(tokenId)
+    _clearStickers(tokenId)
+  end
+  
+  function :_clearCardDetails, { tokenId: :uint256 }, :internal do
+    s.cardDisplayNames[tokenId] = ''
+    s.cardBios[tokenId] = ''
+    s.cardImageURIs[tokenId] = ''
+    s.cardLinks[tokenId] = array(:string, 0)
+    nil
+  end
+  
+  function :_clearStickers, { tokenId: :uint256 }, :internal do
+    forLoop(
+      condition: -> i { i < s.tokenIdToStickerIdsAry[tokenId].length },
+    ) do |i|
+      stickerId = s.tokenIdToStickerIdsAry[tokenId][i]
+      s.tokenIdToStickerIdsPlacedMap[tokenId][stickerId] = false
+    end
+    
+    s.tokenIdToStickerIdsAry[tokenId] = array(:uint256, 0)
+    s.tokenIdToStickerXPositionsAry[tokenId] = array(:uint256, 0)
+    s.tokenIdToStickerYPositionsAry[tokenId] = array(:uint256, 0)
+    
+    nil
+  end
+end

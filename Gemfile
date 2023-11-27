@@ -75,3 +75,5 @@ gem "scout_apm", "~> 5.3"
 gem "memoist", "~> 0.16.2"
 
 gem "awesome_print", "~> 1.9"
+
+gem "clipboard"

@@ -150,6 +150,10 @@ class TypedVariable
       extend RubidityTypeExtensions::StringMethods
     end
     
+    if type.bytes?
+      extend RubidityTypeExtensions::BytesMethods
+    end
+    
     if type.is_int? || type.is_uint?
       extend RubidityTypeExtensions::UintOrIntMethods
     end

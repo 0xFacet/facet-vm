@@ -1,0 +1,289 @@
+pragma :rubidity, "1.0.0"
+
+import './Ownable.rubidity'
+import './Pausable.rubidity'
+import './Upgradeable.rubidity'
+import './ERC721.rubidity'
+import './ERC20.rubidity'
+import './NameRegistryRenderer.rubidity'
+
+contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRegistryRenderer], upgradeable: true do
+  event :NameRegistered, { tokenId: :uint256, owner: :address, name: :string, expires: :uint256 }
+  event :NameRenewed, { tokenId: :uint256, newExpiry: :uint256 }
+  event :PrimaryNameSet, { user: :address, tokenId: :uint256 }
+  event :ConversionRateUpdate, { newRate: :uint256 }
+
+  address :public, :WETH
+  uint256 :public, :usdWeiCentsInOneEth
+  uint256 :public, :minRegistrationDuration
+  uint256 :public, :gracePeriod
+  uint256 :public, :maxNameLength
+  
+  array :uint256, :public, :charCountToUsdWeiCentsPrice, initial_length: 0
+  
+  bool :public, :preregistrationComplete
+  
+  uint256 :public, :nextTokenId
+  mapping ({ string: :uint256 }), :public, :nameToTokenId
+  mapping ({ uint256: :string }), :public, :tokenIdToName
+  mapping ({ address: :uint256 }), :internal, :userToPrimaryNameTokenId
+  
+  mapping ({ uint256: :uint256 }), :public, :tokenExpiryTimes
+  
+  mapping ({ uint256: :uint256 }), :public, :registrationTimestamps
+  
+  uint256 :public, :maxImportBatchSize
+  
+  constructor(
+    name: :string,
+    symbol: :string,
+    owner: :address,
+    usdWeiCentsInOneEth: :uint256,
+    charCountToUsdWeiCentsPrice: [:uint256],
+    cardTemplate: :string,
+    _WETH: :address
+  ) {
+    require(charCountToUsdWeiCentsPrice.length >= 4, 'Must have at least 4 price points')
+    require(charCountToUsdWeiCentsPrice.length <= 10, 'Must have at most 10 price points')
+
+    ERC721.constructor(name: name, symbol: symbol)
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+    Ownable.constructor(owner: owner)
+    Pausable.constructor(initialPauseState: true)
+    NameRegistryRenderer.constructor(cardTemplate: cardTemplate)
+    
+    s.WETH = _WETH
+    s.usdWeiCentsInOneEth = usdWeiCentsInOneEth
+    
+    s.charCountToUsdWeiCentsPrice = charCountToUsdWeiCentsPrice
+    
+    s.maxNameLength = 32
+    s.gracePeriod = 90.days
+    s.minRegistrationDuration = 28.days
+    s.nextTokenId = 1
+    s.nextStickerId = 1
+    s.maxImportBatchSize = 10
+  }
+  
+  function :registerNameWithPayment, { to: :address, name: :string, durationInSeconds: :uint256 }, :public, returns: :bool do
+    whenNotPaused!
+    
+    require(s.preregistrationComplete, 'Preregistration must be complete')
+
+    require(durationInSeconds >= s.minRegistrationDuration, 'Duration too short')
+    
+    _registerName(to: to, name: name, durationInSeconds: durationInSeconds)
+    
+    if to == msg.sender && s.userToPrimaryNameTokenId[msg.sender] == 0
+      tokenId = s.nameToTokenId[name]
+      s.userToPrimaryNameTokenId[msg.sender] = tokenId
+    end
+    
+    ERC20(s.WETH).transferFrom(
+      msg.sender,
+      address(this),
+      getPrice(name, durationInSeconds)
+    )
+  end
+  
+  function :renewNameWithPayment, { name: :string, durationInSeconds: :uint256 }, :public, returns: :bool do
+    whenNotPaused!
+    
+    _renewName(name: name, durationInSeconds: durationInSeconds)
+    
+    ERC20(s.WETH).transferFrom(
+      msg.sender,
+      address(this),
+      getPrice(name, durationInSeconds)
+    )
+  end
+  
+  function :_registerName, { to: :address, name: :string, durationInSeconds: :uint256 }, :internal do
+    require(nameAvailable(name), 'Name not available')
+    require(nameIsValid(name), 'Invalid name')
+    
+    tokenId = s.nameToTokenId[name]
+    
+    if _exists(tokenId)
+      # Name expired, burn it
+      _burn(tokenId)
+    else
+      tokenId = s.nextTokenId
+      s.nextTokenId += 1
+    end
+    
+    _mint(to: to, id: tokenId)
+    
+    s.nameToTokenId[name] = tokenId
+    s.tokenIdToName[tokenId] = name
+    
+    s.tokenExpiryTimes[tokenId] = block.timestamp + durationInSeconds
+    s.registrationTimestamps[tokenId] = block.timestamp
+    
+    emit :NameRegistered, tokenId: tokenId, owner: to, name: name, expires: s.tokenExpiryTimes[tokenId]
+  end
+  
+  function :_renewName, { name: :string, durationInSeconds: :uint256 }, :internal do
+    tokenId = s.nameToTokenId[name]
+    
+    currentExpiry = s.tokenExpiryTimes[tokenId]
+    
+    require(currentExpiry + s.gracePeriod >= block.timestamp, 'Must be registered or in grace period')
+    
+    s.tokenExpiryTimes[tokenId] = currentExpiry + durationInSeconds
+
+    emit :NameRenewed, tokenId: tokenId, newExpiry: s.tokenExpiryTimes[tokenId]
+  end
+  
+  function :markPreregistrationComplete, :public do
+    onlyOwner!
+    
+    s.preregistrationComplete = true
+    nil
+  end
+  
+  function :importFromPreregistration, { names: [:string], owners: [:address], durations: [:uint256] }, :public do
+    onlyOwner!
+    
+    require(!s.preregistrationComplete, 'Preregistration must not be complete')
+    
+    require(names.length == owners.length, 'Names and owners must be the same length')
+    require(names.length == durations.length, 'Names and owners must be the same length')
+    require(names.length <= s.maxImportBatchSize, 'Cannot import more than 10 names at a time')
+    
+    forLoop(
+      condition: -> i { i < names.length }
+    ) do |i|
+      _registerName(to: owners[i], name: names[i], durationInSeconds: durations[i])
+    end
+  end
+  
+  function :tokenURI, { id: :uint256 }, :public, :view, :override, returns: :string do
+    enforceNotExpired!(id)
+
+    require(_exists(id: id), 'ERC721Metadata: URI query for nonexistent token')
+    
+    name = s.tokenIdToName[id]
+    card = NameRegistryRenderer.renderCard(id)
+    b64Card = "data:text/html;charset=utf-8;base64," + card.base64Encode
+    
+    json_data = json.stringify(
+      name: "#{name} (##{id.toString})",
+      description: s.cardBios[id],
+      animation_url: b64Card,
+    )
+    
+    return "data:application/json,#{json_data}"
+  end
+  
+  function :_burn, { id: :uint256 }, :internal, :override do
+    owner = s._ownerOf[id];
+    
+    if s.userToPrimaryNameTokenId[owner] == id
+      s.userToPrimaryNameTokenId[owner] = 0
+    end
+    
+    _clearCardPersonalInfo(id)
+    
+    ERC721._burn(id)
+  end
+  
+  function :transferFrom, { from: :address, to: :address, id: :uint256 }, :public, :override do
+    if s.userToPrimaryNameTokenId[from] == id
+      s.userToPrimaryNameTokenId[from] = 0
+    end
+    
+    _clearCardPersonalInfo(id)
+    
+    ERC721.transferFrom(from: from, to: to, id: id)
+  end
+  
+  function :enforceNotExpired!, { id: :uint256 }, :internal do
+    require(s.tokenExpiryTimes[id] > block.timestamp, 'Name expired')
+  end
+  
+  function :ownerOf, { id: :uint256 }, :public, :view, :override, returns: :address do
+    owner = ERC721.ownerOf(id)
+    enforceNotExpired!(id)
+    owner
+  end
+  
+  function :lookupAddress, { user: :address }, :public, :view, returns: :string do
+    candidateId = s.userToPrimaryNameTokenId[user]
+    require(ownerOf(candidateId) == user, 'Not the owner')
+
+    s.tokenIdToName[candidateId]
+  end
+  
+  function :setPrimaryName, { name: :string }, :public do
+    tokenId = s.nameToTokenId[name]
+    require(msg.sender == ownerOf(tokenId), 'Not the owner')
+    s.userToPrimaryNameTokenId[msg.sender] = tokenId
+    
+    emit :PrimaryNameSet, user: msg.sender, tokenId: tokenId
+  end
+  
+  function :resolveName, { name: :string }, :public, :view, returns: :address do
+    tokenId = s.nameToTokenId[name]
+    ownerOf(tokenId)
+  end
+  
+  function :nameIsValid, { name: :string }, :public, :view, returns: :bool do
+    name.length <= s.maxNameLength &&
+    name.isAlphaNumeric? &&
+    name.downcase == name
+  end
+  
+  function :nameAvailable, { name: :string }, :public, :view, returns: :bool do
+    tokenId = s.nameToTokenId[name]
+    
+    if !_exists(tokenId)
+      return true
+    end
+    
+    s.tokenExpiryTimes[tokenId] + s.gracePeriod < block.timestamp
+  end
+  
+  function :getPrice, { name: :string, durationInSeconds: :uint256 }, :public, :view, returns: :uint256 do
+    len = name.length
+  
+    priceWeiCentsPerSecond = if len >= s.charCountToUsdWeiCentsPrice.length
+      s.charCountToUsdWeiCentsPrice.last
+    else
+      s.charCountToUsdWeiCentsPrice[len - 1]
+    end
+  
+    totalPriceWeiCents = priceWeiCentsPerSecond * durationInSeconds
+  
+    (totalPriceWeiCents * 1.ether).div(s.usdWeiCentsInOneEth)
+  end
+  
+  function :pause, :public do
+    onlyOwner!
+    _pause()
+  end
+  
+  function :unpause, :public do
+    onlyOwner!
+    _unpause()
+  end
+  
+  function :setUsdWeiCentsInOneEth, { rate: :uint256 }, :public do
+    onlyOwner!
+    
+    s.usdWeiCentsInOneEth = rate
+    
+    emit :ConversionRateUpdate, newRate: rate
+  end
+  
+  function :withdrawWETH, :public, returns: :bool do
+    onlyOwner!
+    
+    amount = ERC20(s.WETH).balanceOf(address(this))
+    ERC20(s.WETH).transfer(s.owner, amount)
+  end
+  
+  function :totalSupply, :public, :view, returns: :uint256 do
+    nextTokenId - 1
+  end
+end
