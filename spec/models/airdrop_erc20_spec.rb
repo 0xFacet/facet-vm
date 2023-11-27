@@ -117,38 +117,37 @@ RSpec.describe Contract, type: :model do
    end
 
    it "will make an actual call to deploy and to airdrop" do
-       deploy = trigger_contract_interaction_and_expect_success(
-         command: 'deploy',
-         from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
-         data: {
-           "protocol": "AirdropERC20",
-           "constructorArgs": {
-             "name": "My Funs Token",
-             "symbol": "FUN",
-             "owner": "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
-             "maxSupply": "21000000",
-             "perMintLimit": "1000",
-             "decimals": 18
-           },
-         }
-       )
+      deploy = trigger_contract_interaction_and_expect_success(
+        command: 'deploy',
+        from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
+        data: {
+          "protocol": "AirdropERC20",
+          "constructorArgs": {
+            "name": "My Funs Token",
+            "symbol": "FUN",
+            "owner": "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
+            "maxSupply": "21000000",
+            "perMintLimit": "1000",
+            "decimals": 18
+          },
+        }
+      )
 
-       trigger_contract_interaction_and_expect_success(
-         command: 'call',
-         from: '0x019824B229400345510A3a7EFcFB77fD6A78D8d0',
-         data: {
-           "contract": deploy.address,
-           functionName: "airdropMultiple",
-           args: [
-             ["0x019824B229400345510A3a7EFcFB77fD6A78D8d0","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"],
-             ["5","10"]
-           ]
-         }
-       )
+      trigger_contract_interaction_and_expect_success(
+        command: 'call',
+        from: '0x019824B229400345510A3a7EFcFB77fD6A78D8d0',
+        data: {
+          "contract": deploy.address,
+          functionName: "airdropMultiple",
+          args: [
+            ["0x019824B229400345510A3a7EFcFB77fD6A78D8d0","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"],
+            ["5","10"]
+          ]
+        }
+      )
 
-         expect(deploy.contract.states.count).to eq(2)
-      end
-
+        expect(deploy.contract.states.count).to eq(2)
+    end
 
    it "will simulate a call to check airdrop limits max per mint" do
       resp = ContractTransaction.simulate_transaction(
@@ -325,55 +324,85 @@ RSpec.describe Contract, type: :model do
    end
 
    it "wont airdrop above upper limit of 10 addresses" do
-      resp = ContractTransaction.simulate_transaction(
-        from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
-        tx_payload: {
-          op: :call,
-          data: {
-            "to": @creation_receipt_airdrop_erc20.address,
-            "function": "airdropMultiple",
-            "args": {
-               "addresses": ["0x019824B229400345510A3a7EFcFB77fD6A78D8d0","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"] * 6,
-               "amounts": ["5","10"] * 6
-            },
-          }
+    trigger_contract_interaction_and_expect_error(
+      command: 'call',
+      from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
+      payload: {
+        "to": @creation_receipt_airdrop_erc20.address,
+        data: {
+          "function": "airdropMultiple",
+          "args": {
+            "addresses": ["0x019824B229400345510A3a7EFcFB77fD6A78D8d0","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"] * 6,
+            "amounts": ["5","10"] * 6
+          },
         }
-      )
+      }
+    )
+    
+    resp = ContractTransaction.simulate_transaction(
+      from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
+      tx_payload: {
+        op: :call,
+        data: {
+          "to": @creation_receipt_airdrop_erc20.address,
+          "function": "airdropMultiple",
+          "args": {
+              "addresses": ["0x019824B229400345510A3a7EFcFB77fD6A78D8d0","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"] * 6,
+              "amounts": ["5","10"] * 6
+          },
+        }
+      }
+    )
 
-      call_receipt_fail = resp['transaction_receipt']
+    call_receipt_fail = resp['transaction_receipt']
 
-      expect(call_receipt_fail).to be_a(TransactionReceipt)
-      expect(call_receipt_fail.status).to eq("failure")
+    expect(call_receipt_fail).to be_a(TransactionReceipt)
+    expect(call_receipt_fail.status).to eq("failure")
 
-      expect(Ethscription.find_by(transaction_hash: call_receipt_fail.transaction_hash)).to be_nil
+    expect(Ethscription.find_by(transaction_hash: call_receipt_fail.transaction_hash)).to be_nil
 
-      expect(@creation_receipt_airdrop_erc20.contract.states.count).to eq(2)
+    expect(@creation_receipt_airdrop_erc20.contract.states.count).to eq(2)
    end
 
    it "airdrop multiple wont be called without owner perms" do
-      resp = ContractTransaction.simulate_transaction(
-        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-        tx_payload: {
-          op: :call,
-          data: {
-            "to": @creation_receipt_airdrop_erc20.address,
-            "function": "airdropMultiple",
-            "args": {
-               "addresses": ["0x019824B229400345510A3a7EFcFB77fD6A78D8d0","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"],
-               "amounts": ["5","10"]
-            },
-          }
+    trigger_contract_interaction_and_expect_error(
+      command: 'call',
+      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      payload: {
+        "to": @creation_receipt_airdrop_erc20.address,
+        data: {
+          "function": "airdropMultiple",
+          "args": {
+            "addresses": ["0x019824B229400345510A3a7EFcFB77fD6A78D8d0","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"],
+            "amounts": ["5","10"]
+          },
         }
-      )
+      }
+    )
+    
+    resp = ContractTransaction.simulate_transaction(
+      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      tx_payload: {
+        op: :call,
+        data: {
+          "to": @creation_receipt_airdrop_erc20.address,
+          "function": "airdropMultiple",
+          "args": {
+            "addresses": ["0x019824B229400345510A3a7EFcFB77fD6A78D8d0","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"],
+            "amounts": ["5","10"]
+          },
+        }
+      }
+    )
 
-      call_receipt_fail = resp['transaction_receipt']
+    call_receipt_fail = resp['transaction_receipt']
 
-      expect(call_receipt_fail).to be_a(TransactionReceipt)
-      expect(call_receipt_fail.status).to eq("failure")
+    expect(call_receipt_fail).to be_a(TransactionReceipt)
+    expect(call_receipt_fail.status).to eq("failure")
 
-      expect(Ethscription.find_by(transaction_hash: call_receipt_fail.transaction_hash)).to be_nil
+    expect(Ethscription.find_by(transaction_hash: call_receipt_fail.transaction_hash)).to be_nil
 
-      expect(@creation_receipt_airdrop_erc20.contract.states.count).to eq(2)
+    expect(@creation_receipt_airdrop_erc20.contract.states.count).to eq(2)
    end
   end
 end

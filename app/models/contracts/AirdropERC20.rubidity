@@ -35,7 +35,7 @@ contract :AirdropERC20, is: [:ERC20, :Ownable] do
   end
 
   function :airdropMultiple, { addresses: [:address], amounts: [:uint256] }, :public do
-    onlyOwner! # For clarity
+    onlyOwner!
     
     require(addresses.length == amounts.length, 'Address and amount arrays must be the same length')
     require(addresses.length <= s.singleTxAirdropLimit, 'Cannot import more than 10 addresses at a time')
