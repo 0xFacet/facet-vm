@@ -8,8 +8,7 @@ RSpec.describe Contract, type: :model do
     update_supported_contracts(
       "ERC20LiquidityPool",
       "EtherBridgeV1Test",
-      "EtherBridgeV2Test",
-      "AirdropERC20"
+      "EtherBridgeV2Test"
     )
   end
   
@@ -31,25 +30,24 @@ RSpec.describe Contract, type: :model do
       }
     )
   end
+  
   before do
-      ENV['INDEXER_API_BASE_URI'] = "http://goerli-api.ethscriptions.com/api"
-
-      @creation_receipt_airdrop_erc20 = trigger_contract_interaction_and_expect_success(
-        command: 'deploy',
-        from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
-        data: {
-          "protocol": "AirdropERC20",
-          "constructorArgs": {
-            "name": "My Funs Token",
-            "symbol": "FUN",
-            "owner": "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
-            "maxSupply": "21000000",
-            "perMintLimit": "1000",
-            "decimals": 18
-          },
-        }
-      )
-    end
+    @creation_receipt_airdrop_erc20 = trigger_contract_interaction_and_expect_success(
+      command: 'deploy',
+      from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
+      data: {
+        "protocol": "AirdropERC20",
+        "constructorArgs": {
+          "name": "My Funs Token",
+          "symbol": "FUN",
+          "owner": "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
+          "maxSupply": "21000000",
+          "perMintLimit": "1000",
+          "decimals": 18
+        },
+      }
+    )
+  end
 
   describe ".call_contract_from_ethscription_if_needed!" do
     before do
@@ -319,69 +317,69 @@ RSpec.describe Contract, type: :model do
    end
 
   it "will make a multiple airdrop and burn those tokens afterwards" do
-        deploy = trigger_contract_interaction_and_expect_success(
-          command: 'deploy',
-          from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
-          data: {
-            "protocol": "AirdropERC20",
-            "constructorArgs": {
-              "name": "My Funs Token",
-              "symbol": "FUN",
-              "owner": "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
-              "maxSupply": "21000000",
-              "perMintLimit": "1000",
-              "decimals": 18
-            },
-          }
-        )
+    deploy = trigger_contract_interaction_and_expect_success(
+      command: 'deploy',
+      from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
+      data: {
+        "protocol": "AirdropERC20",
+        "constructorArgs": {
+          "name": "My Funs Token",
+          "symbol": "FUN",
+          "owner": "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
+          "maxSupply": "21000000",
+          "perMintLimit": "1000",
+          "decimals": 18
+        },
+      }
+    )
 
-      trigger_contract_interaction_and_expect_success(
-        command: 'call',
-        from: '0x019824B229400345510A3a7EFcFB77fD6A78D8d0',
+    trigger_contract_interaction_and_expect_success(
+      command: 'call',
+      from: '0x019824B229400345510A3a7EFcFB77fD6A78D8d0',
+      data: {
+        "contract": deploy.address,
+        functionName: "airdropMultiple",
+        args: [
+          ["0x019824B229400345510A3a7EFcFB77fD6A78D8d0","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"],
+          ["5","10"]
+        ]
+      }
+    )
+
+    resp = ContractTransaction.simulate_transaction(
+      from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
+      tx_payload: {
+        op: "call",
         data: {
-          "contract": deploy.address,
-          functionName: "airdropMultiple",
-          args: [
-            ["0x019824B229400345510A3a7EFcFB77fD6A78D8d0","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"],
-            ["5","10"]
-          ]
-        }
-      )
-
-      resp = ContractTransaction.simulate_transaction(
-        from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
-        tx_payload: {
-          op: "call",
-          data: {
-            "to": deploy.address,
-            "function": "burn",
-            "args": {
-              "amount": "5"
-            }
+          "to": deploy.address,
+          "function": "burn",
+          "args": {
+            "amount": "5"
           }
         }
-      )
+      }
+    )
 
-      call_receipt_success = resp['transaction_receipt']
+    call_receipt_success = resp['transaction_receipt']
 
-      expect(call_receipt_success).to be_a(TransactionReceipt)
-      expect(call_receipt_success.status).to eq("success")
+    expect(call_receipt_success).to be_a(TransactionReceipt)
+    expect(call_receipt_success.status).to eq("success")
 
-      expect(Ethscription.find_by(transaction_hash: call_receipt_success.transaction_hash)).to be_nil
+    expect(Ethscription.find_by(transaction_hash: call_receipt_success.transaction_hash)).to be_nil
 
-      resp = ContractTransaction.simulate_transaction(
-        from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-        tx_payload: {
-          op: "call",
-          data: {
-            "to": deploy.address,
-            "function": "burn",
-            "args": {
-              "amount": "10"
-            }
+    resp = ContractTransaction.simulate_transaction(
+      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      tx_payload: {
+        op: "call",
+        data: {
+          "to": deploy.address,
+          "function": "burn",
+          "args": {
+            "amount": "10"
           }
         }
-      )
+      }
+    )
 
       call_receipt_success = resp['transaction_receipt']
 

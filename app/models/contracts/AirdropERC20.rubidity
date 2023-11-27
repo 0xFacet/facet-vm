@@ -6,7 +6,8 @@ import './ERC20.rubidity'
 contract :AirdropERC20, is: [:ERC20, :Ownable] do
   uint256 :public, :maxSupply
   uint256 :public, :perMintLimit
-
+  uint256 :public, :singleTxAirdropLimit
+  
   constructor(
     name: :string,
     symbol: :string,
@@ -19,34 +20,38 @@ contract :AirdropERC20, is: [:ERC20, :Ownable] do
     Ownable.constructor(owner: owner)
     s.maxSupply = maxSupply
     s.perMintLimit = perMintLimit
+
+    s.singleTxAirdropLimit = 10
   }
 
   function :airdrop, { to: :address, amount: :uint256 }, :public do
     onlyOwner!
 
-    require(msg.sender == s.owner, 'Only owner can airdrop')
     require(amount > 0, 'Amount must be positive')
     require(amount <= s.perMintLimit, 'Exceeded mint limit')
     require(s.totalSupply + amount <= s.maxSupply, 'Exceeded max supply')
+    
     _mint(to: to, amount: amount)
   end
 
   function :airdropMultiple, { addresses: [:address], amounts: [:uint256] }, :public do
+    onlyOwner! # For clarity
+    
     require(addresses.length == amounts.length, 'Address and amount arrays must be the same length')
-    require(addresses.length <= 10, 'Cannot import more than 10 addresses at a time')
+    require(addresses.length <= s.singleTxAirdropLimit, 'Cannot import more than 10 addresses at a time')
 
     forLoop(
-         condition: -> i { i < addresses.length },
-         max_iterations: 10
-        ) do |i|
-          to = addresses[i]
-          amount = amounts[i]
-          airdrop(to: to, amount: amount)
-        end
+      condition: -> i { i < addresses.length },
+      max_iterations: s.singleTxAirdropLimit
+    ) do |i|
+      to = addresses[i]
+      amount = amounts[i]
+      
+      airdrop(to: to, amount: amount)
     end
-
-  function :burn, { amount: :uint256 }, :public do
-     _burn(from: msg.sender, amount: amount)
   end
 
+  function :burn, { amount: :uint256 }, :public do
+    _burn(from: msg.sender, amount: amount)
+  end
 end
