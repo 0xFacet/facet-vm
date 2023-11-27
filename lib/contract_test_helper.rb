@@ -145,6 +145,7 @@ module ContractTestHelper
       "FacetSwapV1Pair",
       "FacetSwapV1Router",
       "FacetSwapV1RouterWithRewards",
+      "AirdropERC20",
     ]
     
     new_hashes = new_names.map do |name|
