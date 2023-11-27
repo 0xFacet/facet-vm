@@ -94,8 +94,7 @@ describe 'NameRegistry contract' do
       payload: {
         to: registry_address,
         data: {
-          function: "updateRegistrationPaused",
-          args: false
+          function: "unpause"
         }
       }
     )
@@ -106,8 +105,7 @@ describe 'NameRegistry contract' do
       payload: {
         to: registry_address,
         data: {
-          function: "updateRegistrationPaused",
-          args: true
+          function: "unpause"
         }
       }
     )
@@ -256,9 +254,10 @@ describe 'NameRegistry contract' do
       payload: {
         to: registry_address,
         data: {
-          function: "setUserDetails",
+          function: "setCardDetails",
           args: {
-            realName: "Alice",
+            tokenId: 3,
+            displayName: "Alice",
             bio: "Alice's bio",
             imageURI: "http://example.com/alice.jpg",
             links: ["http://alice.com"]
@@ -266,15 +265,15 @@ describe 'NameRegistry contract' do
         }
       }
     )
-  
+    
     user_details = ContractTransaction.make_static_call(
       contract: registry_address,
-      function_name: "getUserDetails",
-      function_args: { user: alice }
+      function_name: "getCardDetails",
+      function_args: { tokenId: 3 }
     )
   
     expect(user_details).to eq({
-      realName: "Alice",
+      displayName: "Alice",
       bio: "Alice's bio",
       imageURI: "http://example.com/alice.jpg",
       links: ["http://alice.com"]
@@ -385,6 +384,7 @@ describe 'NameRegistry contract' do
             name: "First Sticker",
             description: "A test sticker",
             imageURI: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgEAIAAACsiDHgAAAABGdBTUEAAYagMeiWXwAAAAZ0Uk5Tf39/f39/67xZqAAAAAZiS0dEAAD//wAAmd6JYwAAB11JREFUeJzFWF9IYmkb/7mfsgad6EQKCR3IIEmHDBIMCsaFig02tgSFGhKmLuZChpZxYIUWKiiYoGDnwovZNq8Ggw1qWYO88ELIhQZySUhBAyEFjaw5Q0an0Oi7eJDx+5xT9md3f1fnvO9z3vM87/N7/ryvZGpqampqCv8g2tvb29vb6Xl3d3d3d/chq0kfQ6VKoVQqlUrl3Nzc3NxcW1tbW1tbY2NjY2PjQ9b82w0gpVdWVlZWVoLBYDAYpPFIJBKJRJaXl5eXl2OxWCwWu9/6Xz2eqp/R3Nzc3NwcjUajf/2VzWazdrvL5XIFg5FIJAKsr6+vAy0tLS2CsL5Ob/fHoxmg0Wg0Gs3+/v7+/v74+Pj4+LjFYrF4vYIgCIDBYDAAOp1OB7hcLhewubm5CWQymczvv5PB/4IBpHQqlUqlUj/88OLFixcej8fj8RiNRmM+L5PJZMD8/Pw8kM/n8yQPjI2NjQHpdDoNFAqFQj6/urq6urr6jxpwfHx8fHxst9vtdns8vrLidv/xB8vmcjRrNBqNxT1WqVSq4q6vra2tFSlEPunp6ekB/H6/3+tVqUj2bzCAEt/V1dXV1dXS0tLS0pLL5XK5XDzP8zwfDApCUdJqZZjiM+301tbWFhAKhUK0DkC7Tf6ZnJycLMpToJcm2UpwSxaqq6urq6tzOp1Op/PmXPHTT9ks4HIpFIDZvLEBzM7OzhZ3msK3FGReIBAIABQngUAgEAgMDQ0NDQ1VbsB/TCaTyWQSm47H4/F4nGE+fPD7f/21vh7gOKkUkEolEiCTKRSAQgEAEolCAfj++6+/Bnie54GtrZMT4N27d++K+82yLAvYbDYb8PLly5eA1Wq1Amo1z3d0vH4NvH79/n02+/691Wq1Wq2Hh4eHh4c3GyBKoc7Ozs7Ozo2NjY2NjWhUpdJo5HKpFLBYGAZ484ZlgaMjtRoIBFQqYHqaZQGfTxCA2VmWBX755e1bwGw2mwEqV8PDw8PAxcXFBWC16vUazZs3icRvv3k8gMezvQ1sb4dCoVAoRFWiEg+IGkD8Pjo6Ojo6qq6urq6udjqzWUChAIBvvkmnAZUqkQAWF3kekMsBYHiYYQCFQioFJiYYBtje3t4G7Ha7HXA6R0Y4Tq2enXW7t7Z4fm/v0yfg06cnT4AnT1ZXgWIucrvdbre7kngQNSCZTCaTSXqORqPRaDSV4jiNJhy+uAAcDoYBKOt4vYIAOJ08DxgM6TSgVCYSQDBI5AKAiQlgYiIYBILBSASIRMxmwGx++hR4+rT874lEIpFIkDfuaUA2m81ms/QsCIIgCFKpVCqVkqIOh0IBKJUy2Ze+5XkACAZbWgDg7VvA5wN8Pp0O0OkWF4HFRa8X8HqTSSCZfP4ceP68fJ1K/FCRBwgU0IWCVqvXe71nZ8DkJMuKfQ8AAwMABXksBsRiuVzRa0U4nYDTOT0NTE9XVQFVVaWz6XQ6nU77/X6/339nAzKZTCaTKR3J5/P5fL5QKBQKBaczl5PJ5udpr8Xw7bcAsLkpLhEKAaFQIAAEAkSzchmv1+v1eimpVGSAwWAwGAzEwvJZyg8KhVbb1pZO//wzAFCH+eOPAKDXAwB5RqcDgD//vMFGAMDMDDAz8+oV8OoVywIsK5PJZDJZRwkuLih7VWAAgdwnNnt2dnZ2dsYwMzMMA8zPAwC1AWtrAEDkI7p89x0AfK7Q5SCCPXsGPHvGcTodx2m1Wq1WS0FMDbnY0ecLBuzs7Ozs7AwMDAwQh7/8y1gsFlOrGxrUasDrBYrup66SaPPhAwCMjdGGAEVf/T9RdDqdTqf7+LGj4+PHaDQej0bD4XA4HKbZrq6urq4uMU1EWwkq6T6fz+fzEfvLZXK5XC6XY1mWZVmqGwDlpZ4eAKDcQd6g8KTxlhZArVar1Wr6ltI05brS9Yk8DMMw4v4TpdDBwcHBwcHg4ODg4KCYDMUJx3EcxxXHjEYASKU+q04QBIDjwmGO6+gIBDo6yGAiSbnqBGpzbj4339KNkh+qqqqq/jfBlYIqBjG1mHmIVEDxSEkkoUAkpYse+zLoj9QB3KzhLQYQ1y0Wi8ViEZOhcG9oaGhoaCDes6zPx7J6vV6v18vlcrlcTrmLGpOb/0i4mfd3MIDQ1NTU1NREfBWTobphMuVyJhPLptMsS4FYXhArQW9vb29vbyWSdziRjYyMjIyMiM1So0HVWqyG3Izu7u7u7m46Kp2fn5+fn1fy1R2uVerr6+vr64nT5WQgClXSfpWCaGaz2Ww2G+Wlu1513flMPDo6Ojo6Wj4ukUgkEkklK9AdxHQJTk9PT09P73dLd2cDyNG0W6Xj19fX19fXYl+R3xwOh8PhWFhYWFhYIPmHXy1K7nc3SvtN+0fGUDKl0kYyFPREj9ra2tra2ocoKoZ7Xi0Sdym7U/hS4FLVpLTb39/f39+/t7e3t7f3uEqX4p4eINTU1NTU1NB1CKVaKnwPueu8K265lbgZra2tra2tfX19fX19l5eXl5eXJycnJycnj6rhLfgvkwrk4bWFIJgAAAAASUVORK5CYII=",
+            stickerExpiry: 100.years.from_now.to_i,
             grantingAddress: signer
           }
         }
@@ -401,6 +401,7 @@ describe 'NameRegistry contract' do
             name: "Second Sticker",
             description: "Another test sticker",
             imageURI: "",
+            stickerExpiry: 100.years.from_now.to_i,
             grantingAddress: signer
           }
         }
@@ -516,12 +517,30 @@ describe 'NameRegistry contract' do
       }
     )
     
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: registry_address,
+        data: {
+          function: "setCardDetails",
+          args: {
+            tokenId: 5,
+            displayName: "Joey Joe Joe",
+            bio: "JJ bio",
+            imageURI: "http://example.com",
+            links: ["http://twitter.com/JJ", "http://instagram.com/realJJ"]
+          }
+        }
+      }
+    )
+    
     token_uri = ContractTransaction.make_static_call(
       contract: registry_address,
       function_name: "tokenURI",
       function_args: 5
     )
     
-    # ap JSON.parse(token_uri[/.*?,(.*)/, 1])['image']
+    # Clipboard.copy(JSON.parse(token_uri[/.*?,(.*)/, 1])['animation_url'])
+    # puts JSON.parse(token_uri[/.*?,(.*)/, 1])['animation_url']
   end
 end

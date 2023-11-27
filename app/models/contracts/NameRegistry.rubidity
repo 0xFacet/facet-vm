@@ -1,19 +1,16 @@
 pragma :rubidity, "1.0.0"
 
 import './Ownable.rubidity'
+import './Pausable.rubidity'
 import './Upgradeable.rubidity'
 import './ERC721.rubidity'
 import './ERC20.rubidity'
 import './NameRegistryRenderer.rubidity'
 
-contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :NameRegistryRenderer], upgradeable: true do
-  # TODO: events
-  # TODO: broader pause functionality
-  
+contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRegistryRenderer], upgradeable: true do
   event :NameRegistered, { tokenId: :uint256, owner: :address, name: :string, expires: :uint256 }
   event :NameRenewed, { tokenId: :uint256, newExpiry: :uint256 }
   event :PrimaryNameSet, { user: :address, tokenId: :uint256 }
-  event :RegistrationPaused, { newState: :bool }
   event :ConversionRateUpdate, { newRate: :uint256 }
 
   address :public, :WETH
@@ -26,7 +23,6 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :NameRegistryRende
   
   array :uint256, :public, :charCountToUsdWeiCentsPrice, initial_length: 0
   
-  bool :public, :registrationPaused
   bool :public, :preregistrationComplete
   
   uint256 :public, :nextTokenId
@@ -53,6 +49,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :NameRegistryRende
     ERC721.constructor(name: name, symbol: symbol)
     Upgradeable.constructor(upgradeAdmin: msg.sender)
     Ownable.constructor(owner: owner)
+    Pausable.constructor(initialPauseState: true)
     NameRegistryRenderer.constructor(cardTemplate: cardTemplate)
     
     s.WETH = _WETH
@@ -65,11 +62,11 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :NameRegistryRende
     s.minRegistrationDuration = 28.days
     s.nextTokenId = 1
     s.nextStickerId = 1
-    s.maxStickerId = 25
   }
   
   function :registerNameWithPayment, { to: :address, name: :string, durationInSeconds: :uint256 }, :public, returns: :bool do
-    require(!s.registrationPaused, 'Registration paused')
+    whenNotPaused!
+    
     require(s.preregistrationComplete, 'Preregistration must be complete')
 
     require(durationInSeconds >= s.minRegistrationDuration, 'Duration too short')
@@ -89,6 +86,8 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :NameRegistryRende
   end
   
   function :renewNameWithPayment, { name: :string, durationInSeconds: :uint256 }, :public, returns: :bool do
+    whenNotPaused!
+    
     _renewName(name: name, durationInSeconds: durationInSeconds)
     
     ERC20(s.WETH).transferFrom(
@@ -159,18 +158,18 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :NameRegistryRende
   end
   
   function :tokenURI, { id: :uint256 }, :public, :view, :override, returns: :string do
+    enforceNotExpired!(id)
+
     require(_exists(id: id), 'ERC721Metadata: URI query for nonexistent token')
     
     name = s.tokenIdToName[id]
-    owner = ownerOf(id)
-
-    card = NameRegistryRenderer.renderCard(id, name)
+    card = NameRegistryRenderer.renderCard(id)
     b64Card = "data:text/html;charset=utf-8;base64," + card.base64Encode
     
     json_data = {
       name: "#{name} (##{id.toString})",
-      description: s.userBios[owner],
-      image: b64Card,
+      description: s.cardBios[id],
+      animation_url: b64Card,
     }.to_json # TODO
     
     return "data:application/json,#{json_data}"
@@ -183,7 +182,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :NameRegistryRende
       s.userToPrimaryNameTokenId[owner] = 0
     end
     
-    _clearStickers(id)
+    _clearCardPersonalInfo(id)
     
     ERC721._burn(id)
   end
@@ -193,14 +192,18 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :NameRegistryRende
       s.userToPrimaryNameTokenId[from] = 0
     end
     
-    _clearStickers(id)
+    _clearCardPersonalInfo(id)
     
     ERC721.transferFrom(from: from, to: to, id: id)
   end
   
+  function :enforceNotExpired!, { id: :uint256 }, :internal do
+    require(s.tokenExpiryTimes[id] > block.timestamp, 'Name expired')
+  end
+  
   function :ownerOf, { id: :uint256 }, :public, :view, :override, returns: :address do
     owner = ERC721.ownerOf(id)
-    require(s.tokenExpiryTimes[id] > block.timestamp, 'Name expired')
+    enforceNotExpired!(id)
     owner
   end
   
@@ -250,12 +253,14 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :NameRegistryRende
     (totalPriceWeiCents * 1.ether).div(s.usdWeiCentsInOneEth)
   end
   
-  function :updateRegistrationPaused, { newState: :bool }, :public do
+  function :pause, :public do
     onlyOwner!
-    
-    s.registrationPaused = newState
-    
-    emit :RegistrationPaused, newState: newState
+    _pause()
+  end
+  
+  function :unpause, :public do
+    onlyOwner!
+    _unpause()
   end
   
   function :setusdWeiCentsInOneEth, { rate: :uint256 }, :public do

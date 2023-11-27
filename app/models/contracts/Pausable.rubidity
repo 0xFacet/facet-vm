@@ -1,0 +1,30 @@
+pragma :rubidity, "1.0.0"
+
+contract :Pausable, abstract: true do
+  bool :public, :paused
+  
+  event :Paused, { account: :address }
+  event :Unpaused, { account: :address }
+  
+  constructor(initialPauseState: :bool) {
+    s.paused = initialPauseState
+  }
+  
+  function :_pause, :internal do
+    s.paused = true
+    emit :Paused, account: msg.sender
+  end
+  
+  function :_unpause, :internal do
+    s.paused = false
+    emit :Unpaused, account: msg.sender
+  end
+  
+  function :whenPaused!, :internal do
+    require(s.paused, "Contract is not paused")
+  end
+  
+  function :whenNotPaused!, :internal do
+    require(!s.paused, "Contract is paused")
+  end
+end

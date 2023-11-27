@@ -177,7 +177,7 @@ class ContractImplementation < BasicObject
 
   def emit(event_name, args = {})
     unless self.class.events.key?(event_name)
-      raise ::ContractDefinitionError.new("Event #{event_name} is not defined in this contract.", self)
+      raise ContractDefinitionError.new("Event #{event_name} is not defined in this contract.", self)
     end
 
     expected_args = self.class.events[event_name]
@@ -188,7 +188,7 @@ class ContractImplementation < BasicObject
       error_messages = []
       error_messages << "Missing arguments for #{event_name} event: #{missing_args.join(', ')}." if missing_args.any?
       error_messages << "Unexpected arguments provided for #{event_name} event: #{extra_args.join(', ')}." if extra_args.any?
-      raise ::ContractDefinitionError.new(error_messages.join(' '), self)
+      raise ContractDefinitionError.new(error_messages.join(' '), self)
     end
 
     log_event({
