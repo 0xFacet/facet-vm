@@ -8,7 +8,7 @@ class Type
    end.map(&:to_sym)
   
   TYPES = [:string, :mapping, :address, :bytes32, :contract,
-          :bool, :address, :uint256, :int256, :array, :datetime, :bytes] + INTEGER_TYPES
+           :bool, :array, :bytes] + INTEGER_TYPES
   
   TYPES.each do |type|
     define_method("#{type}?") do
@@ -102,10 +102,8 @@ class Type
   end
   
   def default_value
-    is_int256_uint256_datetime = is_int? || is_uint? || datetime?
-  
     val = case
-    when is_int256_uint256_datetime
+    when is_int? || is_uint?
       0
     when address?
       "0x" + "0" * 40
@@ -205,14 +203,6 @@ class Type
       end
       
       return literal.downcase
-    elsif datetime?
-      dummy_uint = Type.create(:uint256)
-      
-      begin
-        return dummy_uint.check_and_normalize_literal(literal)
-      rescue VariableTypeError => e
-        raise_variable_type_error(literal)
-      end
     elsif mapping?
       if literal.is_a?(MappingVariable::Value)
         return literal

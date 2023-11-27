@@ -43,14 +43,17 @@ contract :NameRegistryRenderer, abstract: true do
   uint256 :public, :uriMaxLength
   
   constructor(cardTemplate: :string) {
-    s.cardTemplate = cardTemplate
     s.maxStickersPerUser = 25
     s.maxStickersPerCard = s.maxStickersPerUser
     s.maxLinksPerCard = 5
     
     s.bioMaxLength = 1000
     s.displayNameMaxLength = 100
-    s.uriMaxLength = 96.kilobytes
+    s.uriMaxLength = 96_000
+    
+    require(cardTemplate.length <= s.uriMaxLength, 'cardTemplate too long')
+    
+    s.cardTemplate = cardTemplate
   }
   
   function :renderCard, {
@@ -60,33 +63,29 @@ contract :NameRegistryRenderer, abstract: true do
     
     owner = ownerOf(tokenId)
     name = s.tokenIdToName[tokenId]
-    calculatedStickers = getCardStickers(tokenId: tokenId)
     
-    imageUris = array(:string, calculatedStickers.length)
+    stickerIds, stickerXPositions, stickerYPositions, stickerImageURIs = getCardStickers(tokenId)
+    displayName, bio, imageURI, links = getCardDetails(tokenId)
     
-    forLoop(
-      condition: -> i { i < calculatedStickers.length },
-    ) do |i|
-      stickerId = calculatedStickers[i]
-      imageUris[i] = s.stickerIdToImageURI[stickerId]
-    end
-    
-    storage = {
+    storage = json.stringify(
       tokenId: tokenId.toString(),
       owner: owner,
       name: name,
-      stickers: calculatedStickers,
-      stickerXPositions: s.tokenIdToStickerXPositionsAry[tokenId], # TODO?
-      stickerYPositions: s.tokenIdToStickerYPositionsAry[tokenId],
-      stickerImages: imageUris,
-      cardDetails: getCardDetails(tokenId: tokenId)      
-    }.to_json # TODO
+      stickerIds: stickerIds,
+      stickerXPositions: stickerXPositions,
+      stickerYPositions: stickerYPositions,
+      stickerImages: stickerImageURIs,
+      displayName: displayName,
+      bio: bio,
+      imageURI: imageURI,
+      links: links
+    )
     
     template = "`#{s.cardTemplate}`"
     
     wrapped = <<~HTML
       <script>
-        window.s = JSON.parse(#{storage.to_json});
+        window.s = #{storage};
         document.open();
         document.write(#{template});
         document.close();
@@ -254,10 +253,18 @@ contract :NameRegistryRenderer, abstract: true do
     }
   end
   
-  function :getCardStickers, { tokenId: :uint256 }, :public, :view, returns: [:uint256] do
+  function :getCardStickers, { tokenId: :uint256 }, :public, :view, returns: {
+    stickerIds: [:uint256],
+    stickerXPositions: [:uint256],
+    stickerYPositions: [:uint256],
+    stickerImageURIs: [:string]
+  } do
     enforceNotExpired!(tokenId)
     
-    toReturn = array(:uint256, 0)
+    stickerIds = array(:uint256, 0)
+    stickerXPositions = array(:uint256, 0)
+    stickerYPositions = array(:uint256, 0)
+    stickerImageURIs = array(:string, 0)
     
     forLoop(
       condition: -> i { i < s.tokenIdToStickerIdsAry[tokenId].length },
@@ -265,11 +272,19 @@ contract :NameRegistryRenderer, abstract: true do
       stickerId = s.tokenIdToStickerIdsAry[tokenId][i]
       
       if (s.stickerIdToExpiry[stickerId] > block.timestamp)
-        toReturn.push(stickerId)
+        stickerIds.push(stickerId)
+        stickerXPositions.push(s.tokenIdToStickerXPositionsAry[tokenId][i])
+        stickerYPositions.push(s.tokenIdToStickerYPositionsAry[tokenId][i])
+        stickerImageURIs.push(s.stickerIdToImageURI[stickerId])
       end
     end
     
-    toReturn
+    return {
+      stickerIds: stickerIds,
+      stickerXPositions: stickerXPositions,
+      stickerYPositions: stickerYPositions,
+      stickerImageURIs: stickerImageURIs
+    }
   end
   
   function :_clearCardPersonalInfo, { tokenId: :uint256 }, :internal do

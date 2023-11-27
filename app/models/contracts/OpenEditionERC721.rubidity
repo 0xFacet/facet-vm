@@ -8,8 +8,8 @@ contract :OpenEditionERC721, is: :ERC721 do
   uint256 :public, :totalSupply
   string :public, :description
   
-  datetime :public, :mintStart
-  datetime :public, :mintEnd
+  uint256 :public, :mintStart
+  uint256 :public, :mintEnd
   
   constructor(
     name: :string,
@@ -17,8 +17,8 @@ contract :OpenEditionERC721, is: :ERC721 do
     contentURI: :string,
     maxPerAddress: :uint256,
     description: :string,
-    mintStart: :datetime,
-    mintEnd: :datetime
+    mintStart: :uint256,
+    mintEnd: :uint256
   ) {
     ERC721.constructor(name: name, symbol: symbol)
     
@@ -45,11 +45,11 @@ contract :OpenEditionERC721, is: :ERC721 do
   function :tokenURI, { id: :uint256 }, :public, :view, :override, returns: :string do
     require(_exists(id: id), 'ERC721Metadata: URI query for nonexistent token')
 
-    json_data = {
+    json_data = json.stringify(
       name: "#{s.name} ##{string(id)}",
       description: s.description,
       image: s.contentURI,
-    }.to_json
+    )
     
     return "data:application/json,#{json_data}"
   end

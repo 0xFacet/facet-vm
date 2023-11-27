@@ -33,7 +33,7 @@ describe 'NameRegistry contract' do
     ]
     
     char_count_to_wei_usd_per_sec = char_count_to_usd_cents_price_per_year.map do |price_cents|
-      (price_cents * 1.ether).div(365.days)
+      (price_cents * 1.ether).div(365.days.to_i)
     end
     
     usd_wei_cents_in_one_eth = 1800_00 * 1.ether # 1800 USD in cents

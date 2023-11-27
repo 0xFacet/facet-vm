@@ -19,8 +19,6 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRe
   uint256 :public, :gracePeriod
   uint256 :public, :maxNameLength
   
-  string :public, :description
-  
   array :uint256, :public, :charCountToUsdWeiCentsPrice, initial_length: 0
   
   bool :public, :preregistrationComplete
@@ -33,6 +31,8 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRe
   mapping ({ uint256: :uint256 }), :public, :tokenExpiryTimes
   
   mapping ({ uint256: :uint256 }), :public, :registrationTimestamps
+  
+  uint256 :public, :maxImportBatchSize
   
   constructor(
     name: :string,
@@ -62,6 +62,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRe
     s.minRegistrationDuration = 28.days
     s.nextTokenId = 1
     s.nextStickerId = 1
+    s.maxImportBatchSize = 10
   }
   
   function :registerNameWithPayment, { to: :address, name: :string, durationInSeconds: :uint256 }, :public, returns: :bool do
@@ -148,7 +149,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRe
     
     require(names.length == owners.length, 'Names and owners must be the same length')
     require(names.length == durations.length, 'Names and owners must be the same length')
-    require(names.length <= 10, 'Cannot import more than 10 names at a time')
+    require(names.length <= s.maxImportBatchSize, 'Cannot import more than 10 names at a time')
     
     forLoop(
       condition: -> i { i < names.length }
@@ -166,11 +167,11 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRe
     card = NameRegistryRenderer.renderCard(id)
     b64Card = "data:text/html;charset=utf-8;base64," + card.base64Encode
     
-    json_data = {
+    json_data = json.stringify(
       name: "#{name} (##{id.toString})",
       description: s.cardBios[id],
       animation_url: b64Card,
-    }.to_json # TODO
+    )
     
     return "data:application/json,#{json_data}"
   end
@@ -236,6 +237,10 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRe
   function :nameAvailable, { name: :string }, :public, :view, returns: :bool do
     tokenId = s.nameToTokenId[name]
     
+    if !_exists(tokenId)
+      return true
+    end
+    
     s.tokenExpiryTimes[tokenId] + s.gracePeriod < block.timestamp
   end
   
@@ -263,7 +268,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRe
     _unpause()
   end
   
-  function :setusdWeiCentsInOneEth, { rate: :uint256 }, :public do
+  function :setUsdWeiCentsInOneEth, { rate: :uint256 }, :public do
     onlyOwner!
     
     s.usdWeiCentsInOneEth = rate

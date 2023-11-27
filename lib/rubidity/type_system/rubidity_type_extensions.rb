@@ -4,10 +4,6 @@ module RubidityTypeExtensions
       Base64.strict_encode64(value)
     end
     
-    def escapeJSON
-      value.to_json[1..-2]
-    end
-    
     def isAlphaNumeric?
       TypedVariable.create(:bool, !!(value =~ /\A[a-z0-9]+\z/i))
     end

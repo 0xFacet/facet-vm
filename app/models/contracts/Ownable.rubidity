@@ -10,7 +10,7 @@ contract :Ownable, abstract: true do
   }
   
   function :transferOwnership, { newOwner: :address }, :public do
-    require(msg.sender == s.owner, "NOT_AUTHORIZED")
+    onlyOwner!
     
     previousOwner = s.owner
     s.owner = newOwner

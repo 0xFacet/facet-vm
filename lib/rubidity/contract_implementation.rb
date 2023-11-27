@@ -247,6 +247,15 @@ class ContractImplementation < BasicObject
   
   private
 
+  def json
+    ::Object.new.tap do |proxy|
+      def proxy.stringify(*args, **kwargs)
+        res = (args.presence || kwargs).to_json
+        ::TypedVariable.create(:string, res)
+      end
+    end
+  end
+  
   def abi
     ::Object.new.tap do |proxy|
       def proxy.encodePacked(*args)
