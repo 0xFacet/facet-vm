@@ -5,6 +5,7 @@ Rails.application.routes.draw do
       get "/:address/static-call/:function", to: "contracts#static_call", constraints: { address: /(0x)?[a-zA-Z0-9]{40}/ }
       get "/transactions/:transaction_hash", to: "contracts#show_call_receipt", constraints: { transaction_hash: /(0x)?[a-zA-Z0-9]{64}/ }
       get "/simulate", to: "contracts#simulate_transaction"
+      post "/simulate", to: "contracts#simulate_transaction"
       
       get "/all-abis", to: "contracts#all_abis"
       get "/supported-contract-artifacts", to: "contracts#supported_contract_artifacts"
