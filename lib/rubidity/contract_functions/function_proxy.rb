@@ -16,6 +16,31 @@ class FunctionProxy
     @from_parent = !!opts[:from_parent]
   end
   
+  def as_json
+    {
+      args: args_for_json,
+      override_modifiers: override_modifiers,
+      returns: returns,
+      state_mutability: state_mutability,
+      type: type,
+      visibility: visibility
+    }.with_indifferent_access
+  end
+  
+  def args_for_json
+    args.map do |name, type|
+      type = Type.create(type)
+      
+      if type.array?
+        [name, "#{type.value_type}[#{type.initial_length}]"]
+      elsif type.is_value_type?
+        [name, type.name.to_s]
+      else
+        raise "Invalid ABI serialization"
+      end
+    end.to_h.with_indifferent_access
+  end
+  
   def arg_names
     args.keys
   end
@@ -117,6 +142,12 @@ class FunctionProxy
     end
   end
   
+  def validate_args!
+    args.values.each do |type|
+      Type.create(type)
+    end
+  end
+  
   def self.create(name, args, *options, returns: nil, &block)
     options_hash = {
       state_mutability: :non_payable,
@@ -143,6 +174,8 @@ class FunctionProxy
       returns: returns,
       type: name == :constructor ? :constructor : :function,
       implementation: block
-    )
+    ).tap do |record|
+      record.validate_args!
+    end
   end
 end
