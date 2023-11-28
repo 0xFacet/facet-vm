@@ -42,7 +42,7 @@ contract :ERC721, abstract: true do
     emit :Approval, owner: owner, spender: spender, id: id
   end
   
-  function :setApprovalForAll, { operator: :address, bool: :approved }, :public, :virtual do
+  function :setApprovalForAll, { operator: :address, approved: :bool }, :public, :virtual do
     s.isApprovedForAll[msg.sender][operator] = approved;
 
     emit :ApprovalForAll, owner: msg.sender, operator: operator, approved: approved

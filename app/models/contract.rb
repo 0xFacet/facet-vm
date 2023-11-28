@@ -121,9 +121,7 @@ class Contract < ApplicationRecord
       )
     ).tap do |json|
       if implementation_class
-        json['abi'] = implementation_class.new.public_abi.map do |name, func|
-          [name, func.as_json.except('implementation')]
-        end.to_h
+        json['abi'] = implementation_class.public_abi.transform_values(&:as_json)
       end
       
       if association(:transaction_receipt).loaded?
