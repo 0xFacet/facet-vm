@@ -7,10 +7,14 @@ contract :FacetSwapV1Router, is: :Upgradeable, upgradeable: true do
   address :public, :factory
   address :public, :WETH
   
+  uint8 :public, :maxPathLength
+  
   constructor(_factory: :address, _WETH: :address) {
     s.factory = _factory
     s.WETH = _WETH
     Upgradeable.constructor(upgradeAdmin: msg.sender)
+    
+    s.maxPathLength = 3
   }
   
   function :_addLiquidity, {
@@ -146,9 +150,11 @@ contract :FacetSwapV1Router, is: :Upgradeable, upgradeable: true do
     path: [:address],
     _to: :address
   }, :internal, :virtual do
-    # TODO: how bad can this loop get?
+    require(path.length <= s.maxPathLength, "Max path length exceeded")
     
-    for i in 0...(path.length - 1)
+    forLoop(
+      condition: -> i { i < path.length - 1 }
+    ) do |i|
       input, output = path[i], path[i + 1]
       token0, _ = sortTokens(input, output)
       amountOut = amounts[i + 1]
@@ -157,8 +163,6 @@ contract :FacetSwapV1Router, is: :Upgradeable, upgradeable: true do
 
       FacetSwapV1Pair(pairFor(factory, input, output)).swap(amount0Out, amount1Out, to, "")
     end
-    
-    return nil
   end
   
   function :_safeTransferFrom, { token: :address, from: :address, to: :address, value: :uint256 }, :private do
@@ -173,11 +177,14 @@ contract :FacetSwapV1Router, is: :Upgradeable, upgradeable: true do
     path: [:address]
   }, :public, :view, returns: [:uint256] do
     require(path.length >= 2, 'FacetSwapV1Library: INVALID_PATH')
+    require(path.length <= s.maxPathLength, "Max path length exceeded")
     
     amounts = array(:uint256, path.length)
     amounts[0] = amountIn
     
-    for i in 0...(path.length - 1)
+    forLoop(
+      condition: -> i { i < path.length - 1 }
+    ) do |i|
       reserveIn, reserveOut = getReserves(factory, path[i], path[i + 1])
       amounts[i + 1] = getAmountOut(amounts[i], reserveIn, reserveOut)
     end
@@ -207,11 +214,16 @@ contract :FacetSwapV1Router, is: :Upgradeable, upgradeable: true do
     path: [:address]
   }, :public, :view, returns: [:uint256] do
     require(path.length >= 2, 'FacetSwapV1Library: INVALID_PATH')
-  
+    require(path.length <= s.maxPathLength, "Max path length exceeded")
+    
     amounts = array(:uint256, path.length)
     amounts[amounts.length - 1] = amountOut
     
-    for i in (path.length - 1).downto(1)
+    forLoop(
+      start: path.length - 1,
+      condition: -> i { i > 0 },
+      step: -1
+    ) do |i|
       reserveIn, reserveOut = getReserves(factory, path[i - 1], path[i])
       amounts[i - 1] = getAmountIn(amounts[i], reserveIn, reserveOut)
     end

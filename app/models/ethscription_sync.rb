@@ -144,4 +144,7 @@ class EthscriptionSync
     Ethscription.import!(new_ethscriptions)
   end
 end
-$s = EthscriptionSync #TODO: remove
+
+if Rails.env.development?
+  $s = EthscriptionSync
+end
