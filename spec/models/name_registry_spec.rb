@@ -110,6 +110,22 @@ describe 'NameRegistry contract' do
       }
     )
     
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: registry_address,
+        data: {
+          function: "importFromPreregistration",
+          args: {
+            names: ["hi", "hello", "hey"],
+            owners: [alice, bob, charlie],
+            durations: [365.days, 365.days, 365.days],
+            tokenIds: [3, 2, 1]
+          }
+        }
+      }
+    )
+    
     mark = trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
@@ -249,6 +265,12 @@ describe 'NameRegistry contract' do
       }
     )
     
+    tokenid = ContractTransaction.make_static_call(
+      contract: registry_address,
+      function_name: "nameToTokenId",
+      function_args: "ali"
+    )
+    
     trigger_contract_interaction_and_expect_success(
       from: alice,
       payload: {
@@ -256,7 +278,7 @@ describe 'NameRegistry contract' do
         data: {
           function: "setCardDetails",
           args: {
-            tokenId: 3,
+            tokenId: tokenid,
             displayName: "Alice",
             bio: "Alice's bio",
             imageURI: "http://example.com/alice.jpg",
@@ -269,7 +291,7 @@ describe 'NameRegistry contract' do
     user_details = ContractTransaction.make_static_call(
       contract: registry_address,
       function_name: "getCardDetails",
-      function_args: { tokenId: 3 }
+      function_args: { tokenId: tokenid }
     )
   
     expect(user_details).to eq({
@@ -278,6 +300,12 @@ describe 'NameRegistry contract' do
       imageURI: "http://example.com/alice.jpg",
       links: ["http://alice.com"]
     }.stringify_keys)
+    
+    tokenid = ContractTransaction.make_static_call(
+      contract: registry_address,
+      function_name: "nameToTokenId",
+      function_args: "eve"
+    )
     
     trigger_contract_interaction_and_expect_success(
       from: user_address,
@@ -288,7 +316,7 @@ describe 'NameRegistry contract' do
           args: {
             from: user_address,
             to: bob,
-            id: 1
+            id: tokenid
           }
         }
       }
@@ -297,7 +325,7 @@ describe 'NameRegistry contract' do
     new_owner = ContractTransaction.make_static_call(
       contract: registry_address,
       function_name: "ownerOf",
-      function_args: { id: 1 }
+      function_args: { id: tokenid }
     )
   
     expect(new_owner).to eq(bob)
@@ -305,7 +333,7 @@ describe 'NameRegistry contract' do
     token_uri = ContractTransaction.make_static_call(
       contract: registry_address,
       function_name: "tokenURI",
-      function_args: 1
+      function_args: tokenid
     )
     
     resolved_address = ContractTransaction.make_static_call(
@@ -502,6 +530,12 @@ describe 'NameRegistry contract' do
       }
     )
     
+    tokenid = ContractTransaction.make_static_call(
+      contract: registry_address,
+      function_name: "nameToTokenId",
+      function_args: "stickerfan"
+    )
+    
     trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
@@ -510,7 +544,7 @@ describe 'NameRegistry contract' do
           function: "placeSticker",
           args: {
             stickerId: 1,
-            tokenId: 5,
+            tokenId: tokenid,
             position: [20, 20]
           }
         }
@@ -524,7 +558,7 @@ describe 'NameRegistry contract' do
         data: {
           function: "setCardDetails",
           args: {
-            tokenId: 5,
+            tokenId: tokenid,
             displayName: "Joey Joe Joe",
             bio: "JJ bio",
             imageURI: "http://example.com",
@@ -537,8 +571,11 @@ describe 'NameRegistry contract' do
     token_uri = ContractTransaction.make_static_call(
       contract: registry_address,
       function_name: "tokenURI",
-      function_args: 5
+      function_args: tokenid
     )
+    
+    # registry_contract = Contract.find_by(address: registry_address)
+    # binding.pry
     
     # Clipboard.copy(JSON.parse(token_uri[/.*?,(.*)/, 1])['animation_url'])
     # puts JSON.parse(token_uri[/.*?,(.*)/, 1])['animation_url']

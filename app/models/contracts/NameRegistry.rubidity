@@ -72,7 +72,12 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRe
 
     require(durationInSeconds >= s.minRegistrationDuration, 'Duration too short')
     
-    _registerName(to: to, name: name, durationInSeconds: durationInSeconds)
+    _registerName(
+      to: to,
+      name: name,
+      durationInSeconds: durationInSeconds,
+      forcedTokenId: 0
+    )
     
     if to == msg.sender && s.userToPrimaryNameTokenId[msg.sender] == 0
       tokenId = s.nameToTokenId[name]
@@ -98,7 +103,12 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRe
     )
   end
   
-  function :_registerName, { to: :address, name: :string, durationInSeconds: :uint256 }, :internal do
+  function :_registerName, {
+    to: :address,
+    name: :string,
+    durationInSeconds: :uint256,
+    forcedTokenId: :uint256
+  }, :internal do
     require(nameAvailable(name), 'Name not available')
     require(nameIsValid(name), 'Invalid name')
     
@@ -108,7 +118,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRe
       # Name expired, burn it
       _burn(tokenId)
     else
-      tokenId = s.nextTokenId
+      tokenId = forcedTokenId > 0 ? forcedTokenId : s.nextTokenId
       s.nextTokenId += 1
     end
     
@@ -142,7 +152,12 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRe
     nil
   end
   
-  function :importFromPreregistration, { names: [:string], owners: [:address], durations: [:uint256] }, :public do
+  function :importFromPreregistration, {
+    names: [:string],
+    owners: [:address],
+    durations: [:uint256],
+    tokenIds: [:uint256],
+  }, :public do
     onlyOwner!
     
     require(!s.preregistrationComplete, 'Preregistration must not be complete')
@@ -154,7 +169,12 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRe
     forLoop(
       condition: -> i { i < names.length }
     ) do |i|
-      _registerName(to: owners[i], name: names[i], durationInSeconds: durations[i])
+      _registerName(
+        to: owners[i],
+        name: names[i],
+        durationInSeconds: durations[i],
+        forcedTokenId: tokenIds[i]
+      )
     end
   end
   
