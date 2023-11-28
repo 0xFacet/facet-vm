@@ -8,6 +8,10 @@ class MappingVariable < TypedVariable
     value.serialize
   end
   
+  def toPackedBytes
+    raise TypeError, "Cannot pack mappings"
+  end
+  
   class Value
     extend AttrPublicReadPrivateWrite
     

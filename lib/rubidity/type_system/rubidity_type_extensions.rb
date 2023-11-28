@@ -7,11 +7,24 @@ module RubidityTypeExtensions
     def isAlphaNumeric?
       TypedVariable.create(:bool, !!(value =~ /\A[a-z0-9]+\z/i))
     end
+    
+    def toPackedBytes
+      TypedVariable.create(:bytes, "0x" + value.unpack1('H*'))
+    end
   end
 
   module UintOrIntMethods
     def toString
       value.to_s
+    end
+    
+    def toPackedBytes
+      bit_length = type.extract_integer_bits
+      
+      hex = (value % 2 ** bit_length).to_s(16)
+      result = hex.rjust(bit_length / 4, '0')
+      
+      TypedVariable.create(:bytes, "0x" + result)
     end
   end
   

@@ -139,6 +139,10 @@ class TypedVariable
     hash == other.hash
   end
   
+  def toPackedBytes
+    TypedVariable.create(:bytes, value)
+  end
+  
   private
   
   def extend_with_type_methods

@@ -15,6 +15,10 @@ class ContractVariable < TypedVariable
     value.respond_to?(name, include_private) || super
   end
 
+  def toPackedBytes
+    TypedVariable.create(:address, value.address).toPackedBytes
+  end
+
   class Value
     include ContractErrors
     extend AttrPublicReadPrivateWrite
