@@ -146,6 +146,16 @@ class FunctionProxy
     args.values.each do |type|
       Type.create(type)
     end
+    
+    return unless returns.present?
+    
+    if returns.is_a?(Hash)
+      returns.values.each{|i| Type.create(i)}
+    else
+      Type.create(returns)
+    end
+  rescue TypeError => e
+    raise ContractDefinitionError.new(e.message)
   end
   
   def self.create(name, args, *options, returns: nil, &block)
