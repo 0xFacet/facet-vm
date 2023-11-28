@@ -8,6 +8,8 @@ RSpec.describe ContractCall, type: :model do
   end
   
   it 'calculates eoa_nonce correctly' do
+    initial_nonce = ContractCall.new(from_address: from_address).eoa_nonce
+    
     receipt = trigger_contract_interaction_and_expect_success(
       from: from_address,
       payload: {
@@ -48,8 +50,9 @@ RSpec.describe ContractCall, type: :model do
       }
     )
     
-    contract_call = ContractCall.new(from_address: from_address)
-    expect(contract_call.eoa_nonce).to eq(3)
+    final_nonce = ContractCall.new(from_address: from_address).eoa_nonce
+    
+    expect(final_nonce - initial_nonce).to eq(3)
   end
   
   it 'calculates contract_nonce correctly' do
