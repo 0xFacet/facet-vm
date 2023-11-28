@@ -8,6 +8,15 @@ class ArrayVariable < TypedVariable
     value.data.map(&:serialize)
   end
   
+  def toPackedBytes
+    res = value.data.map do |arg|
+      bytes = arg.toPackedBytes
+      bytes = bytes.value.sub(/\A0x/, '')
+    end.join
+    
+    ::TypedVariable.create(:bytes, "0x" + res)
+  end
+  
   class Value
     extend AttrPublicReadPrivateWrite
     

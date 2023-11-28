@@ -25,6 +25,12 @@ module CoreTypeExtensions
     def deserialize(*)
       raise TypeError.new("Cannot deserialize #{self}")
     end
+    
+    def toPackedBytes
+      res = value ? "0x01" : "0x00"
+      
+      TypedVariable.create(:bytes, res)
+    end
   end
   
   ::String.include Castable

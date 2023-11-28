@@ -214,11 +214,13 @@ class ContractImplementation < BasicObject
   end
   
   def keccak256(input)
-    input = input.to_s(16) if input.is_a?(::Integer)
+    input = ::TypedVariable.create_or_validate(:bytes, input)
     
-    str = ::TypedVariable.create(:string, input)
+    bin_input = ::Eth::Util.hex_to_bin(input.value)
     
-    "0x" + ::Digest::Keccak256.hexdigest(str.value)
+    hash = ::Digest::Keccak256.hexdigest(bin_input)
+    
+    ::TypedVariable.create_or_validate(:bytes32, "0x" + hash)
   end
   
   def type(var)
@@ -259,10 +261,12 @@ class ContractImplementation < BasicObject
   def abi
     ::Object.new.tap do |proxy|
       def proxy.encodePacked(*args)
-        args.map do |arg|
-          arg = Integer(arg, 16)
-          arg.to_s(16).rjust(64, '0')
+        res = args.map do |arg|
+          bytes = arg.toPackedBytes
+          bytes = bytes.value.sub(/\A0x/, '')
         end.join
+        
+        ::TypedVariable.create(:bytes, "0x" + res)
       end
     end
   end
