@@ -389,6 +389,7 @@ CREATE TABLE public.contracts (
     current_init_code_hash character varying,
     current_state jsonb DEFAULT '{}'::jsonb NOT NULL,
     address character varying NOT NULL,
+    deployed_successfully boolean NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_rails_03af4f4a44 CHECK (((address)::text ~ '^0x[a-f0-9]{40}$'::text)),
@@ -936,6 +937,20 @@ CREATE INDEX index_contracts_on_current_state ON public.contracts USING gin (cur
 --
 
 CREATE INDEX index_contracts_on_current_type ON public.contracts USING btree (current_type);
+
+
+--
+-- Name: index_contracts_on_deployed_successfully; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contracts_on_deployed_successfully ON public.contracts USING btree (deployed_successfully);
+
+
+--
+-- Name: index_contracts_on_deployed_successfully_and_address; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contracts_on_deployed_successfully_and_address ON public.contracts USING btree (deployed_successfully, address);
 
 
 --

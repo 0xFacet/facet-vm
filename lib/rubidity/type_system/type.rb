@@ -25,13 +25,13 @@ class Type
   def initialize(type_name, metadata = {})
     if type_name.is_a?(Array)
       if type_name.length != 1
-        raise "Invalid array type #{type_name.inspect}"
+        raise TypeError.new("Invalid array type #{type_name.inspect}")
       end
       
       value_type = type_name.first
       
       if TYPES.exclude?(value_type)
-        raise "Invalid type #{value_type.inspect}"
+        raise TypeError.new("Invalid type #{value_type.inspect}")
       end
       
       metadata = { value_type: value_type }
@@ -41,7 +41,7 @@ class Type
     type_name = type_name.to_sym
     
     if TYPES.exclude?(type_name)
-      raise "Invalid type #{type_name}"
+      raise TypeError.new("Invalid type #{type_name.inspect}")
     end
     
     self.name = type_name.to_sym

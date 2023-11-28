@@ -8,7 +8,10 @@ class CreateContracts < ActiveRecord::Migration[7.1]
       t.string :current_init_code_hash
       t.jsonb :current_state, default: {}, null: false
       t.string :address, null: false
+      t.boolean :deployed_successfully, null: false
     
+      t.index :deployed_successfully
+      t.index [:deployed_successfully, :address]
       t.index :address, unique: true
       t.index :current_init_code_hash
       t.index :current_type
