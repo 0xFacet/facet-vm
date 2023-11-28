@@ -4,7 +4,12 @@ class BlocksController < ApplicationController
     per_page = (params[:per_page] || 50).to_i
     per_page = 50 if per_page > 50
     
-    scope = EthBlock.order(block_number: :desc)
+    scope = if system_start_block.present?
+      EthBlock.where("block_number >= ?", system_start_block).
+        order(block_number: :desc)
+    else
+      EthBlock.none
+    end
     
     cache_key = ["blocks_index", scope, page, per_page]
   
@@ -19,7 +24,14 @@ class BlocksController < ApplicationController
   end
 
   def show
-    eth_block = EthBlock.find_by(block_number: params[:id])
+    scope = if system_start_block.present?
+      EthBlock.where("block_number >= ?", system_start_block).
+        where(block_number: params[:id])
+    else
+      EthBlock.none
+    end
+    
+    eth_block = scope.first
 
     if eth_block.blank?
       render json: { error: "Block not found" }, status: 404
@@ -32,10 +44,20 @@ class BlocksController < ApplicationController
   end
 
   def total
-    total_blocks = EthBlock.count
-
+    total_blocks = if system_start_block.present?
+      EthBlock.where("block_number >= ?", system_start_block).count
+    else
+      0
+    end
+    
     render json: {
       result: convert_int_to_string(total_blocks)
     }
+  end
+  
+  private
+  
+  def system_start_block
+    SystemConfigVersion.current.start_block_number
   end
 end
