@@ -198,7 +198,7 @@ class Type
         return literal
       end
       
-      unless literal.is_a?(String) && literal.match?(/\A0x[a-fA-F0-9]*\z/) && literal.size.even?
+      unless literal.is_a?(String) && literal.match?(/\A0x[a-fA-F0-9]+\z/) && literal.size.even?
         raise_variable_type_error(literal)
       end
       

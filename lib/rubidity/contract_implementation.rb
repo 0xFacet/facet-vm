@@ -261,6 +261,10 @@ class ContractImplementation < BasicObject
   def abi
     ::Object.new.tap do |proxy|
       def proxy.encodePacked(*args)
+        if args.all? {|arg| arg.value == '' }
+          raise "Can't encode empty bytes"
+        end
+        
         res = args.map do |arg|
           bytes = arg.toPackedBytes
           bytes = bytes.value.sub(/\A0x/, '')

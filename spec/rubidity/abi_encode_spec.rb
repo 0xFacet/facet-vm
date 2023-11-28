@@ -19,6 +19,37 @@ describe 'toPackedBytes' do
     expect(variable.toPackedBytes.value).to eq(address)
   end
 
+  it 'correctly encodes large integers' do
+    large_num = TypedVariable.create(:uint256, 2**256 - 1)
+    packed = dc.new.send(:abi).encodePacked(large_num)
+    expected = "0x" + ("f" * 64)
+    expect(packed.value).to eq(expected)
+  end
+  
+  it 'raises an error when trying to encode an empty byte string' do
+    empty_bytes = TypedVariable.create(:bytes)
+    empty_string = TypedVariable.create(:string)
+  
+    expect { 
+      dc.new.send(:abi).encodePacked(empty_bytes, empty_string)
+    }.to raise_error("Can't encode empty bytes")
+  end  
+  
+  it 'correctly encodes zero values' do
+    zero_int = TypedVariable.create(:int32, 0)
+    packed = dc.new.send(:abi).encodePacked(zero_int)
+    expect(packed.value).to eq("0x00000000")
+  end  
+  
+  it 'correctly encodes mixed data types' do
+    int_var = TypedVariable.create(:int32, 1)
+    string_var = TypedVariable.create(:string, "test")
+    address_var = TypedVariable.create(:address, "0x123456789abcdef0123456789abcdef012345679")
+    packed = dc.new.send(:abi).encodePacked(int_var, string_var, address_var)
+    expected = "0x00000001" + "test".unpack1('H*') + "123456789abcdef0123456789abcdef012345679"
+    expect(packed.value).to eq(expected)
+  end
+  
   it 'handles booleans' do
     variable = TypedVariable.create(:bool, true)
     expect(variable.toPackedBytes.value).to eq("0x01")
