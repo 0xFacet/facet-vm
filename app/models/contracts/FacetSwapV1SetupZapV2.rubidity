@@ -58,7 +58,9 @@ contract :FacetSwapV1SetupZapV2 do
     names.push("Peridot")
     symbols.push("PERI")
     
-    for i in 0...names.length
+    forLoop(
+      condition: -> i { i < names.length },
+    ) do |i|
       supply = ((i + 1) * 2000).ether
       
       token = new PublicMintERC20(

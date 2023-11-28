@@ -32,7 +32,9 @@ contract :EtherBridgeV2Test, is: [:ERC20, :Upgradeable], upgradeable: true do
   function :onUpgrade, { usersToProcess: [:address] }, :public do
     require(msg.sender == address(this), "Only the contract can call this function")
     
-    for i in 0...usersToProcess.length
+    forLoop(
+      condition: -> i { i < usersToProcess.length },
+    ) do |i|
       user = usersToProcess[i]
       
       require(s.pendingUserWithdrawalIds[user].length == 1, "Migration not possible")
@@ -45,8 +47,6 @@ contract :EtherBridgeV2Test, is: [:ERC20, :Upgradeable], upgradeable: true do
       
       s.withdrawalIdAmount[withdrawalId] = amount
     end
-    
-    nil
   end
   
   function :bridgeIn, { to: :address, amount: :uint256 }, :public do
