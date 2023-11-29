@@ -28,6 +28,10 @@ class Ethscription < ApplicationRecord
     processing_state != "pending"
   end
   
+  def self.required_initial_owner
+    "0x00000000000000000000000000000000000face7"
+  end
+  
   def process!(persist:)
     Ethscription.transaction do
       if processed?
@@ -35,7 +39,7 @@ class Ethscription < ApplicationRecord
       end
       
       begin
-        unless initial_owner == ("0x" + "0" * 40)
+        unless initial_owner == self.class.required_initial_owner
           raise InvalidEthscriptionError.new("Invalid initial owner: #{initial_owner}")
         end
         

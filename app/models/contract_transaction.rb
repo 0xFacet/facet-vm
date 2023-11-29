@@ -147,7 +147,7 @@ class ContractTransaction < ApplicationRecord
         block_timestamp: Time.zone.now.to_i,
         transaction_index: 1,
         content_uri: uri,
-        initial_owner: "0x" + "0" * 40,
+        initial_owner: Ethscription.required_initial_owner,
         mimetype: mimetype,
         processing_state: "pending"
       }
