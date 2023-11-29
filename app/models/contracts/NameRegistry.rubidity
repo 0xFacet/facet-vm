@@ -155,6 +155,11 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRe
       condition: -> i { i < names.length }
     ) do |i|
       _registerName(to: owners[i], name: names[i], durationInSeconds: durations[i])
+      
+      if s.userToPrimaryNameTokenId[owners[i]] == 0
+        tokenId = s.nameToTokenId[names[i]]
+        s.userToPrimaryNameTokenId[owners[i]] = tokenId
+      end
     end
   end
   
