@@ -26,7 +26,6 @@ class EthscriptionSync
         ContractTransaction.transaction_mimetype,
         SystemConfigVersion.system_mimetype
       ],
-      # initial_owner: "0x" + "0" * 40,
       max_ethscriptions: max_ethscriptions,
       max_blocks: max_blocks,
       past_ethscriptions_count: our_count
