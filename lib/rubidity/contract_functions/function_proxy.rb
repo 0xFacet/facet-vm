@@ -18,27 +18,42 @@ class FunctionProxy
   
   def as_json
     {
-      args: args_for_json,
+      inputs: args_for_json,
       override_modifiers: override_modifiers,
-      returns: returns,
+      outputs: returns_for_json,
       state_mutability: state_mutability,
       type: type,
-      visibility: visibility
+      visibility: visibility,
+      from_parent: from_parent,
     }.with_indifferent_access
   end
   
   def args_for_json
-    args.map do |name, type|
+    args.stringify_keys.map do |name, type|
       type = Type.create(type)
       
       if type.array?
-        [name, "#{type.value_type}[#{type.initial_length}]"]
+        { name: name, type: "#{type.value_type}[#{type.initial_length}]" }
       elsif type.is_value_type?
-        [name, type.name.to_s]
+        { name: name, type: type.name.to_s }
       else
         raise "Invalid ABI serialization"
       end
-    end.to_h.with_indifferent_access
+    end
+  end
+  
+  def returns_for_json
+    return [] if returns.nil?
+    
+    if returns.is_a?(Hash)
+      returns.stringify_keys.map do |name, type|
+        type = Type.create(type)
+        { name: name, type: type.name.to_s }
+      end
+    else
+      type = Type.create(returns)
+      [{ type: type.name.to_s }]
+    end
   end
   
   def arg_names

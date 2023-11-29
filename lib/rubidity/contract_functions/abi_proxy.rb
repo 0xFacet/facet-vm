@@ -12,6 +12,12 @@ class AbiProxy
     merge_parent_events
   end
   
+  def as_json
+    data.map do |name, function_definition|
+      function_definition.as_json.merge(name: name)
+    end
+  end
+  
   def merge_parent_events
     parent_events = contract_class.linearized_parents.map(&:events).reverse
     contract_class.events = parent_events.reduce({}, :merge).merge(contract_class.events)
