@@ -70,7 +70,7 @@ class ContractArtifact < ApplicationRecord
       contract_classes.reject!(&:is_abstract_contract) if deployable_only
       
       contract_classes.each_with_object({}) do |contract_class, hash|
-        hash[contract_class.name] = contract_class.public_abi
+        hash[contract_class.name] = contract_class.abi.as_json
       end
     end
   end
