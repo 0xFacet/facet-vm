@@ -1,4 +1,6 @@
 class ArrayVariable < TypedVariable
+  MAX_ARRAY_LENGTH = 25
+  
   def initialize(...)
     super(...)
     value.on_change = on_change
@@ -67,6 +69,7 @@ class ArrayVariable < TypedVariable
       index_var = TypedVariable.create_or_validate(:uint256, index, on_change: on_change)
       
       raise "Sparse arrays are not supported" if index_var > data.size
+      raise "Max array length is #{MAX_ARRAY_LENGTH}" if index_var >= MAX_ARRAY_LENGTH
 
       old_value = self.data[index_var]
       val_var = TypedVariable.create_or_validate(value_type, value, on_change: on_change)

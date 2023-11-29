@@ -1,4 +1,6 @@
 class Type
+  MAX_STRING_LENGTH = 96.kilobytes
+  
   include ContractErrors
   
   attr_accessor :name, :metadata, :key_type, :value_type, :initial_length
@@ -154,7 +156,7 @@ class Type
         raise_variable_type_error(literal)
       end
       
-      return literal.downcase
+      return literal.downcase.freeze
     elsif is_uint?
       if literal.is_a?(String)
         literal = parse_integer(literal)
@@ -180,6 +182,10 @@ class Type
         raise_variable_type_error(literal)
       end
       
+      if literal.bytesize > MAX_STRING_LENGTH
+        raise_variable_type_error(literal)
+      end
+      
       return literal.freeze
     elsif bool?
       unless literal == true || literal == false
@@ -192,7 +198,7 @@ class Type
         raise_variable_type_error(literal)
       end
       
-      return literal.downcase
+      return literal.downcase.freeze
     elsif bytes?
       if literal.is_a?(String) && literal.length == 0
         return literal
@@ -202,7 +208,11 @@ class Type
         raise_variable_type_error(literal)
       end
       
-      return literal.downcase
+      if literal.length / 2 > MAX_STRING_LENGTH
+        raise_variable_type_error(literal)
+      end
+      
+      return literal.downcase.freeze
     elsif mapping?
       if literal.is_a?(MappingVariable::Value)
         return literal

@@ -60,7 +60,7 @@ module ContractTestHelper
     
     payload = {
       op: "updateAdminAddress",
-      data: "0x1230000000000000000000000000000000000001"
+      data: "0xF2dEe376De4167b8570389e8386Ea11233da0ae2"
     }
     
     uri = %{#{mimetype};rule=esip6,#{payload.to_json}}
@@ -81,6 +81,8 @@ module ContractTestHelper
     }
     
     Ethscription.new(ethscription_attrs).process!(persist: true)
+    
+    uri
   end
   
   def self.set_initial_start_block
@@ -130,6 +132,7 @@ module ContractTestHelper
     }
     
     Ethscription.new(ethscription_attrs).process!(persist: true)
+    uri
   end
   
   def self.set_initial_supported_contracts
@@ -261,6 +264,7 @@ module ContractTestHelper
     }
     
     Ethscription.new(ethscription_attrs).process!(persist: true)
+    uri
   end
   
   def self.trigger_contract_interaction(
