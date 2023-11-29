@@ -76,7 +76,7 @@ class ContractArtifact < ApplicationRecord
   end
   
   def set_abi
-    self.abi = build_class.public_abi
+    self.abi = build_class.abi
   end
   
   def dependencies_and_self
