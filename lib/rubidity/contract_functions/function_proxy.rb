@@ -19,12 +19,12 @@ class FunctionProxy
   def as_json
     {
       inputs: args_for_json,
-      override_modifiers: override_modifiers,
+      overrideModifiers: override_modifiers,
       outputs: returns_for_json,
-      state_mutability: state_mutability,
+      stateMutability: state_mutability,
       type: type,
       visibility: visibility,
-      from_parent: from_parent,
+      fromParent: from_parent,
     }.with_indifferent_access
   end
   
