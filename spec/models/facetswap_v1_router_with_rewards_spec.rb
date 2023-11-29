@@ -9,6 +9,12 @@ describe 'FacetSwapV1Router contract' do
   let(:all_addresses) { [user_address, alice, bob, charlie] }
   let(:start_time) { Time.zone.now }
   
+  before(:all) do
+    update_supported_contracts(
+      'FacetSwapV1RouterWithRewards'
+    )
+  end
+  
   def sqrt(integer)
     integer = TypedVariable.create_or_validate(:uint256, integer)
 

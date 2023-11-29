@@ -8,6 +8,8 @@ RSpec.describe Contract, type: :model do
     update_supported_contracts(
       "ERC20LiquidityPool",
       "EtherBridgeV1Test",
+      "OpenEditionERC721",
+      "GenerativeERC721",
       "EtherBridgeV2Test"
     )
   end
