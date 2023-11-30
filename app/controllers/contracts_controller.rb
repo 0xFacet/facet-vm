@@ -122,8 +122,13 @@ class ContractsController < ApplicationController
   
   def simulate_transaction
     from = params[:from]
-    tx_payload = JSON.parse(params[:tx_payload])
-  
+    
+    tx_payload = if request.method == 'POST'
+      JSON.parse(request.raw_post)
+    else
+      JSON.parse(params[:tx_payload])
+    end
+    
     begin
       receipt = ContractTransaction.simulate_transaction(
         from: from, tx_payload: tx_payload
