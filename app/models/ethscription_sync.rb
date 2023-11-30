@@ -30,7 +30,7 @@ class EthscriptionSync
       max_blocks: max_blocks,
       past_ethscriptions_count: our_count
     }
-    ap query
+    
     headers = {
       "Accept" => "application/json"
     }
