@@ -26,10 +26,7 @@ describe 'NameRegistry contract' do
     weth_address = weth_deploy.address
     
     char_count_to_usd_cents_price_per_year = [
-      1000_00, # 1 character
-      500_00,  # 2 characters
-      250_00,  # 3 characters, and so on...
-      100_00   # 4 characters
+      10_000_00, 1_000_00, 500_00, 100_00, 10_00,
     ]
     
     char_count_to_wei_usd_per_sec = char_count_to_usd_cents_price_per_year.map do |price_cents|

@@ -287,6 +287,12 @@ contract :NameRegistryRenderer, abstract: true do
     }
   end
   
+  function :updateCardTemplate, { cardTemplate: :string }, :public do
+    onlyOwner!
+    
+    s.cardTemplate = cardTemplate
+  end
+  
   function :_clearCardPersonalInfo, { tokenId: :uint256 }, :internal do
     _clearCardDetails(tokenId)
     _clearStickers(tokenId)
