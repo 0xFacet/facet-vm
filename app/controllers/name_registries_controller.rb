@@ -22,8 +22,9 @@ class NameRegistriesController < ApplicationController
       cards = token_ids_owned_by_address.map do |token_id|
         html_string = impl.renderCard(token_id)
         
-        match = html_string.match(/window\.s = (.*?);/)
-        json_string = match[1] if match
+        json_string = html_string.value.split("window.s = ")[1].
+          split("document.open()")[0].strip.sub(/;\z/, '')
+        
         JSON.parse(json_string)
       end
       
