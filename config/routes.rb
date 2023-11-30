@@ -16,6 +16,12 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :name_registries, only: [] do
+    collection do
+      get '/owned-by-address', to: 'name_registries#owned_by_address'
+    end
+  end
+  
   resources :blocks, only: [:index, :show] do
     collection do
       get '/total', to: 'blocks#total'
