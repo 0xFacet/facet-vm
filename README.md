@@ -64,7 +64,7 @@ Migrate the database schema:
 rails db:migrate
 ```
 
-Set up your env vars by renaming `.sample.env` to `.env`. The most important env var is `INDEXER_API_BASE_URI`. This is the indexer you will use to get ethscriptions relevant to the Facet VM. By default it is set to use the ethscriptions.com indexer, which is free.
+Set up your env vars by renaming `.sample.env` to `.env`.
 
 Run the tests to make sure everything is set up correctly:
 
@@ -92,7 +92,7 @@ Now start the web server on a port of your choice, for example 4000:
 rails s -p 4000
 ```
 
-Now you can see all your contract interactions at `http://localhost:4000/contracts/:contract_id/call-receipts` and call contract static functions at `http://localhost:4000/contracts/:contract_id/static-call/:function_name`.
+Now you can see all your contract interactions at `http://localhost:4000/transactions` and call contract static functions at `http://localhost:4000/contracts/:contract_id/static-call/:function_name`.
 
 If you want to debug your app you can run `rails c` to open up a console. Once in the console you can run things like `Ethscription.count` to see the total number of ethscriptions that have been processed and `TransactionReceipt.all` to list all contract transaction receipts.
 
