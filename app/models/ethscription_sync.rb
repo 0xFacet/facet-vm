@@ -30,7 +30,7 @@ class EthscriptionSync
       max_blocks: max_blocks,
       past_ethscriptions_count: our_count
     }
-    
+    ap query
     headers = {
       "Accept" => "application/json"
     }
@@ -55,11 +55,23 @@ class EthscriptionSync
     
     EthBlock.transaction do
       db_blocks = EthBlock.order(block_number: :desc).limit(100)
-  
-      api_blocks = fetch_ethscriptions(db_blocks.last.block_number, max_blocks: 101)['blocks']
+
+      url = ENV.fetch("INDEXER_API_BASE_URI") + "/blocks/newer_blocks"
+    
+      query = {
+        block_number: db_blocks.last.block_number,
+      }
       
+      headers = {
+        "Accept" => "application/json"
+      }
+      
+      response = HTTParty.get(url, query: query, headers: headers)
+      
+      api_blocks = response.parsed_response
+
       db_block_hash_map = db_blocks.each_with_object({}) { |block, hash| hash[block.block_number] = block.blockhash }
-      api_block_hash_map = api_blocks.each_with_object({}) { |block, hash| hash[block['block_number']] = block['blockhash'] }
+      api_block_hash_map = api_blocks.each_with_object({}) { |block, hash| hash[block['block_number']] = block['block_hash'] }
       
       common_block_numbers = db_block_hash_map.keys & api_block_hash_map.keys
 
