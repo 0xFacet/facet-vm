@@ -2,6 +2,7 @@ class CreateContractArtifacts < ActiveRecord::Migration[7.1]
   def change
     create_table :contract_artifacts, force: :cascade do |t|
       t.string :transaction_hash, null: false
+      t.bigint :internal_transaction_index, null: false
       t.bigint :block_number, null: false
       t.bigint :transaction_index, null: false
       t.string :name, null: false
@@ -11,6 +12,8 @@ class CreateContractArtifacts < ActiveRecord::Migration[7.1]
       t.string :pragma_language, null: false
       t.string :pragma_version, null: false
     
+      t.index [:block_number, :transaction_index, :internal_transaction_index], unique: true
+      t.index [:transaction_hash, :internal_transaction_index], unique: true
       t.index :init_code_hash, unique: true
       t.index :name
     

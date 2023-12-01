@@ -7,7 +7,11 @@ class ContractArtifact < ApplicationRecord
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
   
   scope :newest_first, -> {
-    order(block_number: :desc, transaction_index: :desc) 
+    order(
+      block_number: :desc,
+      transaction_index: :desc,
+      internal_transaction_index: :desc
+    ) 
   }
   
   attr_accessor :abi

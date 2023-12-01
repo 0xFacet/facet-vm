@@ -104,6 +104,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
       artifact.attributes.merge(
         block_number: block.number.value,
         transaction_index: transaction_index,
+        internal_transaction_index: current_call.internal_transaction_index,
       )
     )
     

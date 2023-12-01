@@ -10,27 +10,6 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- Name: heroku_ext; Type: SCHEMA; Schema: -; Owner: -
---
-
-CREATE SCHEMA heroku_ext;
-
-
---
--- Name: pg_stat_statements; Type: EXTENSION; Schema: -; Owner: -
---
-
-CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA public;
-
-
---
--- Name: EXTENSION pg_stat_statements; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION pg_stat_statements IS 'track planning and execution statistics of all SQL statements executed';
-
-
---
 -- Name: check_block_order(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -224,6 +203,7 @@ CREATE TABLE public.ar_internal_metadata (
 CREATE TABLE public.contract_artifacts (
     id bigint NOT NULL,
     transaction_hash character varying NOT NULL,
+    internal_transaction_index bigint NOT NULL,
     block_number bigint NOT NULL,
     transaction_index bigint NOT NULL,
     name character varying NOT NULL,
@@ -288,14 +268,14 @@ CREATE TABLE public.contract_calls (
     CONSTRAINT chk_rails_028f647531 CHECK ((((call_type)::text <> 'create'::text) OR (created_contract_address IS NOT NULL))),
     CONSTRAINT chk_rails_0351aa702f CHECK (((created_contract_address IS NULL) OR ((created_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_1a921ba712 CHECK ((((call_type)::text <> 'call'::text) OR (to_contract_address IS NOT NULL))),
-    CONSTRAINT chk_rails_27a87dcd58 CHECK (((call_type)::text = ANY (ARRAY[('call'::character varying)::text, ('create'::character varying)::text]))),
+    CONSTRAINT chk_rails_27a87dcd58 CHECK (((call_type)::text = ANY ((ARRAY['call'::character varying, 'create'::character varying])::text[]))),
     CONSTRAINT chk_rails_392c3d2c8e CHECK (((to_contract_address IS NULL) <> (created_contract_address IS NULL))),
     CONSTRAINT chk_rails_399807917b CHECK (((((status)::text = 'failure'::text) AND (logs = '[]'::jsonb)) OR ((status)::text = 'success'::text))),
     CONSTRAINT chk_rails_39b26367fa CHECK (((((status)::text = 'failure'::text) AND (error IS NOT NULL)) OR (((status)::text = 'success'::text) AND (error IS NULL)))),
     CONSTRAINT chk_rails_634aef3d55 CHECK (((effective_contract_address IS NULL) OR ((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_b5e513ec63 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_cebfc1a4ba CHECK (((to_contract_address IS NULL) OR ((to_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
-    CONSTRAINT chk_rails_db6bb5ee1f CHECK (((status)::text = ANY (ARRAY[('success'::character varying)::text, ('failure'::character varying)::text]))),
+    CONSTRAINT chk_rails_db6bb5ee1f CHECK (((status)::text = ANY ((ARRAY['success'::character varying, 'failure'::character varying])::text[]))),
     CONSTRAINT chk_rails_dc9b9d8a70 CHECK (((((call_type)::text = 'create'::text) AND ((effective_contract_address)::text = (created_contract_address)::text)) OR (((call_type)::text = 'call'::text) AND ((effective_contract_address)::text = (to_contract_address)::text)))),
     CONSTRAINT chk_rails_f785dc90f8 CHECK (((from_address)::text ~ '^0x[a-f0-9]{40}$'::text))
 );
@@ -453,7 +433,7 @@ CREATE TABLE public.eth_blocks (
     transaction_count bigint,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT chk_rails_11dbe1957f CHECK (((processing_state)::text = ANY (ARRAY[('no_ethscriptions'::character varying)::text, ('pending'::character varying)::text, ('complete'::character varying)::text]))),
+    CONSTRAINT chk_rails_11dbe1957f CHECK (((processing_state)::text = ANY ((ARRAY['no_ethscriptions'::character varying, 'pending'::character varying, 'complete'::character varying])::text[]))),
     CONSTRAINT chk_rails_1c105acdac CHECK (((parent_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_4f6ef583f4 CHECK ((((processing_state)::text <> 'complete'::text) OR (transaction_count IS NOT NULL))),
     CONSTRAINT chk_rails_7e9881ece2 CHECK (((blockhash)::text ~ '^0x[a-f0-9]{64}$'::text))
@@ -507,7 +487,7 @@ CREATE TABLE public.ethscriptions (
     CONSTRAINT chk_rails_84591e2730 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_b577b97822 CHECK (((creator)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_c97e7f929f CHECK ((((processing_state)::text = 'failure'::text) OR (processing_error IS NULL))),
-    CONSTRAINT chk_rails_ca0ea47752 CHECK (((processing_state)::text = ANY (ARRAY[('pending'::character varying)::text, ('success'::character varying)::text, ('failure'::character varying)::text]))),
+    CONSTRAINT chk_rails_ca0ea47752 CHECK (((processing_state)::text = ANY ((ARRAY['pending'::character varying, 'success'::character varying, 'failure'::character varying])::text[]))),
     CONSTRAINT chk_rails_df21fdbe02 CHECK (((initial_owner)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_fb6493689d CHECK ((((processing_state)::text <> 'failure'::text) OR (processing_error IS NOT NULL)))
 );
@@ -613,10 +593,10 @@ CREATE TABLE public.transaction_receipts (
     CONSTRAINT chk_rails_8b922d101f CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_a636a2bc58 CHECK (((to_contract_address IS NULL) OR ((to_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_a65f1aca4b CHECK (((created_contract_address IS NULL) OR ((created_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
-    CONSTRAINT chk_rails_a983f9ad8b CHECK (((call_type)::text = ANY (ARRAY[('call'::character varying)::text, ('create'::character varying)::text]))),
+    CONSTRAINT chk_rails_a983f9ad8b CHECK (((call_type)::text = ANY ((ARRAY['call'::character varying, 'create'::character varying])::text[]))),
     CONSTRAINT chk_rails_b5311d68b7 CHECK (((from_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_c2ccb79365 CHECK ((((call_type)::text <> 'call'::text) OR (to_contract_address IS NOT NULL))),
-    CONSTRAINT chk_rails_dab1f5e22a CHECK (((status)::text = ANY (ARRAY[('success'::character varying)::text, ('failure'::character varying)::text]))),
+    CONSTRAINT chk_rails_dab1f5e22a CHECK (((status)::text = ANY ((ARRAY['success'::character varying, 'failure'::character varying])::text[]))),
     CONSTRAINT chk_rails_e2780a945e CHECK (((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_f9b075c036 CHECK ((((call_type)::text <> 'create'::text) OR (created_contract_address IS NOT NULL)))
 );
@@ -800,6 +780,13 @@ CREATE UNIQUE INDEX idx_on_block_number_transaction_index_efc8dd9c1d ON public.s
 
 
 --
+-- Name: idx_on_block_number_transaction_index_internal_tran_570359f80e; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_block_number_transaction_index_internal_tran_570359f80e ON public.contract_artifacts USING btree (block_number, transaction_index, internal_transaction_index);
+
+
+--
 -- Name: idx_on_block_number_txi_internal_txi; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -807,17 +794,17 @@ CREATE UNIQUE INDEX idx_on_block_number_txi_internal_txi ON public.contract_call
 
 
 --
+-- Name: idx_on_transaction_hash_internal_transaction_index_c95378cab3; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_transaction_hash_internal_transaction_index_c95378cab3 ON public.contract_artifacts USING btree (transaction_hash, internal_transaction_index);
+
+
+--
 -- Name: idx_on_tx_hash_internal_txi; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX idx_on_tx_hash_internal_txi ON public.contract_calls USING btree (transaction_hash, internal_transaction_index);
-
-
---
--- Name: index_contract_artifacts_on_block_number_and_transaction_index; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_contract_artifacts_on_block_number_and_transaction_index ON public.contract_artifacts USING btree (block_number, transaction_index);
 
 
 --
@@ -832,13 +819,6 @@ CREATE UNIQUE INDEX index_contract_artifacts_on_init_code_hash ON public.contrac
 --
 
 CREATE INDEX index_contract_artifacts_on_name ON public.contract_artifacts USING btree (name);
-
-
---
--- Name: index_contract_artifacts_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_contract_artifacts_on_transaction_hash ON public.contract_artifacts USING btree (transaction_hash);
 
 
 --
@@ -1319,8 +1299,6 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
-('20231201181617'),
-('20231201175156'),
 ('20231113223006'),
 ('20231110173854'),
 ('20230824174647'),

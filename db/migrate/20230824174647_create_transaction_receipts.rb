@@ -27,7 +27,11 @@ class CreateTransactionReceipts < ActiveRecord::Migration[7.1]
       t.index :created_contract_address
       t.index :to_contract_address
       t.index :transaction_hash, unique: true
-    
+
+      t.index :runtime_ms
+      t.index :block_number
+      t.index [:block_number, :runtime_ms]
+
       t.check_constraint "effective_contract_address ~ '^0x[a-f0-9]{40}$'"
       t.check_constraint "to_contract_address IS NULL OR to_contract_address ~ '^0x[a-f0-9]{40}$'"
       t.check_constraint "created_contract_address IS NULL OR created_contract_address ~ '^0x[a-f0-9]{40}$'"
