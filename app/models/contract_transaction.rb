@@ -229,6 +229,7 @@ class ContractTransaction < ApplicationRecord
   def with_global_context
     TransactionContext.set(
       system_config: SystemConfigVersion.current,
+      latest_artifact_hash: ContractArtifact.latest_tx_hash,
       call_stack: CallStack.new(TransactionContext),
       current_transaction: self,
       tx_origin: tx_origin,

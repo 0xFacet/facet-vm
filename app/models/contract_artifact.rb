@@ -1,10 +1,14 @@
 class ContractArtifact < ApplicationRecord
+  CodeIntegrityError = Class.new(StandardError)
+  
   include ContractErrors
   extend Memoist
   
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
   
-  CodeIntegrityError = Class.new(StandardError)
+  scope :newest_first, -> {
+    order(block_number: :desc, transaction_index: :desc) 
+  }
   
   attr_accessor :abi
   
@@ -12,11 +16,19 @@ class ContractArtifact < ApplicationRecord
   before_validation :verify_ast_and_hash_on_save
   
   after_commit :flush_cache
-  delegate :reset, to: :class
   
   class << self
     include ContractErrors
     extend Memoist
+    
+    def latest_tx_hash
+      newest_first.limit(1).pluck(:transaction_hash).first
+    end
+    
+    def cached_class_as_of_tx_hash(init_code_hash, hash)
+      find_by(init_code_hash: init_code_hash)&.build_class
+    end
+    memoize :cached_class_as_of_tx_hash
     
     def all_contract_classes
       all.map(&:build_class).index_by(&:init_code_hash).with_indifferent_access

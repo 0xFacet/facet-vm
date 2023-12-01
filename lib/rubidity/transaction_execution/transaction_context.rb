@@ -2,7 +2,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
   attribute :call_stack, :current_call, :system_config,
-    :transaction_index, :current_transaction
+    :transaction_index, :current_transaction, :latest_artifact_hash
   
   delegate :get_active_contract, to: :current_transaction
   
@@ -39,13 +39,8 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   def supported_contract_class(init_code_hash, source_code = nil, validate: true)
     validate_contract_support(init_code_hash) if validate
     
-    existing_class = ContractArtifact.all_contract_classes[init_code_hash]
-    
-    return existing_class if existing_class
-    
-    artifact = find_artifact(init_code_hash) || create_artifact(init_code_hash, source_code)
-    
-    artifact.build_class
+    find_and_build_class(init_code_hash) ||
+      create_artifact_and_build_class(init_code_hash, source_code)
   end
   
   def log_event(event)
@@ -81,19 +76,26 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     end
   end
   
-  def find_artifact(init_code_hash)
+  def get_cached_class(init_code_hash)
+    ContractArtifact.cached_class_as_of_tx_hash(
+      init_code_hash,
+      latest_artifact_hash
+    )
+  end
+  
+  def find_and_build_class(init_code_hash)
     unless current_transaction
-      return ContractArtifact.find_by_init_code_hash(init_code_hash)
+      return get_cached_class(init_code_hash)
     end
     
     current = current_transaction.contract_artifacts.detect do |artifact|
       artifact.init_code_hash == init_code_hash
     end
   
-    current || ContractArtifact.find_by_init_code_hash(init_code_hash)
+    current&.build_class || get_cached_class(init_code_hash)
   end
   
-  def create_artifact(init_code_hash, source_code = nil)
+  def create_artifact_and_build_class(init_code_hash, source_code = nil)
     raise "Need source code to create new artifact" unless source_code
   
     artifact = RubidityTranspiler.new(source_code).get_desired_artifact(init_code_hash)
@@ -105,6 +107,6 @@ class TransactionContext < ActiveSupport::CurrentAttributes
       )
     )
     
-    artifact
+    artifact&.build_class
   end
 end
