@@ -38,6 +38,10 @@ RSpec.configure do |config|
   # instead of true.
   config.use_transactional_fixtures = true
   
+  config.before(:each) do
+    ContractArtifact.flush_cache
+  end
+  
   config.before(:suite) do
     EthBlock.delete_all
     ContractTestHelper.set_initial_admin_address

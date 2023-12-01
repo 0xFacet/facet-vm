@@ -38,7 +38,11 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   
   def supported_contract_class(init_code_hash, source_code = nil, validate: true)
     validate_contract_support(init_code_hash) if validate
-  
+    
+    existing_class = ContractArtifact.all_contract_classes[init_code_hash]
+    
+    return existing_class if existing_class
+    
     artifact = find_artifact(init_code_hash) || create_artifact(init_code_hash, source_code)
     
     artifact.build_class
