@@ -181,7 +181,7 @@ class ContractTransaction < ApplicationRecord
     end
 
     cache_key = [
-      fetched_block_number,
+      block_number,
       contract,
       function_name,
       function_args,
