@@ -1080,6 +1080,20 @@ CREATE UNIQUE INDEX index_system_config_versions_on_transaction_hash ON public.s
 
 
 --
+-- Name: index_transaction_receipts_on_block_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_transaction_receipts_on_block_number ON public.transaction_receipts USING btree (block_number);
+
+
+--
+-- Name: index_transaction_receipts_on_block_number_and_runtime_ms; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_transaction_receipts_on_block_number_and_runtime_ms ON public.transaction_receipts USING btree (block_number, runtime_ms);
+
+
+--
 -- Name: index_transaction_receipts_on_created_contract_address; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1091,6 +1105,13 @@ CREATE INDEX index_transaction_receipts_on_created_contract_address ON public.tr
 --
 
 CREATE INDEX index_transaction_receipts_on_effective_contract_address ON public.transaction_receipts USING btree (effective_contract_address);
+
+
+--
+-- Name: index_transaction_receipts_on_runtime_ms; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_transaction_receipts_on_runtime_ms ON public.transaction_receipts USING btree (runtime_ms);
 
 
 --
@@ -1298,6 +1319,7 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20231201181617'),
 ('20231201175156'),
 ('20231113223006'),
 ('20231110173854'),
