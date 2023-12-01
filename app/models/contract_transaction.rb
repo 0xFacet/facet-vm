@@ -172,16 +172,14 @@ class ContractTransaction < ApplicationRecord
     block_timestamp: nil,
     block_number: nil
   )
-    if block_timestamp.nil? || block_number.nil?
-      fetched_block_timestamp, fetched_block_number = EthBlock.processed.newest_first.limit(1).
-        pluck(:timestamp, :block_number).first.map(&:to_i)
-      
-      block_timestamp ||= fetched_block_timestamp + 12
-      block_number ||= fetched_block_number + 1
-    end
+    fetched_block_timestamp, fetched_block_number = EthBlock.processed.newest_first.limit(1).
+      pluck(:timestamp, :block_number).first.map(&:to_i)
+    
+    block_timestamp ||= fetched_block_timestamp + 12
+    block_number ||= fetched_block_number + 1
 
     cache_key = [
-      block_number,
+      fetched_block_number,
       contract,
       function_name,
       function_args,
