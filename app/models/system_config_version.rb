@@ -8,6 +8,10 @@ class SystemConfigVersion < ApplicationRecord
     order(block_number: :desc, transaction_index: :desc) 
   }
   
+  def self.latest_tx_hash
+    newest_first.limit(1).pluck(:transaction_hash).first
+  end
+  
   def self.system_mimetype
     "application/vnd.facet.system+json"
   end

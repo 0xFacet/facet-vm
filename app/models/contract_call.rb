@@ -76,7 +76,7 @@ class ContractCall < ApplicationRecord
   
   def find_and_validate_existing_contract!
     self.effective_contract = TransactionContext.get_active_contract(to_contract_address) ||
-      Contract.where(deployed_successfully: true, address: to_contract_address).first
+      Contract.find_by(deployed_successfully: true, address: to_contract_address)
     
     if effective_contract.blank?
       raise CallingNonExistentContractError.new("Contract not found: #{to_contract_address}")

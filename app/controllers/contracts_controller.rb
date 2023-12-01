@@ -147,7 +147,13 @@ class ContractsController < ApplicationController
     token_address = params[:token_address]
     user_address = params[:user_address]
   
-    cache_key = [:pairs_with_tokens, ContractState.all, router, token_address, user_address]
+    cache_key = [
+      :pairs_with_tokens,
+      EthBlock.max_processed_block_number,
+      router,
+      token_address,
+      user_address
+    ]
   
     pairs = Rails.cache.fetch(cache_key) do
       factory = make_static_call(

@@ -100,6 +100,7 @@ GEM
     crass (1.0.6)
     dalli (3.2.5)
     date (3.3.4)
+    descriptive_statistics (2.5.1)
     diff-lcs (1.5.0)
     dotenv (2.8.1)
     dotenv-rails (2.8.1)
@@ -297,6 +298,7 @@ DEPENDENCIES
   clipboard
   clockwork (~> 3.0)
   dalli (~> 3.2)
+  descriptive_statistics (~> 2.5)
   dotenv-rails (~> 2.8)
   eth (~> 0.5.11)
   httpparty (~> 0.2.0)

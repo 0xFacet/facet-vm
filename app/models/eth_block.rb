@@ -6,6 +6,12 @@ class EthBlock < ApplicationRecord
   scope :newest_first, -> { order(block_number: :desc) }
   scope :oldest_first, -> { order(block_number: :asc) }
   
+  scope :processed, -> { where.not(processing_state: "pending") }
+  
+  def self.max_processed_block_number
+    EthBlock.processed.maximum(:block_number).to_i
+  end
+  
   def self.process_contract_actions_until_done
     unprocessed_ethscriptions = Ethscription.unprocessed.count
     unimported_ethscriptions = Rails.cache.read("future_ethscriptions").to_i

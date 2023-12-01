@@ -203,6 +203,7 @@ CREATE TABLE public.ar_internal_metadata (
 CREATE TABLE public.contract_artifacts (
     id bigint NOT NULL,
     transaction_hash character varying NOT NULL,
+    internal_transaction_index bigint NOT NULL,
     block_number bigint NOT NULL,
     transaction_index bigint NOT NULL,
     name character varying NOT NULL,
@@ -779,10 +780,24 @@ CREATE UNIQUE INDEX idx_on_block_number_transaction_index_efc8dd9c1d ON public.s
 
 
 --
+-- Name: idx_on_block_number_transaction_index_internal_tran_570359f80e; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_block_number_transaction_index_internal_tran_570359f80e ON public.contract_artifacts USING btree (block_number, transaction_index, internal_transaction_index);
+
+
+--
 -- Name: idx_on_block_number_txi_internal_txi; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX idx_on_block_number_txi_internal_txi ON public.contract_calls USING btree (block_number, transaction_index, internal_transaction_index);
+
+
+--
+-- Name: idx_on_transaction_hash_internal_transaction_index_c95378cab3; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_transaction_hash_internal_transaction_index_c95378cab3 ON public.contract_artifacts USING btree (transaction_hash, internal_transaction_index);
 
 
 --
@@ -1045,6 +1060,20 @@ CREATE UNIQUE INDEX index_system_config_versions_on_transaction_hash ON public.s
 
 
 --
+-- Name: index_transaction_receipts_on_block_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_transaction_receipts_on_block_number ON public.transaction_receipts USING btree (block_number);
+
+
+--
+-- Name: index_transaction_receipts_on_block_number_and_runtime_ms; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_transaction_receipts_on_block_number_and_runtime_ms ON public.transaction_receipts USING btree (block_number, runtime_ms);
+
+
+--
 -- Name: index_transaction_receipts_on_created_contract_address; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1056,6 +1085,13 @@ CREATE INDEX index_transaction_receipts_on_created_contract_address ON public.tr
 --
 
 CREATE INDEX index_transaction_receipts_on_effective_contract_address ON public.transaction_receipts USING btree (effective_contract_address);
+
+
+--
+-- Name: index_transaction_receipts_on_runtime_ms; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_transaction_receipts_on_runtime_ms ON public.transaction_receipts USING btree (runtime_ms);
 
 
 --
