@@ -6,7 +6,7 @@ class EthBlock < ApplicationRecord
   scope :newest_first, -> { order(block_number: :desc) }
   scope :oldest_first, -> { order(block_number: :asc) }
   
-  scope :processed, -> { where(processing_state: "complete") }
+  scope :processed, -> { where.not(processing_state: "pending") }
   
   def self.max_processed_block_number
     EthBlock.processed.maximum(:block_number).to_i
