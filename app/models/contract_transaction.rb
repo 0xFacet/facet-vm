@@ -124,24 +124,24 @@ class ContractTransaction < ApplicationRecord
   end
   
   def self.simulate_transaction(from:, tx_payload:)
+    max_block_number = EthBlock.max_processed_block_number
+    
     cache_key = [
-      :simulate_transaction,
-      ContractState.all,
-      SystemConfigVersion.all,
-      EthBlock.all,
+      SystemConfigVersion.latest_tx_hash,
+      max_block_number,
       from,
       tx_payload
-    ]
+    ].to_cache_key(:simulate_transaction)
+    
+    cache_key = Digest::SHA256.hexdigest(cache_key)
   
     Rails.cache.fetch(cache_key) do
       mimetype = ContractTransaction.transaction_mimetype
       uri = %{#{mimetype},#{tx_payload.to_json}}
-  
-      block_number = EthBlock.maximum(:block_number).to_i + 1
       
       ethscription_attrs = {
         transaction_hash: "0x" + SecureRandom.hex(32),
-        block_number: block_number,
+        block_number: max_block_number + 1,
         block_blockhash: "0x" + SecureRandom.hex(32),
         creator: from.downcase,
         block_timestamp: Time.zone.now.to_i,
@@ -160,7 +160,7 @@ class ContractTransaction < ApplicationRecord
         transaction_receipt: eth.contract_transaction&.transaction_receipt,
         ethscription_status: eth.processing_state,
         ethscription_error: eth.processing_error,
-    }.with_indifferent_access
+      }.with_indifferent_access
     end
   end
   
@@ -169,10 +169,26 @@ class ContractTransaction < ApplicationRecord
     function_name:,
     function_args: {},
     msgSender: nil,
-    block_timestamp: EthBlock.maximum(:timestamp) + 12,
-    block_number: EthBlock.maximum(:block_number) + 1
+    block_timestamp: nil,
+    block_number: nil
   )
-    cache_key = [:make_static_call, ContractState.all, contract, function_name, function_args, msgSender]
+    if block_timestamp.nil? || block_number.nil?
+      fetched_block_timestamp, fetched_block_number = EthBlock.processed.newest_first.limit(1).
+        pluck(:timestamp, :block_number).first.map(&:to_i)
+      
+      block_timestamp ||= fetched_block_timestamp + 12
+      block_number ||= fetched_block_number + 1
+    end
+
+    cache_key = [
+      fetched_block_number,
+      contract,
+      function_name,
+      function_args,
+      msgSender
+    ].to_cache_key(:make_static_call)
+    
+    cache_key = Digest::SHA256.hexdigest(cache_key)
     
     Rails.cache.fetch(cache_key) do
       record = new(
