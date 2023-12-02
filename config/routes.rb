@@ -13,6 +13,7 @@ Rails.application.routes.draw do
       
       
       get "/pairs_with_tokens/:router", to: "contracts#pairs_with_tokens"
+      get "/pairs_for_router/", to: "contracts#pairs_for_router"
     end
   end
 
