@@ -8,6 +8,7 @@ class CreateEthBlocks < ActiveRecord::Migration[7.1]
       t.datetime :imported_at, null: false
       t.string :processing_state, null: false
       t.bigint :transaction_count
+      t.integer :runtime_ms
     
       t.index :block_number, unique: true
       t.index :block_number, where: "(processing_state = 'complete')", name: "index_eth_blocks_on_block_number_completed"
@@ -22,6 +23,7 @@ class CreateEthBlocks < ActiveRecord::Migration[7.1]
       t.check_constraint "blockhash ~ '^0x[a-f0-9]{64}$'"
       t.check_constraint "parent_blockhash ~ '^0x[a-f0-9]{64}$'"
       t.check_constraint "processing_state <> 'complete' OR transaction_count IS NOT NULL"
+      t.check_constraint "processing_state <> 'complete' OR runtime_ms IS NOT NULL"
       t.check_constraint "processing_state IN ('no_ethscriptions', 'pending', 'complete')"
       
       t.timestamps

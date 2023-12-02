@@ -55,7 +55,8 @@ module ContractTestHelper
       timestamp: Time.zone.now.to_i,
       imported_at: Time.zone.now,
       processing_state: "complete",
-      transaction_count: 0
+      transaction_count: 0,
+      runtime_ms: 0
     )
     
     payload = {
@@ -106,7 +107,8 @@ module ContractTestHelper
       timestamp: Time.zone.now.to_i,
       imported_at: Time.zone.now,
       processing_state: "complete",
-      transaction_count: 0
+      transaction_count: 0,
+      runtime_ms: 0
     )
     
     payload = {
@@ -243,7 +245,8 @@ module ContractTestHelper
       timestamp: Time.zone.now.to_i,
       imported_at: Time.zone.now,
       processing_state: "complete",
-      transaction_count: 0
+      transaction_count: 0,
+      runtime_ms: 0
     )
     
     ethscription_attrs = {
@@ -311,7 +314,8 @@ module ContractTestHelper
       timestamp: Time.zone.now.to_i,
       imported_at: Time.zone.now,
       processing_state: "complete",
-      transaction_count: 1
+      transaction_count: 1,
+      runtime_ms: 0
     )
     
     ethscription_attrs = {

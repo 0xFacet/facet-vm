@@ -391,10 +391,12 @@ CREATE TABLE public.eth_blocks (
     imported_at timestamp(6) without time zone NOT NULL,
     processing_state character varying NOT NULL,
     transaction_count bigint,
+    runtime_ms integer,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_rails_11dbe1957f CHECK (((processing_state)::text = ANY ((ARRAY['no_ethscriptions'::character varying, 'pending'::character varying, 'complete'::character varying])::text[]))),
     CONSTRAINT chk_rails_1c105acdac CHECK (((parent_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_2ba9f3c274 CHECK ((((processing_state)::text <> 'complete'::text) OR (runtime_ms IS NOT NULL))),
     CONSTRAINT chk_rails_4f6ef583f4 CHECK ((((processing_state)::text <> 'complete'::text) OR (transaction_count IS NOT NULL))),
     CONSTRAINT chk_rails_7e9881ece2 CHECK (((blockhash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
@@ -754,13 +756,6 @@ CREATE UNIQUE INDEX idx_on_block_number_transaction_index_internal_tran_570359f8
 
 
 --
--- Name: idx_on_block_number_transaction_index_processing_st_aac16dff3e; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_on_block_number_transaction_index_processing_st_aac16dff3e ON public.ethscriptions USING btree (block_number, transaction_index, processing_state);
-
-
---
 -- Name: idx_on_block_number_txi_internal_txi; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -960,14 +955,14 @@ CREATE UNIQUE INDEX index_eth_blocks_on_block_number ON public.eth_blocks USING 
 -- Name: index_eth_blocks_on_block_number_completed; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_eth_blocks_on_block_number_completed ON public.eth_blocks USING btree (block_number) WHERE ((processing_state)::text = 'complete'::text);
+CREATE INDEX index_eth_blocks_on_block_number_completed ON public.eth_blocks USING btree (block_number) WHERE ((processing_state)::text = 'complete'::text);
 
 
 --
 -- Name: index_eth_blocks_on_block_number_pending; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_eth_blocks_on_block_number_pending ON public.eth_blocks USING btree (block_number) WHERE ((processing_state)::text = 'pending'::text);
+CREATE INDEX index_eth_blocks_on_block_number_pending ON public.eth_blocks USING btree (block_number) WHERE ((processing_state)::text = 'pending'::text);
 
 
 --
@@ -1010,6 +1005,13 @@ CREATE INDEX index_eth_blocks_on_processing_state ON public.eth_blocks USING btr
 --
 
 CREATE INDEX index_eth_blocks_on_timestamp ON public.eth_blocks USING btree ("timestamp");
+
+
+--
+-- Name: index_ethscriptions_on_block_number_and_transaction_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_ethscriptions_on_block_number_and_transaction_index ON public.ethscriptions USING btree (block_number, transaction_index);
 
 
 --
