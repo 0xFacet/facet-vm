@@ -327,7 +327,7 @@ module ContractTestHelper
       processing_state: :pending
     }
     
-    eth = Ethscription.new(ethscription_attrs)
+    eth = Ethscription.create!(ethscription_attrs)
     eth.process!(persist: true)
     
     eth

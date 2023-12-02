@@ -120,33 +120,38 @@ module StateTestingUtils
       different_values.to_a.map{|i| i.last['differences']}
   end
   
-  def runtime_performance_stats
-    block_runtimes = TransactionReceipt.group(:block_number).sum(:runtime_ms)
-
+  def runtime_performance_stats(since = nil)
+    since = since&.to_i || 24.hours.ago.to_i
+  
+    block_runtimes = TransactionReceipt.joins(:eth_block).where('eth_blocks.timestamp >= ?', since).group(:block_number).sum(:runtime_ms)
+  
     block_runtimes_array = block_runtimes.values
-    
-    percentile_50 = block_runtimes_array.percentile(50).round
-    percentile_95 = block_runtimes_array.percentile(95).round
-    percentile_99 = block_runtimes_array.percentile(99).round
-    
-    puts "BLOCKS"
-    puts "50th percentile: #{percentile_50} ms"
-    puts "95th percentile: #{percentile_95} ms"
-    puts "99th percentile: #{percentile_99} ms"
-    
-    percentiles = TransactionReceipt.select("
+  
+    block_percentile_50 = block_runtimes_array.percentile(50).round
+    block_percentile_95 = block_runtimes_array.percentile(95).round
+    block_percentile_99 = block_runtimes_array.percentile(99).round
+  
+    percentiles = TransactionReceipt.where('block_timestamp >= ?', since).select("
       PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY runtime_ms) AS percentile_50,
       PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY runtime_ms) AS percentile_95,
       PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY runtime_ms) AS percentile_99
     ").take
-    
-    percentile_50 = percentiles.percentile_50
-    percentile_95 = percentiles.percentile_95
-    percentile_99 = percentiles.percentile_99
-    
-    puts "TRANSACTIONS"
-    puts "50th percentile: #{percentile_50} ms"
-    puts "95th percentile: #{percentile_95} ms"
-    puts "99th percentile: #{percentile_99} ms"
+  
+    transaction_percentile_50 = percentiles.percentile_50
+    transaction_percentile_95 = percentiles.percentile_95
+    transaction_percentile_99 = percentiles.percentile_99
+  
+    {
+      blocks: {
+        percentile_50: block_percentile_50,
+        percentile_95: block_percentile_95,
+        percentile_99: block_percentile_99
+      },
+      transactions: {
+        percentile_50: transaction_percentile_50,
+        percentile_95: transaction_percentile_95,
+        percentile_99: transaction_percentile_99
+      }
+    }
   end
 end

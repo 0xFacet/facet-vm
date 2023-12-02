@@ -66,32 +66,6 @@ CREATE FUNCTION public.check_ethscription_order() RETURNS trigger
 
 
 --
--- Name: check_ethscription_sequence(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.check_ethscription_sequence() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-      BEGIN
-        IF NEW.processing_state != 'pending' THEN
-          IF EXISTS (
-            SELECT 1
-            FROM ethscriptions
-            WHERE 
-              (block_number < NEW.block_number AND processing_state = 'pending')
-              OR 
-              (block_number = NEW.block_number AND transaction_index < NEW.transaction_index AND processing_state = 'pending')
-            LIMIT 1
-          ) THEN
-            RAISE EXCEPTION 'Previous ethscription with either a lower block number or a lower transaction index in the same block not yet processed';
-          END IF;
-        END IF;
-        RETURN NEW;
-      END;
-      $$;
-
-
---
 -- Name: check_status(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -119,20 +93,6 @@ CREATE FUNCTION public.delete_later_blocks() RETURNS trigger
     AS $$
       BEGIN
         DELETE FROM eth_blocks WHERE block_number > OLD.block_number;
-        RETURN OLD;
-      END;
-      $$;
-
-
---
--- Name: delete_later_ethscriptions(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.delete_later_ethscriptions() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-      BEGIN
-        DELETE FROM ethscriptions WHERE block_number > OLD.block_number OR (block_number = OLD.block_number AND transaction_index > OLD.transaction_index);
         RETURN OLD;
       END;
       $$;
@@ -773,6 +733,13 @@ ALTER TABLE ONLY public.transaction_receipts
 
 
 --
+-- Name: idx_on_address_deployed_successfully; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_address_deployed_successfully ON public.contracts USING btree (address) WHERE (deployed_successfully = true);
+
+
+--
 -- Name: idx_on_block_number_transaction_index_efc8dd9c1d; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -784,6 +751,13 @@ CREATE UNIQUE INDEX idx_on_block_number_transaction_index_efc8dd9c1d ON public.s
 --
 
 CREATE UNIQUE INDEX idx_on_block_number_transaction_index_internal_tran_570359f80e ON public.contract_artifacts USING btree (block_number, transaction_index, internal_transaction_index);
+
+
+--
+-- Name: idx_on_block_number_transaction_index_processing_st_aac16dff3e; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_block_number_transaction_index_processing_st_aac16dff3e ON public.ethscriptions USING btree (block_number, transaction_index, processing_state);
 
 
 --
@@ -965,7 +939,7 @@ CREATE INDEX index_contracts_on_deployed_successfully ON public.contracts USING 
 -- Name: index_contracts_on_deployed_successfully_and_address; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_contracts_on_deployed_successfully_and_address ON public.contracts USING btree (deployed_successfully, address);
+CREATE UNIQUE INDEX index_contracts_on_deployed_successfully_and_address ON public.contracts USING btree (deployed_successfully, address);
 
 
 --
@@ -986,14 +960,14 @@ CREATE UNIQUE INDEX index_eth_blocks_on_block_number ON public.eth_blocks USING 
 -- Name: index_eth_blocks_on_block_number_completed; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_eth_blocks_on_block_number_completed ON public.eth_blocks USING btree (block_number) WHERE ((processing_state)::text = 'complete'::text);
+CREATE UNIQUE INDEX index_eth_blocks_on_block_number_completed ON public.eth_blocks USING btree (block_number) WHERE ((processing_state)::text = 'complete'::text);
 
 
 --
 -- Name: index_eth_blocks_on_block_number_pending; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_eth_blocks_on_block_number_pending ON public.eth_blocks USING btree (block_number) WHERE ((processing_state)::text = 'pending'::text);
+CREATE UNIQUE INDEX index_eth_blocks_on_block_number_pending ON public.eth_blocks USING btree (block_number) WHERE ((processing_state)::text = 'pending'::text);
 
 
 --
@@ -1039,10 +1013,10 @@ CREATE INDEX index_eth_blocks_on_timestamp ON public.eth_blocks USING btree ("ti
 
 
 --
--- Name: index_ethscriptions_on_block_number_and_transaction_index; Type: INDEX; Schema: public; Owner: -
+-- Name: index_ethscriptions_on_processing_state; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_ethscriptions_on_block_number_and_transaction_index ON public.ethscriptions USING btree (block_number, transaction_index);
+CREATE INDEX index_ethscriptions_on_processing_state ON public.ethscriptions USING btree (processing_state);
 
 
 --
@@ -1116,13 +1090,6 @@ CREATE TRIGGER check_block_sequence_trigger BEFORE UPDATE OF processing_state ON
 
 
 --
--- Name: ethscriptions check_ethscription_sequence_trigger; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER check_ethscription_sequence_trigger BEFORE UPDATE OF processing_state ON public.ethscriptions FOR EACH ROW EXECUTE FUNCTION public.check_ethscription_sequence();
-
-
---
 -- Name: transaction_receipts check_status_trigger; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1148,13 +1115,6 @@ CREATE TRIGGER trigger_check_ethscription_order BEFORE INSERT ON public.ethscrip
 --
 
 CREATE TRIGGER trigger_delete_later_blocks AFTER DELETE ON public.eth_blocks FOR EACH ROW EXECUTE FUNCTION public.delete_later_blocks();
-
-
---
--- Name: ethscriptions trigger_delete_later_ethscriptions; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trigger_delete_later_ethscriptions AFTER DELETE ON public.ethscriptions FOR EACH ROW EXECUTE FUNCTION public.delete_later_ethscriptions();
 
 
 --
