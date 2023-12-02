@@ -37,7 +37,7 @@ class EthBlock < ApplicationRecord
       batch_ethscriptions_processed += just_processed
       unprocessed_ethscriptions -= just_processed
       
-      if iterations % 100 == 0
+      if iterations % 1 == 0
         curr_time = Time.current
         
         batch_elapsed_time = curr_time - batch_start_time
@@ -57,7 +57,7 @@ class EthBlock < ApplicationRecord
         batch_ethscriptions_processed = 0
       end
       
-      break unless unprocessed_ethscriptions > 0
+      break if iterations >= 10 || unprocessed_ethscriptions == 0
     end
   end
   
