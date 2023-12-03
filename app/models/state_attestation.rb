@@ -71,7 +71,9 @@ class StateAttestation < ApplicationRecord
   end
   
   def hashable_attributes(klass)
-    (klass.column_names - ['id', 'updated_at', 'created_at']).sort
+    klass.columns_hash.reject do |k, v|
+      v.type == :datetime || ['id', 'runtime_ms'].include?(k)
+    end.keys.sort
   end
   
   def quoted_hashable_attributes(klass)
