@@ -15,7 +15,8 @@ RSpec.describe Contract, type: :model do
       timestamp: Time.zone.now.to_i,
       imported_at: Time.zone.now,
       processing_state: "complete",
-      transaction_count: 2
+      transaction_count: 2,
+      runtime_ms: 0
     )
     
     @ethscription = Ethscription.create!(

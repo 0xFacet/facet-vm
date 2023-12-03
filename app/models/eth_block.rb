@@ -64,6 +64,8 @@ class EthBlock < ApplicationRecord
   
   def self.process_contract_actions_for_next_block_with_ethscriptions
     EthBlock.transaction do
+      start_time = Time.current
+      
       next_number = EthBlock.where(processing_state: 'pending').order(:block_number).limit(1).select(:block_number)
 
       locked_next_block = EthBlock.where(block_number: next_number)
@@ -74,7 +76,7 @@ class EthBlock < ApplicationRecord
   
       ethscriptions = locked_next_block.ethscriptions.order(:transaction_index)
       # StackProf.run(mode: :wall, out: 'stackprof-cpu.dump', raw: true) do
-      #   1000 / (Benchmark.ms{100.times{EthBlock.process_contract_actions_for_next_block_with_ethscriptions}} /  100.0)
+      #   1000 / (Benchmark.ms{2.times{EthBlock.process_contract_actions_for_next_block_with_ethscriptions}} /  100.0)
       # end
       
       ethscriptions.each do |ethscription|
@@ -84,7 +86,8 @@ class EthBlock < ApplicationRecord
       locked_next_block.update_columns(
         processing_state: "complete",
         updated_at: Time.current,
-        transaction_count: locked_next_block.transaction_receipts.count
+        transaction_count: ethscriptions.count{|e| e.processing_state == "success"},
+        runtime_ms: (Time.current - start_time) * 1000
       )
   
       ethscriptions.length
