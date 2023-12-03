@@ -17,6 +17,7 @@ class CreateEthscriptions < ActiveRecord::Migration[7.1]
       t.bigint :gas_used
       t.bigint :transaction_fee
       
+      t.index :block_number
       t.index [:block_number, :transaction_index], unique: true
       t.index :transaction_hash, unique: true
       t.index :processing_state

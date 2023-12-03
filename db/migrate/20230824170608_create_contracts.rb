@@ -4,12 +4,14 @@ class CreateContracts < ActiveRecord::Migration[7.1]
       t.string :transaction_hash, null: false
       t.bigint :block_number, null: false
       t.bigint :transaction_index, null: false
+      t.bigint :internal_transaction_index, null: false
       t.string :current_type
       t.string :current_init_code_hash
       t.jsonb :current_state, default: {}, null: false
       t.string :address, null: false
       t.boolean :deployed_successfully, null: false
     
+      t.index :block_number
       t.index :deployed_successfully
       t.index [:deployed_successfully, :address], unique: true
       t.index :address, where: "(deployed_successfully = true)", unique: true, name: :idx_on_address_deployed_successfully

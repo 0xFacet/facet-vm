@@ -8,7 +8,11 @@ class ContractState < ApplicationRecord
   optional: true
   
   scope :newest_first, -> {
-    order(block_number: :desc, transaction_index: :desc) 
+    order(block_number: :desc, transaction_index: :desc, contract_address: :desc)
+  }
+  
+  scope :oldest_first, -> {
+    order(block_number: :asc, transaction_index: :asc, contract_address: :asc)
   }
   
   def as_json(options = {})

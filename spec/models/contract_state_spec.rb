@@ -61,7 +61,8 @@ RSpec.describe Contract, type: :model do
       updated_at: Time.now,
       address: '0x' + SecureRandom.hex(20),
       current_state: {},
-      deployed_successfully: true
+      deployed_successfully: true,
+      internal_transaction_index: 0
     )
   end
 
