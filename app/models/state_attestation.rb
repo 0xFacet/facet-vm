@@ -71,7 +71,7 @@ class StateAttestation < ApplicationRecord
   end
   
   def hashable_attributes(klass)
-    klass.column_names - ['id', 'updated_at', 'created_at']
+    (klass.column_names - ['id', 'updated_at', 'created_at']).sort
   end
   
   def quoted_hashable_attributes(klass)
