@@ -25,6 +25,9 @@ CREATE FUNCTION public.check_attestation_order() RETURNS trigger
             RAISE EXCEPTION 'Parent state hash must match the state hash of the previous block';
           END IF;
         ELSE
+          IF NEW.block_number <> (SELECT MIN(block_number) FROM eth_blocks) THEN
+            RAISE EXCEPTION 'First StateAttestation must correspond to the lowest block number';
+          END IF;
           IF NEW.parent_state_hash IS NOT NULL THEN
             RAISE EXCEPTION 'Parent state hash of the first record must be NULL';
           END IF;

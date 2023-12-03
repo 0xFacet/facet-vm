@@ -24,11 +24,11 @@ class StateAttestation < ApplicationRecord
         EthBlock.processed.minimum(:block_number)
       end
       
-      locked_next_block = EthBlock.processed.where(block_number: next_block_number)
+      locked_next_block = EthBlock.where(block_number: next_block_number)
         .lock("FOR UPDATE SKIP LOCKED")
         .first
       
-      return unless locked_next_block
+      return unless locked_next_block&.processed?
         
       create_for_block!(locked_next_block.block_number)
     end
