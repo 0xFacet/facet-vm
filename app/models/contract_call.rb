@@ -59,13 +59,15 @@ class ContractCall < ApplicationRecord
   end
   
   def assign_contract
+    return unless effective_contract
+    
     if is_create?
       self.created_contract = effective_contract.tap do |c|
         c.assign_attributes(
           deployed_successfully: success?
         )
       end
-    elsif is_call? && effective_contract
+    elsif is_call?
       self.called_contract = effective_contract
     end
   end
