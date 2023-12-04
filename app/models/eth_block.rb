@@ -118,6 +118,10 @@ class EthBlock < ApplicationRecord
     end.with_indifferent_access
   end
   
+  def processed?
+    processing_state != "pending"
+  end
+  
   private
   
   def transform_server_response(server_data)

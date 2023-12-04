@@ -9,6 +9,7 @@ class CreateContractStates < ActiveRecord::Migration[7.1]
       t.bigint :transaction_index, null: false
       t.string :contract_address, null: false
     
+      t.index :block_number
       t.index [:contract_address, :transaction_hash], unique: true
       t.index [:contract_address, :block_number, :transaction_index], unique: true,
         name: :index_contract_states_on_addr_block_number_tx_index

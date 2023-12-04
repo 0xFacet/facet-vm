@@ -14,6 +14,14 @@ class ContractArtifact < ApplicationRecord
     ) 
   }
   
+  scope :oldest_first, -> {
+    order(
+      block_number: :asc,
+      transaction_index: :asc,
+      internal_transaction_index: :asc
+    )
+  }
+  
   attr_accessor :abi
   
   after_find :verify_ast_and_hash

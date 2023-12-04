@@ -8,6 +8,7 @@ class CreateSystemConfigVersions < ActiveRecord::Migration[7.1]
       t.bigint :start_block_number
       t.string :admin_address
     
+      t.index :block_number
       t.index [:block_number, :transaction_index], unique: true
       t.index :transaction_hash, unique: true
     

@@ -12,6 +12,7 @@ class CreateContractArtifacts < ActiveRecord::Migration[7.1]
       t.string :pragma_language, null: false
       t.string :pragma_version, null: false
     
+      t.index :block_number
       t.index [:block_number, :transaction_index, :internal_transaction_index], unique: true
       t.index [:transaction_hash, :internal_transaction_index], unique: true
       t.index :init_code_hash, unique: true
