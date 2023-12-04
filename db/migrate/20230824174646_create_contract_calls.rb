@@ -40,9 +40,7 @@ class CreateContractCalls < ActiveRecord::Migration[7.1]
       t.check_constraint "from_address ~ '^0x[a-f0-9]{40}$'"
       
       t.check_constraint "call_type IN ('call', 'create')"
-      t.check_constraint "call_type <> 'create' OR created_contract_address IS NOT NULL"
       t.check_constraint "call_type <> 'call' OR to_contract_address IS NOT NULL"
-      t.check_constraint "(to_contract_address IS NULL) != (created_contract_address IS NULL)"
       t.check_constraint "(call_type = 'create' AND effective_contract_address = created_contract_address) OR (call_type = 'call' AND effective_contract_address = to_contract_address)"
       
       t.check_constraint "status IN ('success', 'failure')"
