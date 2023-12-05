@@ -7,6 +7,7 @@ class CreateContractTransactions < ActiveRecord::Migration[7.1]
       t.bigint :block_number, null: false
       t.bigint :transaction_index, null: false
     
+      t.index :block_number
       t.index [:block_number, :transaction_index], unique: true, name: :index_contract_txs_on_block_number_and_tx_index
       t.index :transaction_hash, unique: true
     

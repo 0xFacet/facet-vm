@@ -8,6 +8,10 @@ class SystemConfigVersion < ApplicationRecord
     order(block_number: :desc, transaction_index: :desc) 
   }
   
+  scope :oldest_first, -> {
+    order(block_number: :asc, transaction_index: :asc)
+  }
+  
   def self.latest_tx_hash
     newest_first.limit(1).pluck(:transaction_hash).first
   end

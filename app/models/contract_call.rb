@@ -19,6 +19,12 @@ class ContractCall < ApplicationRecord
     internal_transaction_index: :desc
   ) }
 
+  scope :oldest_first, -> { order(
+    block_number: :asc,
+    transaction_index: :asc,
+    internal_transaction_index: :asc
+  ) }
+  
   def execute!
     self.pending_logs = []
     
@@ -94,6 +100,7 @@ class ContractCall < ApplicationRecord
       transaction_hash: TransactionContext.transaction_hash.value,
       block_number: TransactionContext.block.number.value,
       transaction_index: TransactionContext.transaction_index,
+      internal_transaction_index: internal_transaction_index,
       address: calculate_new_contract_address
     )
     

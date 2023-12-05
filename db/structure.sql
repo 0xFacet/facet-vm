@@ -10,6 +10,34 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
+-- Name: check_attestation_order(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.check_attestation_order() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+      BEGIN
+        IF (SELECT MAX(block_number) FROM state_attestations) IS NOT NULL THEN
+          IF NEW.block_number <> (SELECT MAX(block_number) + 1 FROM state_attestations) THEN
+            RAISE EXCEPTION 'New block number must be equal to max block number + 1';
+          END IF;
+          IF NEW.parent_state_hash <> (SELECT state_hash FROM state_attestations WHERE block_number = NEW.block_number - 1) THEN
+            RAISE EXCEPTION 'Parent state hash must match the state hash of the previous block';
+          END IF;
+        ELSE
+          IF NEW.block_number <> (SELECT MIN(block_number) FROM eth_blocks) THEN
+            RAISE EXCEPTION 'First StateAttestation must correspond to the lowest block number';
+          END IF;
+          IF NEW.parent_state_hash IS NOT NULL THEN
+            RAISE EXCEPTION 'Parent state hash of the first record must be NULL';
+          END IF;
+        END IF;
+        RETURN NEW;
+      END;
+      $$;
+
+
+--
 -- Name: check_block_order(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -19,6 +47,22 @@ CREATE FUNCTION public.check_block_order() RETURNS trigger
       BEGIN
         IF (SELECT MAX(block_number) FROM eth_blocks) IS NOT NULL AND (NEW.block_number <> (SELECT MAX(block_number) + 1 FROM eth_blocks) OR NEW.parent_blockhash <> (SELECT blockhash FROM eth_blocks WHERE block_number = NEW.block_number - 1)) THEN
           RAISE EXCEPTION 'New block number must be equal to max block number + 1, or this must be the first block';
+        END IF;
+        RETURN NEW;
+      END;
+      $$;
+
+
+--
+-- Name: check_block_processing_state(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.check_block_processing_state() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+      BEGIN
+        IF (SELECT processing_state FROM eth_blocks WHERE block_number = NEW.block_number) = 'pending' THEN
+          RAISE EXCEPTION 'Cannot create a StateAttestation for a block with processing state pending';
         END IF;
         RETURN NEW;
       END;
@@ -226,8 +270,10 @@ CREATE TABLE public.contract_calls (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_rails_0351aa702f CHECK (((created_contract_address IS NULL) OR ((created_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
+    CONSTRAINT chk_rails_16676d566e CHECK ((NOT (((status)::text = 'success'::text) AND ((to_contract_address IS NULL) = (created_contract_address IS NULL))))),
     CONSTRAINT chk_rails_1a921ba712 CHECK ((((call_type)::text <> 'call'::text) OR (to_contract_address IS NOT NULL))),
     CONSTRAINT chk_rails_27a87dcd58 CHECK (((call_type)::text = ANY ((ARRAY['call'::character varying, 'create'::character varying])::text[]))),
+    CONSTRAINT chk_rails_39612184db CHECK ((NOT (((call_type)::text = 'create'::text) AND ((status)::text = 'success'::text) AND (created_contract_address IS NULL)))),
     CONSTRAINT chk_rails_399807917b CHECK (((((status)::text = 'failure'::text) AND (logs = '[]'::jsonb)) OR ((status)::text = 'success'::text))),
     CONSTRAINT chk_rails_39b26367fa CHECK (((((status)::text = 'failure'::text) AND (error IS NOT NULL)) OR (((status)::text = 'success'::text) AND (error IS NULL)))),
     CONSTRAINT chk_rails_634aef3d55 CHECK (((effective_contract_address IS NULL) OR ((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
@@ -344,6 +390,7 @@ CREATE TABLE public.contracts (
     transaction_hash character varying NOT NULL,
     block_number bigint NOT NULL,
     transaction_index bigint NOT NULL,
+    internal_transaction_index bigint NOT NULL,
     current_type character varying,
     current_init_code_hash character varying,
     current_state jsonb DEFAULT '{}'::jsonb NOT NULL,
@@ -479,6 +526,41 @@ ALTER SEQUENCE public.ethscriptions_id_seq OWNED BY public.ethscriptions.id;
 CREATE TABLE public.schema_migrations (
     version character varying NOT NULL
 );
+
+
+--
+-- Name: state_attestations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.state_attestations (
+    id bigint NOT NULL,
+    block_number bigint NOT NULL,
+    state_hash character varying NOT NULL,
+    parent_state_hash character varying,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_rails_3ec656a1ee CHECK (((parent_state_hash IS NULL) OR ((parent_state_hash)::text ~ '^0x[a-f0-9]{64}$'::text))),
+    CONSTRAINT chk_rails_e3d9bd2c69 CHECK (((state_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
+);
+
+
+--
+-- Name: state_attestations_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.state_attestations_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: state_attestations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.state_attestations_id_seq OWNED BY public.state_attestations.id;
 
 
 --
@@ -631,6 +713,13 @@ ALTER TABLE ONLY public.ethscriptions ALTER COLUMN id SET DEFAULT nextval('publi
 
 
 --
+-- Name: state_attestations id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.state_attestations ALTER COLUMN id SET DEFAULT nextval('public.state_attestations_id_seq'::regclass);
+
+
+--
 -- Name: system_config_versions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -717,6 +806,14 @@ ALTER TABLE ONLY public.schema_migrations
 
 
 --
+-- Name: state_attestations state_attestations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.state_attestations
+    ADD CONSTRAINT state_attestations_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: system_config_versions system_config_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -775,6 +872,13 @@ CREATE UNIQUE INDEX idx_on_tx_hash_internal_txi ON public.contract_calls USING b
 
 
 --
+-- Name: index_contract_artifacts_on_block_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contract_artifacts_on_block_number ON public.contract_artifacts USING btree (block_number);
+
+
+--
 -- Name: index_contract_artifacts_on_init_code_hash; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -786,6 +890,13 @@ CREATE UNIQUE INDEX index_contract_artifacts_on_init_code_hash ON public.contrac
 --
 
 CREATE INDEX index_contract_artifacts_on_name ON public.contract_artifacts USING btree (name);
+
+
+--
+-- Name: index_contract_calls_on_block_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contract_calls_on_block_number ON public.contract_calls USING btree (block_number);
 
 
 --
@@ -845,6 +956,13 @@ CREATE UNIQUE INDEX index_contract_states_on_addr_block_number_tx_index ON publi
 
 
 --
+-- Name: index_contract_states_on_block_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contract_states_on_block_number ON public.contract_states USING btree (block_number);
+
+
+--
 -- Name: index_contract_states_on_contract_address; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -873,6 +991,13 @@ CREATE INDEX index_contract_states_on_transaction_hash ON public.contract_states
 
 
 --
+-- Name: index_contract_transactions_on_block_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contract_transactions_on_block_number ON public.contract_transactions USING btree (block_number);
+
+
+--
 -- Name: index_contract_transactions_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -898,6 +1023,13 @@ CREATE UNIQUE INDEX index_contract_txs_on_block_number_and_tx_index ON public.co
 --
 
 CREATE UNIQUE INDEX index_contracts_on_address ON public.contracts USING btree (address);
+
+
+--
+-- Name: index_contracts_on_block_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contracts_on_block_number ON public.contracts USING btree (block_number);
 
 
 --
@@ -1006,6 +1138,13 @@ CREATE INDEX index_eth_blocks_on_timestamp ON public.eth_blocks USING btree ("ti
 
 
 --
+-- Name: index_ethscriptions_on_block_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_ethscriptions_on_block_number ON public.ethscriptions USING btree (block_number);
+
+
+--
 -- Name: index_ethscriptions_on_block_number_and_transaction_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1024,6 +1163,34 @@ CREATE INDEX index_ethscriptions_on_processing_state ON public.ethscriptions USI
 --
 
 CREATE UNIQUE INDEX index_ethscriptions_on_transaction_hash ON public.ethscriptions USING btree (transaction_hash);
+
+
+--
+-- Name: index_state_attestations_on_block_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_state_attestations_on_block_number ON public.state_attestations USING btree (block_number);
+
+
+--
+-- Name: index_state_attestations_on_parent_state_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_state_attestations_on_parent_state_hash ON public.state_attestations USING btree (parent_state_hash);
+
+
+--
+-- Name: index_state_attestations_on_state_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_state_attestations_on_state_hash ON public.state_attestations USING btree (state_hash);
+
+
+--
+-- Name: index_system_config_versions_on_block_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_system_config_versions_on_block_number ON public.system_config_versions USING btree (block_number);
 
 
 --
@@ -1097,10 +1264,24 @@ CREATE TRIGGER check_status_trigger BEFORE INSERT OR UPDATE OF status ON public.
 
 
 --
+-- Name: state_attestations trigger_check_attestation_order; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trigger_check_attestation_order BEFORE INSERT ON public.state_attestations FOR EACH ROW EXECUTE FUNCTION public.check_attestation_order();
+
+
+--
 -- Name: eth_blocks trigger_check_block_order; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER trigger_check_block_order BEFORE INSERT ON public.eth_blocks FOR EACH ROW EXECUTE FUNCTION public.check_block_order();
+
+
+--
+-- Name: state_attestations trigger_check_block_processing_state; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trigger_check_block_processing_state BEFORE INSERT ON public.state_attestations FOR EACH ROW EXECUTE FUNCTION public.check_block_processing_state();
 
 
 --
@@ -1154,6 +1335,14 @@ ALTER TABLE ONLY public.transaction_receipts
 
 ALTER TABLE ONLY public.contract_states
     ADD CONSTRAINT fk_rails_54fdb5b7e7 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
+
+
+--
+-- Name: state_attestations fk_rails_680e4dd75e; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.state_attestations
+    ADD CONSTRAINT fk_rails_680e4dd75e FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
 
 
 --
@@ -1259,7 +1448,7 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
-('20231203201813'),
+('20231203153159'),
 ('20231113223006'),
 ('20231110173854'),
 ('20230824174647'),

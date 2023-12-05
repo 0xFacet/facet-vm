@@ -8,6 +8,9 @@ class ContractTransaction < ApplicationRecord
   has_many :contracts, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_artifacts, foreign_key: :transaction_hash, primary_key: :transaction_hash
 
+  scope :oldest_first, -> { order(block_number: :asc, transaction_index: :asc) }
+  scope :newest_first, -> { order(block_number: :desc, transaction_index: :desc) }
+  
   attr_accessor :tx_origin, :payload
   
   def self.transaction_mimetype

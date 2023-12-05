@@ -9,6 +9,14 @@ class Contract < ApplicationRecord
   has_many :contract_calls, foreign_key: :effective_contract_address, primary_key: :address
   has_one :transaction_receipt, through: :contract_transaction
 
+  scope :oldest_first, -> {
+    order(block_number: :asc, transaction_index: :asc, internal_transaction_index: :asc)
+  }
+  
+  scope :newest_first, -> {
+    order(block_number: :desc, transaction_index: :desc, internal_transaction_index: :desc)
+  }
+
   attr_reader :implementation
   
   delegate :implements?, to: :implementation
