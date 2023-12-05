@@ -28,6 +28,10 @@ class Ethscription < ApplicationRecord
     processing_state != "pending"
   end
   
+  def failure?
+    processing_state == "failure"
+  end
+  
   def self.required_initial_owner
     "0x00000000000000000000000000000000000face7"
   end
@@ -70,6 +74,18 @@ class Ethscription < ApplicationRecord
       update_columns(changes.transform_values(&:last)) if persist
       self
     end
+  end
+  
+  def triggers_contract_interaction?
+    mimetype == ContractTransaction.transaction_mimetype
+  end
+  
+  def triggers_system_config_update?
+    mimetype == SystemConfigVersion.system_mimetype
+  end
+  
+  def valid_to?
+    initial_owner == self.class.required_initial_owner
   end
   
   private

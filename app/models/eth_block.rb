@@ -3,6 +3,8 @@ class EthBlock < ApplicationRecord
   has_many :ethscriptions, foreign_key: :block_number, primary_key: :block_number
   has_many :transaction_receipts, foreign_key: :block_number, primary_key: :block_number
   
+  has_many :contract_states, foreign_key: :block_number, primary_key: :block_number
+  
   scope :newest_first, -> { order(block_number: :desc) }
   scope :oldest_first, -> { order(block_number: :asc) }
   
@@ -61,6 +63,9 @@ class EthBlock < ApplicationRecord
     end
   end
   
+  def self.a
+    process_contract_actions_for_next_block_with_ethscriptions
+  end
   
   def self.process_contract_actions_for_next_block_with_ethscriptions
     EthBlock.transaction do
@@ -79,8 +84,15 @@ class EthBlock < ApplicationRecord
       #   1000 / (Benchmark.ms{2.times{EthBlock.process_contract_actions_for_next_block_with_ethscriptions}} /  100.0)
       # end
       
-      ethscriptions.each do |ethscription|
-        ethscription.process!(persist: true)
+      BlockContext.set(
+        current_block: locked_next_block,
+        ethscriptions: ethscriptions,
+        contracts: [],
+        contract_artifacts: [],
+        contract_transactions: [],
+        system_config: SystemConfigVersion.current
+      ) do
+        BlockContext.process!
       end
       
       locked_next_block.update_columns(

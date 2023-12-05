@@ -4,7 +4,10 @@ class ContractTransaction < ApplicationRecord
   belongs_to :ethscription, primary_key: :transaction_hash, foreign_key: :transaction_hash, optional: true
   has_one :transaction_receipt, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_states, foreign_key: :transaction_hash, primary_key: :transaction_hash
-  has_many :contract_calls, foreign_key: :transaction_hash, primary_key: :transaction_hash, inverse_of: :contract_transaction
+  # has_many :contract_calls, foreign_key: :transaction_hash, primary_key: :transaction_hash, inverse_of: :contract_transaction
+  
+  attr_accessor :contract_calls, :transaction_receipt_raw
+  
   has_many :contracts, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_artifacts, foreign_key: :transaction_hash, primary_key: :transaction_hash
 
@@ -17,22 +20,22 @@ class ContractTransaction < ApplicationRecord
     "application/vnd.facet.tx+json"
   end
   
-  def self.validate_start_block_passed!(ethscription)
-    system_start_block = SystemConfigVersion.current.start_block_number
-    valid = system_start_block && ethscription.block_number >= system_start_block
+  # def self.validate_start_block_passed!(ethscription)
+  #   system_start_block = SystemConfigVersion.current.start_block_number
+  #   valid = system_start_block && ethscription.block_number >= system_start_block
     
-    unless valid
-      raise InvalidEthscriptionError.new("Start block not passed")
-    end
-  end
+  #   unless valid
+  #     raise InvalidEthscriptionError.new("Start block not passed")
+  #   end
+  # end
   
-  def self.create_from_ethscription!(ethscription, persist:)
-    validate_start_block_passed!(ethscription)
+  # def self.create_from_ethscription!(ethscription, persist:)
+  #   validate_start_block_passed!(ethscription)
     
-    new(ethscription: ethscription).tap do |contract_tx|
-      contract_tx.execute_transaction(persist: persist)      
-    end
-  end
+  #   new(ethscription: ethscription).tap do |contract_tx|
+  #     contract_tx.execute_transaction(persist: persist)
+  #   end
+  # end
   
   def ethscription=(ethscription)
     assign_attributes(
@@ -123,7 +126,7 @@ class ContractTransaction < ApplicationRecord
     
     attrs = base_attrs.merge(call_attrs)
     
-    self.transaction_receipt = TransactionReceipt.new(attrs)
+    self.transaction_receipt_raw = TransactionReceipt.new(attrs)
   end
   
   def self.simulate_transaction(from:, tx_payload:)
@@ -229,8 +232,8 @@ class ContractTransaction < ApplicationRecord
   
   def with_global_context
     TransactionContext.set(
-      system_config: SystemConfigVersion.current,
-      latest_artifact_hash: ContractArtifact.latest_tx_hash,
+      # system_config: SystemConfigVersion.current,
+      # latest_artifact_hash: ContractArtifact.latest_tx_hash,
       call_stack: CallStack.new(TransactionContext),
       current_transaction: self,
       tx_origin: tx_origin,
@@ -270,6 +273,7 @@ class ContractTransaction < ApplicationRecord
     begin
       make_initial_call
     rescue ContractError, TransactionError
+      revert_contract_changes
     end
     
     build_transaction_receipt
@@ -279,6 +283,12 @@ class ContractTransaction < ApplicationRecord
         save!
         persist_contract_state_if_success!
       end
+    end
+  end
+  
+  def revert_contract_changes
+    contract_calls.map(&:effective_contract).compact.uniq(&:address).each do |contract|
+      contract.revert_state_changes
     end
   end
   
@@ -301,10 +311,14 @@ class ContractTransaction < ApplicationRecord
     end
   end
   
-  def get_active_contract(address)
-    contract_calls.detect do |call|
-      call.effective_contract&.address == address
-    end&.effective_contract
+  # def get_active_contract(address)
+  #   contract_calls.detect do |call|
+  #     call.effective_contract&.address == address
+  #   end&.effective_contract
+  # end
+  
+  def success?
+    status == :success
   end
   
   def status
