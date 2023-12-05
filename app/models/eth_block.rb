@@ -89,7 +89,6 @@ class EthBlock < ApplicationRecord
         ethscriptions: ethscriptions,
         contracts: [],
         contract_artifacts: [],
-        contract_transactions: [],
         system_config: SystemConfigVersion.current
       ) do
         BlockContext.process!

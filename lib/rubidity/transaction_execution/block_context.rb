@@ -2,79 +2,118 @@ class BlockContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
   attribute :current_block, :system_config, :contract_artifacts,
-    :contracts, :contract_transactions, :ethscriptions
+    # :contracts, :contract_transactions, :ethscriptions
+    :contracts, :ethscriptions, :parsed_ethscriptions
   
   delegate :current_transaction, :current_call, to: TransactionContext
   
-  def valid_to
-    ethscriptions.select(&:valid_to?)
-  end
+  # def valid_to
+  #   ethscriptions.select(&:valid_to?)
+  # end
   
-  def contract_transaction_ethscriptions
-    valid_to.select(&:triggers_contract_interaction?)
-  end
+  # def contract_transaction_ethscriptions
+  #   parsed_ethscriptions.select(&:triggers_contract_interaction?)
+  # end
   
-  def system_config_transactions_ethscriptions
-    valid_to.select(&:triggers_system_config_update?)
-  end
+  # def system_config_transactions_ethscriptions
+  #   valid_to.select(&:triggers_system_config_update?)
+  # end
   
-  def invalid_mimetype_ethscriptions
-    out = ethscriptions.reject(&:triggers_contract_interaction?).
-      reject(&:triggers_system_config_update?)
+  # def invalid_mimetype_ethscriptions
+  #   out = ethscriptions.reject(&:triggers_contract_interaction?).
+  #     reject(&:triggers_system_config_update?)
       
-    out.assign_attributes(
-      processing_state: "failure"
-    )
+  #   out.assign_attributes(
+  #     processing_state: "failure"
+  #   )
+  # end
+  
+  def ethscriptions=(ethscriptions)
+    self.parsed_ethscriptions = (ethscriptions || []).map do |e|
+      e.process!(persist: false)
+    end
+    
+    super(ethscriptions)
+  end
+  
+  def contract_transactions
+    parsed_ethscriptions.map(&:contract_transaction).compact
+  end
+  
+  def system_config_versions
+    parsed_ethscriptions.map(&:system_config_version).compact
   end
   
   def process!
-    process_contract_transactions
+    process_contract_transactions(persist: true)
     
-    system_config_transactions_ethscriptions.each do |e|
-      SystemConfigVersion.create_from_ethscription!(e, persist: true)
-    end
-    # binding.pry
-    Ethscription.import!(
-      output_ethscriptions,
-      on_duplicate_key_update: {conflict_target: [:transaction_hash], columns: [
-        :processing_state, :processing_error, :processed_at
-      ]}
+    system_config_versions.each(&:save!)
+    
+    # system_config_transactions_ethscriptions.each do |e|
+    #   SystemConfigVersion.create_from_ethscription!(e, persist: true)
+    # end
+    # parsed_ethscriptions.each do |e|
+    #   e.processed_at = Time.current
+    # end
+    
+    success_ethscriptions = parsed_ethscriptions.select { |e| e.processing_state == 'success' }
+    failure_ethscriptions = parsed_ethscriptions.select { |e| e.processing_state == 'failure' }
+  
+    # Update all success ethscriptions
+    Ethscription.where(id: success_ethscriptions.map(&:id)).update_all(
+      processing_state: 'success',
+      processed_at: Time.current
     )
-  end
   
-  def output_ethscriptions
-    ethscriptions.map do |eth|
-      if eth.failure?
-        eth.assign_attributes(processing_state: "failure")
-      else
-        eth.assign_attributes(processing_state: "success")
-      end
-      
-      eth.assign_attributes(processed_at: Time.current)
-      
-      eth
+    # Update all failure ethscriptions
+    if failure_ethscriptions.present?
+      Ethscription.where(id: failure_ethscriptions.map(&:id)).update_all(
+        processing_state: 'failure',
+        processed_at: Time.current
+      ) 
     end
-  end
-  
-  def past_contract_transactions
-    contract_transaction.select{|tx| tx.status.present? }
-  end
-  
-  def process_contract_transactions
-    return unless start_block_passed?
     
-    self.contract_transactions = contract_transaction_ethscriptions.map do |eth|
-      begin
-        ContractTransaction.new(ethscription: eth)
-      rescue InvalidEthscriptionError => e
-        eth.assign_attributes(
-          processing_state: "failure",
-          processing_error: "Error: #{e.message}"
-        )
+    # Ethscription.import!(
+    #   parsed_ethscriptions,
+    #   on_duplicate_key_update: {conflict_target: [:transaction_hash], columns: [
+    #     :processing_state, :processing_error, :processed_at
+    #   ]}
+    # )
+  end
+  
+  # def output_ethscriptions
+  #   ethscriptions.map do |eth|
+  #     if eth.failure?
+  #       eth.assign_attributes(processing_state: "failure")
+  #     else
+  #       eth.assign_attributes(processing_state: "success")
+  #     end
+      
+  #     eth.assign_attributes(processed_at: Time.current)
+      
+  #     eth
+  #   end
+  # end
+  
+  # def past_contract_transactions
+  #   contract_transaction.select{|tx| tx.status.present? }
+  # end
+  
+  def process_contract_transactions(persist:)
+    # return unless start_block_passed?
+    
+    # self.contract_transactions = contract_transaction_ethscriptions.map do |eth|
+    #   begin
+    #     ContractTransaction.new(ethscription: eth)
+    #   rescue InvalidEthscriptionError => e
+    #     eth.assign_attributes(
+    #       processing_state: "failure",
+    #       processing_error: "Error: #{e.message}"
+    #     )
         
-        nil
-      end
-    end.compact
+    #     nil
+    #   end
+    # end.compact
     
     initial_contracts = contract_transactions.map do |t|
       t.payload.dig('data', 'to')&.downcase
@@ -89,10 +128,12 @@ class BlockContext < ActiveSupport::CurrentAttributes
       contract_tx.execute_transaction(persist: false)
     end
     
+    return unless persist
+    
     ContractTransaction.import!(contract_transactions)
     # binding.pry
     TransactionReceipt.import!(
-      contract_transactions.map(&:transaction_receipt_raw)
+      contract_transactions.map(&:transaction_receipt)
     )
     ContractCall.import!(
       contract_transactions.map(&:contract_calls).flatten
@@ -112,9 +153,9 @@ class BlockContext < ActiveSupport::CurrentAttributes
     
     Contract.import!(
       contracts_to_save,
-      on_duplicate_key_update: {conflict_target: [:address], columns: [
-        :current_state, :current_type, :current_init_code_hash
-      ]}
+      # on_duplicate_key_update: {conflict_target: [:address], columns: [
+      #   :current_state, :current_type, :current_init_code_hash
+      # ]}
     )
     
     ContractState.import!(states_to_save)
@@ -189,7 +230,7 @@ class BlockContext < ActiveSupport::CurrentAttributes
   end
   
   def calculate_contract_nonce(address)
-    binding.pry
+    # binding.pry
 
     in_this_block = previous_calls.select do |call|
       call.from_address == address &&

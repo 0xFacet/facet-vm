@@ -2,11 +2,11 @@ class ContractTransaction < ApplicationRecord
   include ContractErrors
   
   belongs_to :ethscription, primary_key: :transaction_hash, foreign_key: :transaction_hash, optional: true
-  has_one :transaction_receipt, foreign_key: :transaction_hash, primary_key: :transaction_hash
+  # has_one :transaction_receipt, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_states, foreign_key: :transaction_hash, primary_key: :transaction_hash
   # has_many :contract_calls, foreign_key: :transaction_hash, primary_key: :transaction_hash, inverse_of: :contract_transaction
   
-  attr_accessor :contract_calls, :transaction_receipt_raw
+  attr_accessor :contract_calls, :transaction_receipt
   
   has_many :contracts, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_artifacts, foreign_key: :transaction_hash, primary_key: :transaction_hash
@@ -52,10 +52,16 @@ class ContractTransaction < ApplicationRecord
       raise InvalidEthscriptionError.new("JSON parse error: #{e.message}")
     end
     
+    validate_payload!
+    
     super(ethscription)
   end
   
   def validate_payload!
+    unless BlockContext.start_block_passed?
+      raise InvalidEthscriptionError.new("Start block not passed")
+    end
+    
     unless payload.present? && payload.data&.is_a?(Hash)
       raise InvalidEthscriptionError.new("Payload not present")
     end
@@ -126,7 +132,7 @@ class ContractTransaction < ApplicationRecord
     
     attrs = base_attrs.merge(call_attrs)
     
-    self.transaction_receipt_raw = TransactionReceipt.new(attrs)
+    self.transaction_receipt = TransactionReceipt.new(attrs)
   end
   
   def self.simulate_transaction(from:, tx_payload:)
@@ -160,7 +166,15 @@ class ContractTransaction < ApplicationRecord
       
       eth = Ethscription.new(ethscription_attrs)
       
-      eth.process!(persist: false)
+      BlockContext.set(
+        system_config: SystemConfigVersion.current,
+        current_block: EthBlock.new(block_number: max_block_number + 1),
+        contracts: [],
+        contract_artifacts: [],
+        ethscriptions: [eth]
+      ) do
+        BlockContext.process_contract_transactions(persist: false)
+      end
       
       {
         transaction_receipt: eth.contract_transaction&.transaction_receipt,
@@ -264,12 +278,6 @@ class ContractTransaction < ApplicationRecord
   end
   
   def execute_transaction(persist:)
-    validate_payload!
-    
-    if persist && payload.op.to_sym == :static_call
-      raise InvalidEthscriptionError.new("Static calls cannot be persisted")
-    end
-    
     begin
       make_initial_call
     rescue ContractError, TransactionError
@@ -278,12 +286,12 @@ class ContractTransaction < ApplicationRecord
     
     build_transaction_receipt
     
-    if persist
-      ContractTransaction.transaction do
-        save!
-        persist_contract_state_if_success!
-      end
-    end
+    # if persist
+    #   ContractTransaction.transaction do
+    #     save!
+    #     persist_contract_state_if_success!
+    #   end
+    # end
   end
   
   def revert_contract_changes
@@ -292,24 +300,24 @@ class ContractTransaction < ApplicationRecord
     end
   end
   
-  def persist_contract_state_if_success!
-    return unless status == :success
+  # def persist_contract_state_if_success!
+  #   return unless status == :success
     
-    grouped_contracts = contract_calls.group_by { |call| call.effective_contract.address }
+  #   grouped_contracts = contract_calls.group_by { |call| call.effective_contract.address }
 
-    grouped_contracts.each do |address, calls|
-      states = calls.map { |call| call.effective_contract.current_state }.uniq
-      if states.length > 1
-        raise "Duplicate contracts with different states for address #{address}"
-      end
-    end
+  #   grouped_contracts.each do |address, calls|
+  #     states = calls.map { |call| call.effective_contract.current_state }.uniq
+  #     if states.length > 1
+  #       raise "Duplicate contracts with different states for address #{address}"
+  #     end
+  #   end
     
-    contract_calls.map(&:effective_contract).uniq(&:address).each do |contract|
-      contract.save_new_state_if_needed!(
-        transaction: self,
-      )
-    end
-  end
+  #   contract_calls.map(&:effective_contract).uniq(&:address).each do |contract|
+  #     contract.save_new_state_if_needed!(
+  #       transaction: self,
+  #     )
+  #   end
+  # end
   
   # def get_active_contract(address)
   #   contract_calls.detect do |call|
