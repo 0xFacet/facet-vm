@@ -70,12 +70,10 @@ RSpec.describe Contract, type: :model do
     it 'updates the current_state of the Contract' do
       new_state = { key: 'value' }
       ContractState.create!(
-        transaction_hash: @ethscription.transaction_hash,
         state: new_state,
         type: @contract.current_type,
         init_code_hash: @contract.current_init_code_hash,
         block_number: 1,
-        transaction_index: 1,
         created_at: Time.now,
         updated_at: Time.now,
         contract_address: @contract.address,
@@ -93,12 +91,10 @@ RSpec.describe Contract, type: :model do
       old_state = { key: 'old_value' }
       
       ContractState.create!(
-        transaction_hash: @ethscription.transaction_hash,
         state: old_state,
         type: @contract.current_type,
         init_code_hash: @contract.current_init_code_hash,
         block_number: counter += 1,
-        transaction_index: counter += 1,
         created_at: Time.now,
         updated_at: Time.now,
         contract_address: @contract.address,
@@ -110,12 +106,10 @@ RSpec.describe Contract, type: :model do
       new_state = { key: 'new_value' }
       
       contract_state = ContractState.create!(
-        transaction_hash: @ethscription2.transaction_hash,
         state: new_state,
         type: @contract.current_type,
         init_code_hash: @contract.current_init_code_hash,
         block_number: counter += 1,
-        transaction_index: counter += 1,
         created_at: Time.now,
         updated_at: Time.now,
         contract_address: @contract.address,
@@ -138,12 +132,10 @@ RSpec.describe Contract, type: :model do
       new_init_code_hash = "0x" + SecureRandom.hex(32)
   
       ContractState.create!(
-        transaction_hash: @ethscription.transaction_hash,
         state: new_state,
         type: new_type,
         init_code_hash: new_init_code_hash,
         block_number: 1,
-        transaction_index: 1,
         created_at: Time.now,
         updated_at: Time.now,
         contract_address: @contract.address,

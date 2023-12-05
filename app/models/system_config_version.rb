@@ -1,6 +1,8 @@
 class SystemConfigVersion < ApplicationRecord
   include ContractErrors  
   
+  belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, optional: true
+  
   belongs_to :ethscription,
   primary_key: 'transaction_hash', foreign_key: 'transaction_hash', optional: true
   

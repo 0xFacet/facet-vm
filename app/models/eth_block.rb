@@ -3,6 +3,8 @@ class EthBlock < ApplicationRecord
   has_many :ethscriptions, foreign_key: :block_number, primary_key: :block_number
   has_many :transaction_receipts, foreign_key: :block_number, primary_key: :block_number
   
+  has_many :contract_states, foreign_key: :block_number, primary_key: :block_number
+  
   scope :newest_first, -> { order(block_number: :desc) }
   scope :oldest_first, -> { order(block_number: :asc) }
   
@@ -46,10 +48,10 @@ class EthBlock < ApplicationRecord
         
         total_remaining -= batch_ethscriptions_processed
         
-        puts "Processed #{iterations} blocks in #{batch_elapsed_time}s"
-        puts " > Ethscriptions: #{batch_ethscriptions_processed}"
-        puts " > Ethscriptions / s: #{ethscriptions_per_second}"
-        puts " > Ethscriptions left: #{total_remaining}"
+        # puts "Processed #{iterations} blocks in #{batch_elapsed_time}s"
+        # puts " > Ethscriptions: #{batch_ethscriptions_processed}"
+        # puts " > Ethscriptions / s: #{ethscriptions_per_second}"
+        # puts " > Ethscriptions left: #{total_remaining}"
         
         Rails.cache.write("total_ethscriptions_behind", total_remaining)
         
@@ -61,6 +63,9 @@ class EthBlock < ApplicationRecord
     end
   end
   
+  def self.a
+    process_contract_actions_for_next_block_with_ethscriptions
+  end
   
   def self.process_contract_actions_for_next_block_with_ethscriptions
     EthBlock.transaction do
@@ -79,8 +84,14 @@ class EthBlock < ApplicationRecord
       #   1000 / (Benchmark.ms{2.times{EthBlock.process_contract_actions_for_next_block_with_ethscriptions}} /  100.0)
       # end
       
-      ethscriptions.each do |ethscription|
-        ethscription.process!(persist: true)
+      BlockContext.set(
+        system_config: SystemConfigVersion.current,
+        current_block: locked_next_block,
+        contracts: [],
+        contract_artifacts: [],
+        ethscriptions: ethscriptions,
+      ) do
+        BlockContext.process!
       end
       
       locked_next_block.update_columns(
@@ -89,7 +100,11 @@ class EthBlock < ApplicationRecord
         transaction_count: ethscriptions.count{|e| e.processing_state == "success"},
         runtime_ms: (Time.current - start_time) * 1000
       )
-  
+      
+      puts "Imported block #{locked_next_block.block_number} in #{locked_next_block.runtime_ms}ms"
+      puts "> #{locked_next_block.transaction_count} ethscriptions"
+      puts "> #{(locked_next_block.transaction_count / (locked_next_block.runtime_ms / 1000.0)).round(2)} ethscriptions / s"
+      
       ethscriptions.length
     end
   end

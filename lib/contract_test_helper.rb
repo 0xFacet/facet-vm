@@ -332,7 +332,16 @@ module ContractTestHelper
     }
     
     eth = Ethscription.create!(ethscription_attrs)
-    eth.process!(persist: true)
+    
+    BlockContext.set(
+      system_config: SystemConfigVersion.current,
+      current_block: EthBlock.new(block_number: block_number),
+      contracts: [],
+      contract_artifacts: [],
+      ethscriptions: [eth]
+    ) do
+      BlockContext.process_contract_transactions(persist: true)
+    end
     
     eth
   end
