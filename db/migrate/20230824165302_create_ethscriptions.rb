@@ -29,9 +29,9 @@ class CreateEthscriptions < ActiveRecord::Migration[7.1]
     
       t.check_constraint "processing_state IN ('pending', 'success', 'failure')"
       
-      t.check_constraint "processing_state != 'failure' OR processing_error IS NOT NULL"
+      # t.check_constraint "processing_state != 'failure' OR processing_error IS NOT NULL"
       t.check_constraint "processing_state = 'pending' OR processed_at IS NOT NULL"
-      t.check_constraint "processing_state = 'failure' OR processing_error IS NULL"
+      # t.check_constraint "processing_state = 'failure' OR processing_error IS NULL"
       
       t.foreign_key :eth_blocks, column: :block_number, primary_key: :block_number, on_delete: :cascade
       

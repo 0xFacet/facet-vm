@@ -224,11 +224,19 @@ class ContractTransaction < ApplicationRecord
         }
       )
   
-      record.with_global_context do
-        begin
-          record.make_initial_call.as_json
-        rescue ContractError, CallingNonExistentContractError => e
-          raise StaticCallError.new("Static Call error #{e.message}")
+      BlockContext.set(
+        system_config: SystemConfigVersion.current,
+        current_block: EthBlock.new(block_number: block_number),
+        contracts: [],
+        contract_artifacts: [],
+        ethscriptions: []
+      ) do
+        record.with_global_context do
+          begin
+            record.make_initial_call.as_json
+          rescue ContractError, CallingNonExistentContractError => e
+            raise StaticCallError.new("Static Call error #{e.message}")
+          end
         end
       end
     end

@@ -37,11 +37,11 @@ class BlockContext < ActiveSupport::CurrentAttributes
   end
   
   def contract_transactions
-    parsed_ethscriptions.map(&:contract_transaction).compact
+    (parsed_ethscriptions || []).map(&:contract_transaction).compact
   end
   
   def system_config_versions
-    parsed_ethscriptions.map(&:system_config_version).compact
+    (parsed_ethscriptions || []).map(&:system_config_version).compact
   end
   
   def process!
@@ -139,24 +139,14 @@ class BlockContext < ActiveSupport::CurrentAttributes
       contract_transactions.map(&:contract_calls).flatten
     )
     
-    ContractArtifact.import!(
-      contract_artifacts,
-      on_duplicate_key_ignore: true
-    )
+    ContractArtifact.import!(contract_artifacts.select(&:new_record?))
     # binding.pry
     
-    contracts_to_save = contracts.select(&:new_record?)
+    Contract.import!(contracts.select(&:new_record?))
     
     states_to_save = contracts.map do |c|
       c.new_state_for_save(block_number: current_block.block_number)
     end.compact
-    
-    Contract.import!(
-      contracts_to_save,
-      # on_duplicate_key_update: {conflict_target: [:address], columns: [
-      #   :current_state, :current_type, :current_init_code_hash
-      # ]}
-    )
     
     ContractState.import!(states_to_save)
   end
@@ -187,10 +177,6 @@ class BlockContext < ActiveSupport::CurrentAttributes
       source_code
     )
     
-    if new_contract_implementation.is_abstract_contract
-      raise TransactionError.new("Cannot deploy abstract contract: #{new_contract_implementation.name}")
-    end
-    
     new_contract = Contract.new(
       transaction_hash: current_transaction.transaction_hash,
       block_number: current_block.block_number,
@@ -204,19 +190,13 @@ class BlockContext < ActiveSupport::CurrentAttributes
     contracts << new_contract
     
     new_contract
-  # rescue Exception => e
-    # binding.pry
   end
   
   def supported_contract_class(init_code_hash, source_code = nil, validate: true)
-    # binding.pry
     validate_contract_support(init_code_hash) if validate
     
     find_and_build_class(init_code_hash) ||
       create_artifact_and_build_class(init_code_hash, source_code)
-      
-  # rescue Exception => e
-    # binding.pry
   end
   
   def current_chainid

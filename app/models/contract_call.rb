@@ -109,6 +109,10 @@ class ContractCall < ApplicationRecord
       source_code: to_contract_source_code
     )
     
+    if effective_contract.implementation_class.is_abstract_contract
+      raise TransactionError.new("Cannot deploy abstract contract: #{effective_contract.implementation_class.name}")
+    end
+    
     if function
       raise ContractError.new("Cannot call function on contract creation")
     end

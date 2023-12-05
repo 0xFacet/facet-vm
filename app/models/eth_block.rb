@@ -48,10 +48,10 @@ class EthBlock < ApplicationRecord
         
         total_remaining -= batch_ethscriptions_processed
         
-        puts "Processed #{iterations} blocks in #{batch_elapsed_time}s"
-        puts " > Ethscriptions: #{batch_ethscriptions_processed}"
-        puts " > Ethscriptions / s: #{ethscriptions_per_second}"
-        puts " > Ethscriptions left: #{total_remaining}"
+        # puts "Processed #{iterations} blocks in #{batch_elapsed_time}s"
+        # puts " > Ethscriptions: #{batch_ethscriptions_processed}"
+        # puts " > Ethscriptions / s: #{ethscriptions_per_second}"
+        # puts " > Ethscriptions left: #{total_remaining}"
         
         Rails.cache.write("total_ethscriptions_behind", total_remaining)
         
@@ -85,11 +85,11 @@ class EthBlock < ApplicationRecord
       # end
       
       BlockContext.set(
+        system_config: SystemConfigVersion.current,
         current_block: locked_next_block,
-        ethscriptions: ethscriptions,
         contracts: [],
         contract_artifacts: [],
-        system_config: SystemConfigVersion.current
+        ethscriptions: ethscriptions,
       ) do
         BlockContext.process!
       end
@@ -100,7 +100,11 @@ class EthBlock < ApplicationRecord
         transaction_count: ethscriptions.count{|e| e.processing_state == "success"},
         runtime_ms: (Time.current - start_time) * 1000
       )
-  
+      
+      puts "Imported block #{locked_next_block.block_number} in #{locked_next_block.runtime_ms}ms"
+      puts "> #{locked_next_block.transaction_count} ethscriptions"
+      puts "> #{(locked_next_block.transaction_count / (locked_next_block.runtime_ms / 1000.0)).round(2)} ethscriptions / s"
+      
       ethscriptions.length
     end
   end
