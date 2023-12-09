@@ -71,7 +71,7 @@ contract :FacetSwapV1RouterVariableFee, is: :Upgradeable, upgradeable: true do
     _safeTransferFrom(token: tokenA, from: msg.sender, to: pair, value: amountA)
     _safeTransferFrom(token: tokenB, from: msg.sender, to: pair, value: amountB)
     
-    liquidity = FacetSwapV1Pair(pair).mint(to: to)
+    liquidity = FacetSwapV1PairVariableFee(pair).mint(to: to)
     
     return { amountA: amountA, amountB: amountB, liquidity: liquidity }
   end
@@ -88,9 +88,9 @@ contract :FacetSwapV1RouterVariableFee, is: :Upgradeable, upgradeable: true do
     require(deadline >= block.timestamp, 'FacetSwapV1Router: EXPIRED');
     
     pair = pairFor(s.factory, tokenA, tokenB)
-    FacetSwapV1Pair(pair).transferFrom(msg.sender, pair, liquidity)
+    FacetSwapV1PairVariableFee(pair).transferFrom(msg.sender, pair, liquidity)
     
-    amount0, amount1 = FacetSwapV1Pair(pair).burn(to)
+    amount0, amount1 = FacetSwapV1PairVariableFee(pair).burn(to)
     
     token0, _ = sortTokens(tokenA, tokenB)
 
@@ -161,7 +161,7 @@ contract :FacetSwapV1RouterVariableFee, is: :Upgradeable, upgradeable: true do
       amount0Out, amount1Out = input == token0 ? [0, amountOut] : [amountOut, 0]
       to = i < path.length - 2 ? pairFor(factory, output, path[i + 2]) : _to
 
-      FacetSwapV1Pair(pairFor(factory, input, output)).swap(amount0Out, amount1Out, to, "")
+      FacetSwapV1PairVariableFee(pairFor(factory, input, output)).swap(amount0Out, amount1Out, to, "")
     end
   end
   
@@ -264,7 +264,7 @@ contract :FacetSwapV1RouterVariableFee, is: :Upgradeable, upgradeable: true do
   }, :public, :view, returns: { reserveA: :uint256, reserveB: :uint256 } do
     token0, _ = sortTokens(tokenA, tokenB)
     
-    reserve0, reserve1, _ = FacetSwapV1Pair(pairFor(factory, tokenA, tokenB)).getReserves();
+    reserve0, reserve1, _ = FacetSwapV1PairVariableFee(pairFor(factory, tokenA, tokenB)).getReserves();
     
     (reserveA, reserveB) = tokenA == token0 ? [reserve0, reserve1] : [reserve1, reserve0]
     

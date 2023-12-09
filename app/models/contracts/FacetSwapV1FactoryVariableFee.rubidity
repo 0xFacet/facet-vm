@@ -6,7 +6,9 @@ import './FacetSwapV1PairVariableFee.rubidity'
 contract :FacetSwapV1FactoryVariableFee, is: :Upgradeable, upgradeable: true do
   address :public, :feeTo
   address :public, :feeToSetter
-  uint256 :public, :feeBPS
+  
+  uint256 :public, :lpFeeBPS
+  uint256 :public, :networkFeeBPS
   
   mapping ({ address: mapping({ address: :address })}), :public, :getPair
   array :address, :public, :allPairs
@@ -16,14 +18,22 @@ contract :FacetSwapV1FactoryVariableFee, is: :Upgradeable, upgradeable: true do
   constructor(_feeToSetter: :address) {
     s.feeToSetter = _feeToSetter
     Upgradeable.constructor(upgradeAdmin: msg.sender)
-    # Ownable.constructor(owner: owner)
   }
   
-  # function :onUpgrade, { feeBPS: :uint256 } :public do
-  #   require(msg.sender == address(this), "NOT_AUTHORIZED")
+  function :setVariableFees, { lpFeeBPS: :uint256, networkFeeBPS: :uint256 }, :public do
+    require(msg.sender == feeToSetter, "FacetSwapV1: FORBIDDEN")
+    require(lpFeeBPS + networkFeeBPS <= 10000, "Fees cannot exceed 100%")
     
-  #   s.feeBPS = feeBPS
-  # end
+    s.lpFeeBPS = lpFeeBPS
+    s.networkFeeBPS = networkFeeBPS
+  end
+  
+  function :getVariableFees, :public, :view, returns: { lpFeeBPS: :uint256, networkFeeBPS: :uint256 } do
+    return {
+      lpFeeBPS: [s.lpFeeBPS, 30].max,
+      networkFeeBPS: s.networkFeeBPS
+    }
+  end
 
   function :allPairsLength, :public, :view, returns: :uint256 do
     return s.allPairs.length
@@ -76,6 +86,19 @@ contract :FacetSwapV1FactoryVariableFee, is: :Upgradeable, upgradeable: true do
   end
   
   function :upgradePair, {
+    pair: :address,
+    newHash: :bytes32,
+    newSource: :string
+  }, :public do
+    require(msg.sender == s.upgradeAdmin, "NOT_AUTHORIZED")
+    
+    Upgradeable(pair).upgrade(
+      newHash: newHash,
+      newSource: newSource
+    )
+  end
+  
+  function :upgradeAndCallPair, {
     pair: :address,
     newHash: :bytes32,
     newSource: :string,
