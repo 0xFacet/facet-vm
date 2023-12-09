@@ -126,7 +126,7 @@ describe 'FacetSwapV1Router contract' do
             data: {
               function: "mint",
               args: {
-                amount: 100_000.ether
+                amount: 100_0000.ether
               }
             }
           }
@@ -166,7 +166,7 @@ describe 'FacetSwapV1Router contract' do
     origAmountBDesired = amountBDesired = 5_000.ether - 2_000.ether
     amountAMin = 1_000.ether
     amountBMin = 1_000.ether
-    # binding.pry
+    
     [user_address, alice, bob, charlie].each do |addr|
       add_liquidity_receipt = trigger_contract_interaction_and_expect_success(
         from: addr,
@@ -200,12 +200,120 @@ describe 'FacetSwapV1Router contract' do
       function_args: user_address
     )
     
-    ap ContractTransaction.make_static_call(
-      contract: pair_address,
+    expect(lp_balance).to eq(sqrt(origAmountADesired * origAmountBDesired) - 1000)
+    
+    token_a_balance_before = ContractTransaction.make_static_call(
+      contract: token_a_address,
       function_name: "balanceOf",
-      function_args: frank
+      function_args: user_address
     )
     
-    expect(lp_balance).to eq(sqrt(origAmountADesired * origAmountBDesired) - 1000)
+    token_b_balance_before = ContractTransaction.make_static_call(
+      contract: token_b_address,
+      function_name: "balanceOf",
+      function_args: user_address
+    )
+    
+    reserves = ContractTransaction.make_static_call(
+      contract: router_address,
+      function_name: "getReserves",
+      function_args: [factory_address, token_a_address, token_b_address]
+    )
+    
+    reserveA, reserveB = reserves.values_at("reserveA", "reserveB")
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: factory_address,
+        data: {
+          function: "setVariableFees",
+          args: {
+            lpFeeBPS: 70,
+            networkFeeBPS: 30
+          }
+        }
+      }
+    )
+    
+    getVariableFees = ContractTransaction.make_static_call(
+      contract: factory_address,
+      function_name: "getVariableFees",
+    )
+    
+    lpFeeBPS, networkFeeBPS = getVariableFees.values_at("lpFeeBPS", "networkFeeBPS")
+    totalFeeBPS = lpFeeBPS + networkFeeBPS
+    
+    amountIn = 1000.ether
+    amountOutMin = 300.ether
+    
+    totalFeeFactor = 1000 - totalFeeBPS / 10
+
+    numerator = amountIn * totalFeeFactor * reserveB
+    denominator = (reserveA * 1000) + (amountIn * totalFeeFactor)
+    expectedOut = numerator.div(denominator)
+
+    swap_receipt = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: router_address,
+        data: {
+          function: "swapExactTokensForTokens",
+          args: {
+            amountIn: amountIn,
+            amountOutMin: expectedOut,
+            path: [token_a_address, token_b_address],
+            to: user_address,
+            deadline: Time.now.to_i + 300
+          }
+        }
+      }
+    )
+    
+    fee_to = ContractTransaction.make_static_call(
+      contract: factory_address,
+      function_name: "feeTo",
+    )
+    
+    fta = ContractTransaction.make_static_call(
+      contract: token_a_address,
+      function_name: "balanceOf",
+      function_args: fee_to
+    )
+    
+    expect(
+      fta / amountIn.to_d
+    ).to eq(networkFeeBPS / 10_000.to_d)
+    
+    token_a_balance_after = ContractTransaction.make_static_call(
+      contract: token_a_address,
+      function_name: "balanceOf",
+      function_args: user_address
+    )
+    
+    token_b_balance_after = ContractTransaction.make_static_call(
+      contract: token_b_address,
+      function_name: "balanceOf",
+      function_args: user_address
+    )
+    
+    token_a_diff = token_a_balance_after - token_a_balance_before
+    expect(token_a_diff).to eq(-1 * amountIn)
+    
+    token_b_diff = token_b_balance_after - token_b_balance_before
+    expect(token_b_diff).to eq(expectedOut)
+    
+    reserves = ContractTransaction.make_static_call(
+      contract: router_address,
+      function_name: "getReserves",
+      function_args: [factory_address, token_a_address, token_b_address]
+    )
+    
+    postSwapReserveA, postSwapReserveB = reserves.values_at("reserveA", "reserveB")
+    
+    expectedRatio = 1 + lpFeeBPS / 10_000.to_d
+    actualRatio = (postSwapReserveA * postSwapReserveB) / (reserveA * reserveB.to_d)
+    
+    expect(actualRatio).to be_within(0.01).of(expectedRatio)
   end
 end

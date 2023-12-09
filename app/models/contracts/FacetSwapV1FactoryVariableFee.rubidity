@@ -26,6 +26,8 @@ contract :FacetSwapV1FactoryVariableFee, is: :Upgradeable, upgradeable: true do
     
     s.lpFeeBPS = lpFeeBPS
     s.networkFeeBPS = networkFeeBPS
+    
+    return nil
   end
   
   function :getVariableFees, :public, :view, returns: { lpFeeBPS: :uint256, networkFeeBPS: :uint256 } do

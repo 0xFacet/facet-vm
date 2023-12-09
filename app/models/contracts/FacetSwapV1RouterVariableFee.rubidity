@@ -200,7 +200,12 @@ contract :FacetSwapV1RouterVariableFee, is: :Upgradeable, upgradeable: true do
     require(amountIn > 0, 'FacetSwapV1Library: INSUFFICIENT_INPUT_AMOUNT');
     require(reserveIn > 0 && reserveOut > 0, 'FacetSwapV1Library: INSUFFICIENT_LIQUIDITY');
     
-    amountInWithFee = amountIn * 997;
+    lpFeeBPS, networkFeeBPS = IFacetSwapV1FactoryVariableFee(s.factory).getVariableFees
+    totalFeeBPS = lpFeeBPS + networkFeeBPS
+    
+    totalFeeFactor = 1000 - totalFeeBPS.div(10)
+    
+    amountInWithFee = amountIn * totalFeeFactor;
     numerator = amountInWithFee * reserveOut
     denominator = reserveIn * 1000 + amountInWithFee
     amountOut = numerator.div(denominator)
@@ -239,8 +244,14 @@ contract :FacetSwapV1RouterVariableFee, is: :Upgradeable, upgradeable: true do
     require(amountOut > 0, 'FacetSwapV1Library: INSUFFICIENT_OUTPUT_AMOUNT')
     require(reserveIn > 0 && reserveOut > 0, 'FacetSwapV1Library: INSUFFICIENT_LIQUIDITY')
   
+    # TODO: test
+    lpFeeBPS, networkFeeBPS = IFacetSwapV1FactoryVariableFee(s.factory).getVariableFees
+    totalFeeBPS = lpFeeBPS + networkFeeBPS
+    
+    totalFeeFactor = 1000 - totalFeeBPS.div(10)
+    
     numerator = reserveIn * amountOut * 1000
-    denominator = (reserveOut - amountOut) * 997
+    denominator = (reserveOut - amountOut) * totalFeeFactor
     amountIn = (numerator.div(denominator)) + 1
   
     return amountIn
