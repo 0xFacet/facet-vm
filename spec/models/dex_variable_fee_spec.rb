@@ -12,8 +12,9 @@ describe 'FacetSwapV1Router contract' do
   
   before(:all) do
     update_supported_contracts(
-      # 'FacetSwapV1RouterWithRewards',
+      'FacetSwapV1RouterVariableFee',
       'FacetSwapV1FactoryVariableFee',
+      'FacetSwapV1PairVariableFee',
       'StubERC20'
     )
   end
@@ -38,8 +39,9 @@ describe 'FacetSwapV1Router contract' do
       }
     )
     factory_address = factory_deploy_receipt.address
+    fc = Contract.find_by_address(factory_address)
     
-    create_pair_receipt = trigger_contract_interaction_and_expect_success(
+    trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
         to: factory_address,
@@ -83,7 +85,7 @@ describe 'FacetSwapV1Router contract' do
       payload: {
         to: nil,
         data: {
-          type: "FacetSwapV1Router",
+          type: "FacetSwapV1RouterVariableFee",
           args: {
             _factory: factory_address,
             _WETH: weth_address
@@ -164,7 +166,7 @@ describe 'FacetSwapV1Router contract' do
     origAmountBDesired = amountBDesired = 5_000.ether - 2_000.ether
     amountAMin = 1_000.ether
     amountBMin = 1_000.ether
-    
+    # binding.pry
     [user_address, alice, bob, charlie].each do |addr|
       add_liquidity_receipt = trigger_contract_interaction_and_expect_success(
         from: addr,
@@ -196,6 +198,12 @@ describe 'FacetSwapV1Router contract' do
       contract: pair_address,
       function_name: "balanceOf",
       function_args: user_address
+    )
+    
+    ap ContractTransaction.make_static_call(
+      contract: pair_address,
+      function_name: "balanceOf",
+      function_args: frank
     )
     
     expect(lp_balance).to eq(sqrt(origAmountADesired * origAmountBDesired) - 1000)

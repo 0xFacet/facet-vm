@@ -3,9 +3,13 @@ pragma :rubidity, "1.0.0"
 import './Upgradeable.rubidity'
 import './FacetSwapV1Callee.rubidity'
 import './FacetSwapV1ERC20.rubidity'
+import './FacetSwapV1Pair.rubidity'
 
-contract :IFacetSwapV1Factory, abstract: true do
+contract :IFacetSwapV1FactoryVariableFee, abstract: true do
   function :feeTo, :external, :view, returns: :address
+  function :feeBPS, :external, :view, returns: :uint256
+  function :getPair, { arg0: :address, arg1: :address },
+    :external, :view, returns: :address
 end
 
 contract :FacetSwapV1PairVariableFee, is: [:FacetSwapV1ERC20, :Upgradeable], upgradeable: true do
@@ -109,7 +113,7 @@ contract :FacetSwapV1PairVariableFee, is: [:FacetSwapV1ERC20, :Upgradeable], upg
   end
   
   function :_mintFee, { _reserve0: :uint112, _reserve1: :uint112 }, :private, returns: :bool do
-    feeTo = IFacetSwapV1Factory(s.factory).feeTo
+    feeTo = IFacetSwapV1FactoryVariableFee(s.factory).feeTo
     feeOn = feeTo != address(0)
     _kLast = s.kLast
     
