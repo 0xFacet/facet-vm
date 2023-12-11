@@ -407,13 +407,7 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
     tokenA: :address,
     tokenB: :address
   }, :internal, :pure, returns: :address do
-    token0, token1 = sortTokens(tokenA, tokenB)
-    
-    return create2_address(
-      salt: keccak256(abi.encodePacked(token0, token1)),
-      deployer: factory,
-      initCodeHash: FacetSwapV1PairVariableFee(address(0)).currentInitCodeHash
-    )
+    return FacetSwapV1FactoryVariableFee(s.factory).getPair(tokenA, tokenB)
   end
   
   function :sortTokens, { tokenA: :address, tokenB: :address }, :internal, :pure, returns: { token0: :address, token1: :address } do
