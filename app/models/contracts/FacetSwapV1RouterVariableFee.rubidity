@@ -320,7 +320,7 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
     require(amountIn > 0, 'FacetSwapV1Library: INSUFFICIENT_INPUT_AMOUNT');
     require(reserveIn > 0 && reserveOut > 0, 'FacetSwapV1Library: INSUFFICIENT_LIQUIDITY');
     
-    lpFeeBPS = IFacetSwapV1FactoryVariableFee(s.factory).lpFeeBPS
+    lpFeeBPS = FacetSwapV1FactoryVariableFee(s.factory).lpFeeBPS
 
     totalFeeFactor = 1000 - lpFeeBPS.div(10)
     
@@ -363,7 +363,7 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
     require(amountOut > 0, 'FacetSwapV1Library: INSUFFICIENT_OUTPUT_AMOUNT')
     require(reserveIn > 0 && reserveOut > 0, 'FacetSwapV1Library: INSUFFICIENT_LIQUIDITY')
     
-    lpFeeBPS = IFacetSwapV1FactoryVariableFee(s.factory).lpFeeBPS
+    lpFeeBPS = FacetSwapV1FactoryVariableFee(s.factory).lpFeeBPS
 
     totalFeeFactor = 1000 - lpFeeBPS.div(10)
     
@@ -406,7 +406,7 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
     factory: :address,
     tokenA: :address,
     tokenB: :address
-  }, :internal, :pure, returns: :address do
+  }, :internal, :view, returns: :address do
     return FacetSwapV1FactoryVariableFee(s.factory).getPair(tokenA, tokenB)
   end
   
