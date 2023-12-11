@@ -1,21 +1,56 @@
 pragma :rubidity, "1.0.0"
 
 import './Upgradeable.rubidity'
+import './Pausable.rubidity'
+import './Ownable.rubidity'
 import './FacetSwapV1FactoryVariableFee.rubidity'
 
-contract :FacetSwapV1RouterVariableFee, is: :Upgradeable, upgradeable: true do
+contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable], upgradeable: true do
   address :public, :factory
   address :public, :WETH
   
   uint8 :public, :maxPathLength
   
-  constructor(_factory: :address, _WETH: :address) {
+  uint256 :public, :protocolFeeBPS
+  
+  event :FeeAdjustedSwap, {
+    inputToken: :address,
+    outputToken: :address,
+    inputAmount: :uint256,
+    outputAmount: :uint256,
+    feeAmount: :uint256,
+    to: :address 
+  }
+  
+  constructor(
+    _factory: :address,
+    _WETH: :address,
+    protocolFeeBPS: :uint256,
+    initialPauseState: :bool
+  ) {
     s.factory = _factory
     s.WETH = _WETH
     Upgradeable.constructor(upgradeAdmin: msg.sender)
+    Ownable.constructor(owner: msg.sender)
+    
+    updateProtocolFee(protocolFeeBPS: protocolFeeBPS)
+    Pausable.constructor(initialPauseState: initialPauseState)
     
     s.maxPathLength = 3
   }
+  
+  function :onUpgrade, {
+    owner: :address,
+    protocolFeeBPS: :uint256,
+    initialPauseState: :bool
+  }, :public do
+    require(msg.sender == address(this), 'Only the contract itself can upgrade')
+    
+    s.owner = owner
+    # updateProtocolFee(protocolFeeBPS: protocolFeeBPS)
+    
+    initialPauseState ? _pause() : _unpause()
+  end
   
   function :_addLiquidity, {
     tokenA: :address,
@@ -62,6 +97,7 @@ contract :FacetSwapV1RouterVariableFee, is: :Upgradeable, upgradeable: true do
     to: :address,
     deadline: :uint256
   }, :public, :virtual, returns: { amountA: :uint256, amountB: :uint256, liquidity: :uint256 } do
+    whenNotPaused!
     require(deadline >= block.timestamp, 'FacetSwapV1Router: EXPIRED');
     
     amountA, amountB = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin)
@@ -85,6 +121,7 @@ contract :FacetSwapV1RouterVariableFee, is: :Upgradeable, upgradeable: true do
     to: :address,
     deadline: :uint256
   }, :public, :virtual, returns: { amountA: :uint256, amountB: :uint256 } do
+    whenNotPaused!
     require(deadline >= block.timestamp, 'FacetSwapV1Router: EXPIRED');
     
     pair = pairFor(s.factory, tokenA, tokenB)
@@ -103,12 +140,53 @@ contract :FacetSwapV1RouterVariableFee, is: :Upgradeable, upgradeable: true do
   end
   
   function :swapExactTokensForTokens, { 
+    amountIn: :uint256,
+    amountOutMin: :uint256,
+    path: [:address],
+    to: :address,
+    deadline: :uint256
+  }, :public, :virtual, returns: [:uint256] do
+    whenNotPaused!
+    require(path[0] == s.WETH || path[path.length - 1] == s.WETH, 'Must have WETH as either the first or last token in the path')
+    
+    amountInWithFee = path[0] == s.WETH ? amountIn - calculateFeeAmount(amountIn) : amountIn
+    
+    amounts = _swapExactTokensForTokens(
+      amountIn: amountInWithFee,
+      amountOutMin: amountOutMin,
+      path: path,
+      to: to,
+      deadline: deadline
+    )
+    
+    feeAmount = if path[0] == s.WETH
+      feeAmount = calculateFeeAmount(amountIn)
+    else
+      feeAmount = calculateFeeAmount(amounts[amounts.length - 1])
+      amounts[amounts.length - 1] -= feeAmount
+      feeAmount
+    end
+    
+    chargeWethFee(feeAmount)
+    
+    emit :FeeAdjustedSwap,
+      inputToken: path[0],
+      outputToken: path[path.length - 1],
+      inputAmount: amountIn,
+      outputAmount: amounts[amounts.length - 1],
+      feeAmount: feeAmount,
+      to: to
+    
+    amounts
+  end
+  
+  function :_swapExactTokensForTokens, { 
     amountIn: :uint256, 
     amountOutMin: :uint256, 
     path: [:address],
     to: :address, 
     deadline: :uint256 
-  }, :public, :virtual, returns: [:uint256] do
+  }, :internal, :virtual, returns: [:uint256] do
     require(deadline >= block.timestamp, 'FacetSwapV1Router: EXPIRED');
 
     amounts = getAmountsOut(factory, amountIn, path)
@@ -131,6 +209,48 @@ contract :FacetSwapV1RouterVariableFee, is: :Upgradeable, upgradeable: true do
     to: :address,
     deadline: :uint256
   }, :public, :virtual, returns: [:uint256] do
+    whenNotPaused!
+    require(path[0] == s.WETH || path[path.length - 1] == s.WETH, 'Must have WETH as either the first or last token in the path')
+    
+    amountOutWithFee = path[path.length - 1] == s.WETH ?
+      amountOut + calculateFeeAmount(amountOut) : amountOut
+    
+    amounts = _swapTokensForExactTokens(
+      amountOut: amountOutWithFee,
+      amountInMax: amountInMax,
+      path: path,
+      to: to,
+      deadline: deadline
+    )
+    
+    feeAmount = if path[path.length - 1] == s.WETH
+      calculateFeeAmount(amountOut)
+    else
+      feeAmount = calculateFeeAmount(amounts[0])
+      amounts[0] += feeAmount
+      feeAmount
+    end
+    
+    chargeWethFee(feeAmount)
+    
+    emit :FeeAdjustedSwap,
+      inputToken: path[0],
+      outputToken: path[path.length - 1],
+      inputAmount: amounts[0],
+      outputAmount: amountOut,
+      feeAmount: feeAmount,
+      to: to
+    
+    amounts
+  end
+  
+  function :_swapTokensForExactTokens, {
+    amountOut: :uint256,
+    amountInMax: :uint256,
+    path: [:address],
+    to: :address,
+    deadline: :uint256
+  }, :internal, :virtual, returns: [:uint256] do
     require(deadline >= block.timestamp, 'FacetSwapV1Router: EXPIRED');
     
     amounts = getAmountsIn(factory, amountOut, path)
@@ -200,10 +320,9 @@ contract :FacetSwapV1RouterVariableFee, is: :Upgradeable, upgradeable: true do
     require(amountIn > 0, 'FacetSwapV1Library: INSUFFICIENT_INPUT_AMOUNT');
     require(reserveIn > 0 && reserveOut > 0, 'FacetSwapV1Library: INSUFFICIENT_LIQUIDITY');
     
-    lpFeeBPS, networkFeeBPS = IFacetSwapV1FactoryVariableFee(s.factory).getVariableFees
-    totalFeeBPS = lpFeeBPS + networkFeeBPS
-    
-    totalFeeFactor = 1000 - totalFeeBPS.div(10)
+    lpFeeBPS = IFacetSwapV1FactoryVariableFee(s.factory).lpFeeBPS
+
+    totalFeeFactor = 1000 - lpFeeBPS.div(10)
     
     amountInWithFee = amountIn * totalFeeFactor;
     numerator = amountInWithFee * reserveOut
@@ -243,12 +362,10 @@ contract :FacetSwapV1RouterVariableFee, is: :Upgradeable, upgradeable: true do
   }, :public, :view, returns: :uint256 do
     require(amountOut > 0, 'FacetSwapV1Library: INSUFFICIENT_OUTPUT_AMOUNT')
     require(reserveIn > 0 && reserveOut > 0, 'FacetSwapV1Library: INSUFFICIENT_LIQUIDITY')
-  
-    # TODO: test
-    lpFeeBPS, networkFeeBPS = IFacetSwapV1FactoryVariableFee(s.factory).getVariableFees
-    totalFeeBPS = lpFeeBPS + networkFeeBPS
     
-    totalFeeFactor = 1000 - totalFeeBPS.div(10)
+    lpFeeBPS = IFacetSwapV1FactoryVariableFee(s.factory).lpFeeBPS
+
+    totalFeeFactor = 1000 - lpFeeBPS.div(10)
     
     numerator = reserveIn * amountOut * 1000
     denominator = (reserveOut - amountOut) * totalFeeFactor
@@ -307,5 +424,48 @@ contract :FacetSwapV1RouterVariableFee, is: :Upgradeable, upgradeable: true do
     require(token0 != address(0), 'FacetSwapV1Library: ZERO_ADDRESS')
     
     return { token0: token0, token1: token1 }
+  end
+  
+  function :chargeWethFee, { feeAmount: :uint256 }, :internal, returns: :bool do
+    ERC20(s.WETH).transferFrom(
+      from: msg.sender,
+      to: address(this),
+      amount: feeAmount
+    )
+  end
+  
+  function :calculateFeeAmount, {
+    amount: :uint256
+  }, :public, :view, returns: :uint256 do
+    return (amount * s.protocolFeeBPS).div(10_000)
+  end
+  
+  function :updateProtocolFee, { protocolFeeBPS: :uint256 }, :public do
+    onlyOwner!
+    
+    require(protocolFeeBPS <= 10_000, 'Fee cannot be greater than 100%')
+    
+    s.protocolFeeBPS = protocolFeeBPS
+    
+    nil
+  end
+  
+  function :withdrawFees, { to: :address }, :public, returns: :bool do
+    onlyOwner!
+    
+    ERC20(s.WETH).transfer(
+      to: to,
+      amount: ERC20(s.WETH).balanceOf(address(this))
+    )
+  end
+  
+  function :pause, :public do
+    onlyOwner!
+    _pause()
+  end
+  
+  function :unpause, :public do
+    onlyOwner!
+    _unpause()
   end
 end

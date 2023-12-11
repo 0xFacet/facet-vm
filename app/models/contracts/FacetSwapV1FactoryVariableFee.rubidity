@@ -8,7 +8,6 @@ contract :FacetSwapV1FactoryVariableFee, is: :Upgradeable, upgradeable: true do
   address :public, :feeToSetter
   
   uint256 :public, :lpFeeBPS
-  uint256 :public, :networkFeeBPS
   
   mapping ({ address: mapping({ address: :address })}), :public, :getPair
   array :address, :public, :allPairs
@@ -20,21 +19,13 @@ contract :FacetSwapV1FactoryVariableFee, is: :Upgradeable, upgradeable: true do
     Upgradeable.constructor(upgradeAdmin: msg.sender)
   }
   
-  function :setVariableFees, { lpFeeBPS: :uint256, networkFeeBPS: :uint256 }, :public do
+  function :setLpFeeBPS, { lpFeeBPS: :uint256 }, :public do
     require(msg.sender == feeToSetter, "FacetSwapV1: FORBIDDEN")
-    require(lpFeeBPS + networkFeeBPS <= 10000, "Fees cannot exceed 100%")
+    require(lpFeeBPS <= 10000, "Fees cannot exceed 100%")
     
     s.lpFeeBPS = lpFeeBPS
-    s.networkFeeBPS = networkFeeBPS
     
     return nil
-  end
-  
-  function :getVariableFees, :public, :view, returns: { lpFeeBPS: :uint256, networkFeeBPS: :uint256 } do
-    return {
-      lpFeeBPS: [s.lpFeeBPS, 30].max,
-      networkFeeBPS: s.networkFeeBPS
-    }
   end
 
   function :allPairsLength, :public, :view, returns: :uint256 do
@@ -61,14 +52,6 @@ contract :FacetSwapV1FactoryVariableFee, is: :Upgradeable, upgradeable: true do
     emit(:PairCreated, { token0: token0, token1: token1, pair: pair, pairLength: s.allPairs.length })
     
     return pair
-  end
-
-  function :setFeeBPS, { _feeBPS: :uint256 }, :public do
-    require(msg.sender == feeToSetter, "FacetSwapV1: FORBIDDEN")
-    
-    s.feeBPS = _feeBPS
-    
-    return nil
   end
   
   function :setFeeTo, { _feeTo: :address }, :public do
