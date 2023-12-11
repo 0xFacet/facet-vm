@@ -11,7 +11,9 @@ describe 'FacetSwapV1Router contract' do
   
   before(:all) do
     update_supported_contracts(
-      'FacetSwapV1RouterWithRewards'
+      'FacetSwapV1RouterWithRewards',
+      'FacetSwapV1Factory',
+      'StubERC20'
     )
   end
   

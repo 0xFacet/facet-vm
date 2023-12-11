@@ -52,6 +52,34 @@ module StateTestingUtils
     differing_states
   end
   
+  def state_test2(us_db_name, them_db_name)
+    ActiveRecord::Base.establish_connection(
+      adapter:  'postgresql',
+      host:     'localhost',
+      database: us_db_name,
+      username: `whoami`.chomp,
+      password: ''
+    )
+    us = ContractState.pluck(:contract_address, :transaction_hash, :state).map{|address, transaction_hash, state| [[address, transaction_hash], state]}.to_h
+  
+    ActiveRecord::Base.establish_connection(
+      adapter:  'postgresql',
+      host:     'localhost',
+      database: them_db_name,
+      username: `whoami`.chomp,
+      password: ''
+    )
+    them = ContractState.pluck(:contract_address, :transaction_hash, :state).map{|address, transaction_hash, state| [[address, transaction_hash], state]}.to_h
+  
+    differing_states = us.each_with_object({}) do |((address, transaction_hash), state), diff|
+      if them[[address, transaction_hash]] && them[[address, transaction_hash]] != state
+        diff[[address, transaction_hash]] = { local: state, remote: them[[address, transaction_hash]] }
+      end
+    end
+  
+    differing_states
+  end
+  
   def __pt2
     them = JSON.parse(IO.read("ctr.json")).sort_by{|i| [i['block_number'], i['transaction_index']]}
     max_block = them.map{|i| i['block_number']}.max
@@ -92,4 +120,38 @@ module StateTestingUtils
       different_values.to_a.map{|i| i.last['differences']}
   end
   
+  def runtime_performance_stats(since = nil)
+    since = since&.to_i || 24.hours.ago.to_i
+  
+    block_runtimes = TransactionReceipt.joins(:eth_block).where('eth_blocks.timestamp >= ?', since).group(:block_number).sum(:runtime_ms)
+  
+    block_runtimes_array = block_runtimes.values
+  
+    block_percentile_50 = block_runtimes_array.percentile(50).round
+    block_percentile_95 = block_runtimes_array.percentile(95).round
+    block_percentile_99 = block_runtimes_array.percentile(99).round
+  
+    percentiles = TransactionReceipt.where('block_timestamp >= ?', since).select("
+      PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY runtime_ms) AS percentile_50,
+      PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY runtime_ms) AS percentile_95,
+      PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY runtime_ms) AS percentile_99
+    ").take
+  
+    transaction_percentile_50 = percentiles.percentile_50
+    transaction_percentile_95 = percentiles.percentile_95
+    transaction_percentile_99 = percentiles.percentile_99
+  
+    {
+      blocks: {
+        percentile_50: block_percentile_50,
+        percentile_95: block_percentile_95,
+        percentile_99: block_percentile_99
+      },
+      transactions: {
+        percentile_50: transaction_percentile_50,
+        percentile_95: transaction_percentile_95,
+        percentile_99: transaction_percentile_99
+      }
+    }
+  end
 end

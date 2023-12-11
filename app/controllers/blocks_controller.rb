@@ -6,6 +6,7 @@ class BlocksController < ApplicationController
     
     scope = if system_start_block.present?
       EthBlock.where("block_number >= ?", system_start_block).
+        processed.
         order(block_number: :desc)
     else
       EthBlock.none
@@ -26,6 +27,7 @@ class BlocksController < ApplicationController
   def show
     scope = if system_start_block.present?
       EthBlock.where("block_number >= ?", system_start_block).
+        processed.
         where(block_number: params[:id])
     else
       EthBlock.none
@@ -45,7 +47,7 @@ class BlocksController < ApplicationController
 
   def total
     total_blocks = if system_start_block.present?
-      EthBlock.where("block_number >= ?", system_start_block).count
+      EthBlock.processed.where("block_number >= ?", system_start_block).count
     else
       0
     end

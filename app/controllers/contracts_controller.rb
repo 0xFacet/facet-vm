@@ -142,12 +142,100 @@ class ContractsController < ApplicationController
     render json: { result: convert_int_to_string(receipt) }
   end
   
+  def pairs_for_router
+    user_address = params[:user_address]&.downcase
+    router_address = params[:router]&.downcase
+    
+    cache_key = [
+      "pairs_for_router",
+      router_address,
+      user_address,
+      EthBlock.max_processed_block_number
+    ]
+    
+    result = Rails.cache.fetch(cache_key) do
+      router = Contract.find_by_address(router_address)
+      weth_address = router.current_state['WETH']
+      
+      factory = Contract.find_by_address(router.current_state['factory'])
+      
+      pairs = Contract.where(address: factory.current_state['allPairs'])
+      
+      pairs = pairs.select do |pair|
+        pair.current_state['token0'] == weth_address || pair.current_state['token1'] == weth_address
+      end
+      
+      all_tokens = pairs.map do |pair|
+        [pair.current_state['token0'], pair.current_state['token1']]
+      end.flatten.uniq
+      
+      all_tokens = Contract.where(address: all_tokens).index_by(&:address)
+      
+      pairs.each_with_object({}) do |pair, result|
+        token0_address = pair.current_state['token0']
+        token1_address = pair.current_state['token1']
+      
+        token0 = all_tokens[token0_address]
+        token1 = all_tokens[token1_address]
+      
+        pair_info = {
+          token0: {
+            address: token0_address,
+            name: token0.current_state['name'],
+            symbol: token0.current_state['symbol']
+          },
+          token1: {
+            address: token1_address,
+            name: token1.current_state['name'],
+            symbol: token1.current_state['symbol']
+          },
+          lp_reserves: {
+            token0: pair.current_state['reserve0'],
+            token1: pair.current_state['reserve1']
+          }
+        }
+        
+        if pair.current_state['token0'] == weth_address
+          weth_reserves = pair.current_state['reserve0'].to_i
+        elsif pair.current_state['token1'] == weth_address
+          weth_reserves = pair.current_state['reserve1'].to_i
+        end
+      
+        pair_info[:tvl_in_weth] = weth_reserves * 2
+        
+        if user_address
+          pair_info[:user_balances] = {
+            lp: pair.current_state['balanceOf'][user_address].to_i,
+            token0: token0.current_state['balanceOf'][user_address].to_i,
+            token1: token1.current_state['balanceOf'][user_address].to_i
+          }
+      
+          pair_info[:user_allowances] = {
+            lp: pair.current_state.dig('allowance', user_address, router_address).to_i,
+            token0: token0.current_state.dig('allowance', user_address, router_address).to_i,
+            token1: token1.current_state.dig('allowance', user_address, router_address).to_i
+          }
+        end
+      
+        result[pair.address] = pair_info
+      end
+    end
+    
+    render json: convert_int_to_string(result)
+  end
+  
   def pairs_with_tokens
     router = params[:router]
     token_address = params[:token_address]
     user_address = params[:user_address]
   
-    cache_key = [:pairs_with_tokens, ContractState.all, router, token_address, user_address]
+    cache_key = [
+      :pairs_with_tokens,
+      EthBlock.max_processed_block_number,
+      router,
+      token_address,
+      user_address
+    ]
   
     pairs = Rails.cache.fetch(cache_key) do
       factory = make_static_call(

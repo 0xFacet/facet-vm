@@ -66,32 +66,6 @@ CREATE FUNCTION public.check_ethscription_order() RETURNS trigger
 
 
 --
--- Name: check_ethscription_sequence(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.check_ethscription_sequence() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-      BEGIN
-        IF NEW.processing_state != 'pending' THEN
-          IF EXISTS (
-            SELECT 1
-            FROM ethscriptions
-            WHERE 
-              (block_number < NEW.block_number AND processing_state = 'pending')
-              OR 
-              (block_number = NEW.block_number AND transaction_index < NEW.transaction_index AND processing_state = 'pending')
-            LIMIT 1
-          ) THEN
-            RAISE EXCEPTION 'Previous ethscription with either a lower block number or a lower transaction index in the same block not yet processed';
-          END IF;
-        END IF;
-        RETURN NEW;
-      END;
-      $$;
-
-
---
 -- Name: check_status(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -119,20 +93,6 @@ CREATE FUNCTION public.delete_later_blocks() RETURNS trigger
     AS $$
       BEGIN
         DELETE FROM eth_blocks WHERE block_number > OLD.block_number;
-        RETURN OLD;
-      END;
-      $$;
-
-
---
--- Name: delete_later_ethscriptions(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.delete_later_ethscriptions() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-      BEGIN
-        DELETE FROM ethscriptions WHERE block_number > OLD.block_number OR (block_number = OLD.block_number AND transaction_index > OLD.transaction_index);
         RETURN OLD;
       END;
       $$;
@@ -203,6 +163,7 @@ CREATE TABLE public.ar_internal_metadata (
 CREATE TABLE public.contract_artifacts (
     id bigint NOT NULL,
     transaction_hash character varying NOT NULL,
+    internal_transaction_index bigint NOT NULL,
     block_number bigint NOT NULL,
     transaction_index bigint NOT NULL,
     name character varying NOT NULL,
@@ -264,11 +225,9 @@ CREATE TABLE public.contract_calls (
     runtime_ms integer NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    CONSTRAINT chk_rails_028f647531 CHECK ((((call_type)::text <> 'create'::text) OR (created_contract_address IS NOT NULL))),
     CONSTRAINT chk_rails_0351aa702f CHECK (((created_contract_address IS NULL) OR ((created_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_1a921ba712 CHECK ((((call_type)::text <> 'call'::text) OR (to_contract_address IS NOT NULL))),
     CONSTRAINT chk_rails_27a87dcd58 CHECK (((call_type)::text = ANY ((ARRAY['call'::character varying, 'create'::character varying])::text[]))),
-    CONSTRAINT chk_rails_392c3d2c8e CHECK (((to_contract_address IS NULL) <> (created_contract_address IS NULL))),
     CONSTRAINT chk_rails_399807917b CHECK (((((status)::text = 'failure'::text) AND (logs = '[]'::jsonb)) OR ((status)::text = 'success'::text))),
     CONSTRAINT chk_rails_39b26367fa CHECK (((((status)::text = 'failure'::text) AND (error IS NOT NULL)) OR (((status)::text = 'success'::text) AND (error IS NULL)))),
     CONSTRAINT chk_rails_634aef3d55 CHECK (((effective_contract_address IS NULL) OR ((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
@@ -430,10 +389,12 @@ CREATE TABLE public.eth_blocks (
     imported_at timestamp(6) without time zone NOT NULL,
     processing_state character varying NOT NULL,
     transaction_count bigint,
+    runtime_ms integer,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_rails_11dbe1957f CHECK (((processing_state)::text = ANY ((ARRAY['no_ethscriptions'::character varying, 'pending'::character varying, 'complete'::character varying])::text[]))),
     CONSTRAINT chk_rails_1c105acdac CHECK (((parent_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_2ba9f3c274 CHECK ((((processing_state)::text <> 'complete'::text) OR (runtime_ms IS NOT NULL))),
     CONSTRAINT chk_rails_4f6ef583f4 CHECK ((((processing_state)::text <> 'complete'::text) OR (transaction_count IS NOT NULL))),
     CONSTRAINT chk_rails_7e9881ece2 CHECK (((blockhash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
@@ -772,6 +733,13 @@ ALTER TABLE ONLY public.transaction_receipts
 
 
 --
+-- Name: idx_on_address_deployed_successfully; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_address_deployed_successfully ON public.contracts USING btree (address) WHERE (deployed_successfully = true);
+
+
+--
 -- Name: idx_on_block_number_transaction_index_efc8dd9c1d; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -779,10 +747,24 @@ CREATE UNIQUE INDEX idx_on_block_number_transaction_index_efc8dd9c1d ON public.s
 
 
 --
+-- Name: idx_on_block_number_transaction_index_internal_tran_570359f80e; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_block_number_transaction_index_internal_tran_570359f80e ON public.contract_artifacts USING btree (block_number, transaction_index, internal_transaction_index);
+
+
+--
 -- Name: idx_on_block_number_txi_internal_txi; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX idx_on_block_number_txi_internal_txi ON public.contract_calls USING btree (block_number, transaction_index, internal_transaction_index);
+
+
+--
+-- Name: idx_on_transaction_hash_internal_transaction_index_c95378cab3; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_transaction_hash_internal_transaction_index_c95378cab3 ON public.contract_artifacts USING btree (transaction_hash, internal_transaction_index);
 
 
 --
@@ -950,7 +932,7 @@ CREATE INDEX index_contracts_on_deployed_successfully ON public.contracts USING 
 -- Name: index_contracts_on_deployed_successfully_and_address; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_contracts_on_deployed_successfully_and_address ON public.contracts USING btree (deployed_successfully, address);
+CREATE UNIQUE INDEX index_contracts_on_deployed_successfully_and_address ON public.contracts USING btree (deployed_successfully, address);
 
 
 --
@@ -1031,6 +1013,13 @@ CREATE UNIQUE INDEX index_ethscriptions_on_block_number_and_transaction_index ON
 
 
 --
+-- Name: index_ethscriptions_on_processing_state; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_ethscriptions_on_processing_state ON public.ethscriptions USING btree (processing_state);
+
+
+--
 -- Name: index_ethscriptions_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1045,6 +1034,20 @@ CREATE UNIQUE INDEX index_system_config_versions_on_transaction_hash ON public.s
 
 
 --
+-- Name: index_transaction_receipts_on_block_number; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_transaction_receipts_on_block_number ON public.transaction_receipts USING btree (block_number);
+
+
+--
+-- Name: index_transaction_receipts_on_block_number_and_runtime_ms; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_transaction_receipts_on_block_number_and_runtime_ms ON public.transaction_receipts USING btree (block_number, runtime_ms);
+
+
+--
 -- Name: index_transaction_receipts_on_created_contract_address; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1056,6 +1059,13 @@ CREATE INDEX index_transaction_receipts_on_created_contract_address ON public.tr
 --
 
 CREATE INDEX index_transaction_receipts_on_effective_contract_address ON public.transaction_receipts USING btree (effective_contract_address);
+
+
+--
+-- Name: index_transaction_receipts_on_runtime_ms; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_transaction_receipts_on_runtime_ms ON public.transaction_receipts USING btree (runtime_ms);
 
 
 --
@@ -1077,13 +1087,6 @@ CREATE UNIQUE INDEX index_transaction_receipts_on_transaction_hash ON public.tra
 --
 
 CREATE TRIGGER check_block_sequence_trigger BEFORE UPDATE OF processing_state ON public.eth_blocks FOR EACH ROW EXECUTE FUNCTION public.check_block_sequence();
-
-
---
--- Name: ethscriptions check_ethscription_sequence_trigger; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER check_ethscription_sequence_trigger BEFORE UPDATE OF processing_state ON public.ethscriptions FOR EACH ROW EXECUTE FUNCTION public.check_ethscription_sequence();
 
 
 --
@@ -1112,13 +1115,6 @@ CREATE TRIGGER trigger_check_ethscription_order BEFORE INSERT ON public.ethscrip
 --
 
 CREATE TRIGGER trigger_delete_later_blocks AFTER DELETE ON public.eth_blocks FOR EACH ROW EXECUTE FUNCTION public.delete_later_blocks();
-
-
---
--- Name: ethscriptions trigger_delete_later_ethscriptions; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trigger_delete_later_ethscriptions AFTER DELETE ON public.ethscriptions FOR EACH ROW EXECUTE FUNCTION public.delete_later_ethscriptions();
 
 
 --
@@ -1263,6 +1259,7 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20231203201813'),
 ('20231113223006'),
 ('20231110173854'),
 ('20230824174647'),

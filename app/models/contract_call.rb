@@ -53,13 +53,15 @@ class ContractCall < ApplicationRecord
   end
   
   def assign_contract
+    return unless effective_contract
+    
     if is_create?
       self.created_contract = effective_contract.tap do |c|
         c.assign_attributes(
           deployed_successfully: success?
         )
       end
-    elsif is_call? && effective_contract
+    elsif is_call?
       self.called_contract = effective_contract
     end
   end
@@ -76,7 +78,7 @@ class ContractCall < ApplicationRecord
   
   def find_and_validate_existing_contract!
     self.effective_contract = TransactionContext.get_active_contract(to_contract_address) ||
-      Contract.where(deployed_successfully: true, address: to_contract_address).first
+      Contract.find_by(deployed_successfully: true, address: to_contract_address)
     
     if effective_contract.blank?
       raise CallingNonExistentContractError.new("Contract not found: #{to_contract_address}")

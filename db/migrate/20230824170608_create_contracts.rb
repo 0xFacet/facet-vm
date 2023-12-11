@@ -11,7 +11,8 @@ class CreateContracts < ActiveRecord::Migration[7.1]
       t.boolean :deployed_successfully, null: false
     
       t.index :deployed_successfully
-      t.index [:deployed_successfully, :address]
+      t.index [:deployed_successfully, :address], unique: true
+      t.index :address, where: "(deployed_successfully = true)", unique: true, name: :idx_on_address_deployed_successfully
       t.index :address, unique: true
       t.index :current_init_code_hash
       t.index :current_type

@@ -1,5 +1,5 @@
 class ArrayVariable < TypedVariable
-  MAX_ARRAY_LENGTH = 25
+  MAX_ARRAY_LENGTH = 100
   
   def initialize(...)
     super(...)

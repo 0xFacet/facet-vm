@@ -6,6 +6,12 @@ class EthBlock < ApplicationRecord
   scope :newest_first, -> { order(block_number: :desc) }
   scope :oldest_first, -> { order(block_number: :asc) }
   
+  scope :processed, -> { where.not(processing_state: "pending") }
+  
+  def self.max_processed_block_number
+    EthBlock.processed.maximum(:block_number).to_i
+  end
+  
   def self.process_contract_actions_until_done
     unprocessed_ethscriptions = Ethscription.unprocessed.count
     unimported_ethscriptions = Rails.cache.read("future_ethscriptions").to_i
@@ -31,7 +37,7 @@ class EthBlock < ApplicationRecord
       batch_ethscriptions_processed += just_processed
       unprocessed_ethscriptions -= just_processed
       
-      if iterations % 100 == 0
+      if iterations % 1 == 0
         curr_time = Time.current
         
         batch_elapsed_time = curr_time - batch_start_time
@@ -51,13 +57,15 @@ class EthBlock < ApplicationRecord
         batch_ethscriptions_processed = 0
       end
       
-      break unless unprocessed_ethscriptions > 0
+      break if iterations >= 100 || unprocessed_ethscriptions == 0
     end
   end
   
   
   def self.process_contract_actions_for_next_block_with_ethscriptions
     EthBlock.transaction do
+      start_time = Time.current
+      
       next_number = EthBlock.where(processing_state: 'pending').order(:block_number).limit(1).select(:block_number)
 
       locked_next_block = EthBlock.where(block_number: next_number)
@@ -68,7 +76,7 @@ class EthBlock < ApplicationRecord
   
       ethscriptions = locked_next_block.ethscriptions.order(:transaction_index)
       # StackProf.run(mode: :wall, out: 'stackprof-cpu.dump', raw: true) do
-      #   1000 / (Benchmark.ms{100.times{EthBlock.process_contract_actions_for_next_block_with_ethscriptions}} /  100.0)
+      #   1000 / (Benchmark.ms{2.times{EthBlock.process_contract_actions_for_next_block_with_ethscriptions}} /  100.0)
       # end
       
       ethscriptions.each do |ethscription|
@@ -78,7 +86,8 @@ class EthBlock < ApplicationRecord
       locked_next_block.update_columns(
         processing_state: "complete",
         updated_at: Time.current,
-        transaction_count: locked_next_block.transaction_receipts.count
+        transaction_count: ethscriptions.count{|e| e.processing_state == "success"},
+        runtime_ms: (Time.current - start_time) * 1000
       )
   
       ethscriptions.length
