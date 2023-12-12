@@ -57,8 +57,8 @@ class TokensController < ApplicationController
     cache_key << max_processed_block_timestamp if max_processed_block_timestamp - to_timestamp < 1.hour
   
     result = Rails.cache.fetch(cache_key) do
-      transactions = TransactionReceipt.where(status: 'success', function: ['swapExactTokensForTokens', 'swapTokensForExactTokens'])
-        .where('block_timestamp >= ? AND block_timestamp <= ?', from_timestamp, to_timestamp)
+      transactions = TransactionReceipt.where(status: "success", function: ["swapExactTokensForTokens", "swapTokensForExactTokens"])
+        .where("block_timestamp >= ? AND block_timestamp <= ?", from_timestamp, to_timestamp)
         .where("EXISTS (
           SELECT 1
           FROM jsonb_array_elements(logs) AS log
