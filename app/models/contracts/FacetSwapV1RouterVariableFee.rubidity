@@ -41,13 +41,11 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
   
   function :onUpgrade, {
     owner: :address,
-    protocolFeeBPS: :uint256,
     initialPauseState: :bool
   }, :public do
     require(msg.sender == address(this), 'Only the contract itself can upgrade')
     
     s.owner = owner
-    # updateProtocolFee(protocolFeeBPS: protocolFeeBPS)
     
     initialPauseState ? _pause() : _unpause()
   end
@@ -461,5 +459,42 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
   function :unpause, :public do
     onlyOwner!
     _unpause()
+  end
+  
+  function :userStats, {
+    user: :address,
+    tokenA: :address,
+    tokenB: :address,
+  }, :public, :view, returns: {
+    userTokenABalance: :uint256,
+    userTokenBBalance: :uint256,
+    tokenAName: :string,
+    tokenBName: :string,
+    tokenAReserves: :uint256,
+    tokenBReserves: :uint256,
+    userLPBalance: :uint256,
+    pairAddress: :address
+  } do
+    tokenAReserves = 0
+    tokenBReserves = 0
+    userLPBalance = 0
+    
+    if FacetSwapV1Factory(s.factory).getPair(tokenA, tokenB) != address(0)
+      tokenAReserves, tokenBReserves = getReserves(s.factory, tokenA, tokenB)
+      
+      pair = FacetSwapV1Factory(s.factory).getPair(tokenA, tokenB)
+      userLPBalance = FacetSwapV1ERC20(pair).balanceOf(user)
+    end
+    
+    return {
+      userTokenABalance: ERC20(tokenA).balanceOf(user),
+      userTokenBBalance: ERC20(tokenB).balanceOf(user),
+      tokenAName: ERC20(tokenA).name(),
+      tokenBName: ERC20(tokenB).name(),
+      tokenAReserves: tokenAReserves,
+      tokenBReserves: tokenBReserves,
+      userLPBalance: userLPBalance,
+      pairAddress: pair
+    }
   end
 end
