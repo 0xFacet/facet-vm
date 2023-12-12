@@ -479,7 +479,7 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
     tokenBReserves = 0
     userLPBalance = 0
     
-    if FacetSwapV1Factory(s.factory).getPair(tokenA, tokenB) != address(0)
+    if FacetSwapV1FactoryVariableFee(s.factory).getPair(tokenA, tokenB) != address(0)
       tokenAReserves, tokenBReserves = getReserves(s.factory, tokenA, tokenB)
       
       pair = FacetSwapV1Factory(s.factory).getPair(tokenA, tokenB)
