@@ -1,0 +1,100 @@
+pragma :rubidity, "1.0.0"
+
+import './Upgradeable.rubidity'
+import './FacetSwapV1PairVariableFee.rubidity'
+
+contract :FacetSwapV1FactoryVariableFee, is: :Upgradeable, upgradeable: true do
+  address :public, :feeTo
+  address :public, :feeToSetter
+  
+  uint256 :public, :lpFeeBPS
+  
+  mapping ({ address: mapping({ address: :address })}), :public, :getPair
+  array :address, :public, :allPairs
+
+  event :PairCreated, { token0: :address, token1: :address, pair: :address, pairLength: :uint256 }
+
+  constructor(_feeToSetter: :address) {
+    s.feeToSetter = _feeToSetter
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+  }
+  
+  function :setLpFeeBPS, { lpFeeBPS: :uint256 }, :public do
+    require(msg.sender == feeToSetter, "FacetSwapV1: FORBIDDEN")
+    require(lpFeeBPS <= 10000, "Fees cannot exceed 100%")
+    
+    s.lpFeeBPS = lpFeeBPS
+    
+    return nil
+  end
+
+  function :allPairsLength, :public, :view, returns: :uint256 do
+    return s.allPairs.length
+  end
+
+  function :createPair, { tokenA: :address, tokenB: :address }, :public, returns: :address do
+    require(tokenA != tokenB, 'FacetSwapV1: IDENTICAL_ADDRESSES')
+    
+    token0, token1 = tokenA.cast(:uint256) < tokenB.cast(:uint256) ? [tokenA, tokenB] : [tokenB, tokenA]
+    
+    require(token0 != address(0), "FacetSwapV1: ZERO_ADDRESS");
+    require(s.getPair[token0][token1] == address(0), "FacetSwapV1: PAIR_EXISTS");
+    
+    salt = keccak256(abi.encodePacked(token0, token1))
+    
+    pair = new FacetSwapV1PairVariableFee({ salt: salt })
+    pair.init(token0, token1)
+    
+    s.getPair[token0][token1] = pair;
+    s.getPair[token1][token0] = pair;
+    
+    s.allPairs.push(pair)
+    emit(:PairCreated, { token0: token0, token1: token1, pair: pair, pairLength: s.allPairs.length })
+    
+    return pair
+  end
+  
+  function :setFeeTo, { _feeTo: :address }, :public do
+    require(msg.sender == feeToSetter, "FacetSwapV1: FORBIDDEN")
+    
+    s.feeTo = _feeTo
+    
+    return nil
+  end
+
+  function :setFeeToSetter, { _feeToSetter: :address }, :public do
+    require(msg.sender == feeToSetter, "FacetSwapV1: FORBIDDEN")
+    
+    s.feeToSetter = _feeToSetter
+    
+    return nil
+  end
+  
+  function :upgradePair, {
+    pair: :address,
+    newHash: :bytes32,
+    newSource: :string
+  }, :public do
+    require(msg.sender == s.upgradeAdmin, "NOT_AUTHORIZED")
+    
+    Upgradeable(pair).upgrade(
+      newHash: newHash,
+      newSource: newSource
+    )
+  end
+  
+  function :upgradeAndCallPair, {
+    pair: :address,
+    newHash: :bytes32,
+    newSource: :string,
+    migrationCalldata: :string
+  }, :public do
+    require(msg.sender == s.upgradeAdmin, "NOT_AUTHORIZED")
+    
+    Upgradeable(pair).upgradeAndCall(
+      newHash: newHash,
+      newSource: newSource,
+      migrationCalldata: migrationCalldata
+    )
+  end
+end
