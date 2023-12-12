@@ -83,7 +83,7 @@ class TokensController < ApplicationController
     contract_address = params[:address]&.downcase
     one_day_ago = 24.hours.ago.to_i
 
-    cache_key = ["token_volume", contract_address, Time.current.hour]
+    cache_key = ["token_volume", contract_address]
 
     result = Rails.cache.fetch(cache_key, expires_in: 1.hour) do
       total_volume = calculate_volume(contract_address)
