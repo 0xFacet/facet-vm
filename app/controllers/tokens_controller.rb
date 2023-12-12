@@ -115,7 +115,9 @@ class TokensController < ApplicationController
 
     query.pluck(:logs)
       .flatten
-      .select { |log| log["contractAddress"] == volume_contract && log["event"] == "Transfer" }
-      .sum { |log| log["data"]["amount"].to_i }
+      .sum do |log|
+        next 0 unless log["contractAddress"] == volume_contract && log["event"] == "Transfer"
+        log["data"]["amount"].to_i
+      end
   end
 end
