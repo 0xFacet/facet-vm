@@ -36,7 +36,6 @@ class TokensController < ApplicationController
     from_timestamp = params[:from_timestamp].to_i
     to_timestamp = params[:to_timestamp].to_i
     max_processed_block_timestamp = EthBlock.processed.maximum(:block_timestamp).to_i
-    max_processed_block_number = EthBlock.max_processed_block_number
   
     if max_processed_block_timestamp < to_timestamp
       render json: { error: "Block not processed" }, status: 400
@@ -55,7 +54,7 @@ class TokensController < ApplicationController
       to_timestamp
     ]
   
-    cache_key << max_processed_block_number if max_processed_block_timestamp - to_timestamp < 1.hour
+    cache_key << max_processed_block_timestamp if max_processed_block_timestamp - to_timestamp < 1.hour
   
     result = Rails.cache.fetch(cache_key) do
       transactions = TransactionReceipt.where(status: 'success', function: ['swapExactTokensForTokens', 'swapTokensForExactTokens'])
