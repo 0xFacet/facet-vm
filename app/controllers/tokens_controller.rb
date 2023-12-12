@@ -79,54 +79,6 @@ class TokensController < ApplicationController
     }
   end
 
-  def swaps
-    contract_address = params[:address]&.downcase
-    from_timestamp = params[:from_timestamp].to_i
-    to_timestamp = params[:to_timestamp].to_i
-    max_processed_block_timestamp = EthBlock.processed.maximum(:block_timestamp).to_i
-  
-    if max_processed_block_timestamp < to_timestamp
-      render json: { error: "Block not processed" }, status: 400
-      return
-    end
-  
-    if from_timestamp > to_timestamp || to_timestamp - from_timestamp > 1.month
-      render json: { error: "Invalid timestamp range" }, status: 400
-      return
-    end
-  
-    cache_key = [
-      "token_swaps",
-      contract_address,
-      from_timestamp,
-      to_timestamp
-    ]
-  
-    cache_key << max_processed_block_timestamp if max_processed_block_timestamp - to_timestamp < 1.hour
-  
-    result = Rails.cache.fetch(cache_key) do
-      transactions = TransactionReceipt.where(status: 'success', function: ['swapExactTokensForTokens', 'swapTokensForExactTokens'])
-        .where('block_timestamp >= ? AND block_timestamp <= ?', from_timestamp, to_timestamp)
-        .where("EXISTS (
-          SELECT 1
-          FROM jsonb_array_elements(logs) AS log
-          WHERE (log ->> 'contractAddress') = ?
-          AND (log ->> 'event') = 'Transfer'
-        )", contract_address)
-
-      if transactions.blank?
-        render json: { error: "Transactions not found" }, status: 404
-        return
-      end
-  
-      convert_int_to_string(transactions)
-    end
-  
-    render json: {
-      result: result
-    }
-  end
-
   def volume
     contract_address = params[:address]&.downcase
     one_day_ago = 24.hours.ago.to_i
@@ -143,7 +95,9 @@ class TokensController < ApplicationController
       })
     end
 
-    render json: result
+    render json: {
+      result: result
+    }
   end
 
   private
