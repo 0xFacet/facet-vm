@@ -324,12 +324,8 @@ class ContractImplementation < BasicObject
     "0x" + hash.last(40)
   end
   
-  def create2_address(salt:, deployer:, contract_type: nil, initCodeHash: nil)
-    to_contract_init_code_hash = if contract_type
-      self.class.available_contracts[contract_type].init_code_hash
-    else
-      initCodeHash
-    end
+  def create2_address(salt:, deployer:, contract_type:)
+    to_contract_init_code_hash = self.class.available_contracts[contract_type].init_code_hash
     
     self.class.calculate_new_contract_address_with_salt(salt, deployer, to_contract_init_code_hash)
   end
