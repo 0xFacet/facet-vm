@@ -18,7 +18,7 @@ class TokensController < ApplicationController
 
       state = contract.current_state
 
-      if state["balanceOf"].blank?
+      if !state["balanceOf"]
         render json: { error: "Invalid contract" }, status: 400
         return
       end
