@@ -104,18 +104,18 @@ class TokensController < ApplicationController
   private
 
   def calculate_volume(contract_address, volume_contract, start_time = nil)
-    query = TransactionReceipt.where(status: 'success', function: ['swapExactTokensForTokens', 'swapTokensForExactTokens'])
+    query = TransactionReceipt.where(status: "success", function: ["swapExactTokensForTokens", "swapTokensForExactTokens"])
       .where("EXISTS (
         SELECT 1
         FROM jsonb_array_elements(logs) AS log
         WHERE (log ->> 'contractAddress') = ?
         AND (log ->> 'event') = 'Transfer'
       )", contract_address)
-    query = query.where('block_timestamp >= ?', start_time.to_i) if start_time
+    query = query.where("block_timestamp >= ?", start_time.to_i) if start_time
 
     query.pluck(:logs)
       .flatten
-      .select { |log| log['contractAddress'] == volume_contract }
-      .sum { |log| log['data']['amount'].to_i }
+      .select { |log| log["contractAddress"] == volume_contract && log["event"] == "Transfer" }
+      .sum { |log| log["data"]["amount"].to_i }
   end
 end
