@@ -405,8 +405,7 @@ describe 'FacetSwapV1Router contract' do
       function: "onUpgrade",
       args: {
         owner: user_address,
-        protocolFeeBPS: 30,
-        initialPauseState: false
+        initialPauseState: true
       }
     }
     
@@ -444,7 +443,7 @@ describe 'FacetSwapV1Router contract' do
     
     v2 = RubidityTranspiler.transpile_and_get("FacetSwapV1PairVariableFee")
     
-    trigger_contract_interaction_and_expect_success(
+    pair_upgrade = trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
         to: factory_address,
@@ -466,6 +465,27 @@ describe 'FacetSwapV1Router contract' do
         data: {
           function: "setLpFeeBPS",
           args: 100
+        }
+      }
+    )
+
+     trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: router_address,
+        data: {
+          function: "updateProtocolFee",
+          args: 30
+        }
+      }
+    )
+    
+    unpause = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: router_address,
+        data: {
+          function: "unpause"
         }
       }
     )

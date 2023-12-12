@@ -157,20 +157,22 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
       deadline: deadline
     )
     
-    feeAmount = if path[0] == s.WETH
-      feeAmount = calculateFeeAmount(amountIn)
-    else
-      feeAmount = calculateFeeAmount(amounts[amounts.length - 1])
-      amounts[amounts.length - 1] -= feeAmount
-      feeAmount
-    end
+    amountToChargeFeeOn = path[0] == s.WETH ? amountIn : amounts[amounts.length - 1]
+    
+    feeAmount = calculateFeeAmount(amountToChargeFeeOn)
     
     chargeWethFee(feeAmount)
+    
+    if path[0] == s.WETH
+      amounts[0] = amountIn
+    else
+      amounts[amounts.length - 1] -= feeAmount
+    end
     
     emit :FeeAdjustedSwap,
       inputToken: path[0],
       outputToken: path[path.length - 1],
-      inputAmount: amountIn,
+      inputAmount: amounts[0],
       outputAmount: amounts[amounts.length - 1],
       feeAmount: feeAmount,
       to: to
@@ -221,21 +223,23 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
       deadline: deadline
     )
     
-    feeAmount = if path[path.length - 1] == s.WETH
-      calculateFeeAmount(amountOut)
-    else
-      feeAmount = calculateFeeAmount(amounts[0])
-      amounts[0] += feeAmount
-      feeAmount
-    end
+    amountToChargeFeeOn = path[0] == s.WETH ? amounts[0] : amountOut
+    
+    feeAmount = calculateFeeAmount(amountToChargeFeeOn)
     
     chargeWethFee(feeAmount)
+    
+    if path[0] == s.WETH
+      amounts[0] += feeAmount
+    else
+      amounts[amounts.length - 1] = amountOut
+    end
     
     emit :FeeAdjustedSwap,
       inputToken: path[0],
       outputToken: path[path.length - 1],
       inputAmount: amounts[0],
-      outputAmount: amountOut,
+      outputAmount: amounts[amounts.length - 1],
       feeAmount: feeAmount,
       to: to
     
