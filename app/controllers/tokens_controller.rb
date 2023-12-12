@@ -87,8 +87,8 @@ class TokensController < ApplicationController
     cache_key = ["token_volume", contract_address, volume_contract]
 
     result = Rails.cache.fetch(cache_key, expires_in: 1.hour) do
-      total_volume = calculate_volume(contract_address, volume_contract)
-      last_24_hours_volume = calculate_volume(contract_address, volume_contract, one_day_ago)
+      total_volume = calculate_volume(contract_address: contract_address, volume_contract: volume_contract)
+      last_24_hours_volume = calculate_volume(contract_address: contract_address, volume_contract: volume_contract, start_time: one_day_ago)
 
       convert_int_to_string({
         total_volume: total_volume,
@@ -103,7 +103,7 @@ class TokensController < ApplicationController
 
   private
 
-  def calculate_volume(contract_address, volume_contract, start_time = nil)
+  def calculate_volume(contract_address:, volume_contract:, start_time: nil)
     query = TransactionReceipt.where(status: "success", function: ["swapExactTokensForTokens", "swapTokensForExactTokens"])
       .where("EXISTS (
         SELECT 1
