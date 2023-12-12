@@ -482,7 +482,7 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
     if FacetSwapV1FactoryVariableFee(s.factory).getPair(tokenA, tokenB) != address(0)
       tokenAReserves, tokenBReserves = getReserves(s.factory, tokenA, tokenB)
       
-      pair = FacetSwapV1Factory(s.factory).getPair(tokenA, tokenB)
+      pair = FacetSwapV1FactoryVariableFee(s.factory).getPair(tokenA, tokenB)
       userLPBalance = FacetSwapV1ERC20(pair).balanceOf(user)
     end
     
