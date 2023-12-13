@@ -35,7 +35,7 @@ class TokensController < ApplicationController
     contract_address = params[:address]&.downcase
     from_timestamp = params[:from_timestamp].to_i
     to_timestamp = params[:to_timestamp].to_i
-    max_processed_block_timestamp = EthBlock.processed.maximum(:block_timestamp).to_i
+    max_processed_block_timestamp = EthBlock.processed.maximum(:timestamp).to_i
   
     if max_processed_block_timestamp < to_timestamp
       render json: { error: "Block not processed" }, status: 400
