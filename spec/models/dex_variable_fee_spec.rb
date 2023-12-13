@@ -15,6 +15,8 @@ describe 'FacetSwapV1Router contract' do
       'FacetSwapV1FactoryVariableFee',
       'FacetSwapV1RouterVariableFee',
       'FacetSwapV1PairVariableFee',
+      'FacetSwapV1Router',
+      'FacetSwapV1Pair',
       'FacetSwapV1Factory',
       'StubERC20'
     )
@@ -50,6 +52,18 @@ describe 'FacetSwapV1Router contract' do
       }
     )
     token_a_address = tokenA_deploy_receipt.address
+    
+    tokenX_deploy_receipt = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: nil,
+        data: {
+          type: "StubERC20",
+          args: { name: "Token X" }
+        }
+      }
+    )
+    token_x_address = tokenX_deploy_receipt.address
 
     tokenB_deploy_receipt = trigger_contract_interaction_and_expect_success(
       from: user_address,
@@ -80,6 +94,7 @@ describe 'FacetSwapV1Router contract' do
     deploy_receipts = {
       "tokenA": tokenA_deploy_receipt,
       "tokenB": tokenB_deploy_receipt,
+      "tokenX": tokenX_deploy_receipt,
     }.with_indifferent_access
     
     create_pair_receipt = trigger_contract_interaction_and_expect_success(
@@ -96,7 +111,37 @@ describe 'FacetSwapV1Router contract' do
       }
     )
     
+    create_pair_receipt2 = trigger_contract_interaction_and_expect_success(
+      from: "0xc2172a6315c1d7f6855768f843c420ebb36eda97",
+      payload: {
+        to: factory_address,
+        data: {
+          function: "createPair",
+          args: {
+            tokenA: deploy_receipts[:tokenA].address,
+            tokenB: deploy_receipts[:tokenX].address
+          }
+        }
+      }
+    )
+    
+    create_pair_receipt3 = trigger_contract_interaction_and_expect_success(
+      from: "0xc2172a6315c1d7f6855768f843c420ebb36eda97",
+      payload: {
+        to: factory_address,
+        data: {
+          function: "createPair",
+          args: {
+            tokenA: deploy_receipts[:tokenX].address,
+            tokenB: deploy_receipts[:tokenB].address
+          }
+        }
+      }
+    )
+    
     pair_address = create_pair_receipt.logs.detect{|i| i['event'] == 'PairCreated'}['data']['pair']
+    pair_address2 = create_pair_receipt2.logs.detect{|i| i['event'] == 'PairCreated'}['data']['pair']
+    pair_address3 = create_pair_receipt3.logs.detect{|i| i['event'] == 'PairCreated'}['data']['pair']
     
     [:tokenA, :tokenB].each do |token|
       trigger_contract_interaction_and_expect_success(
@@ -443,16 +488,31 @@ describe 'FacetSwapV1Router contract' do
     
     v2 = RubidityTranspiler.transpile_and_get("FacetSwapV1PairVariableFee")
     
-    pair_upgrade = trigger_contract_interaction_and_expect_success(
+    trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
         to: factory_address,
         data: {
-          function: "upgradePair",
+          function: "upgradePairs",
           args: {
-            pair: pair_address,
+            pairs: [pair_address2],
             newHash: v2.init_code_hash,
             newSource: v2.source_code,
+          }
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: factory_address,
+        data: {
+          function: "upgradePairs",
+          args: {
+            pairs: [pair_address3, pair_address],
+            newHash: v2.init_code_hash,
+            newSource: "",
           }
         }
       }
