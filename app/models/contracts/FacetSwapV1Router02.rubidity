@@ -153,7 +153,7 @@ contract :FacetSwapV1Router02, is: [:Ownable, :Upgradeable, :Pausable], upgradea
       amountIn: amountInWithFee,
       amountOutMin: amountOutMin,
       path: path,
-      to: to,
+      to: address(this),
       deadline: deadline
     )
     
@@ -161,13 +161,20 @@ contract :FacetSwapV1Router02, is: [:Ownable, :Upgradeable, :Pausable], upgradea
     
     feeAmount = calculateFeeAmount(amountToChargeFeeOn)
     
-    chargeWethFee(feeAmount)
-    
     if path[0] == s.WETH
       amounts[0] = amountIn
+      
+      ERC20(s.WETH).transferFrom(
+        from: msg.sender,
+        to: address(this),
+        amount: feeAmount
+      )
     else
       amounts[amounts.length - 1] -= feeAmount
     end
+    
+    outputToken = ERC20(path[path.length - 1])
+    outputToken.transfer(to, amounts[amounts.length - 1])
     
     emit :FeeAdjustedSwap,
       inputToken: path[0],
@@ -219,7 +226,7 @@ contract :FacetSwapV1Router02, is: [:Ownable, :Upgradeable, :Pausable], upgradea
       amountOut: amountOutWithFee,
       amountInMax: amountInMax,
       path: path,
-      to: to,
+      to: address(this),
       deadline: deadline
     )
     
@@ -227,13 +234,20 @@ contract :FacetSwapV1Router02, is: [:Ownable, :Upgradeable, :Pausable], upgradea
     
     feeAmount = calculateFeeAmount(amountToChargeFeeOn)
     
-    chargeWethFee(feeAmount)
-    
     if path[0] == s.WETH   
       amounts[0] += feeAmount
+      
+      ERC20(s.WETH).transferFrom(
+        from: msg.sender,
+        to: address(this),
+        amount: feeAmount
+      )
     else
       amounts[amounts.length - 1] = amountOut
     end
+    
+    outputToken = ERC20(path[path.length - 1])
+    outputToken.transfer(to, amounts[amounts.length - 1])
     
     emit :FeeAdjustedSwap,
       inputToken: path[0],
