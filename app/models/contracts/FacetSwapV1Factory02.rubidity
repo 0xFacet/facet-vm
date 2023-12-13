@@ -1,9 +1,9 @@
 pragma :rubidity, "1.0.0"
 
 import './Upgradeable.rubidity'
-import './FacetSwapV1PairVariableFee.rubidity'
+import './FacetSwapV1Pair02.rubidity'
 
-contract :FacetSwapV1FactoryVariableFee, is: :Upgradeable, upgradeable: true do
+contract :FacetSwapV1Factory02, is: :Upgradeable, upgradeable: true do
   address :public, :feeTo
   address :public, :feeToSetter
   
@@ -42,7 +42,7 @@ contract :FacetSwapV1FactoryVariableFee, is: :Upgradeable, upgradeable: true do
     
     salt = keccak256(abi.encodePacked(token0, token1))
     
-    pair = new FacetSwapV1PairVariableFee({ salt: salt })
+    pair = new FacetSwapV1Pair02({ salt: salt })
     pair.init(token0, token1)
     
     s.getPair[token0][token1] = pair;

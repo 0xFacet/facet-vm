@@ -3,9 +3,9 @@ pragma :rubidity, "1.0.0"
 import './Upgradeable.rubidity'
 import './Pausable.rubidity'
 import './Ownable.rubidity'
-import './FacetSwapV1FactoryVariableFee.rubidity'
+import './FacetSwapV1Factory02.rubidity'
 
-contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable], upgradeable: true do
+contract :FacetSwapV1Router02, is: [:Ownable, :Upgradeable, :Pausable], upgradeable: true do
   address :public, :factory
   address :public, :WETH
   
@@ -58,8 +58,8 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
     amountAMin: :uint256,
     amountBMin: :uint256
   }, :internal, :virtual, returns: { amountA: :uint256, amountB: :uint256 } do
-    if FacetSwapV1FactoryVariableFee(factory).getPair(tokenA, tokenB) == address(0)
-      FacetSwapV1FactoryVariableFee(factory).createPair(tokenA, tokenB)
+    if FacetSwapV1Factory02(factory).getPair(tokenA, tokenB) == address(0)
+      FacetSwapV1Factory02(factory).createPair(tokenA, tokenB)
     end
     
     reserveA, reserveB = getReserves(s.factory, tokenA, tokenB)
@@ -105,7 +105,7 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
     _safeTransferFrom(token: tokenA, from: msg.sender, to: pair, value: amountA)
     _safeTransferFrom(token: tokenB, from: msg.sender, to: pair, value: amountB)
     
-    liquidity = FacetSwapV1PairVariableFee(pair).mint(to: to)
+    liquidity = FacetSwapV1Pair02(pair).mint(to: to)
     
     return { amountA: amountA, amountB: amountB, liquidity: liquidity }
   end
@@ -123,9 +123,9 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
     require(deadline >= block.timestamp, 'FacetSwapV1Router: EXPIRED');
     
     pair = pairFor(s.factory, tokenA, tokenB)
-    FacetSwapV1PairVariableFee(pair).transferFrom(msg.sender, pair, liquidity)
+    FacetSwapV1Pair02(pair).transferFrom(msg.sender, pair, liquidity)
     
-    amount0, amount1 = FacetSwapV1PairVariableFee(pair).burn(to)
+    amount0, amount1 = FacetSwapV1Pair02(pair).burn(to)
     
     token0, _ = sortTokens(tokenA, tokenB)
 
@@ -229,7 +229,7 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
     
     chargeWethFee(feeAmount)
     
-    if path[0] == s.WETH
+    if path[0] == s.WETH   
       amounts[0] += feeAmount
     else
       amounts[amounts.length - 1] = amountOut
@@ -283,7 +283,7 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
       amount0Out, amount1Out = input == token0 ? [0, amountOut] : [amountOut, 0]
       to = i < path.length - 2 ? pairFor(factory, output, path[i + 2]) : _to
 
-      FacetSwapV1PairVariableFee(pairFor(factory, input, output)).swap(amount0Out, amount1Out, to, "")
+      FacetSwapV1Pair02(pairFor(factory, input, output)).swap(amount0Out, amount1Out, to, "")
     end
   end
   
@@ -322,7 +322,7 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
     require(amountIn > 0, 'FacetSwapV1Library: INSUFFICIENT_INPUT_AMOUNT');
     require(reserveIn > 0 && reserveOut > 0, 'FacetSwapV1Library: INSUFFICIENT_LIQUIDITY');
     
-    lpFeeBPS = FacetSwapV1FactoryVariableFee(s.factory).lpFeeBPS
+    lpFeeBPS = FacetSwapV1Factory02(s.factory).lpFeeBPS
 
     totalFeeFactor = 1000 - lpFeeBPS.div(10)
     
@@ -365,7 +365,7 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
     require(amountOut > 0, 'FacetSwapV1Library: INSUFFICIENT_OUTPUT_AMOUNT')
     require(reserveIn > 0 && reserveOut > 0, 'FacetSwapV1Library: INSUFFICIENT_LIQUIDITY')
     
-    lpFeeBPS = FacetSwapV1FactoryVariableFee(s.factory).lpFeeBPS
+    lpFeeBPS = FacetSwapV1Factory02(s.factory).lpFeeBPS
 
     totalFeeFactor = 1000 - lpFeeBPS.div(10)
     
@@ -394,7 +394,7 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
   }, :public, :view, returns: { reserveA: :uint256, reserveB: :uint256 } do
     token0, _ = sortTokens(tokenA, tokenB)
     
-    reserve0, reserve1, _ = FacetSwapV1PairVariableFee(pairFor(factory, tokenA, tokenB)).getReserves();
+    reserve0, reserve1, _ = FacetSwapV1Pair02(pairFor(factory, tokenA, tokenB)).getReserves();
     
     (reserveA, reserveB) = tokenA == token0 ? [reserve0, reserve1] : [reserve1, reserve0]
     
@@ -409,7 +409,7 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
     tokenA: :address,
     tokenB: :address
   }, :internal, :view, returns: :address do
-    return FacetSwapV1FactoryVariableFee(s.factory).getPair(tokenA, tokenB)
+    return FacetSwapV1Factory02(s.factory).getPair(tokenA, tokenB)
   end
   
   function :sortTokens, { tokenA: :address, tokenB: :address }, :internal, :pure, returns: { token0: :address, token1: :address } do
@@ -483,10 +483,10 @@ contract :FacetSwapV1RouterVariableFee, is: [:Ownable, :Upgradeable, :Pausable],
     tokenBReserves = 0
     userLPBalance = 0
     
-    if FacetSwapV1FactoryVariableFee(s.factory).getPair(tokenA, tokenB) != address(0)
+    if FacetSwapV1Factory02(s.factory).getPair(tokenA, tokenB) != address(0)
       tokenAReserves, tokenBReserves = getReserves(s.factory, tokenA, tokenB)
       
-      pair = FacetSwapV1FactoryVariableFee(s.factory).getPair(tokenA, tokenB)
+      pair = FacetSwapV1Factory02(s.factory).getPair(tokenA, tokenB)
       userLPBalance = FacetSwapV1ERC20(pair).balanceOf(user)
     end
     

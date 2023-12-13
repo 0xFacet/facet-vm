@@ -4,12 +4,12 @@ import './Upgradeable.rubidity'
 import './FacetSwapV1Callee.rubidity'
 import './FacetSwapV1ERC20.rubidity'
 
-contract :IFacetSwapV1FactoryVariableFee, abstract: true do
+contract :IFacetSwapV1Factory02, abstract: true do
   function :feeTo, :external, :view, returns: :address
   function :lpFeeBPS, :external, :view, returns: :uint256
 end
 
-contract :FacetSwapV1PairVariableFee, is: [:FacetSwapV1ERC20, :Upgradeable], upgradeable: true do
+contract :FacetSwapV1Pair02, is: [:FacetSwapV1ERC20, :Upgradeable], upgradeable: true do
   uint256 :public, :MINIMUM_LIQUIDITY
 
   address :public, :factory
@@ -110,7 +110,7 @@ contract :FacetSwapV1PairVariableFee, is: [:FacetSwapV1ERC20, :Upgradeable], upg
   end
   
   function :_mintFee, { _reserve0: :uint112, _reserve1: :uint112 }, :private, returns: :bool do
-    feeTo = IFacetSwapV1FactoryVariableFee(s.factory).feeTo
+    feeTo = IFacetSwapV1Factory02(s.factory).feeTo
     feeOn = feeTo != address(0)
     _kLast = s.kLast
     
@@ -226,7 +226,7 @@ contract :FacetSwapV1PairVariableFee, is: [:FacetSwapV1ERC20, :Upgradeable], upg
 
     require(amount0In > 0 || amount1In > 0, 'FacetSwapV1: INSUFFICIENT_INPUT_AMOUNT')
   
-    lpFeeBPS = IFacetSwapV1FactoryVariableFee(s.factory).lpFeeBPS
+    lpFeeBPS = IFacetSwapV1Factory02(s.factory).lpFeeBPS
     
     balance0Adjusted = balance0 * 1000 - (amount0In * lpFeeBPS).div(10)
     balance1Adjusted = balance1 * 1000 - (amount1In * lpFeeBPS).div(10)

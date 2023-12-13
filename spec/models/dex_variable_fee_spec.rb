@@ -12,9 +12,9 @@ describe 'FacetSwapV1Router contract' do
   
   before(:all) do
     update_supported_contracts(
-      'FacetSwapV1FactoryVariableFee',
-      'FacetSwapV1RouterVariableFee',
-      'FacetSwapV1PairVariableFee',
+      'FacetSwapV1Factory02',
+      'FacetSwapV1Router02',
+      'FacetSwapV1Pair02',
       'FacetSwapV1Router',
       'FacetSwapV1Pair',
       'FacetSwapV1Factory',
@@ -443,7 +443,7 @@ describe 'FacetSwapV1Router contract' do
     expect(token_b_diff).to eq(amountOut)
     
     
-    v2 = RubidityTranspiler.transpile_and_get("FacetSwapV1RouterVariableFee")
+    v2 = RubidityTranspiler.transpile_and_get("FacetSwapV1Router02")
 
     
     migrationCalldata = {
@@ -469,7 +469,7 @@ describe 'FacetSwapV1Router contract' do
       }
     )
     
-    v2 = RubidityTranspiler.transpile_and_get("FacetSwapV1FactoryVariableFee")
+    v2 = RubidityTranspiler.transpile_and_get("FacetSwapV1Factory02")
 
     
     upgrade_tx = trigger_contract_interaction_and_expect_success(
@@ -486,7 +486,7 @@ describe 'FacetSwapV1Router contract' do
       }
     )
     
-    v2 = RubidityTranspiler.transpile_and_get("FacetSwapV1PairVariableFee")
+    v2 = RubidityTranspiler.transpile_and_get("FacetSwapV1Pair02")
     
     trigger_contract_interaction_and_expect_success(
       from: user_address,
