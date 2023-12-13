@@ -34,6 +34,14 @@ Rails.application.routes.draw do
       get '/total', to: 'transactions#total'
     end
   end
+
+  resources :tokens, only: [] do
+    collection do
+      get '/:address/holders', to: 'tokens#holders'
+      get '/:address/swaps', to: 'tokens#swaps'
+      get '/:address/volume', to: 'tokens#volume'
+    end
+  end
   
   resources :contract_calls, only: [:index] do
   end
