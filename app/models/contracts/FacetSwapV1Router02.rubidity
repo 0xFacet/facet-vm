@@ -436,14 +436,6 @@ contract :FacetSwapV1Router02, is: [:Ownable, :Upgradeable, :Pausable], upgradea
     return { token0: token0, token1: token1 }
   end
   
-  function :chargeWethFee, { feeAmount: :uint256 }, :internal, returns: :bool do
-    ERC20(s.WETH).transferFrom(
-      from: msg.sender,
-      to: address(this),
-      amount: feeAmount
-    )
-  end
-  
   function :calculateFeeAmount, {
     amount: :uint256
   }, :public, :view, returns: :uint256 do
