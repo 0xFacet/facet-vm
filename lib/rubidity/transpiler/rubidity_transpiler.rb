@@ -144,7 +144,8 @@ class RubidityTranspiler
   
   def generate_contract_artifacts
     unless contract_names == contract_names.uniq
-      raise "Duplicate contract names in #{filename}: #{contract_names}"
+      duplicated_names = contract_names.group_by(&:itself).select { |_, v| v.size > 1 }.keys
+      raise "Duplicate contract names in #{filename}: #{duplicated_names}"
     end
   
     preprocessed_contract_asts.each_with_object([]) do |contract_ast, artifacts|

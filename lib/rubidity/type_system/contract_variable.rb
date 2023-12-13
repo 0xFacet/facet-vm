@@ -88,7 +88,7 @@ class ContractVariable < TypedVariable
           new_init_code_hash,
           typed_source.value.presence
         )
-      rescue UnknownInitCodeHash => e
+      rescue UnknownInitCodeHash, Parser::SyntaxError => e
         raise ContractError.new(e.message, target)
       end
       

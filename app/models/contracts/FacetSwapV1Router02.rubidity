@@ -1,0 +1,504 @@
+pragma :rubidity, "1.0.0"
+
+import './Upgradeable.rubidity'
+import './Pausable.rubidity'
+import './Ownable.rubidity'
+import './FacetSwapV1Factory02.rubidity'
+
+contract :FacetSwapV1Router02, is: [:Ownable, :Upgradeable, :Pausable], upgradeable: true do
+  address :public, :factory
+  address :public, :WETH
+  
+  uint8 :public, :maxPathLength
+  
+  uint256 :public, :protocolFeeBPS
+  
+  event :FeeAdjustedSwap, {
+    inputToken: :address,
+    outputToken: :address,
+    inputAmount: :uint256,
+    outputAmount: :uint256,
+    feeAmount: :uint256,
+    to: :address 
+  }
+  
+  constructor(
+    _factory: :address,
+    _WETH: :address,
+    protocolFeeBPS: :uint256,
+    initialPauseState: :bool
+  ) {
+    s.factory = _factory
+    s.WETH = _WETH
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+    Ownable.constructor(owner: msg.sender)
+    
+    updateProtocolFee(protocolFeeBPS: protocolFeeBPS)
+    Pausable.constructor(initialPauseState: initialPauseState)
+    
+    s.maxPathLength = 3
+  }
+  
+  function :onUpgrade, {
+    owner: :address,
+    initialPauseState: :bool
+  }, :public do
+    require(msg.sender == address(this), 'Only the contract itself can upgrade')
+    
+    s.owner = owner
+    
+    initialPauseState ? _pause() : _unpause()
+  end
+  
+  function :_addLiquidity, {
+    tokenA: :address,
+    tokenB: :address,
+    amountADesired: :uint256,
+    amountBDesired: :uint256,
+    amountAMin: :uint256,
+    amountBMin: :uint256
+  }, :internal, :virtual, returns: { amountA: :uint256, amountB: :uint256 } do
+    if FacetSwapV1Factory02(factory).getPair(tokenA, tokenB) == address(0)
+      FacetSwapV1Factory02(factory).createPair(tokenA, tokenB)
+    end
+    
+    reserveA, reserveB = getReserves(s.factory, tokenA, tokenB)
+    
+    if reserveA == 0 && reserveB == 0
+      return { amountA: amountADesired, amountB: amountBDesired }
+    else
+      amountBOptimal = quote(amountADesired, reserveA, reserveB)
+      
+      if amountBOptimal <= amountBDesired
+        require(amountBOptimal >= amountBMin, 'FacetSwapV1Router: INSUFFICIENT_B_AMOUNT')
+        
+        return { amountA: amountADesired, amountB: amountBOptimal }
+      else
+        amountAOptimal = quote(amountBDesired, reserveB, reserveA)
+        
+        require(amountAOptimal <= amountADesired, "ASSERT")
+        
+        require(amountAOptimal >= amountAMin, 'FacetSwapV1Router: INSUFFICIENT_A_AMOUNT')
+        
+        return { amountA: amountAOptimal, amountB: amountBDesired }
+      end
+    end
+  end
+  
+  function :addLiquidity, {
+    tokenA: :address,
+    tokenB: :address,
+    amountADesired: :uint256,
+    amountBDesired: :uint256,
+    amountAMin: :uint256,
+    amountBMin: :uint256,
+    to: :address,
+    deadline: :uint256
+  }, :public, :virtual, returns: { amountA: :uint256, amountB: :uint256, liquidity: :uint256 } do
+    whenNotPaused!
+    require(deadline >= block.timestamp, 'FacetSwapV1Router: EXPIRED');
+    
+    amountA, amountB = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin)
+    
+    pair = pairFor(s.factory, tokenA, tokenB)
+    
+    _safeTransferFrom(token: tokenA, from: msg.sender, to: pair, value: amountA)
+    _safeTransferFrom(token: tokenB, from: msg.sender, to: pair, value: amountB)
+    
+    liquidity = FacetSwapV1Pair02(pair).mint(to: to)
+    
+    return { amountA: amountA, amountB: amountB, liquidity: liquidity }
+  end
+  
+  function :removeLiquidity, {
+    tokenA: :address,
+    tokenB: :address,
+    liquidity: :uint256,
+    amountAMin: :uint256,
+    amountBMin: :uint256,
+    to: :address,
+    deadline: :uint256
+  }, :public, :virtual, returns: { amountA: :uint256, amountB: :uint256 } do
+    whenNotPaused!
+    require(deadline >= block.timestamp, 'FacetSwapV1Router: EXPIRED');
+    
+    pair = pairFor(s.factory, tokenA, tokenB)
+    FacetSwapV1Pair02(pair).transferFrom(msg.sender, pair, liquidity)
+    
+    amount0, amount1 = FacetSwapV1Pair02(pair).burn(to)
+    
+    token0, _ = sortTokens(tokenA, tokenB)
+
+    (amountA, amountB) = tokenA == token0 ? [amount0, amount1] : [amount1, amount0]
+    
+    require(amountA >= amountAMin, 'FacetSwapV1Router: INSUFFICIENT_A_AMOUNT')
+    require(amountB >= amountBMin, 'FacetSwapV1Router: INSUFFICIENT_B_AMOUNT')
+    
+    return { amountA: amountA, amountB: amountB }
+  end
+  
+  function :swapExactTokensForTokens, { 
+    amountIn: :uint256,
+    amountOutMin: :uint256,
+    path: [:address],
+    to: :address,
+    deadline: :uint256
+  }, :public, :virtual, returns: [:uint256] do
+    whenNotPaused!
+    require(path[0] == s.WETH || path[path.length - 1] == s.WETH, 'Must have WETH as either the first or last token in the path')
+    
+    amountInWithFee = path[0] == s.WETH ? amountIn - calculateFeeAmount(amountIn) : amountIn
+    
+    amounts = _swapExactTokensForTokens(
+      amountIn: amountInWithFee,
+      amountOutMin: amountOutMin,
+      path: path,
+      to: to,
+      deadline: deadline
+    )
+    
+    amountToChargeFeeOn = path[0] == s.WETH ? amountIn : amounts[amounts.length - 1]
+    
+    feeAmount = calculateFeeAmount(amountToChargeFeeOn)
+    
+    chargeWethFee(feeAmount)
+    
+    if path[0] == s.WETH
+      amounts[0] = amountIn
+    else
+      amounts[amounts.length - 1] -= feeAmount
+    end
+    
+    emit :FeeAdjustedSwap,
+      inputToken: path[0],
+      outputToken: path[path.length - 1],
+      inputAmount: amounts[0],
+      outputAmount: amounts[amounts.length - 1],
+      feeAmount: feeAmount,
+      to: to
+    
+    amounts
+  end
+  
+  function :_swapExactTokensForTokens, { 
+    amountIn: :uint256, 
+    amountOutMin: :uint256, 
+    path: [:address],
+    to: :address, 
+    deadline: :uint256 
+  }, :internal, :virtual, returns: [:uint256] do
+    require(deadline >= block.timestamp, 'FacetSwapV1Router: EXPIRED');
+
+    amounts = getAmountsOut(factory, amountIn, path)
+    
+    require(amounts[amounts.length - 1] >= amountOutMin, 'FacetSwapV1Router: INSUFFICIENT_OUTPUT_AMOUNT')
+    
+    _safeTransferFrom(
+      path[0], msg.sender, pairFor(factory, path[0], path[1]), amounts[0]
+    )
+    
+    _swap(amounts, path, to)
+    
+    return amounts
+  end
+  
+  function :swapTokensForExactTokens, {
+    amountOut: :uint256,
+    amountInMax: :uint256,
+    path: [:address],
+    to: :address,
+    deadline: :uint256
+  }, :public, :virtual, returns: [:uint256] do
+    whenNotPaused!
+    require(path[0] == s.WETH || path[path.length - 1] == s.WETH, 'Must have WETH as either the first or last token in the path')
+    
+    amountOutWithFee = path[path.length - 1] == s.WETH ?
+      amountOut + calculateFeeAmount(amountOut) : amountOut
+    
+    amounts = _swapTokensForExactTokens(
+      amountOut: amountOutWithFee,
+      amountInMax: amountInMax,
+      path: path,
+      to: to,
+      deadline: deadline
+    )
+    
+    amountToChargeFeeOn = path[0] == s.WETH ? amounts[0] : amountOut
+    
+    feeAmount = calculateFeeAmount(amountToChargeFeeOn)
+    
+    chargeWethFee(feeAmount)
+    
+    if path[0] == s.WETH   
+      amounts[0] += feeAmount
+    else
+      amounts[amounts.length - 1] = amountOut
+    end
+    
+    emit :FeeAdjustedSwap,
+      inputToken: path[0],
+      outputToken: path[path.length - 1],
+      inputAmount: amounts[0],
+      outputAmount: amounts[amounts.length - 1],
+      feeAmount: feeAmount,
+      to: to
+    
+    amounts
+  end
+  
+  function :_swapTokensForExactTokens, {
+    amountOut: :uint256,
+    amountInMax: :uint256,
+    path: [:address],
+    to: :address,
+    deadline: :uint256
+  }, :internal, :virtual, returns: [:uint256] do
+    require(deadline >= block.timestamp, 'FacetSwapV1Router: EXPIRED');
+    
+    amounts = getAmountsIn(factory, amountOut, path)
+    require(amounts[0] <= amountInMax, 'FacetSwapV1Router: EXCESSIVE_INPUT_AMOUNT')
+  
+    _safeTransferFrom(
+      path[0], msg.sender, pairFor(factory, path[0], path[1]), amounts[0]
+    )
+  
+    _swap(amounts, path, to)
+  
+    return amounts
+  end
+  
+  function :_swap, {
+    amounts: [:uint256],
+    path: [:address],
+    _to: :address
+  }, :internal, :virtual do
+    require(path.length <= s.maxPathLength, "Max path length exceeded")
+    
+    forLoop(
+      condition: -> i { i < path.length - 1 }
+    ) do |i|
+      input, output = path[i], path[i + 1]
+      token0, _ = sortTokens(input, output)
+      amountOut = amounts[i + 1]
+      amount0Out, amount1Out = input == token0 ? [0, amountOut] : [amountOut, 0]
+      to = i < path.length - 2 ? pairFor(factory, output, path[i + 2]) : _to
+
+      FacetSwapV1Pair02(pairFor(factory, input, output)).swap(amount0Out, amount1Out, to, "")
+    end
+  end
+  
+  function :_safeTransferFrom, { token: :address, from: :address, to: :address, value: :uint256 }, :private do
+    result = ERC20(token).transferFrom(from: from, to: to, amount: value)
+    
+    require(result, "FacetSwapV1: TRANSFER_FAILED")
+  end
+  
+  function :getAmountsOut, {
+    factory: :address,
+    amountIn: :uint256,
+    path: [:address]
+  }, :public, :view, returns: [:uint256] do
+    require(path.length >= 2, 'FacetSwapV1Library: INVALID_PATH')
+    require(path.length <= s.maxPathLength, "Max path length exceeded")
+    
+    amounts = array(:uint256, path.length)
+    amounts[0] = amountIn
+    
+    forLoop(
+      condition: -> i { i < path.length - 1 }
+    ) do |i|
+      reserveIn, reserveOut = getReserves(factory, path[i], path[i + 1])
+      amounts[i + 1] = getAmountOut(amounts[i], reserveIn, reserveOut)
+    end
+    
+    return amounts
+  end
+  
+  function :getAmountOut, {
+    amountIn: :uint256,
+    reserveIn: :uint256,
+    reserveOut: :uint256
+  }, :public, :view, returns: :uint256 do
+    require(amountIn > 0, 'FacetSwapV1Library: INSUFFICIENT_INPUT_AMOUNT');
+    require(reserveIn > 0 && reserveOut > 0, 'FacetSwapV1Library: INSUFFICIENT_LIQUIDITY');
+    
+    lpFeeBPS = FacetSwapV1Factory02(s.factory).lpFeeBPS
+
+    totalFeeFactor = 1000 - lpFeeBPS.div(10)
+    
+    amountInWithFee = amountIn * totalFeeFactor;
+    numerator = amountInWithFee * reserveOut
+    denominator = reserveIn * 1000 + amountInWithFee
+    amountOut = numerator.div(denominator)
+    
+    return amountOut
+  end
+  
+  function :getAmountsIn, {
+    factory: :address,
+    amountOut: :uint256,
+    path: [:address]
+  }, :public, :view, returns: [:uint256] do
+    require(path.length >= 2, 'FacetSwapV1Library: INVALID_PATH')
+    require(path.length <= s.maxPathLength, "Max path length exceeded")
+    
+    amounts = array(:uint256, path.length)
+    amounts[amounts.length - 1] = amountOut
+    
+    forLoop(
+      start: path.length - 1,
+      condition: -> i { i > 0 },
+      step: -1
+    ) do |i|
+      reserveIn, reserveOut = getReserves(factory, path[i - 1], path[i])
+      amounts[i - 1] = getAmountIn(amounts[i], reserveIn, reserveOut)
+    end
+  
+    return amounts
+  end
+  
+  function :getAmountIn, {
+    amountOut: :uint256,
+    reserveIn: :uint256,
+    reserveOut: :uint256
+  }, :public, :view, returns: :uint256 do
+    require(amountOut > 0, 'FacetSwapV1Library: INSUFFICIENT_OUTPUT_AMOUNT')
+    require(reserveIn > 0 && reserveOut > 0, 'FacetSwapV1Library: INSUFFICIENT_LIQUIDITY')
+    
+    lpFeeBPS = FacetSwapV1Factory02(s.factory).lpFeeBPS
+
+    totalFeeFactor = 1000 - lpFeeBPS.div(10)
+    
+    numerator = reserveIn * amountOut * 1000
+    denominator = (reserveOut - amountOut) * totalFeeFactor
+    amountIn = (numerator.div(denominator)) + 1
+  
+    return amountIn
+  end
+  
+  function :quote, {
+    amountA: :uint256,
+    reserveA: :uint256,
+    reserveB: :uint256
+  }, :public, :pure, returns: :uint256 do
+    require(amountA > 0, 'FacetSwapV1Library: INSUFFICIENT_AMOUNT');
+    require(reserveA > 0 && reserveB > 0, 'FacetSwapV1Library: INSUFFICIENT_LIQUIDITY');
+    
+    return (amountA * reserveB).div(reserveA);
+  end
+  
+  function :getReserves, {
+    factory: :address,
+    tokenA: :address,
+    tokenB: :address
+  }, :public, :view, returns: { reserveA: :uint256, reserveB: :uint256 } do
+    token0, _ = sortTokens(tokenA, tokenB)
+    
+    reserve0, reserve1, _ = FacetSwapV1Pair02(pairFor(factory, tokenA, tokenB)).getReserves();
+    
+    (reserveA, reserveB) = tokenA == token0 ? [reserve0, reserve1] : [reserve1, reserve0]
+    
+    return {
+      reserveA: reserveA,
+      reserveB: reserveB
+    }
+  end
+  
+  function :pairFor, {
+    factory: :address,
+    tokenA: :address,
+    tokenB: :address
+  }, :internal, :view, returns: :address do
+    return FacetSwapV1Factory02(s.factory).getPair(tokenA, tokenB)
+  end
+  
+  function :sortTokens, { tokenA: :address, tokenB: :address }, :internal, :pure, returns: { token0: :address, token1: :address } do
+    require(tokenA != tokenB, 'FacetSwapV1Library: IDENTICAL_ADDRESSES')
+    
+    token0, token1 = tokenA.cast(:uint256) < tokenB.cast(:uint256) ? [tokenA, tokenB] : [tokenB, tokenA]
+    
+    require(token0 != address(0), 'FacetSwapV1Library: ZERO_ADDRESS')
+    
+    return { token0: token0, token1: token1 }
+  end
+  
+  function :chargeWethFee, { feeAmount: :uint256 }, :internal, returns: :bool do
+    ERC20(s.WETH).transferFrom(
+      from: msg.sender,
+      to: address(this),
+      amount: feeAmount
+    )
+  end
+  
+  function :calculateFeeAmount, {
+    amount: :uint256
+  }, :public, :view, returns: :uint256 do
+    return (amount * s.protocolFeeBPS).div(10_000)
+  end
+  
+  function :updateProtocolFee, { protocolFeeBPS: :uint256 }, :public do
+    onlyOwner!
+    
+    require(protocolFeeBPS <= 10_000, 'Fee cannot be greater than 100%')
+    
+    s.protocolFeeBPS = protocolFeeBPS
+    
+    nil
+  end
+  
+  function :withdrawFees, { to: :address }, :public, returns: :bool do
+    onlyOwner!
+    
+    ERC20(s.WETH).transfer(
+      to: to,
+      amount: ERC20(s.WETH).balanceOf(address(this))
+    )
+  end
+  
+  function :pause, :public do
+    onlyOwner!
+    _pause()
+  end
+  
+  function :unpause, :public do
+    onlyOwner!
+    _unpause()
+  end
+  
+  function :userStats, {
+    user: :address,
+    tokenA: :address,
+    tokenB: :address,
+  }, :public, :view, returns: {
+    userTokenABalance: :uint256,
+    userTokenBBalance: :uint256,
+    tokenAName: :string,
+    tokenBName: :string,
+    tokenAReserves: :uint256,
+    tokenBReserves: :uint256,
+    userLPBalance: :uint256,
+    pairAddress: :address
+  } do
+    tokenAReserves = 0
+    tokenBReserves = 0
+    userLPBalance = 0
+    
+    if FacetSwapV1Factory02(s.factory).getPair(tokenA, tokenB) != address(0)
+      tokenAReserves, tokenBReserves = getReserves(s.factory, tokenA, tokenB)
+      
+      pair = FacetSwapV1Factory02(s.factory).getPair(tokenA, tokenB)
+      userLPBalance = FacetSwapV1ERC20(pair).balanceOf(user)
+    end
+    
+    return {
+      userTokenABalance: ERC20(tokenA).balanceOf(user),
+      userTokenBBalance: ERC20(tokenB).balanceOf(user),
+      tokenAName: ERC20(tokenA).name(),
+      tokenBName: ERC20(tokenB).name(),
+      tokenAReserves: tokenAReserves,
+      tokenBReserves: tokenBReserves,
+      userLPBalance: userLPBalance,
+      pairAddress: pair
+    }
+  end
+end
