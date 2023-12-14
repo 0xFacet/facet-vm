@@ -84,9 +84,7 @@ class TokensController < ApplicationController
       
       cooked_transactions = transactions.map do |receipt|
         relevant_transfer_logs = receipt.logs.select do |log|
-          log["event"] == "Transfer" &&
-            log["data"]["to"] != router_address &&
-            log["data"]["from"] != router_address
+          log["event"] == "Transfer" && log["data"]["to"] != router_address
         end
         
         token_log = relevant_transfer_logs.detect do |log|
