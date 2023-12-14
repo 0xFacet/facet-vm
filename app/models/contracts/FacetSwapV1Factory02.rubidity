@@ -1,9 +1,9 @@
 pragma :rubidity, "1.0.0"
 
 import './Upgradeable.rubidity'
-import './FacetSwapV1PairVariableFee.rubidity'
+import './FacetSwapV1Pair02.rubidity'
 
-contract :FacetSwapV1FactoryVariableFee, is: :Upgradeable, upgradeable: true do
+contract :FacetSwapV1Factory02, is: :Upgradeable, upgradeable: true do
   address :public, :feeTo
   address :public, :feeToSetter
   
@@ -42,7 +42,7 @@ contract :FacetSwapV1FactoryVariableFee, is: :Upgradeable, upgradeable: true do
     
     salt = keccak256(abi.encodePacked(token0, token1))
     
-    pair = new FacetSwapV1PairVariableFee({ salt: salt })
+    pair = new FacetSwapV1Pair02({ salt: salt })
     pair.init(token0, token1)
     
     s.getPair[token0][token1] = pair;
@@ -70,6 +70,28 @@ contract :FacetSwapV1FactoryVariableFee, is: :Upgradeable, upgradeable: true do
     return nil
   end
   
+  function :upgradePairs, {
+    pairs: [:address],
+    newHash: :bytes32,
+    newSource: :string
+  }, :public do
+    require(msg.sender == s.upgradeAdmin, "NOT_AUTHORIZED")
+    require(pairs.length <= 10, "Too many pairs to upgrade at once")
+    
+    forLoop(
+      condition: -> i { i < pairs.length },
+    ) do |i|
+      pair = pairs[i]
+      sourceToUse = i == 0 ? newSource : ""
+      
+      upgradePair(
+        pair: pair,
+        newHash: newHash,
+        newSource: sourceToUse
+      )
+    end
+  end
+  
   function :upgradePair, {
     pair: :address,
     newHash: :bytes32,
@@ -80,21 +102,6 @@ contract :FacetSwapV1FactoryVariableFee, is: :Upgradeable, upgradeable: true do
     Upgradeable(pair).upgrade(
       newHash: newHash,
       newSource: newSource
-    )
-  end
-  
-  function :upgradeAndCallPair, {
-    pair: :address,
-    newHash: :bytes32,
-    newSource: :string,
-    migrationCalldata: :string
-  }, :public do
-    require(msg.sender == s.upgradeAdmin, "NOT_AUTHORIZED")
-    
-    Upgradeable(pair).upgradeAndCall(
-      newHash: newHash,
-      newSource: newSource,
-      migrationCalldata: migrationCalldata
     )
   end
 end

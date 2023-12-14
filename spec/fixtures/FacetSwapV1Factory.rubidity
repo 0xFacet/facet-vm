@@ -1,6 +1,6 @@
 pragma :rubidity, "1.0.0"
 
-import './Upgradeable.rubidity'
+import '/app/models/contracts/Upgradeable.rubidity'
 import './FacetSwapV1Pair.rubidity'
 
 contract :FacetSwapV1Factory, is: :Upgradeable, upgradeable: true do

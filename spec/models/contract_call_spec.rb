@@ -4,7 +4,12 @@ RSpec.describe ContractCall, type: :model do
   let(:from_address) { '0xc2172a6315c1d7f6855768f843c420ebb36eda97' }
 
   before(:all) do
-    update_supported_contracts("FacetSwapV1Pair", "StubERC20B")
+    update_supported_contracts(
+      "FacetSwapV1Pair",
+      "FacetSwapV1Factory",
+      "FacetSwapV1Router",
+      "StubERC20B"
+    )
   end
   
   it 'calculates eoa_nonce correctly' do

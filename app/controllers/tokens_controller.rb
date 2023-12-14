@@ -35,13 +35,19 @@ class TokensController < ApplicationController
     contract_address = params[:address]&.downcase
     from_timestamp = params[:from_timestamp].to_i
     to_timestamp = params[:to_timestamp].to_i
+    router_address = params[:router_address]&.downcase
     max_processed_block_timestamp = EthBlock.processed.maximum(:timestamp).to_i
   
     if max_processed_block_timestamp < to_timestamp
       render json: { error: "Block not processed" }, status: 400
       return
     end
-  
+    
+    unless router_address.to_s.match?(/\A0x[0-9a-f]{40}\z/)
+      render json: { error: "Invalid router address" }, status: 400
+      return
+    end
+    
     if from_timestamp > to_timestamp || to_timestamp - from_timestamp > 1.month
       render json: { error: "Invalid timestamp range" }, status: 400
       return
@@ -50,6 +56,7 @@ class TokensController < ApplicationController
     cache_key = [
       "token_swaps",
       contract_address,
+      router_address,
       from_timestamp,
       to_timestamp
     ]
@@ -57,7 +64,11 @@ class TokensController < ApplicationController
     cache_key << max_processed_block_timestamp if max_processed_block_timestamp - to_timestamp < 1.hour
   
     result = Rails.cache.fetch(cache_key) do
-      transactions = TransactionReceipt.where(status: "success", function: ["swapExactTokensForTokens", "swapTokensForExactTokens"])
+      transactions = TransactionReceipt.where(
+        to_contract_address: router_address,
+        status: "success",
+        function: ["swapExactTokensForTokens", "swapTokensForExactTokens"]
+      )
         .where("block_timestamp >= ? AND block_timestamp <= ?", from_timestamp, to_timestamp)
         .where("EXISTS (
           SELECT 1
@@ -70,8 +81,28 @@ class TokensController < ApplicationController
         render json: { error: "Transactions not found" }, status: 404
         return
       end
-  
-      convert_int_to_string(transactions)
+      
+      cooked_transactions = transactions.map do |receipt|
+        relevant_transfer_logs = receipt.logs.select do |log|
+          log["event"] == "Transfer" && log["data"]["to"] != router_address
+        end
+        
+        token_log = relevant_transfer_logs.detect do |log|
+          log['contractAddress'] == contract_address
+        end
+        
+        paired_token_log = (relevant_transfer_logs - [token_log]).first
+        
+        {
+          txn_hash: receipt.transaction_hash,
+          swapper_address: receipt.from_address,
+          timestamp: receipt.block_timestamp,
+          token_amount: token_log['data']['amount'],
+          paired_token_amount: paired_token_log['data']['amount']
+        }
+      end
+      
+      convert_int_to_string(cooked_transactions)
     end
   
     render json: {

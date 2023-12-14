@@ -143,9 +143,9 @@ module ContractTestHelper
       "EthscriptionERC20Bridge",
       "PublicMintERC20",
       "NameRegistry",
-      "FacetSwapV1Factory",
-      "FacetSwapV1Pair",
-      "FacetSwapV1Router",
+      "FacetSwapV1Factory02",
+      "FacetSwapV1Pair02",
+      "FacetSwapV1Router03",
       "AirdropERC20",
     ]
     

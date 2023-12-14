@@ -1,6 +1,6 @@
 pragma :rubidity, "1.0.0"
 
-import '/app/models/contracts/FacetSwapV1Router.rubidity'
+import './FacetSwapV1Router.rubidity'
 
 contract :FacetSwapV1RouterWithRewards, is: :FacetSwapV1Router, upgradeable: true do
   event :FeeAccrued, {
