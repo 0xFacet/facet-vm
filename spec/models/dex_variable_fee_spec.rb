@@ -13,7 +13,7 @@ describe 'FacetSwapV1Router contract' do
   before(:all) do
     update_supported_contracts(
       'FacetSwapV1Factory02',
-      'FacetSwapV1Router02',
+      'FacetSwapV1Router03',
       'FacetSwapV1Pair02',
       'FacetSwapV1Router',
       'FacetSwapV1Pair',
@@ -483,7 +483,7 @@ describe 'FacetSwapV1Router contract' do
     expect(token_b_diff).to eq(amountOut)
     
     
-    v2 = RubidityTranspiler.transpile_and_get("FacetSwapV1Router02")
+    v2 = RubidityTranspiler.transpile_and_get("FacetSwapV1Router03")
 
     
     migrationCalldata = {

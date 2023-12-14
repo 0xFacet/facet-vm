@@ -145,7 +145,7 @@ module ContractTestHelper
       "NameRegistry",
       "FacetSwapV1Factory02",
       "FacetSwapV1Pair02",
-      "FacetSwapV1Router02",
+      "FacetSwapV1Router03",
       "AirdropERC20",
     ]
     
