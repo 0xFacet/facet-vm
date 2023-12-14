@@ -11,6 +11,52 @@ class DeployHelper
     %{data:#{mimetype};rule=esip6,#{payload.to_json}}
   end
   
+  def self.variable_fee_deploy2(
+    router_address: "0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e"
+  )
+    ordered_ethscriptions = []
+      
+    supported_contracts = [
+      "EtherBridge",
+      "EthscriptionERC20Bridge",
+      "PublicMintERC20",
+      "NameRegistry",
+      "FacetSwapV1Factory02",
+      "FacetSwapV1Pair02",
+      "FacetSwapV1Router03",
+      "AirdropERC20",
+    ]
+    
+    supported_contracts = supported_contracts.map do |name|
+      item = RubidityTranspiler.transpile_and_get(name)
+      [
+        name,
+        OpenStruct.new(
+          init_code_hash: item.init_code_hash,
+          source_code: item.source_code
+        )
+      ]
+    end.to_h
+    
+    ordered_ethscriptions << params_to_uri(
+      type: 'system',
+      op: 'updateSupportedContracts',
+      data: supported_contracts.values.map(&:init_code_hash)
+    )
+    
+    ordered_ethscriptions << params_to_uri(
+      op: 'call',
+      data: {
+        to: router_address,
+        function: "upgrade",
+        args: {
+          newHash: supported_contracts["FacetSwapV1Router03"].init_code_hash,
+          newSource: supported_contracts["FacetSwapV1Router03"].source_code,
+        }
+      }
+    )
+  end
+  
   def self.variable_fee_deploy(
     gnosis_safe:,
     router_address:,

@@ -1,7 +1,7 @@
 pragma :rubidity, "1.0.0"
 
 import '/app/models/contracts/FacetSwapV1Callee.rubidity'
-import '/app/models/contracts/FacetSwapV1Pair.rubidity'
+import './FacetSwapV1Pair.rubidity'
 
 contract :FacetSwapV1CalleeTester, is: :FacetSwapV1Callee do
   address :public, :pair

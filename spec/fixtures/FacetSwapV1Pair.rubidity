@@ -1,8 +1,8 @@
 pragma :rubidity, "1.0.0"
 
-import './Upgradeable.rubidity'
-import './FacetSwapV1Callee.rubidity'
-import './FacetSwapV1ERC20.rubidity'
+import '/app/models/contracts/Upgradeable.rubidity'
+import '/app/models/contracts/FacetSwapV1Callee.rubidity'
+import '/app/models/contracts/FacetSwapV1ERC20.rubidity'
 
 contract :IFacetSwapV1Factory, abstract: true do
   function :feeTo, :external, :view, returns: :address

@@ -13,7 +13,7 @@ describe 'FacetSwapV1Router contract' do
   before(:all) do
     update_supported_contracts(
       'FacetSwapV1Factory02',
-      'FacetSwapV1Router02',
+      'FacetSwapV1Router03',
       'FacetSwapV1Pair02',
       'FacetSwapV1Router',
       'FacetSwapV1Pair',
@@ -64,7 +64,7 @@ describe 'FacetSwapV1Router contract' do
       }
     )
     token_x_address = tokenX_deploy_receipt.address
-
+    token_c_address = token_x_address
     tokenB_deploy_receipt = trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
@@ -143,7 +143,7 @@ describe 'FacetSwapV1Router contract' do
     pair_address2 = create_pair_receipt2.logs.detect{|i| i['event'] == 'PairCreated'}['data']['pair']
     pair_address3 = create_pair_receipt3.logs.detect{|i| i['event'] == 'PairCreated'}['data']['pair']
     
-    [:tokenA, :tokenB].each do |token|
+    [:tokenA, :tokenB, :tokenX].each do |token|
       trigger_contract_interaction_and_expect_success(
         from: "0xc2172a6315c1d7f6855768f843c420ebb36eda97",
         payload: {
@@ -204,6 +204,46 @@ describe 'FacetSwapV1Router contract' do
             amountBDesired: amountBDesired,
             amountAMin: amountAMin,
             amountBMin: amountBMin,
+            to: user_address,
+            deadline: Time.now.to_i + 300
+          }
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: router_address,
+        data: {
+          function: "addLiquidity",
+          args: {
+            tokenA: token_a_address,
+            tokenB: token_x_address,
+            amountADesired: amountADesired,
+            amountBDesired: amountBDesired,
+            amountAMin: 0,
+            amountBMin: 0,
+            to: user_address,
+            deadline: Time.now.to_i + 300
+          }
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: router_address,
+        data: {
+          function: "addLiquidity",
+          args: {
+            tokenA: token_b_address,
+            tokenB: token_x_address,
+            amountADesired: amountADesired,
+            amountBDesired: amountBDesired,
+            amountAMin: 0,
+            amountBMin: 0,
             to: user_address,
             deadline: Time.now.to_i + 300
           }
@@ -443,7 +483,7 @@ describe 'FacetSwapV1Router contract' do
     expect(token_b_diff).to eq(amountOut)
     
     
-    v2 = RubidityTranspiler.transpile_and_get("FacetSwapV1Router02")
+    v2 = RubidityTranspiler.transpile_and_get("FacetSwapV1Router03")
 
     
     migrationCalldata = {
@@ -551,7 +591,7 @@ describe 'FacetSwapV1Router contract' do
     )
     
     [user_address, alice, bob, charlie].each do |address|
-      [:tokenA, :tokenB].each do |token|
+      [:tokenA, :tokenB, :tokenX].each do |token|
         trigger_contract_interaction_and_expect_success(
           from: address,
           payload: {
@@ -631,6 +671,372 @@ describe 'FacetSwapV1Router contract' do
       contract: router_address,
       function_name: "protocolFeeBPS",
     )
+    
+    token_a_balance_before = ContractTransaction.make_static_call(
+      contract: token_a_address,
+      function_name: "balanceOf",
+      function_args: user_address
+    )
+    
+    token_b_balance_before = ContractTransaction.make_static_call(
+      contract: token_b_address,
+      function_name: "balanceOf",
+      function_args: user_address
+    )
+    
+    token_c_balance_before = ContractTransaction.make_static_call(
+      contract: token_x_address,
+      function_name: "balanceOf",
+      function_args: user_address
+    )
+    
+    router_fee_balance_before = ContractTransaction.make_static_call(
+      contract: weth_address,
+      function_name: "balanceOf",
+      function_args: router_address
+    )
+    
+    lp_fee_bps = ContractTransaction.make_static_call(
+      contract: factory_address,
+      function_name: "lpFeeBPS"
+    )
+    
+    amountIn = 1_000.ether
+    first_swap_amount_in = amountIn
+    amountOutMin = 0
+    
+    feeFactor = (10000 - protocolFeeBPS) / 10000.to_d
+    
+    feeAmount = amountIn - (amountIn * feeFactor)
+    amountInWithFee = amountIn - feeAmount
+    
+    # Get reserves for A-B pair
+    reservesAB = ContractTransaction.make_static_call(
+      contract: router_address,
+      function_name: "getReserves",
+      function_args: [factory_address, token_a_address, token_b_address]
+    )
+    reserveA, reserveB = reservesAB.values_at("reserveA", "reserveB")
+    
+    # Calculate expected output for first swap (A -> B)
+    numerator = amountInWithFee * (1000 - lp_fee_bps / 10) * reserveB
+    denominator = (reserveA * 1000) + (amountInWithFee * (1000 - lp_fee_bps / 10))
+    expectedOutFirstSwap = numerator.div(denominator)
+    
+    # Get reserves for B-C pair
+    reservesBC = ContractTransaction.make_static_call(
+      contract: router_address,
+      function_name: "getReserves",
+      function_args: [factory_address, token_b_address, token_c_address]
+    )
+    reserveB, reserveC = reservesBC.values_at("reserveA", "reserveB")
+    
+    # Calculate expected output for second swap (B -> C)
+    numerator = expectedOutFirstSwap * (1000 - lp_fee_bps / 10) * reserveC
+    denominator = (reserveB * 1000) + (expectedOutFirstSwap * (1000 - lp_fee_bps / 10))
+    expectedOutSecondSwap = numerator.div(denominator)
+    
+    swap_receipt = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: router_address,
+        data: {
+          function: "swapExactTokensForTokens",
+          args: {
+            amountIn: amountIn,
+            amountOutMin: expectedOutSecondSwap,
+            path: [token_a_address, token_b_address, token_c_address],
+            to: user_address,
+            deadline: Time.now.to_i + 300
+          }
+        }
+      }
+    )
+        
+    token_a_balance_after = ContractTransaction.make_static_call(
+      contract: token_a_address,
+      function_name: "balanceOf",
+      function_args: user_address
+    )
+    
+    token_b_balance_after = ContractTransaction.make_static_call(
+      contract: token_b_address,
+      function_name: "balanceOf",
+      function_args: user_address
+    )
+    
+    token_c_balance_after = ContractTransaction.make_static_call(
+      contract: token_x_address,
+      function_name: "balanceOf",
+      function_args: user_address
+    )
+    
+    token_a_diff = token_a_balance_after - token_a_balance_before
+    expect(token_a_diff).to eq(-1 * amountIn)
+    
+    token_b_diff = token_b_balance_after - token_b_balance_before
+    
+    expect(token_b_diff).to eq(0)
+    
+    token_c_diff = token_c_balance_after - token_c_balance_before
+    
+    expect(token_c_diff).to eq(expectedOutSecondSwap)
+    
+    event = swap_receipt.logs.detect{|l| l['event'] == "FeeAdjustedSwap"}
+
+    expect(event['data']['inputAmount']).to eq(amountIn)
+    expect(event['data']['outputAmount']).to eq(expectedOutSecondSwap)
+    
+    router_fee_balance_after_one = ContractTransaction.make_static_call(
+      contract: weth_address,
+      function_name: "balanceOf",
+      function_args: router_address
+    )
+    
+    net_fee_amount = router_fee_balance_after_one - router_fee_balance_before
+    expect(net_fee_amount).to eq(feeAmount)
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    token_a_balance_before = ContractTransaction.make_static_call(
+      contract: token_a_address,
+      function_name: "balanceOf",
+      function_args: charlie
+    )
+    
+    token_b_balance_before = ContractTransaction.make_static_call(
+      contract: token_b_address,
+      function_name: "balanceOf",
+      function_args: charlie
+    )
+    
+    token_c_balance_before = ContractTransaction.make_static_call(
+      contract: token_c_address,
+      function_name: "balanceOf",
+      function_args: charlie
+    )
+    
+    # Get reserves for B-C pair
+    reservesBC = ContractTransaction.make_static_call(
+      contract: router_address,
+      function_name: "getReserves",
+      function_args: [factory_address, token_b_address, token_c_address]
+    )
+    reserveB, reserveC = reservesBC.values_at("reserveA", "reserveB")
+
+    # Calculate expected input for second swap (B -> C)
+    amountOut = 300.ether
+    numerator = reserveB * amountOut * 1000
+    denominator = (reserveC - amountOut) * (1000 - lp_fee_bps / 10)
+    expectedInSecondSwap = (numerator.div(denominator)) + 1
+
+    # Get reserves for A-B pair
+    reservesAB = ContractTransaction.make_static_call(
+      contract: router_address,
+      function_name: "getReserves",
+      function_args: [factory_address, token_a_address, token_b_address]
+    )
+    reserveA, reserveB = reservesAB.values_at("reserveA", "reserveB")
+
+    # Calculate expected input for first swap (A -> B) using expectedInSecondSwap as amountOut
+    numerator = reserveA * expectedInSecondSwap * 1000
+    denominator = (reserveB - expectedInSecondSwap) * (1000 - lp_fee_bps / 10)
+    expectedInFirstSwap = (numerator.div(denominator)) + 1
+
+    # Calculate total expected input
+    feeAmount = (expectedInFirstSwap * protocolFeeBPS) / 10000
+    realExpectedIn = expectedInFirstSwap + feeAmount
+    
+    amountInMax = 3_000.ether
+    
+    swap_receipt = trigger_contract_interaction_and_expect_success(
+      from: charlie,
+      payload: {
+        to: router_address,
+        data: {
+          function: "swapTokensForExactTokens",
+          args: {
+            amountOut: amountOut,
+            amountInMax: expectedInFirstSwap,
+            path: [token_a_address, token_b_address, token_c_address],
+            to: charlie,
+            deadline: Time.now.to_i + 300
+          }
+        }
+      }
+    )
+    
+    token_a_balance_after = ContractTransaction.make_static_call(
+      contract: token_a_address,
+      function_name: "balanceOf",
+      function_args: charlie
+    )
+    
+    token_b_balance_after = ContractTransaction.make_static_call(
+      contract: token_b_address,
+      function_name: "balanceOf",
+      function_args: charlie
+    )
+    
+    token_c_balance_after = ContractTransaction.make_static_call(
+      contract: token_c_address,
+      function_name: "balanceOf",
+      function_args: charlie
+    )
+    
+    token_a_diff = token_a_balance_before - token_a_balance_after
+    expect(token_a_diff).to eq(realExpectedIn)
+    
+    token_b_diff = token_b_balance_after - token_b_balance_before
+    expect(token_b_diff).to eq(0)
+    
+    token_c_diff = token_c_balance_after - token_c_balance_before
+    expect(token_c_diff).to eq(amountOut)
+    
+    event = swap_receipt.logs.detect{|l| l['event'] == "FeeAdjustedSwap"}
+    
+    expect(event['data']['inputAmount']).to eq(realExpectedIn)
+    expect(event['data']['outputAmount']).to eq(amountOut)
+    
+    router_fee_balance_after_two = ContractTransaction.make_static_call(
+      contract: weth_address,
+      function_name: "balanceOf",
+      function_args: router_address
+    )
+    
+    net_fee_amount = router_fee_balance_after_two - router_fee_balance_after_one
+    expect(net_fee_amount).to eq(feeAmount)
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    token_a_balance_before = ContractTransaction.make_static_call(
+      contract: token_a_address,
+      function_name: "balanceOf",
+      function_args: charlie
+    )
+    
+    token_b_balance_before = ContractTransaction.make_static_call(
+      contract: token_b_address,
+      function_name: "balanceOf",
+      function_args: charlie
+    )
+    
+    token_c_balance_before = ContractTransaction.make_static_call(
+      contract: token_c_address,
+      function_name: "balanceOf",
+      function_args: charlie
+    )
+    
+    reservesAB = ContractTransaction.make_static_call(
+      contract: router_address,
+      function_name: "getReserves",
+      function_args: [factory_address, token_a_address, token_b_address]
+    )
+    
+    reserveA, reserveBwithA = reservesAB.values_at("reserveA", "reserveB")
+    
+    reservesBC = ContractTransaction.make_static_call(
+      contract: router_address,
+      function_name: "getReserves",
+      function_args: [factory_address, token_b_address, token_c_address]
+    )
+    reserveBwithC, reserveC = reservesBC.values_at("reserveA", "reserveB")
+    
+    amountOut = 300.ether
+
+    feeAmount = (amountOut * protocolFeeBPS) / 10000
+
+    totalAmountOut = amountOut + feeAmount
+
+    numerator = reserveBwithA * totalAmountOut * 1000
+    denominator = (reserveA - totalAmountOut) * (1000 - lp_fee_bps / 10)
+    expectedInSecondSwap = (numerator.div(denominator)) + 1
+    
+    numerator = reserveC * expectedInSecondSwap * 1000
+    denominator = (reserveBwithC - expectedInSecondSwap) * (1000 - lp_fee_bps / 10)
+    expectedInFirstSwap = (numerator.div(denominator)) + 1
+
+    swap_receipt = trigger_contract_interaction_and_expect_success(
+      from: charlie,
+      payload: {
+        to: router_address,
+        data: {
+          function: "swapTokensForExactTokens",
+          args: {
+            amountOut: amountOut,
+            amountInMax: expectedInFirstSwap,
+            path: [token_c_address, token_b_address, token_a_address],
+            to: charlie,
+            deadline: Time.now.to_i + 300
+          }
+        }
+      }
+    )
+    
+    token_a_balance_after = ContractTransaction.make_static_call(
+      contract: token_a_address,
+      function_name: "balanceOf",
+      function_args: charlie
+    )
+    
+    token_b_balance_after = ContractTransaction.make_static_call(
+      contract: token_b_address,
+      function_name: "balanceOf",
+      function_args: charlie
+    )
+    
+    token_c_balance_after = ContractTransaction.make_static_call(
+      contract: token_c_address,
+      function_name: "balanceOf",
+      function_args: charlie
+    )
+    
+    token_a_diff = token_a_balance_after - token_a_balance_before
+    expect(token_a_diff).to eq(amountOut)
+    
+    token_b_diff = token_b_balance_after - token_b_balance_before
+    expect(token_b_diff).to eq(0)
+    
+    token_c_diff = token_c_balance_before - token_c_balance_after
+    expect(token_c_diff).to eq(expectedInFirstSwap)
+    
+    event = swap_receipt.logs.detect{|l| l['event'] == "FeeAdjustedSwap"}
+    
+    expect(event['data']['inputAmount']).to eq(expectedInFirstSwap)
+    expect(event['data']['outputAmount']).to eq(amountOut)
+    
+    router_fee_balance_after_three = ContractTransaction.make_static_call(
+      contract: weth_address,
+      function_name: "balanceOf",
+      function_args: router_address
+    )
+    
+    net_fee_amount = router_fee_balance_after_three - router_fee_balance_after_two
+    expect(net_fee_amount).to eq(feeAmount)
+    
+    
+
+    
+    
+    
+    
+    
     
     token_a_balance_before = ContractTransaction.make_static_call(
       contract: token_a_address,
@@ -793,7 +1199,7 @@ describe 'FacetSwapV1Router contract' do
           function: "swapTokensForExactTokens",
           args: {
             amountOut: amountOut,
-            amountInMax: amountInMax,
+            amountInMax: realExpectedIn,
             path: [token_a_address, token_b_address],
             to: charlie,
             deadline: Time.now.to_i + 300
@@ -885,7 +1291,7 @@ describe 'FacetSwapV1Router contract' do
           function: "swapTokensForExactTokens",
           args: {
             amountOut: amountOut,
-            amountInMax: amountInMax,
+            amountInMax: expectedIn,
             path: [token_b_address, token_a_address],
             to: charlie,
             deadline: Time.now.to_i + 300
