@@ -1,4 +1,30 @@
 class TokensController < ApplicationController
+  def historical_token_state
+    as_of_block = params[:as_of_block].to_i
+    contract_address = params[:address].to_s.downcase
+    
+    contract_state = ContractState.where(
+      contract_address: contract_address,
+    ).where("block_number <= ?", as_of_block).newest_first.first
+    
+    state = contract_state.state
+    
+    if !state["withdrawalIdAmount"]
+      render json: { error: "Invalid contract" }, status: 400
+      return
+    end
+    
+    pending_withdraw_amount = convert_int_to_string(state['withdrawalIdAmount'].values.sum)
+    
+    render json: {
+      result: {
+        pending_withdraw_amount: pending_withdraw_amount,
+        total_supply: convert_int_to_string(state['totalSupply']),
+        trusted_smart_contract: state['trustedSmartContract'],
+      }
+    }
+  end
+  
   def holders
     contract_address = params[:address]&.downcase
 
