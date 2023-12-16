@@ -89,8 +89,7 @@ class TokensController < ApplicationController
     max_processed_block_timestamp = EthBlock.processed.maximum(:timestamp).to_i
   
     if max_processed_block_timestamp < to_timestamp
-      render json: { error: "Block not processed" }, status: 400
-      return
+      to_timestamp = max_processed_block_timestamp
     end
     
     unless router_address.to_s.match?(/\A0x[0-9a-f]{40}\z/)
