@@ -141,13 +141,20 @@ class TokensController < ApplicationController
         end
         
         paired_token_log = (relevant_transfer_logs - [token_log]).first
+
+        swap_type = if token_log['data']['to'] == receipt.from_address
+          'buy'
+        else
+          'sell'
+        end
         
         {
           txn_hash: receipt.transaction_hash,
           swapper_address: receipt.from_address,
           timestamp: receipt.block_timestamp,
           token_amount: token_log['data']['amount'],
-          paired_token_amount: paired_token_log['data']['amount']
+          paired_token_amount: paired_token_log['data']['amount'],
+          swap_type: swap_type 
         }
       end
       
