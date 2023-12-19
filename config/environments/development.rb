@@ -65,6 +65,8 @@ Rails.application.configure do
 
   # Highlight code that enqueued background job in logs.
   config.active_job.verbose_enqueue_logs = true
+  
+  config.active_record.async_query_executor = :global_thread_pool
 
 
   # Raises error for missing translations.

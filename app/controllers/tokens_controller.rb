@@ -1,4 +1,54 @@
 class TokensController < ApplicationController
+  def historical_token_state
+    as_of_block = params[:as_of_block].to_i
+    contract_address = params[:address].to_s.downcase
+    
+    contract_state_future = ContractState.where(
+      contract_address: contract_address,
+    ).where("block_number <= ?", as_of_block).newest_first.limit(1).load_async
+    
+    function_event_pairs = [
+      ['bridgeIn', 'BridgedIn'],
+      ['markWithdrawalComplete', 'WithdrawalComplete']
+    ]
+    
+    async_result = calculate_total_amounts_async(
+      function_event_pairs: function_event_pairs,
+      contract_address: contract_address,
+      as_of_block: as_of_block
+    )
+    
+    contract_state = contract_state_future.first
+    
+    state = contract_state.state
+    
+    if !state["withdrawalIdAmount"]
+      render json: { error: "Invalid contract" }, status: 400
+      return
+    end
+    
+    pending_withdraw_amount = state['withdrawalIdAmount'].values.sum
+    
+    result = async_result.first
+    
+    total_bridged_in = result.bridgein_sum.to_i
+    total_withdraw_complete = result.markwithdrawalcomplete_sum.to_i
+    
+    result = {
+      as_of_block: as_of_block,
+      contract_address: contract_address,
+      pending_withdraw_amount: pending_withdraw_amount,
+      total_supply: state['totalSupply'],
+      trusted_smart_contract: state['trustedSmartContract'],
+      total_bridged_in: total_bridged_in,
+      total_withdraw_complete: total_withdraw_complete
+    }
+    
+    render json: {
+      result: convert_int_to_string(result)
+    }
+  end
+  
   def holders
     contract_address = params[:address]&.downcase
 
@@ -39,8 +89,7 @@ class TokensController < ApplicationController
     max_processed_block_timestamp = EthBlock.processed.maximum(:timestamp).to_i
   
     if max_processed_block_timestamp < to_timestamp
-      render json: { error: "Block not processed" }, status: 400
-      return
+      to_timestamp = max_processed_block_timestamp
     end
     
     unless router_address.to_s.match?(/\A0x[0-9a-f]{40}\z/)
@@ -92,13 +141,20 @@ class TokensController < ApplicationController
         end
         
         paired_token_log = (relevant_transfer_logs - [token_log]).first
+
+        swap_type = if token_log['data']['to'] == receipt.from_address
+          'buy'
+        else
+          'sell'
+        end
         
         {
           txn_hash: receipt.transaction_hash,
           swapper_address: receipt.from_address,
           timestamp: receipt.block_timestamp,
           token_amount: token_log['data']['amount'],
-          paired_token_amount: paired_token_log['data']['amount']
+          paired_token_amount: paired_token_log['data']['amount'],
+          swap_type: swap_type 
         }
       end
       
@@ -134,6 +190,17 @@ class TokensController < ApplicationController
 
   private
 
+  def calculate_total_amounts_async(function_event_pairs:, contract_address:, as_of_block:)
+    select_query_parts = function_event_pairs.map do |function, event|
+      "SUM((CASE WHEN function = '#{function}' AND log->>'event' = '#{event}' THEN (log->'data'->>'amount')::numeric ELSE 0 END)) as #{function}_sum"
+    end
+  
+    TransactionReceipt
+      .joins("CROSS JOIN LATERAL jsonb_array_elements(logs) as log")
+      .where("status = ? AND to_contract_address = ? AND block_number <= ?", 'success', contract_address, as_of_block)
+      .select(Arel.sql(select_query_parts.join(", "))).load_async
+  end
+  
   def calculate_volume(contract_address:, volume_contract:, start_time: nil)
     query = TransactionReceipt.where(status: "success", function: ["swapExactTokensForTokens", "swapTokensForExactTokens"])
       .where("EXISTS (

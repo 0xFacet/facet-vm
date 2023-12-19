@@ -137,7 +137,7 @@ class ContractTransaction < ApplicationRecord
   
     Rails.cache.fetch(cache_key) do
       mimetype = ContractTransaction.transaction_mimetype
-      uri = %{#{mimetype},#{tx_payload.to_json}}
+      uri = %{data:#{mimetype};rule=esip6,#{tx_payload.to_json}}
       
       ethscription_attrs = {
         transaction_hash: "0x" + SecureRandom.hex(32),
@@ -160,6 +160,7 @@ class ContractTransaction < ApplicationRecord
         transaction_receipt: eth.contract_transaction&.transaction_receipt,
         ethscription_status: eth.processing_state,
         ethscription_error: eth.processing_error,
+        ethscription_content_uri: uri
       }.with_indifferent_access
     end
   end
