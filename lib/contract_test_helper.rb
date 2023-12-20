@@ -64,7 +64,7 @@ module ContractTestHelper
       data: "0xF2dEe376De4167b8570389e8386Ea11233da0ae2"
     }
     
-    uri = %{#{mimetype};rule=esip6,#{payload.to_json}}
+    uri = %{data:#{mimetype};rule=esip6,#{payload.to_json}}
     tx_hash = "0x" + SecureRandom.hex(32)
     sha = Digest::SHA256.hexdigest(uri)
     
@@ -116,7 +116,7 @@ module ContractTestHelper
       data: block_number + 1
     }
     
-    uri = %{#{mimetype};rule=esip6,#{payload.to_json}}
+    uri = %{data:#{mimetype};rule=esip6,#{payload.to_json}}
     tx_hash = "0x" + SecureRandom.hex(32)
     sha = Digest::SHA256.hexdigest(uri)
     
@@ -224,7 +224,7 @@ module ContractTestHelper
       data: current_list.flatten
     }
     
-    uri = %{#{mimetype};rule=esip6,#{payload.to_json}}
+    uri = %{data:#{mimetype};rule=esip6,#{payload.to_json}}
     
     tx_hash = "0x" + SecureRandom.hex(32)
     sha = Digest::SHA256.hexdigest(uri)
@@ -293,7 +293,7 @@ module ContractTestHelper
     end
     
     mimetype = ContractTransaction.transaction_mimetype
-    uri = %{#{mimetype},#{payload.to_json}}
+    uri = %{data:#{mimetype},#{payload.to_json}}
     
     tx_hash = "0x" + SecureRandom.hex(32)
     sha = Digest::SHA256.hexdigest(uri)
