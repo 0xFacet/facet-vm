@@ -2,6 +2,8 @@ module RubidityTypeExtensions
   include ContractErrors
   
   module StringMethods
+    include ContractErrors
+    
     def base64Encode
       Base64.strict_encode64(value)
     end
@@ -16,6 +18,8 @@ module RubidityTypeExtensions
   end
 
   module UintOrIntMethods
+    include ContractErrors
+    
     def toString
       value.to_s
     end
@@ -31,6 +35,8 @@ module RubidityTypeExtensions
   end
   
   module AddressMethods
+    include ContractErrors
+    
     def call(json_call_data = '{}')
       calldata = JSON.parse(json_call_data)
   
@@ -57,6 +63,8 @@ module RubidityTypeExtensions
   end
   
   module BytesMethods
+    include ContractErrors
+    
     def verifyTypedDataSignature(
       type,
       message,
