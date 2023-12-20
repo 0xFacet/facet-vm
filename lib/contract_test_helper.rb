@@ -263,7 +263,9 @@ module ContractTestHelper
       processing_state: :pending
     }
     
-    Ethscription.new(ethscription_attrs).process!(persist: true)
+    eth = Ethscription.create!(ethscription_attrs)
+    eth.process!(persist: true)
+    
     uri
   end
   
