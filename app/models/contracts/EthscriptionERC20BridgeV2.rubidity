@@ -3,7 +3,7 @@ pragma :rubidity, "1.0.0"
 import "./ERC20.rubidity"
 import "./Upgradeable.rubidity"
 
-contract :EthscriptionERC20Bridge, is: [:ERC20, :Upgradeable], upgradeable: true do
+contract :EthscriptionERC20BridgeV2, is: [:ERC20, :Upgradeable], upgradeable: true do
   event :BridgedIn, { to: :address, amount: :uint256 }
   event :InitiateWithdrawal, { from: :address, amount: :uint256, withdrawalId: :bytes32 }
   event :WithdrawalComplete, { to: :address, amount: :uint256, withdrawalId: :bytes32 }
@@ -30,6 +30,14 @@ contract :EthscriptionERC20Bridge, is: [:ERC20, :Upgradeable], upgradeable: true
     s.mintAmount = mintAmount
     s.trustedSmartContract = trustedSmartContract
   }
+  
+  function :onUpgrade, {
+    newTrustedSmartContract: :address
+  }, :public do
+    require(msg.sender == address(this), 'Only the contract itself can migrate')
+    
+    s.trustedSmartContract = newTrustedSmartContract
+  end
   
   function :bridgeIn, { to: :address, amount: :uint256 }, :public do
     require(
