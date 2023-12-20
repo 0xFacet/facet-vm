@@ -1,4 +1,6 @@
 module RubidityTypeExtensions
+  include ContractErrors
+  
   module StringMethods
     def base64Encode
       Base64.strict_encode64(value)
