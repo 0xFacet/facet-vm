@@ -37,6 +37,7 @@ contract :EthscriptionERC20BridgeV2, is: [:ERC20, :Upgradeable], upgradeable: tr
     require(msg.sender == address(this), 'Only the contract itself can migrate')
     
     s.trustedSmartContract = newTrustedSmartContract
+    return nil
   end
   
   function :bridgeIn, { to: :address, amount: :uint256 }, :public do
