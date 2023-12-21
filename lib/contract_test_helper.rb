@@ -140,7 +140,6 @@ module ContractTestHelper
   def self.set_initial_supported_contracts
     new_names = [
       "EtherBridge",
-      # "EthscriptionERC20Bridge",
       "EthscriptionERC20BridgeV2",
       "PublicMintERC20",
       "NameRegistry",
