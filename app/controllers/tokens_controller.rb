@@ -154,7 +154,9 @@ class TokensController < ApplicationController
           timestamp: receipt.block_timestamp,
           token_amount: token_log['data']['amount'],
           paired_token_amount: paired_token_log['data']['amount'],
-          swap_type: swap_type 
+          swap_type: swap_type,
+          transaction_index: receipt.transaction_index,
+          block_number: receipt.block_number
         }
       end
       
