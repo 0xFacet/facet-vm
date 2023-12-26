@@ -1,4 +1,4 @@
-class AddProcessingStateIndexToEthBlocks < ActiveRecord::Migration[7.1]
+class AddProcessingStateIndexToEthBlocksAndFromAddressOnReceipts < ActiveRecord::Migration[7.1]
   def change
     add_index :transaction_receipts, :from_address
 
