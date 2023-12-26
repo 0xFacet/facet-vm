@@ -4,8 +4,8 @@ class TokensController < ApplicationController
     owner = TypedVariable.validated_value(:address, params[:owner])
     spender = TypedVariable.validated_value(:address, params[:spender])
     
-    owner_address = ActiveRecord::Base.connection.quote(owner_address)
-    spender_address = ActiveRecord::Base.connection.quote(spender_address)
+    owner_address = ActiveRecord::Base.connection.quote(owner)
+    spender_address = ActiveRecord::Base.connection.quote(spender)
 
     allowance = Contract.where(address: address)
                 .pluck(Arel.sql("current_state->'allowance'->#{owner_address}->>#{spender_address}"))
