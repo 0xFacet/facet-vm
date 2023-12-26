@@ -1,4 +1,23 @@
 class TokensController < ApplicationController
+  def get_allowance
+    address = TypedVariable.validated_value(:address, params[:address])
+    owner = TypedVariable.validated_value(:address, params[:owner])
+    spender = TypedVariable.validated_value(:address, params[:spender])
+    
+    owner_address = ActiveRecord::Base.connection.quote(owner_address)
+    spender_address = ActiveRecord::Base.connection.quote(spender_address)
+
+    allowance = Contract.where(address: address)
+                .pluck(Arel.sql("current_state->'allowance'->#{owner_address}->>#{spender_address}"))
+                .first.to_i
+                        
+    render json: {
+      result: allowance.to_s
+    }
+  rescue ContractErrors::VariableTypeError => e
+    render json: { error: e.message }, status: 400
+  end
+  
   def historical_token_state
     as_of_block = params[:as_of_block].to_i
     contract_address = params[:address].to_s.downcase
