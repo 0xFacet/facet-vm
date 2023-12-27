@@ -26,7 +26,7 @@ class TransactionsController < ApplicationController
       )
     end
     
-    cache_key = ["transactions_index", EthBlock.max_processed_block_hash, page, per_page]
+    cache_key = ["transactions_index", EthBlock.max_processed_block_number, page, per_page]
   
     result = Rails.cache.fetch(cache_key) do
       res = scope.page(page).per(per_page).to_a
