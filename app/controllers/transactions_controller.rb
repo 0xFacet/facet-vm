@@ -4,6 +4,13 @@ class TransactionsController < ApplicationController
     per_page = (params[:per_page] || 50).to_i
     per_page = 50 if per_page > 50
     
+    if page > 20
+      render json: { error: "Page depth restricted to 20 for performance reasons.
+        Soon we will switch to cursor-based pagination for this endpoint.
+        Please contact hello@facet.org with questions".squish }, status: 400
+      return
+    end
+    
     scope = TransactionReceipt.newest_first
     
     if params[:block_number].present?
