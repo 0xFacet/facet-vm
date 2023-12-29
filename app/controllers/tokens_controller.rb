@@ -192,6 +192,8 @@ class TokensController < ApplicationController
   end
 
   def volume
+    expires_in 1.second, public: true
+    
     volume_contract = params[:volume_contract]&.downcase
     contract_address = params[:address]&.downcase
     one_day_ago = 24.hours.ago.to_i
