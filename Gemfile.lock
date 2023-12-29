@@ -94,6 +94,11 @@ GEM
     clockwork (3.0.2)
       activesupport
       tzinfo
+    cloudflare-rails (5.0.1)
+      actionpack (>= 6.1, < 7.2.0)
+      activesupport (>= 6.1, < 7.2.0)
+      railties (>= 6.1, < 7.2.0)
+      zeitwerk (>= 2.5.0)
     coderay (1.1.3)
     concurrent-ruby (1.2.2)
     connection_pool (2.4.1)
@@ -297,6 +302,7 @@ DEPENDENCIES
   bootsnap
   clipboard
   clockwork (~> 3.0)
+  cloudflare-rails
   dalli (~> 3.2)
   descriptive_statistics (~> 2.5)
   dotenv-rails (~> 2.8)

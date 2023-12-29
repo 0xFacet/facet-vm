@@ -1,5 +1,7 @@
 class TokensController < ApplicationController
   def get_allowance
+    expires_in 1.second, public: true
+    
     address = TypedVariable.validated_value(:address, params[:address])
     owner = TypedVariable.validated_value(:address, params[:owner])
     spender = TypedVariable.validated_value(:address, params[:spender])
