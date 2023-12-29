@@ -1,4 +1,6 @@
 class ApplicationController < ActionController::API
+  include CachingHelper
+  
   private
   
   def convert_int_to_string(result)

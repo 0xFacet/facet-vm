@@ -1,21 +1,22 @@
 class TokensController < ApplicationController
   def get_allowance
-    expires_in 1.second, public: true, stale_while_revalidate: 1.second
-    
     address = TypedVariable.validated_value(:address, params[:address])
     owner = TypedVariable.validated_value(:address, params[:owner])
     spender = TypedVariable.validated_value(:address, params[:spender])
     
     owner_address = ActiveRecord::Base.connection.quote(owner)
     spender_address = ActiveRecord::Base.connection.quote(spender)
-
-    allowance = Contract.where(address: address)
-                .pluck(Arel.sql("current_state->'allowance'->#{owner_address}->>#{spender_address}"))
-                .first.to_i
-                        
-    render json: {
-      result: allowance.to_s
-    }
+    
+    render_with_caching(
+      [EthBlock.max_processed_block_hash, address, owner, spender],
+      max_age: 1.second,
+    ) do
+      allowance = Contract.where(address: address)
+                  .pluck(Arel.sql("current_state->'allowance'->#{owner_address}->>#{spender_address}"))
+                  .first.to_i
+                          
+      { result: allowance.to_s }
+    end
   rescue ContractErrors::VariableTypeError => e
     render json: { error: e.message }, status: 400
   end
