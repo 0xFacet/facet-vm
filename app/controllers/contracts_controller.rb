@@ -51,6 +51,8 @@ class ContractsController < ApplicationController
   end
 
   def show
+    expires_in 1.second, public: true
+    
     contract = Contract.find_by_address(params[:id])
 
     if contract.blank?
@@ -64,6 +66,8 @@ class ContractsController < ApplicationController
   end
 
   def static_call
+    expires_in 1.second, public: true
+    
     args = JSON.parse(params.fetch(:args) { '{}' })
     env = JSON.parse(params.fetch(:env) { '{}' })
 
@@ -121,6 +125,8 @@ class ContractsController < ApplicationController
   end
   
   def simulate_transaction
+    expires_in 1.second, public: true
+    
     from = params[:from]
     
     tx_payload = if request.method == 'POST'

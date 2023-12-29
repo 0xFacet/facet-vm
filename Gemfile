@@ -49,6 +49,9 @@ group :development do
   gem "active_record_query_trace", "~> 1.8"
 end
 
+group :production do
+  gem 'cloudflare-rails'
+end
 
 gem "dotenv-rails", "~> 2.8", groups: [:development, :test]
 
