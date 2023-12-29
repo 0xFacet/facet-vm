@@ -185,6 +185,37 @@ CREATE TABLE public.ar_internal_metadata (
 
 
 --
+-- Name: cache_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.cache_versions (
+    id bigint NOT NULL,
+    version integer DEFAULT 1 NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: cache_versions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.cache_versions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: cache_versions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.cache_versions_id_seq OWNED BY public.cache_versions.id;
+
+
+--
 -- Name: contract_artifacts; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -610,6 +641,13 @@ ALTER SEQUENCE public.transaction_receipts_id_seq OWNED BY public.transaction_re
 
 
 --
+-- Name: cache_versions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cache_versions ALTER COLUMN id SET DEFAULT nextval('public.cache_versions_id_seq'::regclass);
+
+
+--
 -- Name: contract_artifacts id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -678,6 +716,14 @@ ALTER TABLE ONLY public.transaction_receipts ALTER COLUMN id SET DEFAULT nextval
 
 ALTER TABLE ONLY public.ar_internal_metadata
     ADD CONSTRAINT ar_internal_metadata_pkey PRIMARY KEY (key);
+
+
+--
+-- Name: cache_versions cache_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cache_versions
+    ADD CONSTRAINT cache_versions_pkey PRIMARY KEY (id);
 
 
 --
@@ -1308,6 +1354,7 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20231229183551'),
 ('20231226174404'),
 ('20231215180426'),
 ('20231203201813'),
