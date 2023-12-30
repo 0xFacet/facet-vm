@@ -1,6 +1,6 @@
 class TokensController < ApplicationController
   def get_allowance
-    expires_in 1.second, public: true
+    # expires_in 1.second, public: true
     
     address = TypedVariable.validated_value(:address, params[:address])
     owner = TypedVariable.validated_value(:address, params[:owner])
@@ -103,7 +103,7 @@ class TokensController < ApplicationController
   end
 
   def swaps
-    expires_in 1.second, public: true
+    # expires_in 1.second, public: true
     
     contract_address = params[:address]&.downcase
     from_timestamp = params[:from_timestamp].to_i
@@ -192,7 +192,7 @@ class TokensController < ApplicationController
   end
 
   def volume
-    expires_in 1.second, public: true
+    # expires_in 1.second, public: true
     
     volume_contract = params[:volume_contract]&.downcase
     contract_address = params[:address]&.downcase

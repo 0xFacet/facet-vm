@@ -1,6 +1,6 @@
 class StatusController < ApplicationController
   def vm_status
-    expires_in 1.second, public: true
+    # expires_in 1.second, public: true
     
     total_newer_ethscriptions = Rails.cache.read("total_ethscriptions_behind").to_i
         
