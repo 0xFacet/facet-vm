@@ -261,7 +261,7 @@ class TokensController < ApplicationController
       WHERE (log ->> 'contractAddress') IN (?, ?)
       AND (log ->> 'event') = 'Transfer'
     )", token_address, eth_contract_address)
-    .order(block_timestamp: :desc)
+    .newest_first
     .first
 
     return nil if recent_transaction.blank?
