@@ -219,14 +219,20 @@ class TokensController < ApplicationController
     token_addresses = params[:token_addresses] || []
     eth_contract_address = params[:eth_contract_address]
 
-    prices = token_addresses.map do |address|
-      last_swap_price = get_last_swap_price_for_token(address, eth_contract_address)
-      { token_address: address, last_swap_price: last_swap_price }
+    cache_key = ["token_prices", token_addresses, eth_contract_address]
+
+    result = Rails.cache.fetch(cache_key) do
+      prices = token_addresses.map do |address|
+        last_swap_price = get_last_swap_price_for_token(address, eth_contract_address)
+        { token_address: address, last_swap_price: last_swap_price }
+      end
+
+      convert_int_to_string(prices)
     end
 
-    render json: { prices: prices }
-  rescue => e
-    render json: { error: e.message }, status: 500
+    render json: {
+      result: result
+    }
   end
   
   private
