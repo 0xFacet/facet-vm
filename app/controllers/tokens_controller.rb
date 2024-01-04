@@ -218,8 +218,19 @@ class TokensController < ApplicationController
   def token_prices
     token_addresses = params[:token_addresses] || []
     eth_contract_address = params[:eth_contract_address]
+    MAX_TOKEN_ADDRESSES = 50
 
-    cache_key = ["token_prices", token_addresses, eth_contract_address]
+    if token_addresses.length > MAX_TOKEN_ADDRESSES
+      render json: { error: "Too many token addresses, limit is #{MAX_TOKEN_ADDRESSES}" }, status: 400
+      return
+    end
+
+    cache_key = [
+      "token_prices",
+      token_addresses,
+      eth_contract_address,
+      EthBlock.max_processed_block_number
+    ]
 
     result = Rails.cache.fetch(cache_key) do
       prices = token_addresses.map do |address|
