@@ -278,6 +278,8 @@ class ContractImplementation < BasicObject
   def string(i)
     if i.is_a?(::TypedObject) && i.type.is_value_type?
       return ::TypedVariable.create(:string, i.value.to_s)
+    elsif i.is_a?(::Integer)
+      return ::TypedVariable.create(:string, i.to_s)
     else
       raise "Input must be typed"
     end

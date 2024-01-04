@@ -25,19 +25,158 @@ contract :Checks, is: :ERC721 do
     s.totalSupply += amount
   end
   
+  function :generateSVG, { tokenId: :uint256 }, :public, :view, returns: :string do
+    checksPath = 'M21.36 9.886A3.933 3.933 0 0 0 18 8c-1.423 0-2.67.755-3.36 1.887a3.935 3.935 0 0 0-4.753 4.753A3.933 3.933 0 0 0 8 18c0 1.423.755 2.669 1.886 3.36a3.935 3.935 0 0 0 4.753 4.753 3.933 3.933 0 0 0 4.863 1.59 3.953 3.953 0 0 0 1.858-1.589 3.935 3.935 0 0 0 4.753-4.754A3.933 3.933 0 0 0 28 18a3.933 3.933 0 0 0-1.887-3.36 3.934 3.934 0 0 0-1.042-3.711 3.934 3.934 0 0 0-3.71-1.043Zm-3.958 11.713 4.562-6.844c.566-.846-.751-1.724-1.316-.878l-4.026 6.043-1.371-1.368c-.717-.722-1.836.396-1.116 1.116l2.17 2.15a.788.788 0 0 0 1.097-.22Z';
+
+    gridColor = '#191919'
+    canvasColor = '#111'
+    
+    svg = <<-SVG
+      <svg viewBox="0 0 680 680" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:100%;background:black;">
+        <defs>
+          <path id="check" fill-rule="evenodd" d="#{checksPath}"></path>
+          <rect id="square" width="36" height="36" stroke="#{gridColor}"></rect>
+          <g id="row">#{generateGridRow()}</g>
+        </defs>
+        <rect width="680" height="680" fill="black"/>
+        <rect x="188" y="152" width="304" height="376" fill="#{canvasColor}"/>
+        #{generateGrid()}
+        #{generateRandomChecks(tokenId)}
+        <rect width="680" height="680" fill="transparent">
+          <animate attributeName="width" from="680" to="0" dur="0.2s" begin="click" fill="freeze" id="animation"/>
+        </rect>
+      </svg>
+    SVG
+  
+    return svg
+  end
+  
+  function :generateRandomChecks, { tokenId: :uint256 }, :public, :pure, returns: :string do
+    seed = keccak256(abi.encodePacked(tokenId)).cast(:uint256)
+    colors = eightyColors()
+    
+    count = 80
+    
+    selected_colors = array(:string)
+    color_indices = array(:uint256)
+    
+    forLoop(
+      condition: -> i { i < count }
+    ) do |i|
+      color_index = seed % colors.length
+      selected_colors.push(colors[color_index])
+      color_indices.push(color_index)
+      
+      seed = keccak256(abi.encodePacked(seed)).cast(:uint256)
+    end
+    
+    checks = generateChecks(
+      count: count,
+      perRow: 8,
+      rowY: 160,
+      rowX: 196,
+      spaceY: 36,
+      spaceX: 36,
+      scale: 1,
+      indent: false,
+      isBlack: false,
+      colors: selected_colors,
+      colorIndexes: color_indices
+    )
+    
+    return checks
+  end
+  
+  function :generateChecks, {
+    count: :uint8,
+    perRow: :uint8,
+    rowY: :uint256,
+    rowX: :uint256,
+    spaceY: :uint256,
+    spaceX: :uint256,
+    scale: :uint256,
+    indent: :bool,
+    isBlack: :bool,
+    colors: [:string],
+    colorIndexes: [:uint256]
+  }, :public, :pure, returns: :string do
+    checksBytes = ''
+    _rowX = rowX
+    _rowY = rowY
+    
+    forLoop(
+      condition: -> i { i < count }
+    ) do |i|
+      indexInRow = i % perRow
+      isNewRow = indexInRow == 0 && i > 0
+  
+      if isNewRow
+        _rowY += spaceY
+        
+        if indent
+          if i == 0
+            _rowX += spaceX / 2
+          end
+  
+          if i % (perRow * 2) == 0
+            _rowX -= spaceX / 2
+          else
+            _rowX += spaceX / 2
+          end
+        end
+      end
+      
+      translateX = string(_rowX + indexInRow * spaceX)
+      translateY = string(_rowY)
+      color = colors[i]
+      
+      checksBytes += "<g transform='translate(#{string(translateX)}, #{string(translateY)}) scale(#{string(scale)})'><use href='#check' fill='##{color}'></use></g>"
+    end
+  
+    return checksBytes
+  end
+  
+  function :generateGrid, {}, :public, :pure, returns: :string do
+    grid = ''
+    
+    forLoop(
+      condition: -> i { i < 10 }
+    ) do |i|
+      grid += "<use href='#row' y='#{string(i*36)}'/>"
+    end
+    
+    return "<g id='grid' x='196' y='160'>#{grid}</g>"
+  end
+  
+  function :generateGridRow, {}, :public, :pure, returns: :string do
+    row = ''
+    
+    forLoop(
+      condition: -> i { i < 8 }
+    ) do |i|
+      row += "<use href='#square' x='#{string(196) + string(i*36)}' y='160'/>"
+    end
+    
+    return row
+  end
+  
   function :tokenURI, { id: :uint256 }, :public, :view, :override, returns: :string do
     require(_exists(id: id), 'ERC721Metadata: URI query for nonexistent token')
     
+    svg = "data:image/svg+xml;base64,#{generateSVG(id).base64Encode}"
+    
     json_data = json.stringify(
       name: "#{s.name} ##{string(id)}",
-      description: "A checks NFT",
-      image: generateSVG(id),
+      description: "A different way of looking at a checks original",
+      image: svg,
     )
     
-    return "data:application/json,#{json_data}"
+    return "data:application/json;base64,#{json_data.base64Encode}"
   end
-
-  function :generateSVG, { id: :uint256 }, :internal, returns: :string do
-    return "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 1200' width='1200' height='1200'><rect x='0' y='0' width='100%' height='100%' fill='lightgray'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='100'>##{string(id)}</text></svg>"
+  
+  function :eightyColors, {}, :public, :pure, returns: [:string] do
+    return %w[
+      E84AA9 F2399D DB2F96 E73E85 FF7F8E FA5B67 E8424E D5332F C23532 F2281C D41515 9D262F DE3237 DA3321 EA3A2D EB4429 EC7368 FF8079 FF9193 EA5B33 D05C35 ED7C30 EF9933 EF8C37 F18930 F09837 F9A45C F2A43A F2A840 F2A93C FFB340 F2B341 FAD064 F7CA57 F6CB45 FFAB00 F4C44A FCDE5B F9DA4D F9DA4A FAE272 F9DB49 FAE663 FBEA5B A7CA45 B5F13B 94E337 63C23C 86E48E 77E39F 5FCD8C 83F1AE 9DEFBF 2E9D9A 3EB8A1 5FC9BF 77D3DE 6AD1DE 5ABAD3 4291A8 33758D 45B2D3 81D1EC A7DDF9 9AD9FB A4C8EE 60B1F4 2480BD 4576D0 3263D0 2E4985 25438C 525EAA 3D43B3 322F92 4A2387 371471 3B088C 6C31D7 9741DA
+    ]
   end
 end

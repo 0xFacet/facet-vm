@@ -30,17 +30,25 @@ describe 'Checks' do
         to: dep.address,
         data: {
           function: "mint",
-          args: 1
+          args: 2
         }
       }
     )
     
     token_uri = ContractTransaction.make_static_call(
       contract: dep.address, 
-      function_name: "tokenURI", 
-      function_args: { id: "0" }
+      function_name: "generateSVG", 
+      function_args: { tokenId: "2" }
     )
     
+    Clipboard.copy( token_uri)
+    
+    token_uri = ContractTransaction.make_static_call(
+      contract: dep.address, 
+      function_name: "tokenURI", 
+      function_args: { id: "1" }
+    )
+    Clipboard.copy( token_uri)
     # puts JSON.parse(token_uri[/.*?,(.*)/, 1])['image']
   end
 
