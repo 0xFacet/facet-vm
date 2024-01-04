@@ -215,7 +215,62 @@ class TokensController < ApplicationController
     }
   end
 
+  def token_prices
+    token_addresses = params[:token_addresses] || []
+    eth_contract_address = params[:eth_contract_address]
+
+    prices = token_addresses.map do |address|
+      last_swap_price = get_last_swap_price_for_token(address, eth_contract_address)
+      { token_address: address, last_swap_price: last_swap_price }
+    end
+
+    render json: { prices: prices }
+  rescue => e
+    render json: { error: e.message }, status: 500
+  end
+  
   private
+  
+  def get_last_swap_price_for_token(token_address, eth_contract_address)
+    token_address = token_address.downcase
+    eth_contract_address = eth_contract_address.downcase
+
+    recent_transaction = TransactionReceipt.where(
+      status: "success",
+      function: ["swapExactTokensForTokens", "swapTokensForExactTokens"]
+    )
+    .where("EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements(logs) AS log
+      WHERE (log ->> 'contractAddress') IN (?, ?)
+      AND (log ->> 'event') = 'Transfer'
+    )", token_address, eth_contract_address)
+    .order(block_timestamp: :desc)
+    .first
+
+    return nil if recent_transaction.blank?
+
+    process_transaction_for_swap_price(recent_transaction, token_address, eth_contract_address)
+  end
+
+  def process_transaction_for_swap_price(transaction, token_address, eth_contract_address)
+    relevant_transfer_logs = transaction.logs.select do |log|
+      log["event"] == "Transfer" && [token_address, eth_contract_address].include?(log['contractAddress'])
+    end
+
+    return nil if relevant_transfer_logs.empty?
+
+    token_log = relevant_transfer_logs.find { |log| log['contractAddress'] == token_address }
+    eth_log = relevant_transfer_logs.find { |log| log['contractAddress'] == eth_contract_address }
+
+    return nil if token_log.nil? || eth_log.nil?
+
+    token_amount = token_log['data']['amount'].to_i
+    eth_amount = eth_log['data']['amount'].to_i
+
+    swap_price = eth_amount.to_f / token_amount
+    swap_price
+  end
 
   def calculate_total_amounts_async(function_event_pairs:, contract_address:, as_of_block:)
     select_query_parts = function_event_pairs.map do |function, event|
