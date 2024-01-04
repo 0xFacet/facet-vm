@@ -42,6 +42,7 @@ Rails.application.routes.draw do
       get '/:address/holders', to: 'tokens#holders'
       get '/:address/swaps', to: 'tokens#swaps'
       get '/:address/volume', to: 'tokens#volume'
+      get '/token_prices', to: 'tokens#token_prices'
     end
   end
   
