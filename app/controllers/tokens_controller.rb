@@ -262,9 +262,15 @@ class TokensController < ApplicationController
     .where("EXISTS (
       SELECT 1
       FROM jsonb_array_elements(logs) AS log
-      WHERE (log ->> 'contractAddress') IN (?, ?)
+      WHERE (log ->> 'contractAddress') = ?
       AND (log ->> 'event') = 'Transfer'
-    )", token_address, eth_contract_address)
+    )", token_address)
+    .where("EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements(logs) AS log
+      WHERE (log ->> 'contractAddress') = ?
+      AND (log ->> 'event') = 'Transfer'
+    )", eth_contract_address)
     .newest_first
     .first
 
