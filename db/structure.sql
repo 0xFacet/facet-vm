@@ -999,6 +999,13 @@ CREATE UNIQUE INDEX index_eth_blocks_on_blockhash ON public.eth_blocks USING btr
 
 
 --
+-- Name: index_eth_blocks_on_blockhash_and_processing_state; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_eth_blocks_on_blockhash_and_processing_state ON public.eth_blocks USING btree (blockhash) WHERE ((processing_state)::text <> 'pending'::text);
+
+
+--
 -- Name: index_eth_blocks_on_imported_at; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1087,6 +1094,13 @@ CREATE INDEX index_transaction_receipts_on_created_contract_address ON public.tr
 --
 
 CREATE INDEX index_transaction_receipts_on_effective_contract_address ON public.transaction_receipts USING btree (effective_contract_address);
+
+
+--
+-- Name: index_transaction_receipts_on_from_address; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_transaction_receipts_on_from_address ON public.transaction_receipts USING btree (from_address);
 
 
 --
@@ -1294,6 +1308,7 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20231226174404'),
 ('20231215180426'),
 ('20231203201813'),
 ('20231113223006'),

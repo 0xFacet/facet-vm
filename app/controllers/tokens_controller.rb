@@ -1,4 +1,25 @@
 class TokensController < ApplicationController
+  def get_allowance
+    # expires_in 1.second, public: true
+    
+    address = TypedVariable.validated_value(:address, params[:address])
+    owner = TypedVariable.validated_value(:address, params[:owner])
+    spender = TypedVariable.validated_value(:address, params[:spender])
+    
+    owner_address = ActiveRecord::Base.connection.quote(owner)
+    spender_address = ActiveRecord::Base.connection.quote(spender)
+
+    allowance = Contract.where(address: address)
+                .pluck(Arel.sql("current_state->'allowance'->#{owner_address}->>#{spender_address}"))
+                .first.to_i
+                        
+    render json: {
+      result: allowance.to_s
+    }
+  rescue ContractErrors::VariableTypeError => e
+    render json: { error: e.message }, status: 400
+  end
+  
   def historical_token_state
     as_of_block = params[:as_of_block].to_i
     contract_address = params[:address].to_s.downcase
@@ -82,6 +103,8 @@ class TokensController < ApplicationController
   end
 
   def swaps
+    # expires_in 1.second, public: true
+    
     contract_address = params[:address]&.downcase
     from_timestamp = params[:from_timestamp].to_i
     to_timestamp = params[:to_timestamp].to_i
@@ -154,7 +177,9 @@ class TokensController < ApplicationController
           timestamp: receipt.block_timestamp,
           token_amount: token_log['data']['amount'],
           paired_token_amount: paired_token_log['data']['amount'],
-          swap_type: swap_type 
+          swap_type: swap_type,
+          transaction_index: receipt.transaction_index,
+          block_number: receipt.block_number
         }
       end
       
@@ -167,6 +192,8 @@ class TokensController < ApplicationController
   end
 
   def volume
+    # expires_in 1.second, public: true
+    
     volume_contract = params[:volume_contract]&.downcase
     contract_address = params[:address]&.downcase
     one_day_ago = 24.hours.ago.to_i
