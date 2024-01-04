@@ -218,10 +218,9 @@ class TokensController < ApplicationController
   def token_prices
     token_addresses = params[:token_addresses] || []
     eth_contract_address = params[:eth_contract_address]
-    MAX_TOKEN_ADDRESSES = 50
 
-    if token_addresses.length > MAX_TOKEN_ADDRESSES
-      render json: { error: "Too many token addresses, limit is #{MAX_TOKEN_ADDRESSES}" }, status: 400
+    if token_addresses.length > 50
+      render json: { error: "Too many token addresses, limit is 50" }, status: 400
       return
     end
 
