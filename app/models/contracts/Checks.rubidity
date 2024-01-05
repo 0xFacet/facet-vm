@@ -3,6 +3,8 @@ pragma :rubidity, "1.0.0"
 import './ERC721.rubidity'
 
 contract :Checks, is: :ERC721 do
+  mapping ({ uint256: :uint8 }), :public, :tokenIdToCheckAmount
+
   uint256 :public, :totalSupply
   
   constructor(
@@ -14,11 +16,13 @@ contract :Checks, is: :ERC721 do
   
   function :mint, { amount: :uint256 }, :public, returns: :uint256 do
     require(amount > 0, 'Amount must be positive')
+    require(amount <= 10, 'Amount must be lte 10')
     
     forLoop(
       condition: -> i { i < amount }
     ) do |i|
       tokenId = s.totalSupply + i
+      s.tokenIdToCheckAmount[tokenId] = 80
       _mint(to: msg.sender, id: tokenId)
     end
     
@@ -51,11 +55,35 @@ contract :Checks, is: :ERC721 do
     return svg
   end
   
+  function :burnChecks, {
+    tokenIdsToBurn: [:uint256],
+    tokenIdToEnhance: :uint256
+  }, :public do
+    require(tokenIdsToBurn.length > 0, 'Must burn at least one token')
+    require(tokenIdsToBurn.length <= 7, 'Must burn at most 7 tokens')
+    
+    divisors = DIVISORS()
+    divisorIndex = 0
+    
+    forLoop(
+      condition: -> i { i < tokenIdsToBurn.length }
+    ) do |i|
+      tokenId = tokenIdsToBurn[i]
+      require(s.tokenIdToCheckAmount[tokenIdToEnhance] > 0, 'Must have at least 1 checks')
+      require(ownerOf(tokenId) == msg.sender, 'Must own token')
+      
+      _burn(tokenId)
+      s.tokenIdToCheckAmount[tokenIdToEnhance] = divisors[divisorIndex]
+      
+      divisorIndex = [divisorIndex + 1, divisors.length - 1].min
+    end
+  end
+  
   function :generateRandomChecks, { tokenId: :uint256 }, :public, :pure, returns: :string do
     seed = keccak256(abi.encodePacked(tokenId)).cast(:uint256)
     colors = eightyColors()
     
-    count = 80
+    count = s.tokenIdToCheckAmount[tokenId]
     
     selected_colors = array(:string)
     color_indices = array(:uint256)
@@ -72,19 +100,55 @@ contract :Checks, is: :ERC721 do
     
     checks = generateChecks(
       count: count,
-      perRow: 8,
-      rowY: 160,
-      rowX: 196,
-      spaceY: 36,
-      spaceX: 36,
-      scale: 1,
-      indent: false,
+      perRow: perRow(count),
+      rowY: rowY(count),
+      rowX: rowX(count),
+      spaceX: count == 80 ? 36 : 72,
+      spaceY: count > 20 ? 36 : 72,
+      scale: count > 20 ? '1' : count > 1 ? '2' : '3',
+      indent: count == 40,
       isBlack: false,
       colors: selected_colors,
       colorIndexes: color_indices
     )
     
     return checks
+  end
+  
+  function :rowX, { checks: :uint8 }, :public, :pure, returns: :uint16 do
+    if checks <= 1
+      return 286
+    elsif checks == 5
+      return 304
+    elsif checks == 10 || checks == 4
+      return 268
+    else
+      return 196
+    end
+  end
+  
+  function :rowY, { checks: :uint8 }, :public, :pure, returns: :uint16 do
+    if checks > 4
+      return 160
+    elsif checks == 4
+      return 268
+    elsif checks > 1
+      return 304
+    else
+      return 286
+    end
+  end
+  
+  function :perRow, { checks: :uint8 }, :public, :pure, returns: :uint8 do
+    if checks == 80
+      return 8
+    elsif checks >= 20
+      return 4
+    elsif checks == 10 || checks == 4
+      return 2
+    else
+      return 1
+    end
   end
   
   function :generateChecks, {
@@ -172,6 +236,10 @@ contract :Checks, is: :ERC721 do
     )
     
     return "data:application/json;base64,#{json_data.base64Encode}"
+  end
+  
+  function :DIVISORS, :public, :pure, returns: [:uint8] do
+    return [80, 40, 20, 10, 5, 4, 1, 0]
   end
   
   function :eightyColors, {}, :public, :pure, returns: [:string] do

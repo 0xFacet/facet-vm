@@ -30,7 +30,21 @@ describe 'Checks' do
         to: dep.address,
         data: {
           function: "mint",
-          args: 2
+          args: 9
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: dep.address,
+        data: {
+          function: "burnChecks",
+          args: {
+            tokenIdsToBurn: [1, 2, 3, 4, 5, 6, 7],
+            tokenIdToEnhance: 0
+          }
         }
       }
     )
@@ -38,17 +52,17 @@ describe 'Checks' do
     token_uri = ContractTransaction.make_static_call(
       contract: dep.address, 
       function_name: "generateSVG", 
-      function_args: { tokenId: "2" }
+      function_args: { tokenId: 0 }
     )
     
-    Clipboard.copy( token_uri)
+    Clipboard.copy( "data:image/svg+xml;base64,#{Base64.strict_encode64(token_uri)}")
     
     token_uri = ContractTransaction.make_static_call(
       contract: dep.address, 
       function_name: "tokenURI", 
-      function_args: { id: "1" }
+      function_args: { id: 0 }
     )
-    Clipboard.copy( token_uri)
+    # Clipboard.copy( token_uri)
     # puts JSON.parse(token_uri[/.*?,(.*)/, 1])['image']
   end
 
