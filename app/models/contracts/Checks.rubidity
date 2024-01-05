@@ -67,7 +67,7 @@ contract :Checks, is: :ERC721 do
       condition: -> i { i < tokenIdsToBurn.length }
     ) do |i|
       tokenId = tokenIdsToBurn[i]
-      require(s.tokenIdToDivisorIndex[tokenIdToEnhance] < divisors.length, 'X')
+      require(s.tokenIdToDivisorIndex[tokenIdToEnhance] < divisors.length, "You can't burn that many!")
       require(ownerOf(tokenId) == msg.sender, 'Must own token')
       
       _burn(tokenId)
