@@ -3,7 +3,7 @@ pragma :rubidity, "1.0.0"
 import './ERC721.rubidity'
 
 contract :Checks, is: :ERC721 do
-  mapping ({ uint256: :uint8 }), :public, :tokenIdToCheckAmount
+  mapping ({ uint256: :uint8 }), :public, :tokenIdToDivisorIndex
 
   uint256 :public, :totalSupply
   
@@ -22,7 +22,6 @@ contract :Checks, is: :ERC721 do
       condition: -> i { i < amount }
     ) do |i|
       tokenId = s.totalSupply + i
-      s.tokenIdToCheckAmount[tokenId] = 80
       _mint(to: msg.sender, id: tokenId)
     end
     
@@ -63,19 +62,17 @@ contract :Checks, is: :ERC721 do
     require(tokenIdsToBurn.length <= 7, 'Must burn at most 7 tokens')
     
     divisors = DIVISORS()
-    divisorIndex = 0
     
     forLoop(
       condition: -> i { i < tokenIdsToBurn.length }
     ) do |i|
       tokenId = tokenIdsToBurn[i]
-      require(s.tokenIdToCheckAmount[tokenIdToEnhance] > 0, 'Must have at least 1 checks')
+      require(s.tokenIdToDivisorIndex[tokenIdToEnhance] < divisors.length, 'X')
       require(ownerOf(tokenId) == msg.sender, 'Must own token')
       
       _burn(tokenId)
-      s.tokenIdToCheckAmount[tokenIdToEnhance] = divisors[divisorIndex]
       
-      divisorIndex = [divisorIndex + 1, divisors.length - 1].min
+      s.tokenIdToDivisorIndex[tokenIdToEnhance] += 1
     end
   end
   
@@ -83,7 +80,8 @@ contract :Checks, is: :ERC721 do
     seed = keccak256(abi.encodePacked(tokenId)).cast(:uint256)
     colors = eightyColors()
     
-    count = s.tokenIdToCheckAmount[tokenId]
+    divisors = DIVISORS()
+    count = divisors[s.tokenIdToDivisorIndex[tokenId]]
     
     selected_colors = array(:string)
     color_indices = array(:uint256)
@@ -239,7 +237,7 @@ contract :Checks, is: :ERC721 do
   end
   
   function :DIVISORS, :public, :pure, returns: [:uint8] do
-    return [80, 40, 20, 10, 5, 4, 1, 0]
+    return [80, 40, 20, 10, 5, 4, 1]
   end
   
   function :eightyColors, {}, :public, :pure, returns: [:string] do

@@ -42,7 +42,7 @@ describe 'Checks' do
         data: {
           function: "burnChecks",
           args: {
-            tokenIdsToBurn: [1, 2, 3, 4, 5, 6, 7],
+            tokenIdsToBurn: [1,2,3,4,5,6],
             tokenIdToEnhance: 0
           }
         }
