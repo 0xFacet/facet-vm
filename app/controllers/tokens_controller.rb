@@ -216,7 +216,7 @@ class TokensController < ApplicationController
   end
 
   def token_prices
-    token_addresses = params[:token_addresses] || []
+    token_addresses = params[:token_addresses].to_s.split(',')
     eth_contract_address = params[:eth_contract_address]
     router_address = params[:router_address]
 
