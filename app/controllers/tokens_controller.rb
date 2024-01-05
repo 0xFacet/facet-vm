@@ -227,7 +227,7 @@ class TokensController < ApplicationController
 
     cache_key = [
       "token_prices",
-      token_addresses,
+      token_addresses.join(','),
       eth_contract_address,
       router_address,
       EthBlock.max_processed_block_number
@@ -235,7 +235,7 @@ class TokensController < ApplicationController
 
     result = Rails.cache.fetch(cache_key) do
       prices = token_addresses.map do |address|
-        last_swap_price = get_last_swap_price_for_token(address, eth_contract_address)
+        last_swap_price = get_last_swap_price_for_token(address, eth_contract_address, router_address)
         { token_address: address, last_swap_price: last_swap_price }
       end
 
