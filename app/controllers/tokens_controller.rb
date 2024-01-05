@@ -235,8 +235,9 @@ class TokensController < ApplicationController
 
     result = Rails.cache.fetch(cache_key) do
       prices = token_addresses.map do |address|
-        last_swap_price = get_last_swap_price_for_token(address, eth_contract_address, router_address)
-        { token_address: address, last_swap_price: last_swap_price }
+        last_swap_price_in_eth = get_last_swap_price_for_token(address, eth_contract_address, router_address)
+        last_swap_price_in_wei = (last_swap_price_in_eth * 1e18).to_i
+        { token_address: address, last_swap_price: last_swap_price_in_wei.to_s }
       end
 
       convert_int_to_string(prices)
