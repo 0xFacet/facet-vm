@@ -59,20 +59,16 @@ contract :Checks, is: :ERC721 do
     tokenIdToEnhance: :uint256
   }, :public do
     require(tokenIdsToBurn.length > 0, 'Must burn at least one token')
-    require(tokenIdsToBurn.length <= 7, 'Must burn at most 7 tokens')
     
-    divisors = DIVISORS()
-    
+    newIndex = s.tokenIdToDivisorIndex[tokenIdToEnhance] + tokenIdsToBurn.length
+    require(newIndex < DIVISORS().length, "Cannot enhance more than #{DIVISORS().length} times")
+    s.tokenIdToDivisorIndex[tokenIdToEnhance] = newIndex
+
     forLoop(
       condition: -> i { i < tokenIdsToBurn.length }
     ) do |i|
-      tokenId = tokenIdsToBurn[i]
-      require(s.tokenIdToDivisorIndex[tokenIdToEnhance] < divisors.length, "You can't burn that many!")
-      require(ownerOf(tokenId) == msg.sender, 'Must own token')
-      
-      _burn(tokenId)
-      
-      s.tokenIdToDivisorIndex[tokenIdToEnhance] += 1
+      require(ownerOf(tokenIdsToBurn[i]) == msg.sender, 'Must own token')
+      _burn(tokenIdsToBurn[i])
     end
   end
   

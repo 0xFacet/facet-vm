@@ -42,7 +42,21 @@ describe 'Checks' do
         data: {
           function: "burnChecks",
           args: {
-            tokenIdsToBurn: [1,2,3,4,5,6],
+            tokenIdsToBurn: [1],
+            tokenIdToEnhance: 0
+          }
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: dep.address,
+        data: {
+          function: "burnChecks",
+          args: {
+            tokenIdsToBurn: [2,3,4,5,6],
             tokenIdToEnhance: 0
           }
         }
