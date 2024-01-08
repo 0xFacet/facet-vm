@@ -72,6 +72,22 @@ class Ethscription < ApplicationRecord
     end
   end
   
+  def self.base_indexer_checksum
+    last_imported = EthBlock.where(block_number: EthBlock.select("MAX(block_number)"))
+    last_imported = last_imported.limit(1).first&.block_number
+    
+    return unless previous_block
+    
+    scope = Ethscription.where("block_number <= ?", previous_block).oldest_first
+    
+    subquery = scope.select(:transaction_hash)
+    hash_value = Ethscription.from(subquery, :ethscriptions)
+      .select("encode(digest(array_to_string(array_agg(transaction_hash), ''), 'sha256'), 'hex')
+        as hash_value")
+      .take
+      .hash_value
+  end
+  
   private
   
   def downcase_hex_fields
