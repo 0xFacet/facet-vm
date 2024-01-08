@@ -1,0 +1,63 @@
+pragma :rubidity, "1.0.0"
+
+contract :ERC2981, abstract: true do
+  mapping ({ uint256: :address }), :internal, :_tokenIdToReceiver
+  mapping ({ uint256: :uint96 }), :internal, :_tokenIdToFeeNumerator
+  
+  address :internal, :_defaultRoyaltyReceiver
+  uint96 :internal, :_defaultFeeNumerator
+  
+  function :royaltyInfo, {
+    tokenId: :uint256,
+    salePrice: :uint256
+  }, :public, :view, :virtual, returns: { receiver: :address, royaltyAmount: :uint256 } do
+    receiver = s._tokenIdToReceiver[tokenId]
+    feeNumerator = s._tokenIdToFeeNumerator[tokenId]
+    
+    if receiver == address(0)
+      receiver = s._defaultRoyaltyReceiver,
+      feeNumerator = s._defaultFeeNumerator
+    end
+  
+    royaltyAmount = (salePrice * feeNumerator).div(_feeDenominator())
+  
+    return {
+      receiver: receiver,
+      royaltyAmount: royaltyAmount
+    }
+  end
+  
+  function :_setDefaultRoyalty, { receiver: :address, feeNumerator: :uint96 }, :internal, :virtual do
+    require(feeNumerator <= _feeDenominator(), "ERC2981InvalidDefaultRoyalty")
+    require(receiver != address(0), "ERC2981InvalidDefaultRoyaltyReceiver: address(0)")
+    
+    s._defaultRoyaltyReceiver = receiver
+    s._defaultFeeNumerator = feeNumerator
+  end
+  
+  function :_deleteDefaultRoyalty, :internal, :virtual do
+    s._defaultRoyaltyReceiver = address(0)
+    s._defaultFeeNumerator = 0
+  end
+  
+  function :_setTokenRoyalty, { tokenId: :uint256, receiver: :address, feeNumerator: :uint96 }, :internal, :virtual do
+    require(feeNumerator <= _feeDenominator(), "ERC2981InvalidTokenRoyalty")
+    require(receiver != address(0), "ERC2981InvalidTokenRoyaltyReceiver")
+  
+    s._tokenIdToReceiver[tokenId] = receiver
+    s._tokenIdToFeeNumerator[tokenId] = feeNumerator
+  end
+  
+  function :_deleteTokenRoyalty, { tokenId: :uint256 }, :internal, :virtual do
+    s._tokenIdToReceiver[tokenId] = address(0)
+    s._tokenIdToFeeNumerator[tokenId] = 0
+  end
+  
+  function :_feeDenominator, :internal, :view, :virtual, returns: :uint96 do
+    return 10_000
+  end
+  
+  function :supportsERC2981, :public, :pure, :virtual, returns: :bool do
+    return true
+  end
+end
