@@ -3,15 +3,24 @@ pragma :rubidity, "1.0.0"
 import './Ownable.rubidity'
 import './Pausable.rubidity'
 import './Upgradeable.rubidity'
+import './ERC2981.rubidity'
 import './ERC721.rubidity'
 import './ERC20.rubidity'
 
 contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: true do
-  event :AssetPurchased, { seller: :address, buyer: :address, assetContract: :address, assetId: :uint256, price: :uint256, listingId: :bytes32 }
+  event :AssetPurchased, {
+    seller: :address,
+    buyer: :address,
+    assetContract: :address,
+    assetId: :uint256,
+    price: :uint256,
+    listingId: :bytes32
+  }
   
   mapping ({ address: { bytes32: :bool } }), :public, :userListingCancellations
-  mapping ({ address: { address: { uint256: :uint256 } } }), :public,
-    :userListingsOfItemValidAfterTime
+  mapping ({ address: { address: { uint256: :uint256 } } }),
+    :public,
+    :userListingsOfAssetValidAfterTime
   mapping ({ address: :uint256 }), :public, :userListingsValidAfterTime
   
   uint96 :feeBps
@@ -76,28 +85,68 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     require(block.timestamp >= startTime, "Current time is before the start time")
     require(block.timestamp <= endTime, "Current time is after the end time")
     require(!s.userListingCancellations[seller][listingId], "Listing has been cancelled by the user")
-    require(startTime > s.userListingsOfItemValidAfterTime[seller][assetContract][assetId], "Start time is before the valid after time for the user's listing of the ethscription")
+    require(startTime > s.userListingsOfAssetValidAfterTime[seller][assetContract][assetId], "Start time is before the valid after time for the user's listing of the ethscription")
     require(startTime > s.userListingsValidAfterTime[seller], "Start time is before the valid after time for the user's listing")
     
+    payRoyaltiesAndTransfer(
+      assetContract: assetContract,
+      assetId: assetId,
+      seller: seller,
+      buyer: msg.sender,
+      price: price
+      currency: currency
+    )
+    
+    emit :AssetPurchased,
+      seller: seller,
+      buyer: msg.sender,
+      assetContract: assetContract,
+      assetId: assetId,
+      price: price,
+      listingId: listingId
+  end
+  
+  function :payRoyaltiesAndTransfer, {
+    assetContract: :address,
+    assetId: :uint256,
+    seller: :address,
+    buyer: :address,
+    price: :uint256,
+    currency: :address
+  }, :internal do
+    (supportsERC2981, _) = assetContract.call(function: "supportsERC2981")
+    
+    royaltyAmount = 0
+    
+    if supportsERC2981
+      (receiver, royaltyAmount) = ERC2981(assetContract).royaltyInfo(tokenId: assetId, salePrice: price)
+      
+      ERC20(currency).transferFrom(
+        from: buyer,
+        to: receiver,
+        amount: royaltyAmount
+      )
+    end
+    
+    sellerAmount = price - royaltyAmount - computeFee(price)
+    
     ERC20(currency).transferFrom(
-      from: msg.sender,
+      from: buyer,
+      to: seller,
+      amount: sellerAmount
+    )
+    
+    ERC20(currency).transferFrom(
+      from: buyer,
       to: owner(),
       amount: computeFee(price)
     )
     
-    ERC20(currency).transferFrom(
-      from: msg.sender,
-      to: seller,
-      amount: (price - computeFee(price))
-    )
-    
     ERC721(assetContract).transferFrom(
       from: seller,
-      to: msg.sender,
+      to: buyer,
       id: assetId
     )
-    
-    emit :AssetPurchased, seller: seller, buyer: msg.sender, assetContract: assetContract, assetId: assetId, price: price, listingId: listingId
   end
   
   function :computeFee, { amount: :uint256 }, :public, :view, returns: :uint256 do

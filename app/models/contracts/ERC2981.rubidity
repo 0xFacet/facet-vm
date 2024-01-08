@@ -57,7 +57,6 @@ contract :ERC2981, abstract: true do
     return 10_000
   end
   
-  function :supportsERC2981, :public, :pure, :virtual, returns: :bool do
-    return true
+  function :supportsERC2981, :public, :pure, :virtual do
   end
 end
