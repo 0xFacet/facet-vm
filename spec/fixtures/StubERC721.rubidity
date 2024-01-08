@@ -1,0 +1,25 @@
+pragma :rubidity, "1.0.0"
+
+import '/app/models/contracts/ERC721.rubidity'
+import '/app/models/contracts/ERC2981.rubidity'
+
+contract :StubERC721, is: [:ERC721, :ERC2981] do
+  uint256 :totalSupply
+  
+  constructor(name: :string) {
+    ERC721.constructor(name: name, symbol: name)
+  }
+  
+  function :mint, { amount: :uint256 }, :public do
+    amount.times do |id|
+      _mint(to: msg.sender, id: s.totalSupply + id)
+    end
+    
+    s.totalSupply += amount
+    nil
+  end
+  
+  function :airdrop, { to: :address, amount: :uint256 }, :public do
+    _mint(to: to, amount: amount)
+  end
+end

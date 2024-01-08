@@ -15,7 +15,7 @@ contract :ERC2981, abstract: true do
     feeNumerator = s._tokenIdToFeeNumerator[tokenId]
     
     if receiver == address(0)
-      receiver = s._defaultRoyaltyReceiver,
+      receiver = s._defaultRoyaltyReceiver
       feeNumerator = s._defaultFeeNumerator
     end
   
