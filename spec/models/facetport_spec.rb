@@ -251,4 +251,60 @@ describe 'FacetPort contract' do
     )
     expect(nft_owner).to eq(bob)
   end
+  
+  it "Cancels a listing" do
+    market = trigger_contract_interaction_and_expect_success(
+      from: daryl,
+      payload: {
+        op: :create,
+        data: {
+          type: "FacetPortV1",
+          args: {
+            _feeBps: 1,
+            startPaused: false
+          }
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: "call",
+        data: {
+          to: market.address,
+          function: "cancelListing",
+          args: {
+            listingId: "0x" + SecureRandom.hex(32)
+          }
+        }
+      }
+    )
+  
+    trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: "call",
+        data: {
+          to: market.address,
+          function: "cancelAllListingsForAsset",
+          args: {
+            assetContract: "0x0000000000000000000000000000000000000001",
+            assetId: 0
+          }
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: "call",
+        data: {
+          to: market.address,
+          function: "cancelAllListingsOfUser"
+        }
+      }
+    )
+  end
 end
