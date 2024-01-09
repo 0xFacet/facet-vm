@@ -49,7 +49,7 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
   }
   
   event :MultipleBidResult, {
-    bidder: :address,
+    seller: :address,
     successfulBidIds: [:bytes32],
     failedBidIds: [:bytes32]
   }
@@ -101,7 +101,7 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     sellers: [:address],
     assetContracts: [:address],
     assetIds: [:uint256],
-    currencys: [:address],
+    currencies: [:address],
     prices: [:uint256],
     startTimes: [:uint256],
     endTimes: [:uint256],
@@ -116,19 +116,17 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     forLoop(
       condition: -> i { i < listingIds.length }
     ) do |i|
-      (success, ) = address(this).call(
-        function: :buyWithSignature,
-        args: {
-          listingId: listingIds[i],
-          seller: sellers[i],
-          assetContract: assetContracts[i],
-          assetId: assetIds[i],
-          currency: currencys[i],
-          price: prices[i],
-          startTime: startTimes[i],
-          endTime: endTimes[i],
-          signature: signatures[i]
-        }
+      success = _buyWithSignature(
+        buyer: msg.sender,
+        listingId: listingIds[i],
+        seller: sellers[i],
+        assetContract: assetContracts[i],
+        assetId: assetIds[i],
+        currency: currencies[i],
+        price: prices[i],
+        startTime: startTimes[i],
+        endTime: endTimes[i],
+        signature: signatures[i]
       )
       
       if success
@@ -138,6 +136,8 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
       end
     end
     
+    require(successfulListingIds.length > 0, "No bids were successfully accepted")
+
     emit :MultiplePurchaseResult,
       buyer: msg.sender,
       successfulListingIds: successfulListingIds,
@@ -155,6 +155,43 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     endTime: :uint256,
     signature: :bytes
   }, :public do
+    success = _buyWithSignature(
+      buyer: msg.sender,
+      listingId: listingId,
+      seller: seller,
+      assetContract: assetContract,
+      assetId: assetId,
+      currency: currency,
+      price: price,
+      startTime: startTime,
+      endTime: endTime,
+      signature: signature
+    )
+    
+    require(success, "Seller no longer owns NFT")
+    
+    emit :AssetPurchased,
+      seller: seller,
+      buyer: msg.sender,
+      assetContract: assetContract,
+      assetId: assetId,
+      price: price,
+      currency: currency,
+      listingId: listingId
+  end
+  
+  function :_buyWithSignature, {
+    buyer: :address,
+    listingId: :bytes32,
+    seller: :address,
+    assetContract: :address,
+    assetId: :uint256,
+    currency: :address,
+    price: :uint256,
+    startTime: :uint256,
+    endTime: :uint256,
+    signature: :bytes
+  }, :internal, returns: :bool do
     whenNotPaused!
     
     signatureValid = signature.verifyTypedDataSignature(
@@ -196,7 +233,7 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     
     s.userListingCancellations[seller][listingId] = true
     
-    payRoyaltiesAndTransfer(
+    return payRoyaltiesAndTransfer(
       assetContract: assetContract,
       assetId: assetId,
       seller: seller,
@@ -204,15 +241,6 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
       price: price,
       currency: currency
     )
-    
-    emit :AssetPurchased,
-      seller: seller,
-      buyer: msg.sender,
-      assetContract: assetContract,
-      assetId: assetId,
-      price: price,
-      currency: currency,
-      listingId: listingId
   end
   
   function :acceptMultipleBidsWithSignatures, { 
@@ -220,7 +248,7 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     bidders: [:address],
     assetContracts: [:address],
     assetIds: [:uint256],
-    currencys: [:address],
+    currencies: [:address],
     bidAmounts: [:uint256],
     startTimes: [:uint256],
     endTimes: [:uint256],
@@ -235,19 +263,17 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     forLoop(
       condition: -> i { i < bidIds.length }
     ) do |i|
-      (success, ) = address(this).call(
-        function: :acceptBidWithSignature,
-        args: {
-          bidId: bidIds[i],
-          bidder: bidders[i],
-          assetContract: assetContracts[i],
-          assetId: assetIds[i],
-          currency: currencys[i],
-          bidAmount: bidAmounts[i],
-          startTime: startTimes[i],
-          endTime: endTimes[i],
-          signature: signatures[i]
-        }
+      success = _acceptBidWithSignature(
+        seller: msg.sender,
+        bidId: bidIds[i],
+        bidder: bidders[i],
+        assetContract: assetContracts[i],
+        assetId: assetIds[i],
+        currency: currencies[i],
+        bidAmount: bidAmounts[i],
+        startTime: startTimes[i],
+        endTime: endTimes[i],
+        signature: signatures[i]
       )
       
       if success
@@ -256,6 +282,8 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
         failedBidIds.push(bidIds[i])
       end
     end
+    
+    require(successfulBidIds.length > 0, "No bids were successfully accepted")
     
     emit :MultipleBidResult,
       seller: msg.sender,
@@ -274,6 +302,43 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     endTime: :uint256,
     signature: :bytes
   }, :public do
+    success = _acceptBidWithSignature(
+      seller: msg.sender,
+      bidId: bidId,
+      bidder: bidder,
+      assetContract: assetContract,
+      assetId: assetId,
+      currency: currency,
+      bidAmount: bidAmount,
+      startTime: startTime,
+      endTime: endTime,
+      signature: signature
+    )
+    
+    require(success, "Seller no longer owns NFT")
+    
+    emit :BidAccepted,
+      seller: msg.sender,
+      bidder: bidder,
+      assetContract: assetContract,
+      assetId: assetId,
+      bidAmount: bidAmount,
+      currency: currency
+  end
+  
+  
+  function :_acceptBidWithSignature, {
+    seller: :address,
+    bidId: :bytes32,
+    bidder: :address,
+    assetContract: :address,
+    assetId: :uint256,
+    currency: :address,
+    bidAmount: :uint256,
+    startTime: :uint256,
+    endTime: :uint256,
+    signature: :bytes
+  }, :internal, returns: :bool do
     whenNotPaused!
     
     signatureValid = signature.verifyTypedDataSignature(
@@ -315,22 +380,14 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     
     s.bidCancellations[bidder][bidId] = true
     
-    payRoyaltiesAndTransfer(
+    return payRoyaltiesAndTransfer(
       assetContract: assetContract,
       assetId: assetId,
-      seller: msg.sender,
+      seller: seller,
       buyer: bidder,
       price: bidAmount,
       currency: currency
     )
-    
-    emit :BidAccepted,
-      seller: msg.sender,
-      bidder: bidder,
-      assetContract: assetContract,
-      assetId: assetId,
-      bidAmount: bidAmount,
-      currency: currency
   end
   
   function :payRoyaltiesAndTransfer, {
@@ -340,8 +397,12 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     buyer: :address,
     price: :uint256,
     currency: :address
-  }, :internal do
-    (success, data) = assetContract.call(json.stringify(function: "supportsERC2981"))
+  }, :internal, returns: :bool do
+    currentOwner = ERC721(assetContract).ownerOf(assetId);
+    
+    return false unless currentOwner == seller
+    
+    (success, data) = assetContract.call(function: "supportsERC2981")
     
     royaltyAmount = 0
     
@@ -377,6 +438,8 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
       to: buyer,
       id: assetId
     )
+    
+    return true
   end
   
   function :cancelListing, { listingId: :bytes32 }, :external do

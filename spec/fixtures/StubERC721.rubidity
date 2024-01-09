@@ -19,16 +19,14 @@ contract :StubERC721, is: [:ERC721, :ERC2981] do
     )
   }
   
-  function :mint, { amount: :uint256 }, :public do
-    amount.times do |id|
-      _mint(to: msg.sender, id: s.totalSupply + id)
+  function :mint, { to: :address, ids: [:uint256] }, :public do
+    forLoop(
+      condition: -> i { i < ids.length }
+    ) do |i|
+      _mint(to: to, id: ids[i])
     end
-    
-    s.totalSupply += amount
+
+    s.totalSupply += ids.length
     nil
-  end
-  
-  function :airdrop, { to: :address, amount: :uint256 }, :public do
-    _mint(to: to, amount: amount)
   end
 end

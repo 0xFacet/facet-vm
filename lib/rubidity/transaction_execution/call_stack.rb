@@ -13,6 +13,12 @@ class CallStack
     @frames.last
   end
   
+  def in_low_level_call_context(new_call_level)
+    new_call_level.to_sym == :low || @frames.any? do |frame|
+      frame.call_level.to_sym == :low
+    end
+  end
+  
   def execute_in_new_frame(
     call_level: :high,
     to_contract_address: nil,
@@ -35,6 +41,7 @@ class CallStack
       
     call = @transaction_context.current_transaction.contract_calls.build(
       call_level: call_level,
+      in_low_level_call_context: in_low_level_call_context(call_level),
       to_contract_address: to_contract_address,
       to_contract_init_code_hash: to_contract_init_code_hash,
       to_contract_source_code: to_contract_source_code,

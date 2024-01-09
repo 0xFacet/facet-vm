@@ -2,7 +2,7 @@ require 'rails_helper'
 
 describe 'FacetPort contract' do
   let(:user_address) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
-  let(:alice_key) { Eth::Key.new }
+  let(:alice_key) { Eth::Key.new(priv: "0" * 63 + "1") }
   let(:alice) { alice_key.address.address }
   let(:bob) { "0x000000000000000000000000000000000000000b" }
   let(:charlie) { "0x000000000000000000000000000000000000000c" }
@@ -44,6 +44,9 @@ describe 'FacetPort contract' do
       }
     )
     
+    aliceNFTs = (0..9).to_a
+    bobNFTs = (55..64).to_a
+    
     trigger_contract_interaction_and_expect_success(
       from: alice,
       payload: {
@@ -51,7 +54,25 @@ describe 'FacetPort contract' do
         data: {
           to: nft.address,
           function: "mint",
-          args: 30
+          args: {
+            to: alice,
+            ids: aliceNFTs
+          }
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: bob,
+      payload: {
+        op: "call",
+        data: {
+          to: nft.address,
+          function: "mint",
+          args: {
+            to: bob,
+            ids: bobNFTs
+          }
         }
       }
     )
@@ -149,7 +170,7 @@ describe 'FacetPort contract' do
         listingId: listing_id,
         seller: alice,
         assetContract: nft.address,
-        assetId: 0,
+        assetId: aliceNFTs.first,
         currency: weth.address,
         price: 1.ether,
         startTime: start_time,
@@ -184,7 +205,6 @@ describe 'FacetPort contract' do
     )
     
     price = 1.ether
-    assetId = 0
     
     trigger_contract_interaction_and_expect_success(
       from: bob,
@@ -197,7 +217,7 @@ describe 'FacetPort contract' do
             listingId: listing_id,
             seller: alice,
             assetContract: nft.address,
-            assetId: assetId,
+            assetId: aliceNFTs.first,
             currency: weth.address,
             price: price,
             startTime: start_time,
@@ -247,7 +267,7 @@ describe 'FacetPort contract' do
     nft_owner = ContractTransaction.make_static_call(
       contract: nft.address,
       function_name: "ownerOf",
-      function_args: assetId
+      function_args: aliceNFTs.first
     )
     expect(nft_owner).to eq(bob)
     
@@ -354,6 +374,116 @@ describe 'FacetPort contract' do
       function_args: 0
     )
     expect(nft_owner).to eq(alice)
+    
+    bid_count = 5
+    bid_ids = bid_count.times.map { "0x" + SecureRandom.hex(32) }
+    start_time = Time.current.to_i
+    end_time = 1000.years.from_now.to_i
+    bid_amounts = Array.new(bid_count, 2.ether)
+    token_ids = bobNFTs.last(bid_count)
+    
+    typed_data_array = bid_ids.map.with_index do |bid_id, idx|
+      {
+        types: {
+          EIP712Domain: [
+            { name: "name", type: "string" },
+            { name: "version", type: "string" },
+            { name: "chainId", type: "uint256" },
+            { name: "verifyingContract", type: "address" }
+          ],
+          Bid: [
+            { name: "bidId", type: "bytes32" },
+            { name: "bidder", type: "address" },
+            { name: "assetContract", type: "address" },
+            { name: "assetId", type: "uint256" },
+            { name: "currency", type: "address" },
+            { name: "bidAmount", type: "uint256" },
+            { name: "startTime", type: "uint256" },
+            { name: "endTime", type: "uint256" }
+          ]
+        },
+        primaryType: "Bid",
+        domain: {
+          name: "FacetPort",
+          version: '1',
+          chainId: chainid,
+          verifyingContract: market.address
+        },
+        message: {
+          bidId: bid_id,
+          bidder: alice,
+          assetContract: nft.address,
+          assetId: token_ids[idx],
+          currency: weth.address,
+          bidAmount: bid_amounts[idx],
+          startTime: start_time,
+          endTime: end_time
+        }
+      }
+    end
+    
+    signatures = typed_data_array.map { |typed_data| alice_key.sign_typed_data(typed_data, chainid) }
+  
+    alice_initial_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: alice
+    )
+  
+    bob_initial_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: bob
+    )
+    
+    res = trigger_contract_interaction_and_expect_success(
+      from: bob,
+      payload: {
+        op: "call",
+        data: {
+          to: market.address,
+          function: "acceptMultipleBidsWithSignatures",
+          args: {
+            bidIds: bid_ids,
+            bidders: Array.new(bid_count, alice),
+            assetContracts: Array.new(bid_count, nft.address),
+            assetIds: token_ids,
+            currencies: Array.new(bid_count, weth.address),
+            bidAmounts: bid_amounts,
+            startTimes: Array.new(bid_count, start_time),
+            endTimes: Array.new(bid_count, end_time),
+            signatures: signatures.map { |sig| "0x" + sig }
+          }
+        }
+      }
+    )
+    
+    alice_final_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: alice
+    )
+  
+    bob_final_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: bob
+    )
+  
+    expected_bob_balance = bob_initial_balance + bid_amounts.sum - (bid_amounts.sum * feeBps / 10_000) - (bid_amounts.sum * royaltyBps / 10_000)
+    expected_alice_balance = alice_initial_balance - bid_amounts.sum
+  
+    expect(alice_final_balance).to eq(expected_alice_balance)
+    expect(bob_final_balance).to eq(expected_bob_balance)
+  
+    token_ids.each do |asset_id|
+      nft_owner = ContractTransaction.make_static_call(
+        contract: nft.address,
+        function_name: "ownerOf",
+        function_args: asset_id
+      )
+      expect(nft_owner).to eq(alice)
+    end
   end
   
   it "Cancels a listing" do
