@@ -1,0 +1,158 @@
+pragma :rubidity, "1.0.0"
+
+import './Ownable.rubidity'
+import './Pausable.rubidity'
+import './Upgradeable.rubidity'
+import './ERC2981.rubidity'
+import './ERC721.rubidity'
+import './ERC20.rubidity'
+
+contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: true do
+  event :AssetPurchased, {
+    seller: :address,
+    buyer: :address,
+    assetContract: :address,
+    assetId: :uint256,
+    price: :uint256,
+    listingId: :bytes32
+  }
+  
+  mapping ({ address: mapping(bytes32: :bool) }), :public, :userListingCancellations
+  mapping ({ address: mapping(address: mapping(uint256: :uint256)) }),
+    :public,
+    :userListingsOfAssetValidAfterTime
+  mapping ({ address: :uint256 }), :public, :userListingsValidAfterTime
+  
+  uint96 :feeBps
+  
+  constructor(_feeBps: :uint96, startPaused: :bool) {
+    s.feeBps = _feeBps
+    
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+    Ownable.constructor(owner: msg.sender)
+    Pausable.constructor(initialPauseState: startPaused)
+  }
+  
+  function :setFeeBps, { _feeBps: :uint96 }, :external do
+    onlyOwner!
+    s.feeBps = _feeBps
+  end
+  
+  function :buyWithSignature, {
+    listingId: :bytes32,
+    seller: :address,
+    assetContract: :address,
+    assetId: :uint256,
+    currency: :address,
+    price: :uint256,
+    startTime: :uint256,
+    endTime: :uint256,
+    signature: :bytes
+  }, :external do
+    whenNotPaused!
+    
+    signatureValid = signature.verifyTypedDataSignature(
+      {Listing: [
+        { name: "listingId", type: "bytes32" },
+        { name: "seller", type: "address" },
+        { name: "assetContract", type: "address" },
+        { name: "assetId", type: "uint256" },
+        { name: "currency", type: "address" },
+        { name: "price", type: "uint256" },
+        { name: "startTime", type: "uint256" },
+        { name: "endTime", type: "uint256" }
+      ]},
+      {
+        listingId: listingId,
+        seller: seller,
+        assetContract: assetContract,
+        assetId: assetId,
+        currency: currency,
+        price: price,
+        startTime: startTime,
+        endTime: endTime
+      },
+      verifyingContract: address(this),
+      domainName: "FacetPort",
+      domainVersion: "1",
+      signer: seller
+    )
+    
+    require(signatureValid, "Invalid signature")
+    
+    require(block.timestamp >= startTime, "Current time is before the start time")
+    require(block.timestamp <= endTime, "Current time is after the end time")
+    require(!s.userListingCancellations[seller][listingId], "Listing has been cancelled by the user")
+    require(startTime > s.userListingsOfAssetValidAfterTime[seller][assetContract][assetId], "Start time is before the valid after time for the user's listing")
+    require(startTime > s.userListingsValidAfterTime[seller], "Start time is before the valid after time for the user's listing")
+    
+    s.userListingCancellations[seller][listingId] = true
+    
+    payRoyaltiesAndTransfer(
+      assetContract: assetContract,
+      assetId: assetId,
+      seller: seller,
+      buyer: msg.sender,
+      price: price,
+      currency: currency
+    )
+    
+    emit :AssetPurchased,
+      seller: seller,
+      buyer: msg.sender,
+      assetContract: assetContract,
+      assetId: assetId,
+      price: price,
+      listingId: listingId
+  end
+  
+  function :payRoyaltiesAndTransfer, {
+    assetContract: :address,
+    assetId: :uint256,
+    seller: :address,
+    buyer: :address,
+    price: :uint256,
+    currency: :address
+  }, :internal do
+    (supportsERC2981, _) = assetContract.call(json.stringify(function: "supportsERC2981"))
+    
+    royaltyAmount = 0
+    
+    if supportsERC2981
+      (receiver, royaltyAmount) = ERC2981(assetContract).royaltyInfo(
+        tokenId: assetId,
+        salePrice: price
+      )
+      
+      ERC20(currency).transferFrom(
+        from: buyer,
+        to: receiver,
+        amount: royaltyAmount
+      )
+    end
+    
+    sellerAmount = price - royaltyAmount - computeFee(price)
+    
+    ERC20(currency).transferFrom(
+      from: buyer,
+      to: seller,
+      amount: sellerAmount
+    )
+    
+    ERC20(currency).transferFrom(
+      from: buyer,
+      to: owner(),
+      amount: computeFee(price)
+    )
+    
+    ERC721(assetContract).transferFrom(
+      from: seller,
+      to: buyer,
+      id: assetId
+    )
+  end
+  
+  function :computeFee, { amount: :uint256 }, :public, :view, returns: :uint256 do
+    return (amount * s.feeBps).div(10_000)
+  end
+end

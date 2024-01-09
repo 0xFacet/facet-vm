@@ -34,6 +34,16 @@ module ContractTestHelper
     receipt
   end
   
+  def chainid
+    if ENV.fetch("ETHEREUM_NETWORK") == "eth-mainnet"
+      1
+    elsif ENV.fetch("ETHEREUM_NETWORK") == "eth-goerli"
+      5
+    else
+      raise "Unknown network: #{ENV.fetch("ETHEREUM_NETWORK")}"
+    end
+  end
+  
   def self.set_initial_admin_address
     block_timestamp = Time.current.to_i
     from = ENV.fetch("INITIAL_SYSTEM_CONFIG_ADMIN_ADDRESS")
