@@ -51,7 +51,7 @@ describe 'FacetPort contract' do
         data: {
           to: nft.address,
           function: "mint",
-          args: 10
+          args: 30
         }
       }
     )
@@ -98,22 +98,22 @@ describe 'FacetPort contract' do
           }
         }
       )
-    end
-    
-    trigger_contract_interaction_and_expect_success(
-      from: alice,
-      payload: {
-        op: "call",
-        data: {
-          to: nft.address,
-          function: "setApprovalForAll",
-          args: {
-            operator: market.address,
-            approved: true
+      
+      trigger_contract_interaction_and_expect_success(
+        from: minter,
+        payload: {
+          op: "call",
+          data: {
+            to: nft.address,
+            function: "setApprovalForAll",
+            args: {
+              operator: market.address,
+              approved: true
+            }
           }
         }
-      }
-    )
+      )
+    end
     
     listing_id = "0x" + SecureRandom.hex(32)
     start_time = Time.current.to_i
@@ -250,6 +250,110 @@ describe 'FacetPort contract' do
       function_args: assetId
     )
     expect(nft_owner).to eq(bob)
+    
+    bid_id = "0x" + SecureRandom.hex(32)
+    start_time = Time.current.to_i
+    end_time = 1000.years.from_now.to_i
+    bid_amount = 2.ether
+    
+    typed_data = {
+      types: {
+        EIP712Domain: [
+          { name: "name", type: "string" },
+          { name: "version", type: "string" },
+          { name: "chainId", type: "uint256" },
+          { name: "verifyingContract", type: "address" }
+        ],
+        Bid: [
+          { name: "bidId", type: "bytes32" },
+          { name: "bidder", type: "address" },
+          { name: "assetContract", type: "address" },
+          { name: "assetId", type: "uint256" },
+          { name: "currency", type: "address" },
+          { name: "bidAmount", type: "uint256" },
+          { name: "startTime", type: "uint256" },
+          { name: "endTime", type: "uint256" }
+        ]
+      },
+      primaryType: "Bid",
+      domain: {
+        name: "FacetPort",
+        version: '1',
+        chainId: chainid,
+        verifyingContract: market.address
+      },
+      message: {
+        bidId: bid_id,
+        bidder: alice,
+        assetContract: nft.address,
+        assetId: 0,
+        currency: weth.address,
+        bidAmount: bid_amount,
+        startTime: start_time,
+        endTime: end_time
+      }
+    }
+  
+    signature = alice_key.sign_typed_data(typed_data, chainid)
+  
+    alice_initial_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: alice
+    )
+  
+    bob_initial_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: bob
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: bob,
+      payload: {
+        op: "call",
+        data: {
+          to: market.address,
+          function: "acceptBidWithSignature",
+          args: {
+            bidId: bid_id,
+            bidder: alice,
+            assetContract: nft.address,
+            assetId: 0,
+            currency: weth.address,
+            bidAmount: bid_amount,
+            startTime: start_time,
+            endTime: end_time,
+            signature: "0x" + signature
+          }
+        }
+      }
+    )
+    
+    alice_final_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: alice
+    )
+  
+    bob_final_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: bob
+    )
+  
+    expected_bob_balance = bob_initial_balance + bid_amount - (bid_amount * feeBps / 10_000) - (bid_amount * royaltyBps / 10_000)
+    expected_alice_balance = alice_initial_balance - bid_amount
+  
+    expect(alice_final_balance).to eq(expected_alice_balance)
+    expect(bob_final_balance).to eq(expected_bob_balance)
+  
+    nft_owner = ContractTransaction.make_static_call(
+      contract: nft.address,
+      function_name: "ownerOf",
+      function_args: 0
+    )
+    expect(nft_owner).to eq(alice)
   end
   
   it "Cancels a listing" do
