@@ -18,6 +18,42 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     listingId: :bytes32
   }
   
+  event :BidAccepted, {
+    bidder: :address,
+    seller: :address,
+    assetContract: :address,
+    assetId: :uint256,
+    bidAmount: :uint256,
+    currency: :address,
+  }
+  
+  event :BidCancelled, {
+    bidder: :address,
+    bidId: :bytes32
+  }
+  
+  event :AllBidsOnAssetCancelledForUser, {
+    bidder: :address,
+    assetContract: :address,
+    assetId: :uint256
+  }
+  
+  event :AllBidsCancelledForUser, {
+    bidder: :address
+  }
+  
+  event :MultiplePurchaseResult, {
+    buyer: :address,
+    successfulListingIds: [:bytes32],
+    failedListingIds: [:bytes32]
+  }
+  
+  event :MultipleBidResult, {
+    bidder: :address,
+    successfulBidIds: [:bytes32],
+    failedBidIds: [:bytes32]
+  }
+  
   event :ListingCancelled, {
     seller: :address,
     listingId: :bytes32
@@ -39,6 +75,12 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     :userListingsOfAssetValidAfterTime
   mapping ({ address: :uint256 }), :public, :userListingsValidAfterTime
   
+  mapping ({ address: mapping(bytes32: :bool) }), :public, :bidCancellations
+  mapping ({ address: mapping(address: mapping(uint256: :uint256)) }),
+    :public,
+    :userBidsOnAssetValidAfterTime
+  mapping ({ address: :uint256 }), :public, :userBidsValidAfterTime
+  
   uint96 :feeBps
   
   constructor(_feeBps: :uint96, startPaused: :bool) {
@@ -54,6 +96,54 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     s.feeBps = _feeBps
   end
   
+  function :buyMultipleWithSignatures, { 
+    listingIds: [:bytes32],
+    sellers: [:address],
+    assetContracts: [:address],
+    assetIds: [:uint256],
+    currencys: [:address],
+    prices: [:uint256],
+    startTimes: [:uint256],
+    endTimes: [:uint256],
+    signatures: [:bytes]
+  }, :external do
+    require(listingIds.length == sellers.length, "Listing ID and seller arrays must be the same length")
+    require(listingIds.length <= 20, "Cannot buy more than 20 listings at a time")
+    
+    successfulListingIds = array(:bytes32)
+    failedListingIds = array(:bytes32)
+    
+    forLoop(
+      condition: -> i { i < listingIds.length }
+    ) do |i|
+      (success, ) = address(this).call(
+        function: :buyWithSignature,
+        args: {
+          listingId: listingIds[i],
+          seller: sellers[i],
+          assetContract: assetContracts[i],
+          assetId: assetIds[i],
+          currency: currencys[i],
+          price: prices[i],
+          startTime: startTimes[i],
+          endTime: endTimes[i],
+          signature: signatures[i]
+        }
+      )
+      
+      if success
+        successfulListingIds.push(listingIds[i])
+      else
+        failedListingIds.push(listingIds[i])
+      end
+    end
+    
+    emit :MultiplePurchaseResult,
+      buyer: msg.sender,
+      successfulListingIds: successfulListingIds,
+      failedListingIds: failedListingIds
+  end
+  
   function :buyWithSignature, {
     listingId: :bytes32,
     seller: :address,
@@ -64,7 +154,7 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     startTime: :uint256,
     endTime: :uint256,
     signature: :bytes
-  }, :external do
+  }, :public do
     whenNotPaused!
     
     signatureValid = signature.verifyTypedDataSignature(
@@ -123,6 +213,124 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
       price: price,
       currency: currency,
       listingId: listingId
+  end
+  
+  function :acceptMultipleBidsWithSignatures, { 
+    bidIds: [:bytes32],
+    bidders: [:address],
+    assetContracts: [:address],
+    assetIds: [:uint256],
+    currencys: [:address],
+    bidAmounts: [:uint256],
+    startTimes: [:uint256],
+    endTimes: [:uint256],
+    signatures: [:bytes]
+  }, :external do
+    require(bidIds.length == bidders.length, "Bid ID and bidder arrays must be the same length")
+    require(bidIds.length <= 20, "Cannot accept more than 20 bids at a time")
+    
+    successfulBidIds = array(:bytes32)
+    failedBidIds = array(:bytes32)
+    
+    forLoop(
+      condition: -> i { i < bidIds.length }
+    ) do |i|
+      (success, ) = address(this).call(
+        function: :acceptBidWithSignature,
+        args: {
+          bidId: bidIds[i],
+          bidder: bidders[i],
+          assetContract: assetContracts[i],
+          assetId: assetIds[i],
+          currency: currencys[i],
+          bidAmount: bidAmounts[i],
+          startTime: startTimes[i],
+          endTime: endTimes[i],
+          signature: signatures[i]
+        }
+      )
+      
+      if success
+        successfulBidIds.push(bidIds[i])
+      else
+        failedBidIds.push(bidIds[i])
+      end
+    end
+    
+    emit :MultipleBidResult,
+      seller: msg.sender,
+      successfulBidIds: successfulBidIds,
+      failedBidIds: failedBidIds
+  end
+  
+  function :acceptBidWithSignature, {
+    bidId: :bytes32,
+    bidder: :address,
+    assetContract: :address,
+    assetId: :uint256,
+    currency: :address,
+    bidAmount: :uint256,
+    startTime: :uint256,
+    endTime: :uint256,
+    signature: :bytes
+  }, :public do
+    whenNotPaused!
+    
+    signatureValid = signature.verifyTypedDataSignature(
+      {Bid: [
+        { name: "bidId", type: "bytes32" },
+        { name: "bidder", type: "address" },
+        { name: "assetContract", type: "address" },
+        { name: "assetId", type: "uint256" },
+        { name: "currency", type: "address" },
+        { name: "bidAmount", type: "uint256" },
+        { name: "startTime", type: "uint256" },
+        { name: "endTime", type: "uint256" }
+      ]},
+      {
+        bidId: bidId,
+        bidder: bidder,
+        assetContract: assetContract,
+        assetId: assetId,
+        currency: currency,
+        bidAmount: bidAmount,
+        startTime: startTime,
+        endTime: endTime
+      },
+      verifyingContract: address(this),
+      domainName: "FacetPort",
+      domainVersion: "1",
+      signer: bidder
+    )
+    
+    require(signatureValid, "Invalid signature")
+    
+    require(block.timestamp >= startTime, "Current time is before the start time")
+    require(block.timestamp <= endTime, "Current time is after the end time")
+    require(!s.bidCancellations[bidder][bidId], "Bid has been cancelled by the bidder")
+    require(startTime > s.userBidsOnAssetValidAfterTime[bidder][assetContract][assetId],
+      "Start time is before the valid after time for the bidder's bid")
+    require(startTime > s.userBidsValidAfterTime[bidder],
+      "Start time is before the valid after time for the bidder's bid")  
+    
+    s.bidCancellations[bidder][bidId] = true
+    
+    payRoyaltiesAndTransfer(
+      assetContract: assetContract,
+      assetId: assetId,
+      seller: msg.sender,
+      buyer: bidder,
+      price: bidAmount,
+      currency: currency
+    )
+    
+    emit :BidAccepted,
+      seller: msg.sender,
+      bidder: bidder,
+      assetContract: assetContract,
+      assetId: assetId,
+      bidAmount: bidAmount,
+      currency: currency
   end
   
   function :payRoyaltiesAndTransfer, {
@@ -190,6 +398,27 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     s.userListingsValidAfterTime[msg.sender] = block.timestamp
     
     emit :AllListingsCancelledForUser, seller: msg.sender
+  end
+  
+  function :cancelBid, { bidId: :bytes32 }, :external do
+    s.bidCancellations[msg.sender][listingId] = true
+    
+    emit :BidCancelled, bidder: msg.sender, bidId: bidId
+  end
+  
+  function :cancelAllBidsForAsset, { assetContract: :address, assetId: :uint256 }, :external do
+    s.userBidsOnAssetValidAfterTime[msg.sender][assetContract][assetId] = block.timestamp
+    
+    emit :AllBidsOnAssetCancelledForUser,
+      bidder: msg.sender,
+      assetContract: assetContract,
+      assetId: assetId
+  end
+  
+  function :cancelAllBidsOfUser, :external do
+    s.userBidsValidAfterTime[msg.sender] = block.timestamp
+    
+    emit :AllBidsCancelledForUser, bidder: msg.sender
   end
   
   function :computeFee, { amount: :uint256 }, :public, :view, returns: :uint256 do
