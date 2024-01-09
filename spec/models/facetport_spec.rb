@@ -28,6 +28,7 @@ describe 'FacetPort contract' do
       }
     )
     
+    royaltyBps = 420
     nft = trigger_contract_interaction_and_expect_success(
       from: alice,
       payload: {
@@ -36,6 +37,8 @@ describe 'FacetPort contract' do
           type: "StubERC721",
           args: {
             name: "Tester",
+            royaltyReceiver: charlie,
+            royaltyBps: royaltyBps
           }
         }
       }
@@ -53,14 +56,16 @@ describe 'FacetPort contract' do
       }
     )
     
+    feeBps = 500
+    
     market = trigger_contract_interaction_and_expect_success(
-      from: alice,
+      from: daryl,
       payload: {
         op: :create,
         data: {
           type: "FacetPortV1",
           args: {
-            _feeBps: 500,
+            _feeBps: feeBps,
             startPaused: false
           }
         }
@@ -154,6 +159,33 @@ describe 'FacetPort contract' do
     
     signature = alice_key.sign_typed_data(typed_data, chainid)
     
+    alice_initial_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: alice
+    )
+    
+    bob_initial_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: bob
+    )
+    
+    daryl_initial_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: daryl
+    )
+    
+    charlie_initial_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: charlie
+    )
+    
+    price = 1.ether
+    assetId = 0
+    
     trigger_contract_interaction_and_expect_success(
       from: bob,
       payload: {
@@ -165,9 +197,9 @@ describe 'FacetPort contract' do
             listingId: listing_id,
             seller: alice,
             assetContract: nft.address,
-            assetId: 0,
+            assetId: assetId,
             currency: weth.address,
-            price: 1.ether,
+            price: price,
             startTime: start_time,
             endTime: end_time,
             signature: "0x" + signature
@@ -175,5 +207,48 @@ describe 'FacetPort contract' do
         }
       }
     )
+    
+    alice_final_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: alice
+    )
+    
+    bob_final_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: bob
+    )
+    
+    daryl_final_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: daryl
+    )
+    
+    charlie_final_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: charlie
+    )
+    
+    expected_alice_balance = alice_initial_balance + price - (price * feeBps / 10_000) - (price * royaltyBps / 10_000)
+    expected_bob_balance = bob_initial_balance - price
+    expected_daryl_balance = daryl_initial_balance + (price * feeBps / 10_000)
+    expected_charlie_balance = charlie_initial_balance + (price * royaltyBps / 10_000)
+
+    # Check the final balances
+    expect(alice_final_balance).to eq(expected_alice_balance)
+    expect(bob_final_balance).to eq(expected_bob_balance)
+    expect(daryl_final_balance).to eq(expected_daryl_balance)
+    expect(charlie_final_balance).to eq(expected_charlie_balance)
+
+    # Check that Bob now owns the NFT
+    nft_owner = ContractTransaction.make_static_call(
+      contract: nft.address,
+      function_name: "ownerOf",
+      function_args: assetId
+    )
+    expect(nft_owner).to eq(bob)
   end
 end
