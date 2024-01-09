@@ -484,6 +484,120 @@ describe 'FacetPort contract' do
       )
       expect(nft_owner).to eq(alice)
     end
+    
+    newAliceNFTs = (100..109).to_a
+    
+    trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: "call",
+        data: {
+          to: nft.address,
+          function: "mint",
+          args: {
+            to: alice,
+            ids: newAliceNFTs
+          }
+        }
+      }
+    )
+    
+    listing_count = 5
+    listing_ids = listing_count.times.map { "0x" + SecureRandom.hex(32) }
+    start_time = Time.current.to_i
+    end_time = 1000.years.from_now.to_i
+    prices = Array.new(listing_count, 2.ether)
+    token_ids = newAliceNFTs.last(listing_count)
+  
+    typed_data_array = listing_ids.map.with_index do |listing_id, idx|
+      {
+        types: {
+          EIP712Domain: [
+            { name: "name", type: "string" },
+            { name: "version", type: "string" },
+            { name: "chainId", type: "uint256" },
+            { name: "verifyingContract", type: "address" }
+          ],
+          Listing: [
+            { name: "listingId", type: "bytes32" },
+            { name: "seller", type: "address" },
+            { name: "assetContract", type: "address" },
+            { name: "assetId", type: "uint256" },
+            { name: "currency", type: "address" },
+            { name: "price", type: "uint256" },
+            { name: "startTime", type: "uint256" },
+            { name: "endTime", type: "uint256" }
+          ]
+        },
+        primaryType: "Listing",
+        domain: {
+          name: "FacetPort",
+          version: '1',
+          chainId: chainid,
+          verifyingContract: market.address
+        },
+        message: {
+          listingId: listing_id,
+          seller: alice,
+          assetContract: nft.address,
+          assetId: token_ids[idx],
+          currency: weth.address,
+          price: prices[idx],
+          startTime: start_time,
+          endTime: end_time
+        }
+      }
+    end
+  
+    signatures = typed_data_array.map { |typed_data| alice_key.sign_typed_data(typed_data, chainid) }
+  
+    bob_initial_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: bob
+    )
+  
+    trigger_contract_interaction_and_expect_success(
+      from: bob,
+      payload: {
+        op: "call",
+        data: {
+          to: market.address,
+          function: "buyMultipleWithSignatures",
+          args: {
+            listingIds: listing_ids,
+            sellers: Array.new(listing_count, alice),
+            assetContracts: Array.new(listing_count, nft.address),
+            assetIds: token_ids,
+            currencies: Array.new(listing_count, weth.address),
+            prices: prices,
+            startTimes: Array.new(listing_count, start_time),
+            endTimes: Array.new(listing_count, end_time),
+            signatures: signatures.map { |sig| "0x" + sig }
+          }
+        }
+      }
+    )
+  
+    bob_final_balance = ContractTransaction.make_static_call(
+      contract: weth.address,
+      function_name: "balanceOf",
+      function_args: bob
+    )
+  
+    expected_bob_balance = bob_initial_balance - prices.sum
+  
+    expect(bob_final_balance).to eq(expected_bob_balance)
+  
+    # Check that Bob now owns the NFTs
+    token_ids.each do |token_id|
+      nft_owner = ContractTransaction.make_static_call(
+        contract: nft.address,
+        function_name: "ownerOf",
+        function_args: token_id
+      )
+      expect(nft_owner).to eq(bob)
+    end
   end
   
   it "Cancels a listing" do
