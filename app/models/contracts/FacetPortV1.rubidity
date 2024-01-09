@@ -83,7 +83,7 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     require(block.timestamp >= startTime, "Current time is before the start time")
     require(block.timestamp <= endTime, "Current time is after the end time")
     require(!s.userListingCancellations[seller][listingId], "Listing has been cancelled by the user")
-    require(startTime > s.userListingsOfAssetValidAfterTime[seller][assetContract][assetId], "Start time is before the valid after time for the user's listing of the ethscription")
+    require(startTime > s.userListingsOfAssetValidAfterTime[seller][assetContract][assetId], "Start time is before the valid after time for the user's listing")
     require(startTime > s.userListingsValidAfterTime[seller], "Start time is before the valid after time for the user's listing")
     
     s.userListingCancellations[seller][listingId] = true
