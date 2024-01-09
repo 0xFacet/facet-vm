@@ -51,8 +51,8 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
   }, :external do
     whenNotPaused!
     
-    typedData = {
-      Listing: [
+    signatureValid = signature.verifyTypedDataSignature(
+      {Listing: [
         { name: "listingId", type: "bytes32" },
         { name: "seller", type: "address" },
         { name: "assetContract", type: "address" },
@@ -61,21 +61,19 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
         { name: "price", type: "uint256" },
         { name: "startTime", type: "uint256" },
         { name: "endTime", type: "uint256" }
-      ],
-      listingId: listingId,
-      seller: seller,
-      assetContract: assetContract,
-      assetId: assetId,
-      currency: currency,
-      price: price,
-      startTime: startTime,
-      endTime: endTime
-    }
-    
-    signatureValid = signature.verifyTypedDataSignature(
-      typedData,
+      ]},
+      {
+        listingId: listingId,
+        seller: seller,
+        assetContract: assetContract,
+        assetId: assetId,
+        currency: currency,
+        price: price,
+        startTime: startTime,
+        endTime: endTime
+      },
       verifyingContract: address(this),
-      domainName: "FacetPortV1",
+      domainName: "FacetPort",
       domainVersion: "1",
       signer: seller
     )

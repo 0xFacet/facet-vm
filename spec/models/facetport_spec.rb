@@ -2,7 +2,8 @@ require 'rails_helper'
 
 describe 'FacetPort contract' do
   let(:user_address) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
-  let(:alice) { "0x000000000000000000000000000000000000000a" }
+  let(:alice_key) { Eth::Key.new }
+  let(:alice) { alice_key.address.address }
   let(:bob) { "0x000000000000000000000000000000000000000b" }
   let(:charlie) { "0x000000000000000000000000000000000000000c" }
   let(:daryl) { "0x000000000000000000000000000000000000000d" }
@@ -109,6 +110,50 @@ describe 'FacetPort contract' do
       }
     )
     
+    listing_id = "0x" + SecureRandom.hex(32)
+    start_time = Time.current.to_i
+    end_time = 1000.years.from_now.to_i
+    
+    typed_data = {
+      types: {
+        EIP712Domain: [
+          { name: "name", type: "string" },
+          { name: "version", type: "string" },
+          { name: "chainId", type: "uint256" },
+          { name: "verifyingContract", type: "address" }
+        ],
+        Listing: [
+          { name: "listingId", type: "bytes32" },
+          { name: "seller", type: "address" },
+          { name: "assetContract", type: "address" },
+          { name: "assetId", type: "uint256" },
+          { name: "currency", type: "address" },
+          { name: "price", type: "uint256" },
+          { name: "startTime", type: "uint256" },
+          { name: "endTime", type: "uint256" }
+        ]
+      },
+      primaryType: "Listing",
+      domain: {
+        name: "FacetPort",
+        version: '1',
+        chainId: chainid,
+        verifyingContract: market.address
+      },
+      message: {
+        listingId: listing_id,
+        seller: alice,
+        assetContract: nft.address,
+        assetId: 0,
+        currency: weth.address,
+        price: 1.ether,
+        startTime: start_time,
+        endTime: end_time
+      }
+    }
+    
+    signature = alice_key.sign_typed_data(typed_data, chainid)
+    
     trigger_contract_interaction_and_expect_success(
       from: bob,
       payload: {
@@ -117,11 +162,15 @@ describe 'FacetPort contract' do
           to: market.address,
           function: "buyWithSignature",
           args: {
+            listingId: listing_id,
             seller: alice,
             assetContract: nft.address,
             assetId: 0,
             currency: weth.address,
-            price: 1.ether
+            price: 1.ether,
+            startTime: start_time,
+            endTime: end_time,
+            signature: "0x" + signature
           }
         }
       }
