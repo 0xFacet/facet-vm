@@ -3,7 +3,7 @@ class StatusController < ApplicationController
     total_newer_ethscriptions = Rails.cache.read("total_ethscriptions_behind").to_i
     max_processed_block_number = EthBlock.max_processed_block_number
     
-    url = ENV.fetch("INDEXER_API_BASE_URI") + "/block_status/"
+    url = ENV.fetch("INDEXER_API_BASE_URI") + "/status/"
     
     blocks_behind = nil
     current_block_number = nil
