@@ -44,6 +44,7 @@ module RubidityTypeExtensions
       args = calldata['args']
       
       data = TransactionContext.call_stack.execute_in_new_frame(
+        call_level: :low,
         to_contract_address: self,
         function: function,
         args: args,

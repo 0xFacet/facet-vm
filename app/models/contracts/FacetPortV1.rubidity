@@ -114,11 +114,11 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     price: :uint256,
     currency: :address
   }, :internal do
-    (supportsERC2981, _) = assetContract.call(json.stringify(function: "supportsERC2981"))
+    (success, data) = assetContract.call(json.stringify(function: "supportsERC2981"))
     
     royaltyAmount = 0
     
-    if supportsERC2981
+    if success && data == "true"
       (receiver, royaltyAmount) = ERC2981(assetContract).royaltyInfo(
         tokenId: assetId,
         salePrice: price
