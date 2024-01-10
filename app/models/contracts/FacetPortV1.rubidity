@@ -8,78 +8,42 @@ import './ERC721.rubidity'
 import './ERC20.rubidity'
 
 contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: true do
-  event :AssetPurchased, {
-    seller: :address,
+  event :OfferAccepted, {
+    success: :bool,
+    offerType: :string,
+    offerer: :address,
     buyer: :address,
-    assetContract: :address,
-    assetId: :uint256,
-    price: :uint256,
-    currency: :address,
-    listingId: :bytes32
-  }
-  
-  event :BidAccepted, {
-    bidder: :address,
     seller: :address,
     assetContract: :address,
     assetId: :uint256,
-    bidAmount: :uint256,
-    currency: :address,
+    considerationAmount: :uint256,
+    considerationToken: :address,
+    offerId: :bytes32
   }
   
-  event :BidCancelled, {
-    bidder: :address,
-    bidId: :bytes32
+  event :OfferCancelled, {
+    offerType: :string,
+    offerer: :address,
+    offerId: :bytes32
   }
   
-  event :AllBidsOnAssetCancelledForUser, {
-    bidder: :address,
+  event :AllOffersOnAssetCancelledForUser, {
+    offerType: :string,
+    offerer: :address,
     assetContract: :address,
     assetId: :uint256
   }
   
-  event :AllBidsCancelledForUser, {
-    bidder: :address
+  event :AllOffersCancelledForUser, {
+    offerType: :string,
+    offerer: :address
   }
   
-  event :MultiplePurchaseResult, {
-    buyer: :address,
-    successfulListingIds: [:bytes32],
-    failedListingIds: [:bytes32]
-  }
-  
-  event :MultipleBidResult, {
-    seller: :address,
-    successfulBidIds: [:bytes32],
-    failedBidIds: [:bytes32]
-  }
-  
-  event :ListingCancelled, {
-    seller: :address,
-    listingId: :bytes32
-  }
-  
-  event :AllListingsOfAssetCancelledForUser, {
-    seller: :address,
-    assetContract: :address,
-    assetId: :uint256
-  }
-  
-  event :AllListingsCancelledForUser, {
-    seller: :address
-  }
-  
-  mapping ({ address: mapping(bytes32: :bool) }), :public, :userListingCancellations
-  mapping ({ address: mapping(address: mapping(uint256: :uint256)) }),
+  mapping ({ string: mapping(address: mapping(bytes32: :bool)) }), :public, :userOfferCancellations
+  mapping ({ string: mapping(address: mapping(address: mapping(uint256: :uint256))) }),
     :public,
-    :userListingsOfAssetValidAfterTime
-  mapping ({ address: :uint256 }), :public, :userListingsValidAfterTime
-  
-  mapping ({ address: mapping(bytes32: :bool) }), :public, :bidCancellations
-  mapping ({ address: mapping(address: mapping(uint256: :uint256)) }),
-    :public,
-    :userBidsOnAssetValidAfterTime
-  mapping ({ address: :uint256 }), :public, :userBidsValidAfterTime
+    :userOffersOnAssetValidAfterTime
+  mapping ({ string: mapping(address: :uint256) }), :public, :userOffersValidAfterTime
   
   uint96 :feeBps
   
@@ -96,98 +60,62 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     s.feeBps = _feeBps
   end
   
-  function :buyMultipleWithSignatures, { 
-    listingIds: [:bytes32],
-    sellers: [:address],
+  function :acceptMultipleOffersWithSignatures, { 
+    offerTypes: [:string],
+    offerIds: [:bytes32],
+    offerers: [:address],
     assetContracts: [:address],
     assetIds: [:uint256],
-    currencies: [:address],
-    prices: [:uint256],
+    considerationTokens: [:address],
+    considerationAmounts: [:uint256],
     startTimes: [:uint256],
     endTimes: [:uint256],
     signatures: [:bytes]
   }, :external do
-    require(listingIds.length == sellers.length, "Listing ID and seller arrays must be the same length")
-    require(listingIds.length <= 20, "Cannot buy more than 20 listings at a time")
+    require(offerIds.length == offerers.length, "Offer ID and offerer arrays must be the same length")
+    require(offerIds.length == offerTypes.length, "Offer ID and offer types arrays must be the same length")
+    require(offerIds.length == assetContracts.length, "Offer ID and asset contracts arrays must be the same length")
+    require(offerIds.length == assetIds.length, "Offer ID and asset IDs arrays must be the same length")
+    require(offerIds.length == considerationTokens.length, "Offer ID and consideration tokens arrays must be the same length")
+    require(offerIds.length == considerationAmounts.length, "Offer ID and consideration amounts arrays must be the same length")
+    require(offerIds.length == startTimes.length, "Offer ID and start times arrays must be the same length")
+    require(offerIds.length == endTimes.length, "Offer ID and end times arrays must be the same length")
+    require(offerIds.length == signatures.length, "Offer ID and signatures arrays must be the same length")
     
-    successfulListingIds = array(:bytes32)
-    failedListingIds = array(:bytes32)
+    require(offerIds.length <= 20, "Cannot accept more than 20 offers at a time")
+    
+    atLeastOneSuccess = false
     
     forLoop(
-      condition: -> i { i < listingIds.length }
+      condition: -> i { i < offerIds.length }
     ) do |i|
-      success = _buyWithSignature(
-        buyer: msg.sender,
-        listingId: listingIds[i],
-        seller: sellers[i],
+      success = _acceptOfferWithSignature(
+        offerType: offerTypes[i],
+        offerId: offerIds[i],
+        offerer: offerers[i],
         assetContract: assetContracts[i],
         assetId: assetIds[i],
-        currency: currencies[i],
-        price: prices[i],
+        considerationToken: considerationTokens[i],
+        considerationAmount: considerationAmounts[i],
         startTime: startTimes[i],
         endTime: endTimes[i],
         signature: signatures[i]
       )
       
-      if success
-        successfulListingIds.push(listingIds[i])
-      else
-        failedListingIds.push(listingIds[i])
-      end
+      atLeastOneSuccess = true if success
     end
     
-    require(successfulListingIds.length > 0, "No bids were successfully accepted")
-
-    emit :MultiplePurchaseResult,
-      buyer: msg.sender,
-      successfulListingIds: successfulListingIds,
-      failedListingIds: failedListingIds
+    require(atLeastOneSuccess, "No offers were successfully accepted")
   end
-  
-  function :buyWithSignature, {
-    listingId: :bytes32,
-    seller: :address,
+ 
+  function :_acceptOfferWithSignature, {
+    offerType: :string,
+    offerId: :bytes32,
+    offerer: :address,
     assetContract: :address,
     assetId: :uint256,
-    currency: :address,
-    price: :uint256,
-    startTime: :uint256,
-    endTime: :uint256,
-    signature: :bytes
-  }, :public do
-    success = _buyWithSignature(
-      buyer: msg.sender,
-      listingId: listingId,
-      seller: seller,
-      assetContract: assetContract,
-      assetId: assetId,
-      currency: currency,
-      price: price,
-      startTime: startTime,
-      endTime: endTime,
-      signature: signature
-    )
-    
-    require(success, "Seller no longer owns NFT")
-    
-    emit :AssetPurchased,
-      seller: seller,
-      buyer: msg.sender,
-      assetContract: assetContract,
-      assetId: assetId,
-      price: price,
-      currency: currency,
-      listingId: listingId
-  end
-  
-  function :_buyWithSignature, {
-    buyer: :address,
-    listingId: :bytes32,
-    seller: :address,
-    assetContract: :address,
-    assetId: :uint256,
-    currency: :address,
-    price: :uint256,
+    considerationToken: :address,
+    considerationAmount: :uint256,
     startTime: :uint256,
     endTime: :uint256,
     signature: :bytes
@@ -195,199 +123,83 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     whenNotPaused!
     
     signatureValid = signature.verifyTypedDataSignature(
-      {Listing: [
-        { name: "listingId", type: "bytes32" },
-        { name: "seller", type: "address" },
+      {Offer: [
+        { name: "offerType", type: "string" },
+        { name: "offerId", type: "bytes32" },
+        { name: "offerer", type: "address" },
         { name: "assetContract", type: "address" },
         { name: "assetId", type: "uint256" },
-        { name: "currency", type: "address" },
-        { name: "price", type: "uint256" },
+        { name: "considerationToken", type: "address" },
+        { name: "considerationAmount", type: "uint256" },
         { name: "startTime", type: "uint256" },
         { name: "endTime", type: "uint256" }
       ]},
       {
-        listingId: listingId,
-        seller: seller,
+        offerType: offerType,
+        offerId: offerId,
+        offerer: offerer,
         assetContract: assetContract,
         assetId: assetId,
-        currency: currency,
-        price: price,
+        considerationToken: considerationToken,
+        considerationAmount: considerationAmount,
         startTime: startTime,
         endTime: endTime
       },
       verifyingContract: address(this),
       domainName: "FacetPort",
       domainVersion: "1",
-      signer: seller
+      signer: offerer
     )
     
     require(signatureValid, "Invalid signature")
     
-    require(block.timestamp >= startTime, "Current time is before the start time")
-    require(block.timestamp <= endTime, "Current time is after the end time")
-    require(!s.userListingCancellations[seller][listingId], "Listing has been cancelled by the user")
-    require(startTime > s.userListingsOfAssetValidAfterTime[seller][assetContract][assetId],
-      "Start time is before the valid after time for the user's listing")
-    require(startTime > s.userListingsValidAfterTime[seller],
-      "Start time is before the valid after time for the user's listing")
-    
-    s.userListingCancellations[seller][listingId] = true
-    
-    return payRoyaltiesAndTransfer(
-      assetContract: assetContract,
-      assetId: assetId,
-      seller: seller,
-      buyer: msg.sender,
-      price: price,
-      currency: currency
-    )
-  end
-  
-  function :acceptMultipleBidsWithSignatures, { 
-    bidIds: [:bytes32],
-    bidders: [:address],
-    assetContracts: [:address],
-    assetIds: [:uint256],
-    currencies: [:address],
-    bidAmounts: [:uint256],
-    startTimes: [:uint256],
-    endTimes: [:uint256],
-    signatures: [:bytes]
-  }, :external do
-    require(bidIds.length == bidders.length, "Bid ID and bidder arrays must be the same length")
-    require(bidIds.length <= 20, "Cannot accept more than 20 bids at a time")
-    
-    successfulBidIds = array(:bytes32)
-    failedBidIds = array(:bytes32)
-    
-    forLoop(
-      condition: -> i { i < bidIds.length }
-    ) do |i|
-      success = _acceptBidWithSignature(
-        seller: msg.sender,
-        bidId: bidIds[i],
-        bidder: bidders[i],
-        assetContract: assetContracts[i],
-        assetId: assetIds[i],
-        currency: currencies[i],
-        bidAmount: bidAmounts[i],
-        startTime: startTimes[i],
-        endTime: endTimes[i],
-        signature: signatures[i]
-      )
-      
-      if success
-        successfulBidIds.push(bidIds[i])
-      else
-        failedBidIds.push(bidIds[i])
-      end
-    end
-    
-    require(successfulBidIds.length > 0, "No bids were successfully accepted")
-    
-    emit :MultipleBidResult,
-      seller: msg.sender,
-      successfulBidIds: successfulBidIds,
-      failedBidIds: failedBidIds
-  end
-  
-  function :acceptBidWithSignature, {
-    bidId: :bytes32,
-    bidder: :address,
-    assetContract: :address,
-    assetId: :uint256,
-    currency: :address,
-    bidAmount: :uint256,
-    startTime: :uint256,
-    endTime: :uint256,
-    signature: :bytes
-  }, :public do
-    success = _acceptBidWithSignature(
-      seller: msg.sender,
-      bidId: bidId,
-      bidder: bidder,
-      assetContract: assetContract,
-      assetId: assetId,
-      currency: currency,
-      bidAmount: bidAmount,
-      startTime: startTime,
-      endTime: endTime,
-      signature: signature
-    )
-    
-    require(success, "Seller no longer owns NFT")
-    
-    emit :BidAccepted,
-      seller: msg.sender,
-      bidder: bidder,
-      assetContract: assetContract,
-      assetId: assetId,
-      bidAmount: bidAmount,
-      currency: currency
-  end
-  
-  
-  function :_acceptBidWithSignature, {
-    seller: :address,
-    bidId: :bytes32,
-    bidder: :address,
-    assetContract: :address,
-    assetId: :uint256,
-    currency: :address,
-    bidAmount: :uint256,
-    startTime: :uint256,
-    endTime: :uint256,
-    signature: :bytes
-  }, :internal, returns: :bool do
-    whenNotPaused!
-    
-    signatureValid = signature.verifyTypedDataSignature(
-      {Bid: [
-        { name: "bidId", type: "bytes32" },
-        { name: "bidder", type: "address" },
-        { name: "assetContract", type: "address" },
-        { name: "assetId", type: "uint256" },
-        { name: "currency", type: "address" },
-        { name: "bidAmount", type: "uint256" },
-        { name: "startTime", type: "uint256" },
-        { name: "endTime", type: "uint256" }
-      ]},
-      {
-        bidId: bidId,
-        bidder: bidder,
-        assetContract: assetContract,
-        assetId: assetId,
-        currency: currency,
-        bidAmount: bidAmount,
-        startTime: startTime,
-        endTime: endTime
-      },
-      verifyingContract: address(this),
-      domainName: "FacetPort",
-      domainVersion: "1",
-      signer: bidder
-    )
-    
-    require(signatureValid, "Invalid signature")
+    require(offerType == "listing" || offerType == "bid", "Invalid offer type")
     
     require(block.timestamp >= startTime, "Current time is before the start time")
     require(block.timestamp <= endTime, "Current time is after the end time")
-    require(!s.bidCancellations[bidder][bidId], "Bid has been cancelled by the bidder")
-    require(startTime > s.userBidsOnAssetValidAfterTime[bidder][assetContract][assetId],
-      "Start time is before the valid after time for the bidder's bid")
-    require(startTime > s.userBidsValidAfterTime[bidder],
-      "Start time is before the valid after time for the bidder's bid")  
     
-    s.bidCancellations[bidder][bidId] = true
+    require(
+      !s.userOfferCancellations[offerType][offerer][offerId],
+      "Offer cancelled"
+    )
     
-    return payRoyaltiesAndTransfer(
+    require(
+      startTime > s.userOffersOnAssetValidAfterTime[offerType][offerer][assetContract][assetId],
+      "Start time is before the offerer's valid after time"
+    )
+    
+    require(
+      startTime > s.userOffersValidAfterTime[offerType][offerer],
+      "Start time is before the valid after time for the offerer"
+    )
+    
+    s.userOfferCancellations[offerType][offerer][offerId] = true
+    
+    (buyer, seller) = offerType == "bid" ? [offerer, msg.sender] : [msg.sender, offerer]
+    
+    transferSucceeded = payRoyaltiesAndTransfer(
       assetContract: assetContract,
       assetId: assetId,
       seller: seller,
-      buyer: bidder,
-      price: bidAmount,
-      currency: currency
+      buyer: buyer,
+      considerationAmount: considerationAmount,
+      considerationToken: considerationToken
     )
+    
+    emit :OfferAccepted, {
+      success: transferSucceeded,
+      offerType: offerType,
+      offerer: offerer,
+      buyer: buyer,
+      seller: seller,
+      assetContract: assetContract,
+      assetId: assetId,
+      considerationAmount: considerationAmount,
+      considerationToken: considerationToken,
+      offerId: offerId
+    }
+    
+    transferSucceeded
   end
   
   function :payRoyaltiesAndTransfer, {
@@ -395,8 +207,8 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     assetId: :uint256,
     seller: :address,
     buyer: :address,
-    price: :uint256,
-    currency: :address
+    considerationAmount: :uint256,
+    considerationToken: :address
   }, :internal, returns: :bool do
     currentOwner = ERC721(assetContract).ownerOf(assetId);
     
@@ -409,28 +221,28 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     if success && data == "true"
       (receiver, royaltyAmount) = ERC2981(assetContract).royaltyInfo(
         tokenId: assetId,
-        salePrice: price
+        salePrice: considerationAmount
       )
       
-      ERC20(currency).transferFrom(
+      ERC20(considerationToken).transferFrom(
         from: buyer,
         to: receiver,
         amount: royaltyAmount
       )
     end
     
-    sellerAmount = price - royaltyAmount - computeFee(price)
+    sellerAmount = considerationAmount - royaltyAmount - computeFee(considerationAmount)
     
-    ERC20(currency).transferFrom(
+    ERC20(considerationToken).transferFrom(
       from: buyer,
       to: seller,
       amount: sellerAmount
     )
     
-    ERC20(currency).transferFrom(
+    ERC20(considerationToken).transferFrom(
       from: buyer,
       to: owner(),
-      amount: computeFee(price)
+      amount: computeFee(considerationAmount)
     )
     
     ERC721(assetContract).transferFrom(
@@ -442,46 +254,26 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     return true
   end
   
-  function :cancelListing, { listingId: :bytes32 }, :external do
-    s.userListingCancellations[msg.sender][listingId] = true
+  function :cancelOffer, { offerType: :string, offerId: :bytes32 }, :external do
+    s.userOfferCancellations[offerType][msg.sender][offerId] = true
     
-    emit :ListingCancelled, seller: msg.sender, listingId: listingId
+    emit :OfferCancelled, offerType: offerType, offerer: msg.sender, offerId: offerId
   end
   
-  function :cancelAllListingsForAsset, { assetContract: :address, assetId: :uint256 }, :external do
-    s.userListingsOfAssetValidAfterTime[msg.sender][assetContract][assetId] = block.timestamp
+  function :cancelAllOffersForAsset, { offerType: :string, assetContract: :address, assetId: :uint256 }, :external do
+    s.userOffersOnAssetValidAfterTime[offerType][msg.sender][assetContract][assetId] = block.timestamp
     
-    emit :AllListingsOfAssetCancelledForUser,
-      seller: msg.sender,
+    emit :AllOffersOnAssetCancelledForUser,
+      offerType: offerType,
+      offerer: msg.sender,
       assetContract: assetContract,
       assetId: assetId
   end
   
-  function :cancelAllListingsOfUser, :external do
-    s.userListingsValidAfterTime[msg.sender] = block.timestamp
+  function :cancelAllOffersOfUser, { offerType: :string }, :external do
+    s.userOffersValidAfterTime[offerType][msg.sender] = block.timestamp
     
-    emit :AllListingsCancelledForUser, seller: msg.sender
-  end
-  
-  function :cancelBid, { bidId: :bytes32 }, :external do
-    s.bidCancellations[msg.sender][listingId] = true
-    
-    emit :BidCancelled, bidder: msg.sender, bidId: bidId
-  end
-  
-  function :cancelAllBidsForAsset, { assetContract: :address, assetId: :uint256 }, :external do
-    s.userBidsOnAssetValidAfterTime[msg.sender][assetContract][assetId] = block.timestamp
-    
-    emit :AllBidsOnAssetCancelledForUser,
-      bidder: msg.sender,
-      assetContract: assetContract,
-      assetId: assetId
-  end
-  
-  function :cancelAllBidsOfUser, :external do
-    s.userBidsValidAfterTime[msg.sender] = block.timestamp
-    
-    emit :AllBidsCancelledForUser, bidder: msg.sender
+    emit :AllOffersCancelledForUser, offerType: offerType, offerer: msg.sender
   end
   
   function :computeFee, { amount: :uint256 }, :public, :view, returns: :uint256 do

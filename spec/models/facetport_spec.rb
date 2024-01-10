@@ -87,7 +87,7 @@ describe 'FacetPort contract' do
           type: "FacetPortV1",
           args: {
             _feeBps: feeBps,
-            startPaused: false
+            # startPaused: false
           }
         }
       }
@@ -148,18 +148,19 @@ describe 'FacetPort contract' do
           { name: "chainId", type: "uint256" },
           { name: "verifyingContract", type: "address" }
         ],
-        Listing: [
-          { name: "listingId", type: "bytes32" },
-          { name: "seller", type: "address" },
+        Offer: [
+          { name: "offerType", type: "string" },
+          { name: "offerId", type: "bytes32" },
+          { name: "offerer", type: "address" },
           { name: "assetContract", type: "address" },
           { name: "assetId", type: "uint256" },
-          { name: "currency", type: "address" },
-          { name: "price", type: "uint256" },
+          { name: "considerationToken", type: "address" },
+          { name: "considerationAmount", type: "uint256" },
           { name: "startTime", type: "uint256" },
           { name: "endTime", type: "uint256" }
         ]
       },
-      primaryType: "Listing",
+      primaryType: "Offer",
       domain: {
         name: "FacetPort",
         version: '1',
@@ -167,12 +168,13 @@ describe 'FacetPort contract' do
         verifyingContract: market.address
       },
       message: {
-        listingId: listing_id,
-        seller: alice,
+        offerType: "listing",
+        offerId: listing_id,
+        offerer: alice,
         assetContract: nft.address,
         assetId: aliceNFTs.first,
-        currency: weth.address,
-        price: 1.ether,
+        considerationToken: weth.address,
+        considerationAmount: 1.ether,
         startTime: start_time,
         endTime: end_time
       }
@@ -212,17 +214,18 @@ describe 'FacetPort contract' do
         op: "call",
         data: {
           to: market.address,
-          function: "buyWithSignature",
+          function: "acceptMultipleOffersWithSignatures",
           args: {
-            listingId: listing_id,
-            seller: alice,
-            assetContract: nft.address,
-            assetId: aliceNFTs.first,
-            currency: weth.address,
-            price: price,
-            startTime: start_time,
-            endTime: end_time,
-            signature: "0x" + signature
+            offerTypes: ["listing"],
+            offerIds: [listing_id],
+            offerers: [alice],
+            assetContracts: [nft.address],
+            assetIds: [aliceNFTs.first],
+            considerationTokens: [weth.address],
+            considerationAmounts: [1.ether],
+            startTimes: [start_time],
+            endTimes: [end_time],
+            signatures: ["0x" + signature]
           }
         }
       }
@@ -284,18 +287,19 @@ describe 'FacetPort contract' do
           { name: "chainId", type: "uint256" },
           { name: "verifyingContract", type: "address" }
         ],
-        Bid: [
-          { name: "bidId", type: "bytes32" },
-          { name: "bidder", type: "address" },
+        Offer: [
+          { name: "offerType", type: "string" },
+          { name: "offerId", type: "bytes32" },
+          { name: "offerer", type: "address" },
           { name: "assetContract", type: "address" },
           { name: "assetId", type: "uint256" },
-          { name: "currency", type: "address" },
-          { name: "bidAmount", type: "uint256" },
+          { name: "considerationToken", type: "address" },
+          { name: "considerationAmount", type: "uint256" },
           { name: "startTime", type: "uint256" },
           { name: "endTime", type: "uint256" }
         ]
       },
-      primaryType: "Bid",
+      primaryType: "Offer",
       domain: {
         name: "FacetPort",
         version: '1',
@@ -303,17 +307,18 @@ describe 'FacetPort contract' do
         verifyingContract: market.address
       },
       message: {
-        bidId: bid_id,
-        bidder: alice,
+        offerType: "bid",
+        offerId: bid_id,
+        offerer: alice,
         assetContract: nft.address,
         assetId: 0,
-        currency: weth.address,
-        bidAmount: bid_amount,
+        considerationToken: weth.address,
+        considerationAmount: bid_amount,
         startTime: start_time,
         endTime: end_time
       }
     }
-  
+    
     signature = alice_key.sign_typed_data(typed_data, chainid)
   
     alice_initial_balance = ContractTransaction.make_static_call(
@@ -334,17 +339,18 @@ describe 'FacetPort contract' do
         op: "call",
         data: {
           to: market.address,
-          function: "acceptBidWithSignature",
+          function: "acceptMultipleOffersWithSignatures",
           args: {
-            bidId: bid_id,
-            bidder: alice,
-            assetContract: nft.address,
-            assetId: 0,
-            currency: weth.address,
-            bidAmount: bid_amount,
-            startTime: start_time,
-            endTime: end_time,
-            signature: "0x" + signature
+            offerTypes: ["bid"],
+            offerIds: [bid_id],
+            offerers: [alice],
+            assetContracts: [nft.address],
+            assetIds: [0],
+            considerationTokens: [weth.address],
+            considerationAmounts: [bid_amount],
+            startTimes: [start_time],
+            endTimes: [end_time],
+            signatures: ["0x" + signature]
           }
         }
       }
@@ -391,18 +397,19 @@ describe 'FacetPort contract' do
             { name: "chainId", type: "uint256" },
             { name: "verifyingContract", type: "address" }
           ],
-          Bid: [
-            { name: "bidId", type: "bytes32" },
-            { name: "bidder", type: "address" },
+          Offer: [
+            { name: "offerType", type: "string" },
+            { name: "offerId", type: "bytes32" },
+            { name: "offerer", type: "address" },
             { name: "assetContract", type: "address" },
             { name: "assetId", type: "uint256" },
-            { name: "currency", type: "address" },
-            { name: "bidAmount", type: "uint256" },
+            { name: "considerationToken", type: "address" },
+            { name: "considerationAmount", type: "uint256" },
             { name: "startTime", type: "uint256" },
             { name: "endTime", type: "uint256" }
           ]
         },
-        primaryType: "Bid",
+        primaryType: "Offer",
         domain: {
           name: "FacetPort",
           version: '1',
@@ -410,12 +417,13 @@ describe 'FacetPort contract' do
           verifyingContract: market.address
         },
         message: {
-          bidId: bid_id,
-          bidder: alice,
+          offerType: "bid",
+          offerId: bid_id,
+          offerer: alice,
           assetContract: nft.address,
           assetId: token_ids[idx],
-          currency: weth.address,
-          bidAmount: bid_amounts[idx],
+          considerationToken: weth.address,
+          considerationAmount: bid_amounts[idx],
           startTime: start_time,
           endTime: end_time
         }
@@ -442,14 +450,15 @@ describe 'FacetPort contract' do
         op: "call",
         data: {
           to: market.address,
-          function: "acceptMultipleBidsWithSignatures",
+          function: "acceptMultipleOffersWithSignatures",
           args: {
-            bidIds: bid_ids,
-            bidders: Array.new(bid_count, alice),
+            offerTypes: Array.new(bid_count, "bid"),
+            offerIds: bid_ids,
+            offerers: Array.new(bid_count, alice),
             assetContracts: Array.new(bid_count, nft.address),
             assetIds: token_ids,
-            currencies: Array.new(bid_count, weth.address),
-            bidAmounts: bid_amounts,
+            considerationTokens: Array.new(bid_count, weth.address),
+            considerationAmounts: bid_amounts,
             startTimes: Array.new(bid_count, start_time),
             endTimes: Array.new(bid_count, end_time),
             signatures: signatures.map { |sig| "0x" + sig }
@@ -518,18 +527,19 @@ describe 'FacetPort contract' do
             { name: "chainId", type: "uint256" },
             { name: "verifyingContract", type: "address" }
           ],
-          Listing: [
-            { name: "listingId", type: "bytes32" },
-            { name: "seller", type: "address" },
+          Offer: [
+            { name: "offerType", type: "string" },
+            { name: "offerId", type: "bytes32" },
+            { name: "offerer", type: "address" },
             { name: "assetContract", type: "address" },
             { name: "assetId", type: "uint256" },
-            { name: "currency", type: "address" },
-            { name: "price", type: "uint256" },
+            { name: "considerationToken", type: "address" },
+            { name: "considerationAmount", type: "uint256" },
             { name: "startTime", type: "uint256" },
             { name: "endTime", type: "uint256" }
           ]
         },
-        primaryType: "Listing",
+        primaryType: "Offer",
         domain: {
           name: "FacetPort",
           version: '1',
@@ -537,12 +547,13 @@ describe 'FacetPort contract' do
           verifyingContract: market.address
         },
         message: {
-          listingId: listing_id,
-          seller: alice,
+          offerType: "listing",
+          offerId: listing_id,
+          offerer: alice,
           assetContract: nft.address,
           assetId: token_ids[idx],
-          currency: weth.address,
-          price: prices[idx],
+          considerationToken: weth.address,
+          considerationAmount: prices[idx],
           startTime: start_time,
           endTime: end_time
         }
@@ -563,14 +574,15 @@ describe 'FacetPort contract' do
         op: "call",
         data: {
           to: market.address,
-          function: "buyMultipleWithSignatures",
+          function: "acceptMultipleOffersWithSignatures",
           args: {
-            listingIds: listing_ids,
-            sellers: Array.new(listing_count, alice),
+            offerTypes: Array.new(bid_count, "listing"),
+            offerIds: listing_ids,
+            offerers: Array.new(listing_count, alice),
             assetContracts: Array.new(listing_count, nft.address),
             assetIds: token_ids,
-            currencies: Array.new(listing_count, weth.address),
-            prices: prices,
+            considerationTokens: Array.new(listing_count, weth.address),
+            considerationAmounts: prices,
             startTimes: Array.new(listing_count, start_time),
             endTimes: Array.new(listing_count, end_time),
             signatures: signatures.map { |sig| "0x" + sig }
@@ -609,7 +621,7 @@ describe 'FacetPort contract' do
           type: "FacetPortV1",
           args: {
             _feeBps: 1,
-            startPaused: false
+            # startPaused: false
           }
         }
       }
@@ -621,22 +633,24 @@ describe 'FacetPort contract' do
         op: "call",
         data: {
           to: market.address,
-          function: "cancelListing",
+          function: "cancelOffer",
           args: {
-            listingId: "0x" + SecureRandom.hex(32)
+            offerType: "listing",
+            offerId: "0x" + SecureRandom.hex(32)
           }
         }
       }
     )
-  
+    
     trigger_contract_interaction_and_expect_success(
       from: alice,
       payload: {
         op: "call",
         data: {
           to: market.address,
-          function: "cancelAllListingsForAsset",
+          function: "cancelAllOffersForAsset",
           args: {
+            offerType: "listing",
             assetContract: "0x0000000000000000000000000000000000000001",
             assetId: 0
           }
@@ -650,7 +664,10 @@ describe 'FacetPort contract' do
         op: "call",
         data: {
           to: market.address,
-          function: "cancelAllListingsOfUser"
+          function: "cancelAllOffersOfUser",
+          args: {
+            offerType: "listing"
+          }
         }
       }
     )
