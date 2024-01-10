@@ -83,12 +83,12 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
   
   uint96 :feeBps
   
-  constructor(_feeBps: :uint96, startPaused: :bool) {
+  constructor(_feeBps: :uint96) {
     s.feeBps = _feeBps
     
     Upgradeable.constructor(upgradeAdmin: msg.sender)
     Ownable.constructor(owner: msg.sender)
-    Pausable.constructor(initialPauseState: startPaused)
+    # Pausable.constructor(initialPauseState: true)
   }
   
   function :setFeeBps, { _feeBps: :uint96 }, :external do
@@ -449,7 +449,7 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
   end
   
   function :cancelAllListingsForAsset, { assetContract: :address, assetId: :uint256 }, :external do
-    s.userListingsOfAssetValidAfterTime[msg.sender][assetContract][assetId]
+    s.userListingsOfAssetValidAfterTime[msg.sender][assetContract][assetId] = block.timestamp
     
     emit :AllListingsOfAssetCancelledForUser,
       seller: msg.sender,
