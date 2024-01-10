@@ -168,7 +168,7 @@ describe 'FacetPort contract' do
         verifyingContract: market.address
       },
       message: {
-        offerType: "listing",
+        offerType: "Listing",
         offerId: listing_id,
         offerer: alice,
         assetContract: nft.address,
@@ -216,7 +216,7 @@ describe 'FacetPort contract' do
           to: market.address,
           function: "acceptMultipleOffersWithSignatures",
           args: {
-            offerTypes: ["listing"],
+            offerTypes: ["Listing"],
             offerIds: [listing_id],
             offerers: [alice],
             assetContracts: [nft.address],
@@ -307,7 +307,7 @@ describe 'FacetPort contract' do
         verifyingContract: market.address
       },
       message: {
-        offerType: "bid",
+        offerType: "Bid",
         offerId: bid_id,
         offerer: alice,
         assetContract: nft.address,
@@ -341,7 +341,7 @@ describe 'FacetPort contract' do
           to: market.address,
           function: "acceptMultipleOffersWithSignatures",
           args: {
-            offerTypes: ["bid"],
+            offerTypes: ["Bid"],
             offerIds: [bid_id],
             offerers: [alice],
             assetContracts: [nft.address],
@@ -417,7 +417,7 @@ describe 'FacetPort contract' do
           verifyingContract: market.address
         },
         message: {
-          offerType: "bid",
+          offerType: "Bid",
           offerId: bid_id,
           offerer: alice,
           assetContract: nft.address,
@@ -452,7 +452,7 @@ describe 'FacetPort contract' do
           to: market.address,
           function: "acceptMultipleOffersWithSignatures",
           args: {
-            offerTypes: Array.new(bid_count, "bid"),
+            offerTypes: Array.new(bid_count, "Bid"),
             offerIds: bid_ids,
             offerers: Array.new(bid_count, alice),
             assetContracts: Array.new(bid_count, nft.address),
@@ -547,7 +547,7 @@ describe 'FacetPort contract' do
           verifyingContract: market.address
         },
         message: {
-          offerType: "listing",
+          offerType: "Listing",
           offerId: listing_id,
           offerer: alice,
           assetContract: nft.address,
@@ -576,7 +576,7 @@ describe 'FacetPort contract' do
           to: market.address,
           function: "acceptMultipleOffersWithSignatures",
           args: {
-            offerTypes: Array.new(bid_count, "listing"),
+            offerTypes: Array.new(bid_count, "Listing"),
             offerIds: listing_ids,
             offerers: Array.new(listing_count, alice),
             assetContracts: Array.new(listing_count, nft.address),
@@ -635,7 +635,7 @@ describe 'FacetPort contract' do
           to: market.address,
           function: "cancelOffer",
           args: {
-            offerType: "listing",
+            offerType: "Listing",
             offerId: "0x" + SecureRandom.hex(32)
           }
         }
@@ -650,7 +650,7 @@ describe 'FacetPort contract' do
           to: market.address,
           function: "cancelAllOffersForAsset",
           args: {
-            offerType: "listing",
+            offerType: "Listing",
             assetContract: "0x0000000000000000000000000000000000000001",
             assetId: 0
           }
@@ -666,7 +666,7 @@ describe 'FacetPort contract' do
           to: market.address,
           function: "cancelAllOffersOfUser",
           args: {
-            offerType: "listing"
+            offerType: "Listing"
           }
         }
       }

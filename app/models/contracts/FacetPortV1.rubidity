@@ -153,7 +153,7 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     
     require(signatureValid, "Invalid signature")
     
-    require(offerType == "listing" || offerType == "bid", "Invalid offer type")
+    require(offerType == "Listing" || offerType == "Bid", "Invalid offer type")
     
     require(block.timestamp >= startTime, "Current time is before the start time")
     require(block.timestamp <= endTime, "Current time is after the end time")
@@ -175,7 +175,7 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     
     s.userOfferCancellations[offerType][offerer][offerId] = true
     
-    (buyer, seller) = offerType == "bid" ? [offerer, msg.sender] : [msg.sender, offerer]
+    (buyer, seller) = offerType == "Bid" ? [offerer, msg.sender] : [msg.sender, offerer]
     
     transferSucceeded = payRoyaltiesAndTransfer(
       assetContract: assetContract,
@@ -255,12 +255,16 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
   end
   
   function :cancelOffer, { offerType: :string, offerId: :bytes32 }, :external do
+    require(offerType == "Listing" || offerType == "Bid", "Invalid offer type")
+    
     s.userOfferCancellations[offerType][msg.sender][offerId] = true
     
     emit :OfferCancelled, offerType: offerType, offerer: msg.sender, offerId: offerId
   end
   
   function :cancelAllOffersForAsset, { offerType: :string, assetContract: :address, assetId: :uint256 }, :external do
+    require(offerType == "Listing" || offerType == "Bid", "Invalid offer type")
+    
     s.userOffersOnAssetValidAfterTime[offerType][msg.sender][assetContract][assetId] = block.timestamp
     
     emit :AllOffersOnAssetCancelledForUser,
@@ -271,6 +275,8 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
   end
   
   function :cancelAllOffersOfUser, { offerType: :string }, :external do
+    require(offerType == "Listing" || offerType == "Bid", "Invalid offer type")
+    
     s.userOffersValidAfterTime[offerType][msg.sender] = block.timestamp
     
     emit :AllOffersCancelledForUser, offerType: offerType, offerer: msg.sender
