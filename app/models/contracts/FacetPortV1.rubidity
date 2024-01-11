@@ -66,6 +66,8 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     offerers: [:address],
     assetContracts: [:address],
     assetIds: [:uint256],
+    assetTypes: [:string],
+    assetAmounts: [:uint256],
     considerationTokens: [:address],
     considerationAmounts: [:uint256],
     startTimes: [:uint256],
@@ -95,6 +97,8 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
         offerer: offerers[i],
         assetContract: assetContracts[i],
         assetId: assetIds[i],
+        assetType: assetTypes[i],
+        assetAmount: assetAmounts[i],
         considerationToken: considerationTokens[i],
         considerationAmount: considerationAmounts[i],
         startTime: startTimes[i],
@@ -114,6 +118,8 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     offerer: :address,
     assetContract: :address,
     assetId: :uint256,
+    assetType: :string,
+    assetAmount: :uint256,
     considerationToken: :address,
     considerationAmount: :uint256,
     startTime: :uint256,
@@ -129,6 +135,8 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
         { name: "offerer", type: "address" },
         { name: "assetContract", type: "address" },
         { name: "assetId", type: "uint256" },
+        { name: "assetType", type: "string" },
+        { name: "assetAmount", type: "uint256" },
         { name: "considerationToken", type: "address" },
         { name: "considerationAmount", type: "uint256" },
         { name: "startTime", type: "uint256" },
@@ -140,6 +148,8 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
         offerer: offerer,
         assetContract: assetContract,
         assetId: assetId,
+        assetType: assetType,
+        assetAmount: assetAmount,
         considerationToken: considerationToken,
         considerationAmount: considerationAmount,
         startTime: startTime,
@@ -154,6 +164,7 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     require(signatureValid, "Invalid signature")
     
     require(offerType == "Listing" || offerType == "Bid", "Invalid offer type")
+    require(assetType == "ERC721" && assetAmount == 1, "Only ERC721 assets are supported")
     
     require(block.timestamp >= startTime, "Current time is before the start time")
     require(block.timestamp <= endTime, "Current time is after the end time")
