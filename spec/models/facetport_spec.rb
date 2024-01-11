@@ -659,7 +659,6 @@ describe 'FacetPort contract' do
           to: market.address,
           function: "cancelOffer",
           args: {
-            offerType: "Listing",
             offerId: "0x" + SecureRandom.hex(32)
           }
         }

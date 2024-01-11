@@ -22,7 +22,6 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
   }
   
   event :OfferCancelled, {
-    offerType: :string,
     offerer: :address,
     offerId: :bytes32
   }
@@ -39,11 +38,13 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     offerer: :address
   }
   
-  mapping ({ string: mapping(address: mapping(bytes32: :bool)) }), :public, :userOfferCancellations
+  mapping ({ address: mapping(bytes32: :bool) }), :public, :userOfferCancellations
   mapping ({ string: mapping(address: mapping(address: mapping(uint256: :uint256))) }),
     :public,
     :userOffersOnAssetValidAfterTime
   mapping ({ string: mapping(address: :uint256) }), :public, :userOffersValidAfterTime
+  
+  mapping ({ address: mapping(bytes32: :bool) }), :public, :offerFulfilled
   
   uint96 :feeBps
   
@@ -162,17 +163,14 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     )
     
     require(signatureValid, "Invalid signature")
+    require(!s.offerFulfilled[offerer][offerId], "Offer already fulfilled")
+    require(!s.userOfferCancellations[offerer][offerId], "Offer cancelled")
     
     require(offerType == "Listing" || offerType == "Bid", "Invalid offer type")
     require(assetType == "ERC721" && assetAmount == 1, "Only ERC721 assets are supported")
     
     require(block.timestamp >= startTime, "Current time is before the start time")
     require(block.timestamp <= endTime, "Current time is after the end time")
-    
-    require(
-      !s.userOfferCancellations[offerType][offerer][offerId],
-      "Offer cancelled"
-    )
     
     require(
       startTime > s.userOffersOnAssetValidAfterTime[offerType][offerer][assetContract][assetId],
@@ -183,8 +181,6 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
       startTime > s.userOffersValidAfterTime[offerType][offerer],
       "Start time is before the valid after time for the offerer"
     )
-    
-    s.userOfferCancellations[offerType][offerer][offerId] = true
     
     (buyer, seller) = offerType == "Bid" ? [offerer, msg.sender] : [msg.sender, offerer]
     
@@ -197,6 +193,10 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
       considerationToken: considerationToken
     )
     
+    if transferSucceeded
+      s.offerFulfilled[offerer][offerId] = true
+    end
+      
     emit :OfferAccepted, {
       success: transferSucceeded,
       offerType: offerType,
@@ -256,21 +256,59 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
       amount: computeFee(considerationAmount)
     )
     
-    ERC721(assetContract).transferFrom(
-      from: seller,
-      to: buyer,
-      id: assetId
+    _transferNFT(
+      assetContract: assetContract,
+      assetId: assetId,
+      recipient: buyer,
+      from: seller
     )
     
     return true
   end
   
-  function :cancelOffer, { offerType: :string, offerId: :bytes32 }, :external do
-    require(offerType == "Listing" || offerType == "Bid", "Invalid offer type")
+  function :transferNFTs, {
+    assetContracts: [:address],
+    assetIds: [:uint256],
+    recipients: [:address]
+  }, :external do
+    require(assetContracts.length == assetIds.length, "Asset contracts and asset IDs must be the same length")
+    require(assetContracts.length == recipients.length, "Asset contracts and recipients must be the same length")
+    require(assetIds.length <= 20, "Cannot transfer more than 20 NFTs at a time")
     
-    s.userOfferCancellations[offerType][msg.sender][offerId] = true
+    forLoop(
+      condition: -> i { i < recipients.length }
+    ) do |i|
+      _transferNFT(
+        assetContract: assetContracts[i],
+        assetId: assetIds[i],
+        recipient: recipients[i],
+        from: msg.sender
+      )
+    end
+  end
+  
+  function :_transferNFT, {
+    assetContract: :address,
+    assetId: :uint256,
+    recipient: :address,
+    from: :address
+  }, :internal do
+    ERC721(assetContract).transferFrom(
+      from: from,
+      to: recipient,
+      id: assetId
+    )
     
-    emit :OfferCancelled, offerType: offerType, offerer: msg.sender, offerId: offerId
+    s.userOffersOnAssetValidAfterTime["Listing"][from][assetContract][assetId] = block.timestamp
+    s.userOffersOnAssetValidAfterTime["Bid"][recipient][assetContract][assetId] = block.timestamp
+    
+    nil
+  end
+  
+  function :cancelOffer, { offerId: :bytes32 }, :external do
+    s.userOfferCancellations[msg.sender][offerId] = true
+    
+    emit :OfferCancelled, offerer: msg.sender, offerId: offerId
   end
   
   function :cancelAllOffersForAsset, { offerType: :string, assetContract: :address, assetId: :uint256 }, :external do
