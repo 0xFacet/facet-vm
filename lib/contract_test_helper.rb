@@ -149,6 +149,7 @@ module ContractTestHelper
   
   def self.set_initial_supported_contracts
     new_names = [
+      "StubERC721",
       "FacetPortV1",
       "EtherBridge",
       "EthscriptionERC20BridgeV2",
