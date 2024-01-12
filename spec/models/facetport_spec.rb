@@ -218,20 +218,20 @@ describe 'FacetPort contract' do
         op: "call",
         data: {
           to: market.address,
-          function: "acceptMultipleOffersWithSignatures",
+          function: "acceptOfferWithSignature",
           args: {
-            offerTypes: ["Listing"],
-            offerIds: [listing_id],
-            offerers: [alice],
-            assetContracts: [nft.address],
-            assetIds: [aliceNFTs.first],
-            assetTypes: ["ERC721"],
-            assetAmounts: [1],
-            considerationTokens: [weth.address],
-            considerationAmounts: [1.ether],
-            startTimes: [start_time],
-            endTimes: [end_time],
-            signatures: ["0x" + signature]
+            offerType: "Listing",
+            offerId: listing_id.to_s,
+            offerer: alice.to_s,
+            assetContract: nft.address.to_s,
+            assetId: aliceNFTs.first.to_s,
+            assetType: "ERC721",
+            assetAmount: 1.to_s,
+            considerationToken: weth.address.to_s,
+            considerationAmount: 1.ether.to_s,
+            startTime: start_time.to_s,
+            endTime: end_time.to_s,
+            signature: "0x" + signature
           }
         }
       }

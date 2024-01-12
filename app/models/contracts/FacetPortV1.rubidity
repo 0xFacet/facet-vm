@@ -59,6 +59,38 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     s.feeBps = _feeBps
   end
   
+  function :acceptOfferWithSignature, { 
+    offerType: :string,
+    offerId: :bytes16,
+    offerer: :address,
+    assetContract: :address,
+    assetId: :uint256,
+    assetType: :string,
+    assetAmount: :uint256,
+    considerationToken: :address,
+    considerationAmount: :uint256,
+    startTime: :uint256,
+    endTime: :uint256,
+    signature: :bytes
+  }, :external do
+    success = _acceptOfferWithSignature(
+      offerType: offerType,
+      offerId: offerId,
+      offerer: offerer,
+      assetContract: assetContract,
+      assetId: assetId,
+      assetType: assetType,
+      assetAmount: assetAmount,
+      considerationToken: considerationToken,
+      considerationAmount: considerationAmount,
+      startTime: startTime,
+      endTime: endTime,
+      signature: signature
+    )
+    
+    require(success, "Offer was not successfully accepted")
+  end
+  
   function :acceptMultipleOffersWithSignatures, { 
     offerTypes: [:string],
     offerIds: [:bytes16],
