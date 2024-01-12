@@ -44,8 +44,6 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     :userOffersOnAssetValidAfterTime
   mapping ({ string: mapping(address: :uint256) }), :public, :userOffersValidAfterTime
   
-  mapping ({ address: mapping(bytes16: :bool) }), :public, :offerFulfilled
-  
   uint96 :feeBps
   
   constructor(_feeBps: :uint96) {
@@ -163,7 +161,6 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     )
     
     require(signatureValid, "Invalid signature")
-    require(!s.offerFulfilled[offerer][offerId], "Offer already fulfilled")
     require(!s.userOfferCancellations[offerer][offerId], "Offer cancelled")
     
     require(offerType == "Listing" || offerType == "Bid", "Invalid offer type")
@@ -192,10 +189,6 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
       considerationAmount: considerationAmount,
       considerationToken: considerationToken
     )
-    
-    if transferSucceeded
-      s.offerFulfilled[offerer][offerId] = true
-    end
       
     emit :OfferAccepted, {
       success: transferSucceeded,
