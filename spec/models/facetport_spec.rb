@@ -136,7 +136,7 @@ describe 'FacetPort contract' do
       )
     end
     
-    listing_id = "0x" + SecureRandom.hex(32)
+    listing_id = "0x" + SecureRandom.hex(16)
     start_time = Time.current.to_i
     end_time = 1000.years.from_now.to_i
     
@@ -150,7 +150,7 @@ describe 'FacetPort contract' do
         ],
         Offer: [
           { name: "offerType", type: "string" },
-          { name: "offerId", type: "bytes32" },
+          { name: "offerId", type: "bytes16" },
           { name: "offerer", type: "address" },
           { name: "assetContract", type: "address" },
           { name: "assetId", type: "uint256" },
@@ -280,7 +280,7 @@ describe 'FacetPort contract' do
     )
     expect(nft_owner).to eq(bob)
     
-    bid_id = "0x" + SecureRandom.hex(32)
+    bid_id = "0x" + SecureRandom.hex(16)
     start_time = Time.current.to_i
     end_time = 1000.years.from_now.to_i
     bid_amount = 2.ether
@@ -295,7 +295,7 @@ describe 'FacetPort contract' do
         ],
         Offer: [
           { name: "offerType", type: "string" },
-          { name: "offerId", type: "bytes32" },
+          { name: "offerId", type: "bytes16" },
           { name: "offerer", type: "address" },
           { name: "assetContract", type: "address" },
           { name: "assetId", type: "uint256" },
@@ -394,7 +394,7 @@ describe 'FacetPort contract' do
     expect(nft_owner).to eq(alice)
     
     bid_count = 5
-    bid_ids = bid_count.times.map { "0x" + SecureRandom.hex(32) }
+    bid_ids = bid_count.times.map { "0x" + SecureRandom.hex(16) }
     start_time = Time.current.to_i
     end_time = 1000.years.from_now.to_i
     bid_amounts = Array.new(bid_count, 2.ether)
@@ -411,7 +411,7 @@ describe 'FacetPort contract' do
           ],
           Offer: [
             { name: "offerType", type: "string" },
-            { name: "offerId", type: "bytes32" },
+            { name: "offerId", type: "bytes16" },
             { name: "offerer", type: "address" },
             { name: "assetContract", type: "address" },
             { name: "assetId", type: "uint256" },
@@ -530,7 +530,7 @@ describe 'FacetPort contract' do
     )
     
     listing_count = 5
-    listing_ids = listing_count.times.map { "0x" + SecureRandom.hex(32) }
+    listing_ids = listing_count.times.map { "0x" + SecureRandom.hex(16) }
     start_time = Time.current.to_i
     end_time = 1000.years.from_now.to_i
     prices = Array.new(listing_count, 2.ether)
@@ -547,7 +547,7 @@ describe 'FacetPort contract' do
           ],
           Offer: [
             { name: "offerType", type: "string" },
-            { name: "offerId", type: "bytes32" },
+            { name: "offerId", type: "bytes16" },
             { name: "offerer", type: "address" },
             { name: "assetContract", type: "address" },
             { name: "assetId", type: "uint256" },
@@ -659,7 +659,7 @@ describe 'FacetPort contract' do
           to: market.address,
           function: "cancelOffer",
           args: {
-            offerId: "0x" + SecureRandom.hex(32)
+            offerId: "0x" + SecureRandom.hex(16)
           }
         }
       }

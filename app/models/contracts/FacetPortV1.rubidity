@@ -18,12 +18,12 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     assetId: :uint256,
     considerationAmount: :uint256,
     considerationToken: :address,
-    offerId: :bytes32
+    offerId: :bytes16
   }
   
   event :OfferCancelled, {
     offerer: :address,
-    offerId: :bytes32
+    offerId: :bytes16
   }
   
   event :AllOffersOnAssetCancelledForUser, {
@@ -38,13 +38,13 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     offerer: :address
   }
   
-  mapping ({ address: mapping(bytes32: :bool) }), :public, :userOfferCancellations
+  mapping ({ address: mapping(bytes16: :bool) }), :public, :userOfferCancellations
   mapping ({ string: mapping(address: mapping(address: mapping(uint256: :uint256))) }),
     :public,
     :userOffersOnAssetValidAfterTime
   mapping ({ string: mapping(address: :uint256) }), :public, :userOffersValidAfterTime
   
-  mapping ({ address: mapping(bytes32: :bool) }), :public, :offerFulfilled
+  mapping ({ address: mapping(bytes16: :bool) }), :public, :offerFulfilled
   
   uint96 :feeBps
   
@@ -63,7 +63,7 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
   
   function :acceptMultipleOffersWithSignatures, { 
     offerTypes: [:string],
-    offerIds: [:bytes32],
+    offerIds: [:bytes16],
     offerers: [:address],
     assetContracts: [:address],
     assetIds: [:uint256],
@@ -115,7 +115,7 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
  
   function :_acceptOfferWithSignature, {
     offerType: :string,
-    offerId: :bytes32,
+    offerId: :bytes16,
     offerer: :address,
     assetContract: :address,
     assetId: :uint256,
@@ -132,7 +132,7 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     signatureValid = signature.verifyTypedDataSignature(
       {Offer: [
         { name: "offerType", type: "string" },
-        { name: "offerId", type: "bytes32" },
+        { name: "offerId", type: "bytes16" },
         { name: "offerer", type: "address" },
         { name: "assetContract", type: "address" },
         { name: "assetId", type: "uint256" },
@@ -305,7 +305,7 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     nil
   end
   
-  function :cancelOffer, { offerId: :bytes32 }, :external do
+  function :cancelOffer, { offerId: :bytes16 }, :external do
     s.userOfferCancellations[msg.sender][offerId] = true
     
     emit :OfferCancelled, offerer: msg.sender, offerId: offerId
