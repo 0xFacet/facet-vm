@@ -22,10 +22,7 @@ class EthscriptionSync
     
     query = {
       block_number: new_block_number,
-      mimetypes: [
-        ContractTransaction.transaction_mimetype,
-        SystemConfigVersion.system_mimetype
-      ],
+      mimetypes: valid_mimetypes,
       max_ethscriptions: max_ethscriptions,
       max_blocks: max_blocks,
       past_ethscriptions_count: our_count,
@@ -156,14 +153,29 @@ class EthscriptionSync
       new_blocks << new_block
 
       block['ethscriptions'].each do |ethscription_data|
-        new_ethscription = new_block.build_new_ethscription(ethscription_data)
-        
-        new_ethscriptions << new_ethscription
+        if valid_mimetype_and_initial_owner?(ethscription_data)
+          new_ethscription = new_block.build_new_ethscription(ethscription_data)
+          new_ethscriptions << new_ethscription
+        end
       end
     end
 
     EthBlock.import!(new_blocks)
     Ethscription.import!(new_ethscriptions)
+  end
+  
+  private
+  
+  def self.valid_mimetypes
+    [
+      ContractTransaction.transaction_mimetype,
+      SystemConfigVersion.system_mimetype
+    ]
+  end
+  
+  def self.valid_mimetype_and_initial_owner?(ethscription)
+    valid_mimetypes.include?(ethscription['mimetype']) &&
+    ethscription['initial_owner'] == Ethscription.required_initial_owner
   end
 end
 
