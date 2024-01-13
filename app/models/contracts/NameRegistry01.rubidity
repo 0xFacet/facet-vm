@@ -6,9 +6,9 @@ import './Upgradeable.rubidity'
 import './ERC2981.rubidity'
 import './ERC721.rubidity'
 import './ERC20.rubidity'
-import './NameRegistryRenderer.rubidity'
+import './NameRegistryRenderer01.rubidity'
 
-contract :NameRegistry, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Pausable, :NameRegistryRenderer], upgradeable: true do
+contract :NameRegistry01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Pausable, :NameRegistryRenderer01], upgradeable: true do
   event :NameRegistered, { tokenId: :uint256, owner: :address, name: :string, expires: :uint256 }
   event :NameRenewed, { tokenId: :uint256, newExpiry: :uint256 }
   event :PrimaryNameSet, { user: :address, tokenId: :uint256 }
@@ -51,7 +51,7 @@ contract :NameRegistry, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Pausabl
     Upgradeable.constructor(upgradeAdmin: msg.sender)
     Ownable.constructor(owner: owner)
     Pausable.constructor(initialPauseState: true)
-    NameRegistryRenderer.constructor(cardTemplate: cardTemplate)
+    NameRegistryRenderer01.constructor(cardTemplate: cardTemplate)
     
     s.WETH = _WETH
     s.usdWeiCentsInOneEth = usdWeiCentsInOneEth
@@ -170,7 +170,7 @@ contract :NameRegistry, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Pausabl
     enforceNotExpired!(id)
     
     name = s.tokenIdToName[id]
-    card = NameRegistryRenderer.renderCard(id)
+    card = NameRegistryRenderer01.renderCard(id)
     b64Card = "data:text/html;charset=utf-8;base64," + card.base64Encode
     
     attributes = [
