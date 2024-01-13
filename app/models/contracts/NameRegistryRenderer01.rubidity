@@ -1,6 +1,6 @@
 pragma :rubidity, "1.0.0"
 
-contract :NameRegistryRenderer, abstract: true do
+contract :NameRegistryRenderer01, abstract: true do
   string :public, :cardTemplate
   
   event :StickerCreated, { stickerId: :uint256, name: :string, description: :string,

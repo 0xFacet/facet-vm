@@ -41,7 +41,7 @@ describe 'NameRegistry contract' do
       from: user_address,
       payload: {
         data: {
-          type: "NameRegistry",
+          type: "NameRegistry01",
           args: {
             name: "Registry",
             symbol: "REG",
@@ -97,7 +97,7 @@ describe 'NameRegistry contract' do
     )
     
     trigger_contract_interaction_and_expect_error(
-      error_msg_includes: 'NameRegistry error: msg.sender is not the owner',
+      error_msg_includes: 'NameRegistry01 error: msg.sender is not the owner',
       from: alice,
       payload: {
         to: registry_address,
