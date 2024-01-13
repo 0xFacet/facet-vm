@@ -153,7 +153,7 @@ module ContractTestHelper
       "EtherBridge",
       "EthscriptionERC20BridgeV2",
       "PublicMintERC20",
-      "NameRegistry",
+      "NameRegistry01",
       "FacetSwapV1Factory02",
       "FacetSwapV1Pair02",
       "FacetSwapV1Router03",
