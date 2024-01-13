@@ -9,7 +9,6 @@ describe 'FacetPort contract' do
   let(:daryl) { "0x000000000000000000000000000000000000000d" }
   
   before(:all) do
-    update_supported_contracts("FacetPortV1")
     update_supported_contracts("StubERC721")
     update_supported_contracts("StubERC20")
   end
@@ -84,7 +83,7 @@ describe 'FacetPort contract' do
       payload: {
         op: :create,
         data: {
-          type: "FacetPortV1",
+          type: "FacetPortV101",
           args: {
             _feeBps: feeBps,
             _owner: daryl,
@@ -654,7 +653,7 @@ describe 'FacetPort contract' do
       payload: {
         op: :create,
         data: {
-          type: "FacetPortV1",
+          type: "FacetPortV101",
           args: {
             _feeBps: 1,
             _owner: daryl,
