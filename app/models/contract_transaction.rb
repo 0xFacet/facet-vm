@@ -306,6 +306,10 @@ class ContractTransaction < ApplicationRecord
   end
   
   def status
-    contract_calls.any?(&:failure?) ? :failure : :success
+    failed = contract_calls.any? do |call|
+      call.failure? && !call.in_low_level_call_context
+    end
+    
+    failed ? :failure : :success
   end
 end

@@ -1,0 +1,32 @@
+pragma :rubidity, "1.0.0"
+
+import '/app/models/contracts/ERC721.rubidity'
+import '/app/models/contracts/ERC2981.rubidity'
+
+contract :StubERC721, is: [:ERC721, :ERC2981] do
+  uint256 :totalSupply
+  
+  constructor(
+    name: :string,
+    royaltyReceiver: :address,
+    royaltyBps: :uint96
+  ) {
+    ERC721.constructor(name: name, symbol: name)
+    
+    ERC2981._setDefaultRoyalty(
+      receiver: royaltyReceiver,
+      feeNumerator: royaltyBps
+    )
+  }
+  
+  function :mint, { to: :address, ids: [:uint256] }, :public do
+    forLoop(
+      condition: -> i { i < ids.length }
+    ) do |i|
+      _mint(to: to, id: ids[i])
+    end
+
+    s.totalSupply += ids.length
+    nil
+  end
+end

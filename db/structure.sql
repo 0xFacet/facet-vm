@@ -38,6 +38,20 @@ COMMENT ON EXTENSION pg_stat_statements IS 'track planning and execution statist
 
 
 --
+-- Name: pgcrypto; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION pgcrypto; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
+
+
+--
 -- Name: check_block_order(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -253,6 +267,7 @@ CREATE TABLE public.contract_calls (
     runtime_ms integer NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    call_level character varying NOT NULL,
     CONSTRAINT chk_rails_0351aa702f CHECK (((created_contract_address IS NULL) OR ((created_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_1a921ba712 CHECK ((((call_type)::text <> 'call'::text) OR (to_contract_address IS NOT NULL))),
     CONSTRAINT chk_rails_27a87dcd58 CHECK (((call_type)::text = ANY (ARRAY[('call'::character varying)::text, ('create'::character varying)::text]))),
@@ -263,6 +278,7 @@ CREATE TABLE public.contract_calls (
     CONSTRAINT chk_rails_cebfc1a4ba CHECK (((to_contract_address IS NULL) OR ((to_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_db6bb5ee1f CHECK (((status)::text = ANY (ARRAY[('success'::character varying)::text, ('failure'::character varying)::text]))),
     CONSTRAINT chk_rails_dc9b9d8a70 CHECK (((((call_type)::text = 'create'::text) AND ((effective_contract_address)::text = (created_contract_address)::text)) OR (((call_type)::text = 'call'::text) AND ((effective_contract_address)::text = (to_contract_address)::text)))),
+    CONSTRAINT chk_rails_e54a911fe6 CHECK (((((call_type)::text = 'create'::text) AND ((call_level)::text = 'high'::text)) OR (((call_type)::text = 'call'::text) AND ((call_level)::text = ANY ((ARRAY['high'::character varying, 'low'::character varying])::text[]))))),
     CONSTRAINT chk_rails_f785dc90f8 CHECK (((from_address)::text ~ '^0x[a-f0-9]{40}$'::text))
 );
 
@@ -1308,6 +1324,7 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20240109134209'),
 ('20231226174404'),
 ('20231215180426'),
 ('20231203201813'),

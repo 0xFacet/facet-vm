@@ -3,7 +3,8 @@ class ContractCall < ApplicationRecord
   
   before_validation :ensure_runtime_ms, :trim_failed_contract_deploys
   
-  attr_accessor :to_contract, :salt, :pending_logs, :to_contract_init_code_hash, :to_contract_source_code
+  attr_accessor :to_contract, :salt, :pending_logs, :to_contract_init_code_hash, :to_contract_source_code,
+    :in_low_level_call_context
   
   belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
   belongs_to :called_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'to_contract_address', optional: true
