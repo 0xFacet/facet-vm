@@ -1,6 +1,9 @@
 pragma :rubidity, "1.0.0"
 
 contract :ERC2981, abstract: true do
+  event :DefaultRoyaltyUpdated, { receiver: :address, feeNumerator: :uint96 }
+  event :TokenRoyaltyUpdated, { tokenId: :uint256, receiver: :address, feeNumerator: :uint96 }
+  
   mapping ({ uint256: :address }), :internal, :_tokenIdToReceiver
   mapping ({ uint256: :uint96 }), :internal, :_tokenIdToFeeNumerator
   
@@ -34,14 +37,14 @@ contract :ERC2981, abstract: true do
     s._defaultRoyaltyReceiver = receiver
     s._defaultFeeNumerator = feeNumerator
     
-    nil
+    emit :DefaultRoyaltyUpdated, receiver: receiver, feeNumerator: feeNumerator
   end
   
   function :_deleteDefaultRoyalty, :internal, :virtual do
     s._defaultRoyaltyReceiver = address(0)
     s._defaultFeeNumerator = 0
     
-    nil
+    emit :DefaultRoyaltyUpdated, receiver: address(0), feeNumerator: 0
   end
   
   function :_setTokenRoyalty, { tokenId: :uint256, receiver: :address, feeNumerator: :uint96 }, :internal, :virtual do
@@ -51,14 +54,14 @@ contract :ERC2981, abstract: true do
     s._tokenIdToReceiver[tokenId] = receiver
     s._tokenIdToFeeNumerator[tokenId] = feeNumerator
     
-    nil
+    emit :TokenRoyaltyUpdated, tokenId: tokenId, receiver: receiver, feeNumerator: feeNumerator
   end
   
   function :_deleteTokenRoyalty, { tokenId: :uint256 }, :internal, :virtual do
     s._tokenIdToReceiver[tokenId] = address(0)
     s._tokenIdToFeeNumerator[tokenId] = 0
     
-    nil
+    emit :TokenRoyaltyUpdated, tokenId: tokenId, receiver: address(0), feeNumerator: 0
   end
   
   function :_feeDenominator, :internal, :view, :virtual, returns: :uint96 do

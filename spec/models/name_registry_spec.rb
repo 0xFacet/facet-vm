@@ -531,6 +531,71 @@ describe 'NameRegistry contract' do
       }
     )
     
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: registry_address,
+        data: {
+          function: "updateCardTemplate",
+          args: ''
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: registry_address,
+        data: {
+          function: "updateCardTemplate",
+          args: template
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: registry_address,
+        data: {
+          function: "setDefaultRoyalty",
+          args: [user_address, 500]
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: registry_address,
+        data: {
+          function: "deleteDefaultRoyalty"
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: registry_address,
+        data: {
+          function: "setTokenRoyalty",
+          args: [0, user_address, 500]
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: registry_address,
+        data: {
+          function: "deleteTokenRoyalty",
+          args: 0
+        }
+      }
+    )
+    
     token_uri = ContractTransaction.make_static_call(
       contract: registry_address,
       function_name: "tokenURI",
