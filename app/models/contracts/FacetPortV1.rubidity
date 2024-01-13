@@ -46,17 +46,31 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
   
   uint96 :feeBps
   
-  constructor(_feeBps: :uint96) {
+  constructor(
+    _feeBps: :uint96,
+    _upgradeAdmin: :address,
+    _owner: :address
+  ) {
     s.feeBps = _feeBps
     
-    Upgradeable.constructor(upgradeAdmin: msg.sender)
-    Ownable.constructor(owner: msg.sender)
-    # Pausable.constructor(initialPauseState: true)
+    Upgradeable.constructor(upgradeAdmin: _upgradeAdmin)
+    Ownable.constructor(owner: _owner)
+    _pause()
   }
   
   function :setFeeBps, { _feeBps: :uint96 }, :external do
     onlyOwner!
     s.feeBps = _feeBps
+  end
+  
+  function :pause, :public do
+    onlyOwner!
+    _pause()
+  end
+  
+  function :unpause, :public do
+    onlyOwner!
+    _unpause()
   end
   
   function :acceptOfferWithSignature, { 
@@ -213,7 +227,7 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     
     (buyer, seller) = offerType == "Bid" ? [offerer, msg.sender] : [msg.sender, offerer]
     
-    transferSucceeded = payRoyaltiesAndTransfer(
+    transferSucceeded = _payRoyaltiesAndTransfer(
       assetContract: assetContract,
       assetId: assetId,
       seller: seller,
@@ -238,7 +252,7 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     transferSucceeded
   end
   
-  function :payRoyaltiesAndTransfer, {
+  function :_payRoyaltiesAndTransfer, {
     assetContract: :address,
     assetId: :uint256,
     seller: :address,
@@ -318,6 +332,8 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     recipient: :address,
     from: :address
   }, :internal do
+    whenNotPaused!
+    
     ERC721(assetContract).transferFrom(
       from: from,
       to: recipient,

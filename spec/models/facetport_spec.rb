@@ -87,8 +87,20 @@ describe 'FacetPort contract' do
           type: "FacetPortV1",
           args: {
             _feeBps: feeBps,
-            # startPaused: false
+            _owner: daryl,
+            _upgradeAdmin: daryl
           }
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: daryl,
+      payload: {
+        op: "call",
+        data: {
+          to: market.address,
+          function: "unpause"
         }
       }
     )
@@ -645,7 +657,8 @@ describe 'FacetPort contract' do
           type: "FacetPortV1",
           args: {
             _feeBps: 1,
-            # startPaused: false
+            _owner: daryl,
+            _upgradeAdmin: daryl
           }
         }
       }
