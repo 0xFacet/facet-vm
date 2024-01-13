@@ -35,7 +35,10 @@ contract :ERC721, abstract: true do
   function :approve, { spender: :address, id: :uint256 }, :public, :virtual do
     owner = ownerOf(id);
     
-    require(msg.sender == owner || s.isApprovedForAll[owner][msg.sender], "NOT_AUTHORIZED");
+    require(
+      msg.sender == owner || s.isApprovedForAll[owner][msg.sender],
+      "ERC721: msg.sender not authorized to approve"
+    );
     
     s.getApproved[id] = spender;
 
@@ -53,8 +56,8 @@ contract :ERC721, abstract: true do
     require(to != address(0), "ERC721: transfer to the zero address");
     
     require(
-      _isApprovedOrOwner(spender: msg.sender, id: id),
-      "NOT_AUTHORIZED"
+      isApprovedOrOwner(spender: msg.sender, id: id),
+      "ERC721: msg.sender not authorized to call transferFrom"
     );
     
     s._balanceOf[from] -= 1;
@@ -64,10 +67,10 @@ contract :ERC721, abstract: true do
     
     s.getApproved[id] = address(0);
     
-    return nil
+    emit :Transfer, from: from, to: to, id: id
   end
   
-  function :_isApprovedOrOwner, { spender: :address, id: :uint256 }, :internal, :virtual, returns: :bool do
+  function :isApprovedOrOwner, { spender: :address, id: :uint256 }, :public, :view, :virtual, returns: :bool do
     owner = ownerOf(id)
     
     spender == owner ||
@@ -75,7 +78,7 @@ contract :ERC721, abstract: true do
     s.isApprovedForAll[owner][spender]
   end
   
-  function :_exists, { id: :uint256 }, :internal, :virtual, returns: :bool do
+  function :_exists, { id: :uint256 }, :internal, :view, :virtual, returns: :bool do
     return s._ownerOf[id] != address(0)
   end
   

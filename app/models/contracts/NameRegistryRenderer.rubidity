@@ -291,6 +291,8 @@ contract :NameRegistryRenderer, abstract: true do
     onlyOwner!
     
     s.cardTemplate = cardTemplate
+    
+    return nil
   end
   
   function :_clearCardPersonalInfo, { tokenId: :uint256 }, :internal do
