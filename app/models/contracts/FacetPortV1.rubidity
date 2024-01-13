@@ -276,26 +276,36 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
         salePrice: considerationAmount
       )
       
+      royaltyAmount = 0 if receiver == address(0)
+      
+      if royaltyAmount > 0
+        ERC20(considerationToken).transferFrom(
+          from: buyer,
+          to: receiver,
+          amount: royaltyAmount
+        )
+      end
+    end
+    
+    marketplaceFee = computeFee(considerationAmount)
+    
+    sellerAmount = considerationAmount - royaltyAmount - marketplaceFee
+    
+    if sellerAmount > 0
       ERC20(considerationToken).transferFrom(
         from: buyer,
-        to: receiver,
-        amount: royaltyAmount
+        to: seller,
+        amount: sellerAmount
       )
     end
     
-    sellerAmount = considerationAmount - royaltyAmount - computeFee(considerationAmount)
-    
-    ERC20(considerationToken).transferFrom(
-      from: buyer,
-      to: seller,
-      amount: sellerAmount
-    )
-    
-    ERC20(considerationToken).transferFrom(
-      from: buyer,
-      to: owner(),
-      amount: computeFee(considerationAmount)
-    )
+    if marketplaceFee > 0
+      ERC20(considerationToken).transferFrom(
+        from: buyer,
+        to: owner(),
+        amount: marketplaceFee
+      )
+    end
     
     _transferNFT(
       assetContract: assetContract,
