@@ -123,6 +123,8 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     require(offerIds.length == offerTypes.length, "Offer ID and offer types arrays must be the same length")
     require(offerIds.length == assetContracts.length, "Offer ID and asset contracts arrays must be the same length")
     require(offerIds.length == assetIds.length, "Offer ID and asset IDs arrays must be the same length")
+    require(offerIds.length == assetTypes.length, "Offer ID and assetTypes arrays must be the same length")
+    require(offerIds.length == assetAmounts.length, "Offer ID and assetAmounts arrays must be the same length")
     require(offerIds.length == considerationTokens.length, "Offer ID and consideration tokens arrays must be the same length")
     require(offerIds.length == considerationAmounts.length, "Offer ID and consideration amounts arrays must be the same length")
     require(offerIds.length == startTimes.length, "Offer ID and start times arrays must be the same length")
@@ -213,7 +215,7 @@ contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: tru
     require(assetType == "ERC721" && assetAmount == 1, "Only ERC721 assets are supported")
     
     require(block.timestamp >= startTime, "Current time is before the start time")
-    require(block.timestamp <= endTime, "Current time is after the end time")
+    require(block.timestamp < endTime, "Current time is after the end time")
     
     require(
       startTime > s.userOffersOnAssetValidAfterTime[offerType][offerer][assetContract][assetId],
