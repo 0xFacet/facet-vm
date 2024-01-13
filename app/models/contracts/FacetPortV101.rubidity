@@ -7,7 +7,7 @@ import './ERC2981.rubidity'
 import './ERC721.rubidity'
 import './ERC20.rubidity'
 
-contract :FacetPortV1, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: true do
+contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: true do
   event :OfferAccepted, {
     success: :bool,
     offerType: :string,
