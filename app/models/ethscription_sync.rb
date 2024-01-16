@@ -110,7 +110,7 @@ class EthscriptionSync
           sleep 60
           return 0
         elsif response['error']['resolution'] == 'reindex'
-          EthBlock.newest_first.limit(100).delete_all
+          EthBlock.newest_first.limit(25).delete_all
           Airbrake.notify("Failed import block #{next_block_number}. Reindexing ethscriptions due to #{response['error']['message']}}")
           0
         else
