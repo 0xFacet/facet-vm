@@ -67,7 +67,8 @@ class EthscriptionSync
       
       response = HTTParty.get(url, query: query, headers: headers)
       
-      api_blocks = response.parsed_response['result']
+      parsed = response.parsed_response
+      api_blocks = parsed.is_a?(Array) ? parsed : parsed['result']
       
       db_block_hash_map = db_blocks.each_with_object({}) { |block, hash| hash[block.block_number] = block.blockhash }
       api_block_hash_map = api_blocks.each_with_object({}) { |block, hash| hash[block['block_number']] = block['blockhash'] }
