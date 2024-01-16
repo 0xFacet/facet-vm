@@ -18,7 +18,11 @@ class EthscriptionSync
   )
     url = ENV.fetch("INDEXER_API_BASE_URI") + "/ethscriptions/newer_ethscriptions"
     
-    our_count = Ethscription.where("block_number < ?", new_block_number).count
+    our_count = Ethscription.
+      where("block_number < ?", new_block_number).
+      where(mimetype: valid_mimetypes).
+      where(initial_owner: Ethscription.required_initial_owner).
+      count
     
     query = {
       block_number: new_block_number,
