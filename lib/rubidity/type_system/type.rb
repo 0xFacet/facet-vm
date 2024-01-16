@@ -9,7 +9,7 @@ class Type
     ["uint#{num}", "int#{num}"]
    end.map(&:to_sym)
   
-  TYPES = [:string, :mapping, :address, :bytes32, :contract,
+  TYPES = [:string, :mapping, :address, :bytes16, :bytes32, :contract,
            :bool, :array, :bytes] + INTEGER_TYPES
   
   TYPES.each do |type|
@@ -109,6 +109,8 @@ class Type
       0
     when address?
       "0x" + "0" * 40
+    when bytes16?
+      "0x" + "0" * 32
     when bytes32?
       "0x" + "0" * 64
     when string? || bytes?
@@ -193,6 +195,12 @@ class Type
       end
       
       return literal
+    elsif bytes16?
+      unless literal.is_a?(String) && literal.match?(/\A0x[a-f0-9]{32}\z/i)
+        raise_variable_type_error(literal)
+      end
+      
+      return literal.downcase.freeze
     elsif bytes32?
       unless literal.is_a?(String) && literal.match?(/\A0x[a-f0-9]{64}\z/i)
         raise_variable_type_error(literal)

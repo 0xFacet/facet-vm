@@ -1,0 +1,390 @@
+pragma :rubidity, "1.0.0"
+
+import './Ownable.rubidity'
+import './Pausable.rubidity'
+import './Upgradeable.rubidity'
+import './ERC2981.rubidity'
+import './ERC721.rubidity'
+import './ERC20.rubidity'
+
+contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: true do
+  event :OfferAccepted, {
+    success: :bool,
+    offerType: :string,
+    offerer: :address,
+    buyer: :address,
+    seller: :address,
+    assetContract: :address,
+    assetId: :uint256,
+    considerationAmount: :uint256,
+    considerationToken: :address,
+    offerId: :bytes16
+  }
+  
+  event :OfferCancelled, {
+    offerer: :address,
+    offerId: :bytes16
+  }
+  
+  event :AllOffersOnAssetCancelledForUser, {
+    offerType: :string,
+    offerer: :address,
+    assetContract: :address,
+    assetId: :uint256
+  }
+  
+  event :AllOffersCancelledForUser, {
+    offerType: :string,
+    offerer: :address
+  }
+  
+  mapping ({ address: mapping(bytes16: :bool) }), :public, :userOfferCancellations
+  mapping ({ string: mapping(address: mapping(address: mapping(uint256: :uint256))) }),
+    :public,
+    :userOffersOnAssetValidAfterTime
+  mapping ({ string: mapping(address: :uint256) }), :public, :userOffersValidAfterTime
+  
+  uint96 :feeBps
+  
+  constructor(
+    _feeBps: :uint96,
+    _upgradeAdmin: :address,
+    _owner: :address
+  ) {
+    s.feeBps = _feeBps
+    
+    Upgradeable.constructor(upgradeAdmin: _upgradeAdmin)
+    Ownable.constructor(owner: _owner)
+    _pause()
+  }
+  
+  function :setFeeBps, { _feeBps: :uint96 }, :external do
+    onlyOwner!
+    s.feeBps = _feeBps
+  end
+  
+  function :pause, :public do
+    onlyOwner!
+    _pause()
+  end
+  
+  function :unpause, :public do
+    onlyOwner!
+    _unpause()
+  end
+  
+  function :acceptOfferWithSignature, { 
+    offerType: :string,
+    offerId: :bytes16,
+    offerer: :address,
+    assetContract: :address,
+    assetId: :uint256,
+    assetType: :string,
+    assetAmount: :uint256,
+    considerationToken: :address,
+    considerationAmount: :uint256,
+    startTime: :uint256,
+    endTime: :uint256,
+    signature: :bytes
+  }, :external do
+    success = _acceptOfferWithSignature(
+      offerType: offerType,
+      offerId: offerId,
+      offerer: offerer,
+      assetContract: assetContract,
+      assetId: assetId,
+      assetType: assetType,
+      assetAmount: assetAmount,
+      considerationToken: considerationToken,
+      considerationAmount: considerationAmount,
+      startTime: startTime,
+      endTime: endTime,
+      signature: signature
+    )
+    
+    require(success, "Offer was not successfully accepted")
+  end
+  
+  function :acceptMultipleOffersWithSignatures, { 
+    offerTypes: [:string],
+    offerIds: [:bytes16],
+    offerers: [:address],
+    assetContracts: [:address],
+    assetIds: [:uint256],
+    assetTypes: [:string],
+    assetAmounts: [:uint256],
+    considerationTokens: [:address],
+    considerationAmounts: [:uint256],
+    startTimes: [:uint256],
+    endTimes: [:uint256],
+    signatures: [:bytes]
+  }, :external do
+    require(offerIds.length == offerers.length, "Offer ID and offerer arrays must be the same length")
+    require(offerIds.length == offerTypes.length, "Offer ID and offer types arrays must be the same length")
+    require(offerIds.length == assetContracts.length, "Offer ID and asset contracts arrays must be the same length")
+    require(offerIds.length == assetIds.length, "Offer ID and asset IDs arrays must be the same length")
+    require(offerIds.length == assetTypes.length, "Offer ID and assetTypes arrays must be the same length")
+    require(offerIds.length == assetAmounts.length, "Offer ID and assetAmounts arrays must be the same length")
+    require(offerIds.length == considerationTokens.length, "Offer ID and consideration tokens arrays must be the same length")
+    require(offerIds.length == considerationAmounts.length, "Offer ID and consideration amounts arrays must be the same length")
+    require(offerIds.length == startTimes.length, "Offer ID and start times arrays must be the same length")
+    require(offerIds.length == endTimes.length, "Offer ID and end times arrays must be the same length")
+    require(offerIds.length == signatures.length, "Offer ID and signatures arrays must be the same length")
+    
+    require(offerIds.length <= 20, "Cannot accept more than 20 offers at a time")
+    
+    atLeastOneSuccess = false
+    
+    forLoop(
+      condition: -> i { i < offerIds.length }
+    ) do |i|
+      success = _acceptOfferWithSignature(
+        offerType: offerTypes[i],
+        offerId: offerIds[i],
+        offerer: offerers[i],
+        assetContract: assetContracts[i],
+        assetId: assetIds[i],
+        assetType: assetTypes[i],
+        assetAmount: assetAmounts[i],
+        considerationToken: considerationTokens[i],
+        considerationAmount: considerationAmounts[i],
+        startTime: startTimes[i],
+        endTime: endTimes[i],
+        signature: signatures[i]
+      )
+      
+      atLeastOneSuccess = true if success
+    end
+    
+    require(atLeastOneSuccess, "No offers were successfully accepted")
+  end
+ 
+  function :_acceptOfferWithSignature, {
+    offerType: :string,
+    offerId: :bytes16,
+    offerer: :address,
+    assetContract: :address,
+    assetId: :uint256,
+    assetType: :string,
+    assetAmount: :uint256,
+    considerationToken: :address,
+    considerationAmount: :uint256,
+    startTime: :uint256,
+    endTime: :uint256,
+    signature: :bytes
+  }, :internal, returns: :bool do
+    whenNotPaused!
+    
+    signatureValid = signature.verifyTypedDataSignature(
+      {Offer: [
+        { name: "offerType", type: "string" },
+        { name: "offerId", type: "bytes16" },
+        { name: "offerer", type: "address" },
+        { name: "assetContract", type: "address" },
+        { name: "assetId", type: "uint256" },
+        { name: "assetType", type: "string" },
+        { name: "assetAmount", type: "uint256" },
+        { name: "considerationToken", type: "address" },
+        { name: "considerationAmount", type: "uint256" },
+        { name: "startTime", type: "uint256" },
+        { name: "endTime", type: "uint256" }
+      ]},
+      {
+        offerType: offerType,
+        offerId: offerId,
+        offerer: offerer,
+        assetContract: assetContract,
+        assetId: assetId,
+        assetType: assetType,
+        assetAmount: assetAmount,
+        considerationToken: considerationToken,
+        considerationAmount: considerationAmount,
+        startTime: startTime,
+        endTime: endTime
+      },
+      verifyingContract: address(this),
+      domainName: "FacetPort",
+      domainVersion: "1",
+      signer: offerer
+    )
+    
+    require(signatureValid, "Invalid signature")
+    require(!s.userOfferCancellations[offerer][offerId], "Offer cancelled")
+    
+    require(offerType == "Listing" || offerType == "Bid", "Invalid offer type")
+    require(assetType == "ERC721" && assetAmount == 1, "Only ERC721 assets are supported")
+    
+    require(block.timestamp >= startTime, "Current time is before the start time")
+    require(block.timestamp < endTime, "Current time is after the end time")
+    
+    require(
+      startTime > s.userOffersOnAssetValidAfterTime[offerType][offerer][assetContract][assetId],
+      "Start time is before the offerer's valid after time"
+    )
+    
+    require(
+      startTime > s.userOffersValidAfterTime[offerType][offerer],
+      "Start time is before the valid after time for the offerer"
+    )
+    
+    (buyer, seller) = offerType == "Bid" ? [offerer, msg.sender] : [msg.sender, offerer]
+    
+    transferSucceeded = _payRoyaltiesAndTransfer(
+      assetContract: assetContract,
+      assetId: assetId,
+      seller: seller,
+      buyer: buyer,
+      considerationAmount: considerationAmount,
+      considerationToken: considerationToken
+    )
+      
+    emit :OfferAccepted, {
+      success: transferSucceeded,
+      offerType: offerType,
+      offerer: offerer,
+      buyer: buyer,
+      seller: seller,
+      assetContract: assetContract,
+      assetId: assetId,
+      considerationAmount: considerationAmount,
+      considerationToken: considerationToken,
+      offerId: offerId
+    }
+    
+    transferSucceeded
+  end
+  
+  function :_payRoyaltiesAndTransfer, {
+    assetContract: :address,
+    assetId: :uint256,
+    seller: :address,
+    buyer: :address,
+    considerationAmount: :uint256,
+    considerationToken: :address
+  }, :internal, returns: :bool do
+    currentOwner = ERC721(assetContract).ownerOf(assetId);
+    
+    return false unless currentOwner == seller
+    
+    (success, data) = assetContract.call(function: "supportsERC2981")
+    
+    royaltyAmount = 0
+    
+    if success && data == "true"
+      (receiver, royaltyAmount) = ERC2981(assetContract).royaltyInfo(
+        tokenId: assetId,
+        salePrice: considerationAmount
+      )
+      
+      royaltyAmount = 0 if receiver == address(0)
+      
+      if royaltyAmount > 0
+        ERC20(considerationToken).transferFrom(
+          from: buyer,
+          to: receiver,
+          amount: royaltyAmount
+        )
+      end
+    end
+    
+    marketplaceFee = computeFee(considerationAmount)
+    
+    sellerAmount = considerationAmount - royaltyAmount - marketplaceFee
+    
+    if sellerAmount > 0
+      ERC20(considerationToken).transferFrom(
+        from: buyer,
+        to: seller,
+        amount: sellerAmount
+      )
+    end
+    
+    if marketplaceFee > 0
+      ERC20(considerationToken).transferFrom(
+        from: buyer,
+        to: owner(),
+        amount: marketplaceFee
+      )
+    end
+    
+    _transferNFT(
+      assetContract: assetContract,
+      assetId: assetId,
+      recipient: buyer,
+      from: seller
+    )
+    
+    return true
+  end
+  
+  function :transferNFTs, {
+    assetContracts: [:address],
+    assetIds: [:uint256],
+    recipients: [:address]
+  }, :external do
+    require(assetContracts.length == assetIds.length, "Asset contracts and asset IDs must be the same length")
+    require(assetContracts.length == recipients.length, "Asset contracts and recipients must be the same length")
+    require(assetIds.length <= 20, "Cannot transfer more than 20 NFTs at a time")
+    
+    forLoop(
+      condition: -> i { i < recipients.length }
+    ) do |i|
+      _transferNFT(
+        assetContract: assetContracts[i],
+        assetId: assetIds[i],
+        recipient: recipients[i],
+        from: msg.sender
+      )
+    end
+  end
+  
+  function :_transferNFT, {
+    assetContract: :address,
+    assetId: :uint256,
+    recipient: :address,
+    from: :address
+  }, :internal do
+    whenNotPaused!
+    
+    ERC721(assetContract).transferFrom(
+      from: from,
+      to: recipient,
+      id: assetId
+    )
+    
+    s.userOffersOnAssetValidAfterTime["Listing"][from][assetContract][assetId] = block.timestamp
+    s.userOffersOnAssetValidAfterTime["Bid"][recipient][assetContract][assetId] = block.timestamp
+    
+    nil
+  end
+  
+  function :cancelOffer, { offerId: :bytes16 }, :external do
+    s.userOfferCancellations[msg.sender][offerId] = true
+    
+    emit :OfferCancelled, offerer: msg.sender, offerId: offerId
+  end
+  
+  function :cancelAllOffersForAsset, { offerType: :string, assetContract: :address, assetId: :uint256 }, :external do
+    require(offerType == "Listing" || offerType == "Bid", "Invalid offer type")
+    
+    s.userOffersOnAssetValidAfterTime[offerType][msg.sender][assetContract][assetId] = block.timestamp
+    
+    emit :AllOffersOnAssetCancelledForUser,
+      offerType: offerType,
+      offerer: msg.sender,
+      assetContract: assetContract,
+      assetId: assetId
+  end
+  
+  function :cancelAllOffersOfUser, { offerType: :string }, :external do
+    require(offerType == "Listing" || offerType == "Bid", "Invalid offer type")
+    
+    s.userOffersValidAfterTime[offerType][msg.sender] = block.timestamp
+    
+    emit :AllOffersCancelledForUser, offerType: offerType, offerer: msg.sender
+  end
+  
+  function :computeFee, { amount: :uint256 }, :public, :view, returns: :uint256 do
+    return (amount * s.feeBps).div(10_000)
+  end
+end

@@ -1,6 +1,6 @@
 pragma :rubidity, "1.0.0"
 
-contract :NameRegistryRenderer, abstract: true do
+contract :NameRegistryRenderer01, abstract: true do
   string :public, :cardTemplate
   
   event :StickerCreated, { stickerId: :uint256, name: :string, description: :string,
@@ -291,6 +291,8 @@ contract :NameRegistryRenderer, abstract: true do
     onlyOwner!
     
     s.cardTemplate = cardTemplate
+    
+    return nil
   end
   
   function :_clearCardPersonalInfo, { tokenId: :uint256 }, :internal do

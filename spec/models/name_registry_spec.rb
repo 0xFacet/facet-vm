@@ -41,7 +41,7 @@ describe 'NameRegistry contract' do
       from: user_address,
       payload: {
         data: {
-          type: "NameRegistry",
+          type: "NameRegistry01",
           args: {
             name: "Registry",
             symbol: "REG",
@@ -97,7 +97,7 @@ describe 'NameRegistry contract' do
     )
     
     trigger_contract_interaction_and_expect_error(
-      error_msg_includes: 'NameRegistry error: msg.sender is not the owner',
+      error_msg_includes: 'NameRegistry01 error: msg.sender is not the owner',
       from: alice,
       payload: {
         to: registry_address,
@@ -527,6 +527,71 @@ describe 'NameRegistry contract' do
             imageURI: "http://example.com",
             links: ["http://twitter.com/JJ", "http://instagram.com/realJJ"]
           }
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: registry_address,
+        data: {
+          function: "updateCardTemplate",
+          args: ''
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: registry_address,
+        data: {
+          function: "updateCardTemplate",
+          args: template
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: registry_address,
+        data: {
+          function: "setDefaultRoyalty",
+          args: [user_address, 500]
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: registry_address,
+        data: {
+          function: "deleteDefaultRoyalty"
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: registry_address,
+        data: {
+          function: "setTokenRoyalty",
+          args: [0, user_address, 500]
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: registry_address,
+        data: {
+          function: "deleteTokenRoyalty",
+          args: 0
         }
       }
     )

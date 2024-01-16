@@ -3,11 +3,12 @@ pragma :rubidity, "1.0.0"
 import './Ownable.rubidity'
 import './Pausable.rubidity'
 import './Upgradeable.rubidity'
+import './ERC2981.rubidity'
 import './ERC721.rubidity'
 import './ERC20.rubidity'
-import './NameRegistryRenderer.rubidity'
+import './NameRegistryRenderer01.rubidity'
 
-contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRegistryRenderer], upgradeable: true do
+contract :NameRegistry01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Pausable, :NameRegistryRenderer01], upgradeable: true do
   event :NameRegistered, { tokenId: :uint256, owner: :address, name: :string, expires: :uint256 }
   event :NameRenewed, { tokenId: :uint256, newExpiry: :uint256 }
   event :PrimaryNameSet, { user: :address, tokenId: :uint256 }
@@ -50,7 +51,7 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRe
     Upgradeable.constructor(upgradeAdmin: msg.sender)
     Ownable.constructor(owner: owner)
     Pausable.constructor(initialPauseState: true)
-    NameRegistryRenderer.constructor(cardTemplate: cardTemplate)
+    NameRegistryRenderer01.constructor(cardTemplate: cardTemplate)
     
     s.WETH = _WETH
     s.usdWeiCentsInOneEth = usdWeiCentsInOneEth
@@ -164,18 +165,37 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRe
   end
   
   function :tokenURI, { id: :uint256 }, :public, :view, :override, returns: :string do
-    enforceNotExpired!(id)
-
     require(_exists(id: id), 'ERC721Metadata: URI query for nonexistent token')
     
+    enforceNotExpired!(id)
+    
     name = s.tokenIdToName[id]
-    card = NameRegistryRenderer.renderCard(id)
+    card = NameRegistryRenderer01.renderCard(id)
     b64Card = "data:text/html;charset=utf-8;base64," + card.base64Encode
     
+    attributes = [
+      {
+        "display_type": "number",
+        "trait_type": "Length",
+        "value": name.length
+      },
+      {
+        "display_type": "date",
+        "trait_type": "Expiration Date",
+        "value": s.tokenExpiryTimes[id]
+      },
+      {
+        "display_type": "date",
+        "trait_type": "Registration Date",
+        "value": s.registrationTimestamps[id]
+      }
+    ]
+    
     json_data = json.stringify(
-      name: "#{name} (##{id.toString})",
-      description: s.cardBios[id],
+      name: name,
+      description: "#{name}, a Facet Card name.",
       animation_url: b64Card,
+      attributes: attributes
     )
     
     return "data:application/json,#{json_data}"
@@ -286,6 +306,30 @@ contract :NameRegistry, is: [:ERC721, :Upgradeable, :Ownable, :Pausable, :NameRe
     
     amount = ERC20(s.WETH).balanceOf(address(this))
     ERC20(s.WETH).transfer(s.owner, amount)
+  end
+  
+  function :setDefaultRoyalty, { receiver: :address, feeNumerator: :uint96 }, :public do
+    onlyOwner!
+    
+    _setDefaultRoyalty(receiver: receiver, feeNumerator: feeNumerator)
+  end
+  
+  function :deleteDefaultRoyalty, :public do
+    onlyOwner!
+    
+    _deleteDefaultRoyalty()
+  end
+  
+  function :setTokenRoyalty, { tokenId: :uint256, receiver: :address, feeNumerator: :uint96 }, :public do
+    onlyOwner!
+    
+    _setTokenRoyalty(tokenId: tokenId, receiver: receiver, feeNumerator: feeNumerator)
+  end
+  
+  function :deleteTokenRoyalty, { tokenId: :uint256 }, :public do
+    onlyOwner!
+    
+    _deleteTokenRoyalty(tokenId)
   end
   
   function :totalSupply, :public, :view, returns: :uint256 do

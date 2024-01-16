@@ -37,13 +37,14 @@ module RubidityTypeExtensions
   module AddressMethods
     include ContractErrors
     
-    def call(json_call_data = '{}')
-      calldata = JSON.parse(json_call_data)
-  
+    def call(json_call_data = '{}', **kwargs)
+      calldata = (kwargs.empty? ? JSON.parse(json_call_data) : kwargs).with_indifferent_access
+      
       function = calldata['function']
       args = calldata['args']
       
       data = TransactionContext.call_stack.execute_in_new_frame(
+        call_level: :low,
         to_contract_address: self,
         function: function,
         args: args,
