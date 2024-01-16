@@ -7,6 +7,6 @@ class AddCallLevelToContractCalls < ActiveRecord::Migration[7.1]
       (call_type = 'call' AND call_level IN ('high', 'low'))
     "
     
-    change_column_default :contract_calls, :call_level, from: "high", to: nil
+    change_column_default :contract_calls, :call_level, nil
   end
 end

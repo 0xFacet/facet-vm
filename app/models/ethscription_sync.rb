@@ -22,12 +22,13 @@ class EthscriptionSync
     
     query = {
       block_number: new_block_number,
-      mimetypes: valid_mimetypes,
+      mimetypes: [
+        ContractTransaction.transaction_mimetype,
+        SystemConfigVersion.system_mimetype
+      ],
       max_ethscriptions: max_ethscriptions,
       max_blocks: max_blocks,
-      past_ethscriptions_count: our_count,
-      past_ethscriptions_checksum: Ethscription.base_indexer_checksum,
-      initial_owner: Ethscription.required_initial_owner,
+      past_ethscriptions_count: our_count
     }
     
     headers = {
@@ -67,11 +68,10 @@ class EthscriptionSync
       
       response = HTTParty.get(url, query: query, headers: headers)
       
-      parsed = response.parsed_response
-      api_blocks = parsed.is_a?(Array) ? parsed : parsed['result']
-      
+      api_blocks = response.parsed_response
+
       db_block_hash_map = db_blocks.each_with_object({}) { |block, hash| hash[block.block_number] = block.blockhash }
-      api_block_hash_map = api_blocks.each_with_object({}) { |block, hash| hash[block['block_number']] = block['blockhash'] }
+      api_block_hash_map = api_blocks.each_with_object({}) { |block, hash| hash[block['block_number']] = block['block_hash'] }
       
       common_block_numbers = db_block_hash_map.keys & api_block_hash_map.keys
 
@@ -103,35 +103,26 @@ class EthscriptionSync
       
       response = fetch_ethscriptions(next_block_number)
       
-      if response['error']
-        if response['error']['resolution'] == 'retry'
-          return 0
-        elsif response['error']['resolution'] == 'retry_with_delay'
-          sleep 60
-          return 0
-        elsif response['error']['resolution'] == 'reindex'
-          EthBlock.newest_first.limit(25).delete_all
-          Airbrake.notify("Failed import block #{next_block_number}. Reindexing ethscriptions due to #{response['error']['message']}}")
-          0
-        else
-          raise "Unexpected error: #{response['error']}"
-        end
-      else
-        api_first_block = response['blocks'].first
-      
-        if previous_block && (previous_block.blockhash != api_first_block['parent_blockhash'])
-          previous_block.destroy!
-          Airbrake.notify("Deleted block #{previous_block.block_number} because it had a different parent blockhash")
-        else
-          import_block_batch_without_reorg_check(response)
-        end
-        
-        future_ethscriptions = Integer(response['total_future_ethscriptions'])
-  
-        puts "Imported #{response['blocks'].length} blocks, #{response['blocks'].sum{|i| i['ethscriptions'].length}} ethscriptions. #{future_ethscriptions} future ethscriptions remain (#{Time.current - start_time}s)"
-        
-        future_ethscriptions
+      if response.dig('error', 'resolution') == 'retry'
+        return 0
+      elsif response['error']
+        raise "Unexpected error: #{response['error']}"
       end
+      
+      api_first_block = response['blocks'].first
+      
+      if previous_block && (previous_block.blockhash != api_first_block['parent_blockhash'])
+        previous_block.destroy!
+        Rails.logger.warn "Deleted block #{previous_block.block_number} because it had a different parent blockhash"
+      else
+        import_block_batch_without_reorg_check(response)
+      end
+      
+      future_ethscriptions = Integer(response['total_future_ethscriptions'])
+
+      puts "Imported #{response['blocks'].length} blocks, #{response['blocks'].sum{|i| i['ethscriptions'].length}} ethscriptions. #{future_ethscriptions} future ethscriptions remain (#{Time.current - start_time}s)"
+      
+      future_ethscriptions
     end
   end
   
@@ -154,29 +145,14 @@ class EthscriptionSync
       new_blocks << new_block
 
       block['ethscriptions'].each do |ethscription_data|
-        if valid_mimetype_and_initial_owner?(ethscription_data)
-          new_ethscription = new_block.build_new_ethscription(ethscription_data)
-          new_ethscriptions << new_ethscription
-        end
+        new_ethscription = new_block.build_new_ethscription(ethscription_data)
+        
+        new_ethscriptions << new_ethscription
       end
     end
 
     EthBlock.import!(new_blocks)
     Ethscription.import!(new_ethscriptions)
-  end
-  
-  private
-  
-  def self.valid_mimetypes
-    [
-      ContractTransaction.transaction_mimetype,
-      SystemConfigVersion.system_mimetype
-    ]
-  end
-  
-  def self.valid_mimetype_and_initial_owner?(ethscription)
-    valid_mimetypes.include?(ethscription['mimetype']) &&
-    ethscription['initial_owner'] == Ethscription.required_initial_owner
   end
 end
 
