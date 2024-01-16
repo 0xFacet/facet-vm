@@ -18,15 +18,13 @@ class EthscriptionSync
   )
     url = ENV.fetch("INDEXER_API_BASE_URI") + "/ethscriptions/newer_ethscriptions"
     
-    our_count = Ethscription.
+    our_count = Ethscription.valid_for_vm.
       where("block_number < ?", new_block_number).
-      where(mimetype: valid_mimetypes).
-      where(initial_owner: Ethscription.required_initial_owner).
       count
     
     query = {
       block_number: new_block_number,
-      mimetypes: valid_mimetypes,
+      mimetypes: Ethscription.valid_mimetypes,
       max_ethscriptions: max_ethscriptions,
       max_blocks: max_blocks,
       past_ethscriptions_count: our_count,
@@ -171,15 +169,8 @@ class EthscriptionSync
   
   private
   
-  def self.valid_mimetypes
-    [
-      ContractTransaction.transaction_mimetype,
-      SystemConfigVersion.system_mimetype
-    ]
-  end
-  
   def self.valid_mimetype_and_initial_owner?(ethscription)
-    valid_mimetypes.include?(ethscription['mimetype']) &&
+    Ethscription.valid_mimetypes.include?(ethscription['mimetype']) &&
     ethscription['initial_owner'] == Ethscription.required_initial_owner
   end
 end
