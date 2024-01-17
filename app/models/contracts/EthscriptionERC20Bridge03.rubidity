@@ -36,21 +36,11 @@ contract :EthscriptionERC20Bridge03, is: [:ERC20, :Ownable, :Upgradeable, :Pausa
     s.trustedSmartContract = trustedSmartContract
   }
   
-  function :onUpgrade, {
-    newTrustedSmartContract: :address
-  }, :public do
-    require(msg.sender == address(this), "Only the contract itself can migrate")
-    
-    s.trustedSmartContract = newTrustedSmartContract
-    return nil
-  end
-  
   function :bridgeIn, { to: :address, amount: :uint256 }, :public do
     require(
       msg.sender == s.trustedSmartContract,
       "Only the trusted smart contract can bridge in tokens"
     )
-    require(s.bridgeLimit > 0 && amount <= s.bridgeLimit, "Amount is too large")
 
     _mint(to: to, amount: amount * s.mintAmount * 1.ether)
     emit :BridgedIn, to: to, amount: amount
@@ -58,6 +48,7 @@ contract :EthscriptionERC20Bridge03, is: [:ERC20, :Ownable, :Upgradeable, :Pausa
   
   function :bridgeOut, { amount: :uint256 }, :public do
     whenNotPaused!
+    
     withdrawalId = tx.current_transaction_hash
     require(
       s.userWithdrawalId[msg.sender] == bytes32(0),
@@ -113,17 +104,29 @@ contract :EthscriptionERC20Bridge03, is: [:ERC20, :Ownable, :Upgradeable, :Pausa
     bridgeLimit: :uint256
   }, :public do
     onlyOwner!
+    
     s.bridgeLimit = bridgeLimit
-    nil
+    return nil
+  end
+  
+  function :updateTrustedSmartContract, {
+    newTrustedSmartContract: :address
+  }, :public do
+    onlyOwner!
+    
+    s.trustedSmartContract = newTrustedSmartContract
+    return nil
   end
   
   function :pause, :public do
     onlyOwner!
+    
     _pause()
   end
   
   function :unpause, :public do
     onlyOwner!
+    
     _unpause()
   end
 end
