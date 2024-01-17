@@ -1,0 +1,129 @@
+pragma :rubidity, "1.0.0"
+
+import "./ERC20.rubidity"
+import "./Upgradeable.rubidity"
+import "./Pausable.rubidity"
+import "./Ownable.rubidity"
+
+contract :EthscriptionERC20Bridge03, is: [:ERC20, :Ownable, :Upgradeable, :Pausable], upgradeable: true do
+  event :BridgedIn, { to: :address, amount: :uint256 }
+  event :InitiateWithdrawal, { from: :address, amount: :uint256, withdrawalId: :bytes32 }
+  event :WithdrawalComplete, { to: :address, amount: :uint256, withdrawalId: :bytes32 }
+  
+  uint256 :public, :bridgeLimit
+  uint256 :public, :mintAmount
+  address :public, :trustedSmartContract
+
+  mapping ({ bytes32: :uint256 }), :public, :withdrawalIdAmount
+  mapping ({ address: :bytes32 }), :public, :userWithdrawalId
+  
+  constructor(
+    name: :string,
+    symbol: :string,
+    mintAmount: :uint256,
+    trustedSmartContract: :address,
+    initialPauseState: :bool
+  ) {
+    require(mintAmount > 0, "Invalid mint amount")
+    require(trustedSmartContract != address(0), "Invalid smart contract")
+
+    ERC20.constructor(name: name, symbol: symbol, decimals: 18)
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+    Ownable.constructor(owner: msg.sender)
+    Pausable.constructor(initialPauseState: initialPauseState)
+    
+    s.mintAmount = mintAmount
+    s.trustedSmartContract = trustedSmartContract
+  }
+  
+  function :onUpgrade, {
+    newTrustedSmartContract: :address
+  }, :public do
+    require(msg.sender == address(this), "Only the contract itself can migrate")
+    
+    s.trustedSmartContract = newTrustedSmartContract
+    return nil
+  end
+  
+  function :bridgeIn, { to: :address, amount: :uint256 }, :public do
+    require(
+      msg.sender == s.trustedSmartContract,
+      "Only the trusted smart contract can bridge in tokens"
+    )
+    require(s.bridgeLimit > 0 && amount <= s.bridgeLimit, "Amount is too large")
+
+    _mint(to: to, amount: amount * s.mintAmount * 1.ether)
+    emit :BridgedIn, to: to, amount: amount
+  end
+  
+  function :bridgeOut, { amount: :uint256 }, :public do
+    whenNotPaused!
+    withdrawalId = tx.current_transaction_hash
+    require(
+      s.userWithdrawalId[msg.sender] == bytes32(0),
+      "Withdrawal pending"
+    )
+    require(
+      s.withdrawalIdAmount[withdrawalId] == 0,
+      "Already bridged out"
+    )
+    require(amount > 0, "Invalid amount")
+    require(s.bridgeLimit > 0 && amount <= s.bridgeLimit, "Amount is too large")
+
+    s.userWithdrawalId[msg.sender] = withdrawalId
+    s.withdrawalIdAmount[withdrawalId] = amount
+      
+    _burn(from: msg.sender, amount: amount * s.mintAmount * 1.ether)
+    emit :InitiateWithdrawal, from: msg.sender, amount: amount, withdrawalId: withdrawalId
+  end
+  
+  function :markWithdrawalComplete, {
+    to: :address,
+    withdrawalId: :bytes32
+  }, :public do
+    require(
+      msg.sender == s.trustedSmartContract,
+      "Only the trusted smart contract can mark withdrawals as complete"
+    )
+    require(
+      s.userWithdrawalId[to] == withdrawalId,
+      "Withdrawal id not found"
+    )
+    
+    amount = s.withdrawalIdAmount[withdrawalId]
+    s.withdrawalIdAmount[withdrawalId] = 0
+    s.userWithdrawalId[to] = bytes32(0)
+      
+    emit :WithdrawalComplete, to: to, amount: amount, withdrawalId: withdrawalId
+  end
+  
+  function :onUpgrade, {
+    owner: :address,
+    initialPauseState: :bool,
+    bridgeLimit: :uint256
+  }, :public do
+    require(msg.sender == address(this), "Only the contract itself can upgrade")
+    
+    s.owner = owner
+    s.bridgeLimit = bridgeLimit
+    initialPauseState ? _pause() : _unpause()
+  end
+  
+  function :setBridgeLimit, {
+    bridgeLimit: :uint256
+  }, :public do
+    onlyOwner!
+    s.bridgeLimit = bridgeLimit
+    nil
+  end
+  
+  function :pause, :public do
+    onlyOwner!
+    _pause()
+  end
+  
+  function :unpause, :public do
+    onlyOwner!
+    _unpause()
+  end
+end
