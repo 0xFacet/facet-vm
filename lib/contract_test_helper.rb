@@ -151,7 +151,7 @@ module ContractTestHelper
     new_names = [
       "FacetPortV101",
       "EtherBridge",
-      "EthscriptionERC20BridgeV2",
+      "EthscriptionERC20Bridge03",
       "PublicMintERC20",
       "NameRegistry01",
       "FacetSwapV1Factory02",
