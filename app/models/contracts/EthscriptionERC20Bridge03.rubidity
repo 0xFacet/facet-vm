@@ -90,14 +90,13 @@ contract :EthscriptionERC20Bridge03, is: [:ERC20, :Ownable, :Upgradeable, :Pausa
   
   function :onUpgrade, {
     owner: :address,
-    initialPauseState: :bool,
     bridgeLimit: :uint256
   }, :public do
     require(msg.sender == address(this), "Only the contract itself can upgrade")
     
     s.owner = owner
     s.bridgeLimit = bridgeLimit
-    initialPauseState ? _pause() : _unpause()
+    return nil
   end
   
   function :setBridgeLimit, {
