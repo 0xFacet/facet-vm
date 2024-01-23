@@ -11,7 +11,6 @@ RSpec.describe Contract, type: :model do
       "OpenEditionERC721",
       "GenerativeERC721",
       "EtherBridgeV2Test",
-      "EthscriptionERC20Bridge"
     )
   end
   
@@ -450,12 +449,14 @@ RSpec.describe Contract, type: :model do
         command: 'deploy',
         from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
         data: {
-          "protocol": "EthscriptionERC20Bridge",
+          "protocol": "EthscriptionERC20Bridge03",
           constructorArgs: {
             name: "Bridge Native 1",
             symbol: "PT1",
             mintAmount: mint_amount,
             trustedSmartContract: trusted_address,
+            bridgeLimit: 100,
+            initialPauseState: false
           }
         }
       )

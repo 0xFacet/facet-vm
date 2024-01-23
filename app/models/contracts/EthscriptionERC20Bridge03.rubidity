@@ -22,6 +22,7 @@ contract :EthscriptionERC20Bridge03, is: [:ERC20, :Ownable, :Upgradeable, :Pausa
     symbol: :string,
     mintAmount: :uint256,
     trustedSmartContract: :address,
+    bridgeLimit: :uint256,
     initialPauseState: :bool
   ) {
     require(mintAmount > 0, "Invalid mint amount")
@@ -34,6 +35,7 @@ contract :EthscriptionERC20Bridge03, is: [:ERC20, :Ownable, :Upgradeable, :Pausa
     
     s.mintAmount = mintAmount
     s.trustedSmartContract = trustedSmartContract
+    s.bridgeLimit = bridgeLimit
   }
   
   function :bridgeIn, { to: :address, amount: :uint256 }, :public do
