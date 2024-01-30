@@ -14,7 +14,7 @@ class Type
   
   TYPES.each do |type|
     define_method("#{type}?") do
-      self.name == type
+      @name == type
     end
   end
   
@@ -22,6 +22,10 @@ class Type
     TYPES.select do |type|
       create(type).is_value_type?
     end
+  end
+  
+  def name
+    struct? ? struct_definition.name : @name
   end
   
   def initialize(type_name, metadata = {})

@@ -58,11 +58,19 @@ class StructVariable < TypedVariable
       values:,
       on_change: nil
     )
-      @state_proxy = StateProxy.new(struct_definition&.fields || {})
+      defined_fields = struct_definition&.fields || {}
+      
+      @state_proxy = StateProxy.new(defined_fields)
       
       values = values.serialize if values.respond_to?(:serialize)
       
       values = values&.transform_values{|v| v.respond_to?(:serialize) ? v.serialize : v}
+      
+      if values.present?
+        unless defined_fields.keys.sort.map(&:to_s) == values.keys.sort.map(&:to_s)
+          raise ArgumentError, "Keys of values hash must match fields of struct_definition. Got: #{values.keys.sort}, expected: #{defined_fields.keys.sort}"
+        end
+      end
       
       @state_proxy.deserialize(values || {})
       
