@@ -36,11 +36,12 @@ contract :TokenLocker, is: [:Ownable, :Upgradeable, :Pausable], upgradeable: tru
     address :owner
   end
   
-  address :public, :uniswapFactory
+  address :public, :facetSwapFactory
   mapping ({ address: array(:TokenLock) }), :public, :tokenLocks
   
-  constructor(_uniswapFactory: :address) {
-    s.uniswapFactory = _uniswapFactory
+  constructor(_facetSwapFactory: :address) {
+    s.facetSwapFactory = _facetSwapFactory
+    
     Upgradeable.constructor(upgradeAdmin: msg.sender)
     Ownable.constructor(owner: msg.sender)
   }
@@ -69,7 +70,7 @@ contract :TokenLocker, is: [:Ownable, :Upgradeable, :Pausable], upgradeable: tru
   
     lpair = FacetSwapV1Pair02(lpToken)
     
-    factoryPairAddress = FacetSwapV1Factory02(s.uniswapFactory).getPair(
+    factoryPairAddress = FacetSwapV1Factory02(s.facetSwapFactory).getPair(
       lpair.token0(),
       lpair.token1()
     )

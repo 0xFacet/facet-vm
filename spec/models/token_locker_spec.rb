@@ -266,7 +266,7 @@ describe 'TokenLocker contract' do
         to: nil,
         data: {
           type: "TokenLocker",
-          args: { _uniswapFactory: factory_address }
+          args: { _facetSwapFactory: factory_address }
         }
       }
     )
