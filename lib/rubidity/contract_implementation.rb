@@ -175,6 +175,12 @@ class ContractImplementation < BasicObject
       type = ::Type.create(:struct, struct_definition: struct_definition)
       ::StructVariable.new(type, field_values)
     end
+    
+    define_singleton_method(name) do |*args|
+      struct_definition = structs[name]
+      type = ::Type.create(:struct, struct_definition: struct_definition)
+      define_state_variable(type, args)
+    end
   end
   
   def self.structs
@@ -428,15 +434,6 @@ class ContractImplementation < BasicObject
       args: input_args,
       salt: input_salt
     }
-  end
-  
-  def self.method_missing(method_name, *args, **kwargs, &block)
-    if struct_definition = structs[method_name]
-      type = ::Type.create(:struct, struct_definition: struct_definition)
-      define_state_variable(type, args)
-    else
-      super
-    end
   end
   
   def method_missing(method_name, *args, **kwargs, &block)
