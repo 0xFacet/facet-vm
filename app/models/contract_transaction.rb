@@ -143,7 +143,7 @@ class ContractTransaction < ApplicationRecord
         transaction_hash: "0x" + SecureRandom.hex(32),
         block_number: max_block_number + 1,
         block_blockhash: "0x" + SecureRandom.hex(32),
-        creator: from.downcase,
+        creator: from&.downcase,
         block_timestamp: Time.zone.now.to_i,
         transaction_index: 1,
         content_uri: uri,
