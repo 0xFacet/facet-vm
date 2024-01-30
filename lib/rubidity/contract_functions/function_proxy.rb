@@ -5,7 +5,9 @@ class FunctionProxy
     :returns, :type, :implementation, :override_modifiers,
     :from_parent, :contract_class
   
-  delegate :create_type, to: :contract_class
+  def create_type(...)
+    contract_class&.create_type(...) || Type.create(...)
+  end
     
   def initialize(**opts)
     @args = opts[:args] || {}
@@ -16,7 +18,7 @@ class FunctionProxy
     @override_modifiers = Array.wrap(opts[:override_modifiers]).uniq.map{|i| i.to_sym}
     @implementation = opts[:implementation]
     @from_parent = !!opts[:from_parent]
-    @contract_class = opts[:contract_class] || {}
+    @contract_class = opts[:contract_class]
   end
   
   def as_json

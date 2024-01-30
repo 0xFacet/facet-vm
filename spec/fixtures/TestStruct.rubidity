@@ -10,12 +10,28 @@ contract :TestStruct do
   
   mapping ({ string: :Person }), :public, :addressToPerson
   
+  array :Person, :public, :movieFans
+  
   constructor() {
     person = Person(name: "Bob", age: 42)
     s.testPerson = person
     
     s.addressToPerson["1600 Penn"] = s.testPerson
+    
+    fan1 = Person(name: "Robert", age: 20)
+    fan2 = Person(name: "Roberta", age: 30)
+    s.movieFans.push(fan1)
+    s.movieFans.push(fan2)
   }
+  
+  function :getAllMovieFans, :public, :view, returns: array(:Person) do
+    return s.movieFans
+  end
+  
+  function :addMovieFan, { _fan: :Person }, :public do
+    s.movieFans.push(_fan)
+    return nil
+  end
   
   function :getPersonFromAddress, { address: :string }, :public, :view, returns: :Person do
     return s.addressToPerson[address]

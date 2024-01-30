@@ -7,7 +7,7 @@ RSpec.describe StructDefinition, type: :model do
     update_supported_contracts("TestStruct")
   end
   
-  describe '#can_be_assigned_from?' do
+  describe 'Basic Functionality' do
     it 'verifies contract interactions and state changes' do
       c = trigger_contract_interaction_and_expect_success(
         from: alice,
@@ -122,6 +122,45 @@ RSpec.describe StructDefinition, type: :model do
       # Assuming the address mapping was not updated, it should still return the initial person's state
       expect(person_from_address[:name]).to eq("Bob")
       expect(person_from_address[:age]).to eq(42)
+      
+      movie_fans = ContractTransaction.make_static_call(
+        contract: c.address,
+        function_name: "getAllMovieFans",
+        function_args: {}
+      ).map(&:with_indifferent_access)
+      # binding.pry
+      expect(movie_fans.size).to eq(2)
+      
+      expect(movie_fans[0][:name]).to eq("Robert")
+      expect(movie_fans[0][:age]).to eq(20)
+      
+      expect(movie_fans[1][:name]).to eq("Roberta")
+      expect(movie_fans[1][:age]).to eq(30)
+      
+      trigger_contract_interaction_and_expect_success(
+        from: alice,
+        payload: {
+          op: "call",
+          data: {
+            to: c.address,
+            function: "addMovieFan",
+            args: {
+              _fan: {
+                name: "Z",
+                age: 1
+              }
+            }
+          }
+        }
+      )
+      
+      movie_fans = ContractTransaction.make_static_call(
+        contract: c.address,
+        function_name: "getAllMovieFans",
+        function_args: {}
+      ).map(&:with_indifferent_access)
+      
+      expect(movie_fans.size).to eq(3)
     end
   end
 end
