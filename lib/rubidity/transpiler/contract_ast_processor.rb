@@ -64,7 +64,7 @@ class ContractAstProcessor
     
     parent, name = *receiver
     
-    unless parent.nil? && @available_contracts.include?(name)
+    unless parent.nil?# && @available_contracts.include?(name)
       return node
     end
     

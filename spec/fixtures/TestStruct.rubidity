@@ -1,0 +1,55 @@
+pragma :rubidity, "1.0.0"
+
+contract :TestStruct do
+  struct :Person do
+    string :name
+    uint256 :age
+  end
+  
+  Person :public, :testPerson
+  
+  mapping ({ string: :Person }), :public, :addressToPerson
+  
+  constructor() {
+    person = Person(name: "Bob", age: 42)
+    s.testPerson = person
+    
+    s.addressToPerson["1600 Penn"] = s.testPerson
+  }
+  
+  function :getPersonFromAddress, { address: :string }, :public, :view, returns: :Person do
+    return s.addressToPerson[address]
+  end
+  
+  function :getAge, :public, :view, returns: :uint256 do
+    return s.testPerson.age
+  end
+  
+  function :setAge, { _age: :uint256 }, :public do
+    memory = memory(s.testPerson)
+    storage = s.testPerson
+    
+    storage.age = _age
+    memory.age = 10000
+    
+    nil
+  end
+  
+  function :getPerson, :public, :view, returns: :Person do
+    return s.testPerson
+  end
+  
+  function :setPerson, { _person: :Person }, :public do
+    s.testPerson = _person
+    nil
+  end
+  
+  function :setPersonVerbose, { age: :uint256, name: :string }, :public do
+    s.testPerson = Person(name: name, age: age)
+    nil
+  end
+  
+  function :getName, { _person: :Person }, :public, :view, returns: :string do
+    return _person.name
+  end
+end

@@ -3,8 +3,10 @@ class FunctionProxy
   
   attr_accessor :args, :state_mutability, :visibility,
     :returns, :type, :implementation, :override_modifiers,
-    :from_parent
+    :from_parent, :contract_class
   
+  delegate :create_type, to: :contract_class
+    
   def initialize(**opts)
     @args = opts[:args] || {}
     @state_mutability = opts[:state_mutability]
@@ -14,6 +16,7 @@ class FunctionProxy
     @override_modifiers = Array.wrap(opts[:override_modifiers]).uniq.map{|i| i.to_sym}
     @implementation = opts[:implementation]
     @from_parent = !!opts[:from_parent]
+    @contract_class = opts[:contract_class] || {}
   end
   
   def as_json
@@ -121,12 +124,12 @@ class FunctionProxy
     as_typed = if other_args.is_a?(Array)
       args.keys.zip(other_args).map do |key, value|
         type = args[key]
-        [key, TypedVariable.create_or_validate(type, value)]
+        [key, TypedVariable.create_or_validate(create_type(type), value)]
       end.to_h
     else
       other_args.each.with_object({}) do |(key, value), acc|
         type = args[key]
-        acc[key.to_sym] = TypedVariable.create_or_validate(type, value)
+        acc[key.to_sym] = TypedVariable.create_or_validate(create_type(type), value)
       end
     end
     
@@ -153,27 +156,27 @@ class FunctionProxy
       end
       DestructureOnly.new(ret_val)
     else
-      TypedVariable.create_or_validate(returns, ret_val)
+      TypedVariable.create_or_validate(create_type(returns), ret_val)
     end
   end
   
   def validate_args!
     args.values.each do |type|
-      Type.create(type)
+      create_type(type)
     end
     
     return unless returns.present?
     
     if returns.is_a?(Hash)
-      returns.values.each{|i| Type.create(i)}
+      returns.values.each{|i| create_type(i)}
     else
-      Type.create(returns)
+      create_type(returns)
     end
   rescue TypeError => e
     raise ContractDefinitionError.new(e.message)
   end
   
-  def self.create(name, args, *options, returns: nil, &block)
+  def self.create(name, args, *options, returns: nil, contract_class: nil, &block)
     options_hash = {
       state_mutability: :non_payable,
       visibility: :internal,
@@ -198,7 +201,8 @@ class FunctionProxy
       visibility: name == :constructor ? nil : options_hash[:visibility],
       returns: returns,
       type: name == :constructor ? :constructor : :function,
-      implementation: block
+      implementation: block,
+      contract_class: contract_class
     ).tap do |record|
       record.validate_args!
     end

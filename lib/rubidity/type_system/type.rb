@@ -3,14 +3,14 @@ class Type
   
   include ContractErrors
   
-  attr_accessor :name, :metadata, :key_type, :value_type, :initial_length
+  attr_accessor :name, :metadata, :key_type, :value_type, :initial_length, :struct_definition
   
   INTEGER_TYPES = (8..256).step(8).flat_map do |num|
     ["uint#{num}", "int#{num}"]
    end.map(&:to_sym)
   
   TYPES = [:string, :mapping, :address, :bytes16, :bytes32, :contract,
-           :bool, :array, :bytes] + INTEGER_TYPES
+           :bool, :array, :bytes, :struct] + INTEGER_TYPES
   
   TYPES.each do |type|
     define_method("#{type}?") do
@@ -70,6 +70,7 @@ class Type
     self.key_type = metadata[:key_type]
     self.value_type = metadata[:value_type]
     self.initial_length = metadata[:initial_length] if metadata[:initial_length]
+    self.struct_definition = metadata[:struct_definition] if metadata[:struct_definition]
   end
   
   def can_be_assigned_from?(other_type)
@@ -123,6 +124,8 @@ class Type
       ArrayVariable::Value.new(value_type: value_type, initial_length: initial_length)
     when contract?
       ContractVariable::Value.new(contract_class: metadata[:interface], address: nil)
+    when struct?
+      StructVariable::Value.new(struct_definition: metadata[:struct_definition], values: {})
     else
       raise "Unknown default value for #{self.inspect}"
     end
@@ -254,6 +257,14 @@ class Type
         return literal
       else
         raise_variable_type_error("No literals allowed for contract types")
+      end
+    elsif struct?
+      if literal.is_a?(StructVariable::Value)
+        return StructVariable::Value.new(struct_definition: metadata[:struct_definition], values: literal.serialize)
+      end
+      
+      if literal.is_a?(Hash)
+        return StructVariable::Value.new(struct_definition: metadata[:struct_definition], values: literal)
       end
     end
     

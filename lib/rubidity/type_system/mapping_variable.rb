@@ -2,6 +2,10 @@ class MappingVariable < TypedVariable
   def initialize(...)
     super(...)
     value.on_change = on_change
+    
+    if key_type.struct?
+      raise TypeError, "Structs cannot be used as mapping keys"
+    end
   end
   
   def serialize

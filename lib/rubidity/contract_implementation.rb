@@ -7,7 +7,7 @@ class ContractImplementation < BasicObject
     :init_code_hash, :parent_contracts, :available_contracts, :source_file,
     :is_upgradeable
     
-    attr_accessor :state_variable_definitions, :events
+    attr_accessor :state_variable_definitions, :events, :structs
   end
   
   delegate :block, :blockhash, :tx, :msg, :log_event, :call_stack,
@@ -47,7 +47,7 @@ class ContractImplementation < BasicObject
   
   def self.mapping(*args)
     key_type, value_type = args.first.first
-    metadata = {key_type: key_type, value_type: value_type}
+    metadata = {key_type: create_type(key_type), value_type: create_type(value_type)}
     type = ::Type.create(:mapping, metadata)
     
     if args.last.is_a?(::Symbol)
@@ -59,7 +59,7 @@ class ContractImplementation < BasicObject
   
   def self.array(*args, **kwargs)
     value_type = args.first
-    metadata = {value_type: value_type}.merge(kwargs)
+    metadata = {value_type: create_type(value_type)}.merge(kwargs)
     
     if args.length == 2
       metadata.merge!(initial_length: args.last)
@@ -164,6 +164,39 @@ class ContractImplementation < BasicObject
   
   def self.constructor(args = {}, *options, &block)
     function(:constructor, args, *options, returns: nil, &block)
+  end
+  
+  def self.struct(name, &block)
+    @structs ||= {}
+    @structs[name] = ::StructDefinition.new(name, &block)
+
+    define_method(name) do |**field_values|
+      struct_definition = self.class.structs[name]
+      type = ::Type.create(:struct, struct_definition: struct_definition)
+      ::StructVariable.new(type, field_values)
+    end
+  end
+  
+  def self.structs
+    (@structs || {}).with_indifferent_access
+  end
+  
+  def structs
+    self.class.structs
+  end
+  
+  def self.create_type(type)
+    if structs[type]
+      ::Type.create(:struct, struct_definition: structs[type])
+    else
+      ::Type.create(type)
+    end
+  end
+  
+  def memory(struct)
+    raise "Not implemented" unless struct.is_a?(::StructVariable)
+    
+    struct.duplicate
   end
   
   def self.event(name, args)
@@ -395,6 +428,15 @@ class ContractImplementation < BasicObject
       args: input_args,
       salt: input_salt
     }
+  end
+  
+  def self.method_missing(method_name, *args, **kwargs, &block)
+    if struct_definition = structs[method_name]
+      type = ::Type.create(:struct, struct_definition: struct_definition)
+      define_state_variable(type, args)
+    else
+      super
+    end
   end
   
   def method_missing(method_name, *args, **kwargs, &block)
