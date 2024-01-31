@@ -38,7 +38,7 @@ Rails.application.configure do
     config.cache_store = :null_store
   end
   
-  config.logger = ActiveSupport::Logger.new(config.paths['log'].first, 1, 25 * 1_048_576)
+  config.logger = ActiveSupport::Logger.new("/dev/null")
   
   # Store uploaded files on the local file system (see config/storage.yml for options).
   config.active_storage.service = :local
