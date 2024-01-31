@@ -1,0 +1,34 @@
+pragma :rubidity, "1.0.0"
+
+import "./ERC20.rubidity"
+import "./Upgradeable.rubidity"
+
+contract :ERC20Bridge, is: [:ERC20, :Upgradeable], upgradeable: true do
+  address :public, :factory
+  address :public, :tokenSmartContract
+    
+  constructor(
+    tokenSmartContract: :address,
+    name: :string,
+    symbol: :string,
+    decimals: :uint8
+  ) {
+    ERC20.constructor(name: name, symbol: symbol, decimals: decimals)
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+    
+    s.tokenSmartContract = tokenSmartContract
+    s.factory = msg.sender
+  }
+  
+  function :mintFromFactory, { to: :address, amount: :uint256 }, :public do
+    require(msg.sender == s.factory, "Only the factory can call this function")
+    
+    _mint(to: to, amount: amount)
+  end
+  
+  function :burnFromFactory, { from: :address, amount: :uint256 }, :public do
+    require(msg.sender == s.factory, "Only the factory can call this function")
+    
+    _burn(from: from, amount: amount)
+  end
+end
