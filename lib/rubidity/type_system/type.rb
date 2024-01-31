@@ -129,7 +129,7 @@ class Type
     when contract?
       ContractVariable::Value.new(contract_class: metadata[:interface], address: nil)
     when struct?
-      StructVariable::Value.new(struct_definition: metadata[:struct_definition], values: {})
+      StructVariable::Value.new(struct_definition: struct_definition, values: {})
     else
       raise "Unknown default value for #{self.inspect}"
     end
@@ -264,11 +264,7 @@ class Type
       end
     elsif struct?
       if literal.is_a?(StructVariable::Value)
-        return StructVariable::Value.new(struct_definition: metadata[:struct_definition], values: literal.serialize)
-      end
-      
-      if literal.is_a?(Hash)
-        return StructVariable::Value.new(struct_definition: metadata[:struct_definition], values: literal)
+        return StructVariable::Value.new(struct_definition: literal.struct_definition, values: literal.serialize)
       end
     end
     

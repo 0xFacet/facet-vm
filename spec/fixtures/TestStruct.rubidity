@@ -37,6 +37,11 @@ contract :TestStruct do
     return s.addressToPerson[address]
   end
   
+  function :setPersonFromAddress, { address: :string, _person: :Person }, :public do
+    s.addressToPerson[address] = _person
+    nil
+  end
+  
   function :getAge, :public, :view, returns: :uint256 do
     return s.testPerson.age
   end

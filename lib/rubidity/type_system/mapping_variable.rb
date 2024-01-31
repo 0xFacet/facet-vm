@@ -88,14 +88,14 @@ class MappingVariable < TypedVariable
         raise TypeError, "Mappings cannot be assigned to mappings"
       end
       
-      old_value = self.data[key_var]
+      old_value = self[key_var]
       
       if old_value != val_var
         on_change&.call
         
         transformed_keys.add(key_var)
 
-        if data[key_var].nil? || val_var.type.is_value_type?
+        if val_var.type.is_value_type?
           data[key_var] = val_var
         else
           data[key_var].value = val_var.value

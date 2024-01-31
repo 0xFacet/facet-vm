@@ -11,7 +11,7 @@ class StructVariable < TypedVariable
     )
   end
   
-  def duplicate
+  def deep_dup
     fresh_type = Type.create(:struct, struct_definition: type.struct_definition)
     StructVariable.new(fresh_type, value.serialize, on_change: on_change)
   end
@@ -58,6 +58,8 @@ class StructVariable < TypedVariable
       values:,
       on_change: nil
     )
+      @struct_definition = struct_definition
+      
       defined_fields = struct_definition&.fields || {}
       
       @state_proxy = StateProxy.new(defined_fields)

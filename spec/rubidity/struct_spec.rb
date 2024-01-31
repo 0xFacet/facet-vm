@@ -161,6 +161,30 @@ RSpec.describe StructDefinition, type: :model do
       ).map(&:with_indifferent_access)
       
       expect(movie_fans.size).to eq(3)
+      
+      trigger_contract_interaction_and_expect_success(
+        from: alice,
+        payload: {
+          op: "call",
+          data: {
+            to: c.address,
+            function: "setPersonFromAddress",
+            args: {
+              address: "1600 Penn",
+              _person: {}
+            }
+          }
+        }
+      )
+      
+      person_from_address = ContractTransaction.make_static_call(
+        contract: c.address,
+        function_name: "getPersonFromAddress",
+        function_args: { address: "1600 Penn" }
+      ).with_indifferent_access
+      # Assuming the address mapping was not updated, it should still return the initial person's state
+      expect(person_from_address[:name]).to eq("")
+      expect(person_from_address[:age]).to eq(0)
     end
   end
 end

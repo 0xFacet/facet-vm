@@ -8,19 +8,18 @@ class StructDefinition
   end
 
   ::Type.value_types.each do |type|
-    define_method(type) do |*args|
-      update_struct_definition(type, args)
+    define_method(type) do |name|
+      update_struct_definition(type, name)
     end
   end
   
-  def update_struct_definition(type, args)
-    name = args.last.to_sym
+  def update_struct_definition(type, name)
     type = ::Type.create(type)
     
     if @fields[name]
       raise "No shadowing: #{name} is already defined."
     end
     
-    @fields[name] = { type: type, args: args }
+    @fields[name] = { type: type, args: [] }
   end
 end

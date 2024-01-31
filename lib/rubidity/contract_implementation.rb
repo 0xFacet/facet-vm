@@ -202,7 +202,7 @@ class ContractImplementation < BasicObject
   def memory(struct)
     raise "Not implemented" unless struct.is_a?(::StructVariable)
     
-    struct.duplicate
+    struct.deep_dup
   end
   
   def self.event(name, args)
