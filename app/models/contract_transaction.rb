@@ -220,6 +220,8 @@ class ContractTransaction < ApplicationRecord
       1
     elsif ENV.fetch("ETHEREUM_NETWORK") == "eth-goerli"
       5
+    elsif ENV.fetch("ETHEREUM_NETWORK") == "eth-sepolia"
+      11155111
     else
       raise "Unknown network: #{ENV.fetch("ETHEREUM_NETWORK")}"
     end
