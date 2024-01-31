@@ -3,7 +3,7 @@ class StructDefinition
 
   def initialize(name, &block)
     @name = name
-    @fields = {}
+    @fields = {}.with_indifferent_access
     instance_eval(&block)
   end
 
@@ -21,5 +21,11 @@ class StructDefinition
     end
     
     @fields[name] = { type: type, args: [] }
+  end
+  
+  def ==(other)
+    other.is_a?(StructDefinition) &&
+      other.name == name &&
+      other.fields == fields
   end
 end

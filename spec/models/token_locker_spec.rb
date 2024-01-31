@@ -311,14 +311,15 @@ describe 'TokenLocker contract' do
     token_lock = ContractTransaction.make_static_call(
       contract: token_locker_address,
       function_name: "tokenLocks",
-      function_args: [pair_address, 0]
+      function_args: 1
     )
     
     expect(token_lock).to eq({
+      lpToken: pair_address,
       lockDate: lockDate,
       amount: amountToLock,
       unlockDate: unlockDate,
-      lockId: 0,
+      lockId: 1,
       owner: user_address,
     }.with_indifferent_access)
     
@@ -349,14 +350,15 @@ describe 'TokenLocker contract' do
     token_lock = ContractTransaction.make_static_call(
       contract: token_locker_address,
       function_name: "tokenLocks",
-      function_args: [pair_address, 1]
+      function_args: 2
     )
     
     expect(token_lock).to eq({
+      lpToken: pair_address,
       lockDate: lockDate,
       amount: amountToLock * 2,
       unlockDate: unlockDate,
-      lockId: 1,
+      lockId: 2,
       owner: user_address,
     }.with_indifferent_access)
 
@@ -376,8 +378,7 @@ describe 'TokenLocker contract' do
         data: {
           function: "withdraw",
           args: {
-            lpToken: pair_address,
-            lockId: 0,
+            lockId: 1,
             amount: amountToLock
           }
         }
@@ -394,10 +395,17 @@ describe 'TokenLocker contract' do
     token_lock = ContractTransaction.make_static_call(
       contract: token_locker_address,
       function_name: "tokenLocks",
-      function_args: [pair_address, 0]
+      function_args: 1
     )
 
-    expect(token_lock['amount']).to eq(amountToLock * 2)
+    expect(token_lock).to eq({
+      lpToken: "0x0000000000000000000000000000000000000000",
+      lockDate: 0,
+      amount: 0,
+      unlockDate: 0,
+      lockId: 0,
+      owner: "0x0000000000000000000000000000000000000000",
+    }.with_indifferent_access)
 
     # Check that the correct amount of tokens was transferred from the contract to the user
     lp_balance_after_withdraw = ContractTransaction.make_static_call(
@@ -419,8 +427,7 @@ describe 'TokenLocker contract' do
         data: {
           function: "relock",
           args: {
-            lpToken: pair_address,
-            lockId: 0,
+            lockId: 2,
             unlockDate: 1.year.from_now.to_i
           }
         }
@@ -431,10 +438,86 @@ describe 'TokenLocker contract' do
     token_lock = ContractTransaction.make_static_call(
       contract: token_locker_address,
       function_name: "tokenLocks",
-      function_args: [pair_address, 0]
+      function_args: 2
     )
 
     expect(token_lock['amount']).to eq(amountToLock * 2)
     expect(token_lock['unlockDate']).to eq(1.year.from_now.to_i)
+    
+    trigger_contract_interaction_and_expect_error(
+      error_msg_includes: "Unlock time must be in the future",
+      from: user_address,
+      payload: {
+        to: token_locker_address,
+        data: {
+          function: "relock",
+          args: {
+            lockId: 2,
+            unlockDate: 1.day.ago.to_i
+          }
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_error(
+      error_msg_includes: "Tokens are still locked",
+      from: user_address,
+      payload: {
+        to: token_locker_address,
+        data: {
+          function: "withdraw",
+          args: {
+            lockId: 2,
+            amount: amountToLock
+          }
+        }
+      }
+    )
+    
+    travel_to Time.now + 1.year + 1.day
+    
+    withdraw_receipt = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: token_locker_address,
+        data: {
+          function: "withdraw",
+          args: {
+            lockId: 2,
+            amount: amountToLock
+          }
+        }
+      }
+    )
+    
+    token_lock = ContractTransaction.make_static_call(
+      contract: token_locker_address,
+      function_name: "tokenLocks",
+      function_args: 2
+    )
+
+    expect(token_lock['amount']).to eq(amountToLock)
+    
+    withdraw_receipt = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: token_locker_address,
+        data: {
+          function: "withdraw",
+          args: {
+            lockId: 2,
+            amount: amountToLock
+          }
+        }
+      }
+    )
+    
+    token_lock = ContractTransaction.make_static_call(
+      contract: token_locker_address,
+      function_name: "tokenLocks",
+      function_args: 2
+    )
+
+    expect(token_lock['lockId']).to eq(0)
   end
 end

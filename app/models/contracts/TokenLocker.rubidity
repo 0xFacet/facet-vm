@@ -29,32 +29,25 @@ contract :TokenLocker, is: [:Ownable, :Upgradeable, :Pausable], upgradeable: tru
   }
    
   struct :TokenLock do
-    uint256 :lockDate
-    uint256 :amount
-    uint256 :unlockDate
     uint256 :lockId
+    address :lpToken
     address :owner
+    uint256 :amount
+    uint256 :lockDate
+    uint256 :unlockDate
   end
   
   address :public, :facetSwapFactory
-  mapping ({ address: array(:TokenLock) }), :public, :tokenLocks
+  uint256 :public, :nextLockId
+  mapping ({ uint256: :TokenLock }), :public, :tokenLocks
   
   constructor(_facetSwapFactory: :address) {
     s.facetSwapFactory = _facetSwapFactory
+    s.nextLockId = 1
     
     Upgradeable.constructor(upgradeAdmin: msg.sender)
     Ownable.constructor(owner: msg.sender)
   }
-  
-  function :pause, :public do
-    onlyOwner!
-    _pause()
-  end
-  
-  function :unpause, :public do
-    onlyOwner!
-    _unpause()
-  end
   
   function :lockLPToken, {
     lpToken: :address,
@@ -67,6 +60,7 @@ contract :TokenLocker, is: [:Ownable, :Upgradeable, :Pausable], upgradeable: tru
     require(unlockDate < 10000000000, "Timestamp is in seconds")
     require(unlockDate > block.timestamp, "Unlock time must be in the future")
     require(amount > 0, "Amount must be greater than 0")
+    require(withdrawer != address(0), "Invalid withdrawer")
   
     lpair = FacetSwapV1Pair02(lpToken)
     
@@ -79,59 +73,71 @@ contract :TokenLocker, is: [:Ownable, :Upgradeable, :Pausable], upgradeable: tru
     require(ERC20(lpToken).transferFrom(msg.sender, address(this), amount), "Transfer failed")
   
     tokenLock = TokenLock(
-      lockDate: block.timestamp,
+      lockId: s.nextLockId,
+      lpToken: lpToken,
+      owner: withdrawer,
       amount: amount,
-      unlockDate: unlockDate,
-      lockId: s.tokenLocks[lpToken].length,
-      owner: withdrawer
+      lockDate: block.timestamp,
+      unlockDate: unlockDate
     )
-  
-    s.tokenLocks[lpToken].push(tokenLock)
+    
+    require(s.tokenLocks[tokenLock.lockId] == TokenLock(), "Lock already exists")
+    
+    s.tokenLocks[tokenLock.lockId] = tokenLock
+    
+    s.nextLockId += 1
     
     emit :LockCreated,
-      lpToken: lpToken,
-      amount: amount,
+      lpToken: tokenLock.lpToken,
+      amount: tokenLock.amount,
       lockDate: tokenLock.lockDate,
-      unlockDate: unlockDate,
-      withdrawer: withdrawer,
+      unlockDate: tokenLock.unlockDate,
+      withdrawer: tokenLock.owner,
       lockId: tokenLock.lockId
   end
   
-  function :relock, { lpToken: :address, lockId: :uint256, unlockDate: :uint256 }, :public do
+  function :relock, { lockId: :uint256, unlockDate: :uint256 }, :public do
+    tokenLock = s.tokenLocks[lockId]
+    
+    require(tokenLock.owner == msg.sender, "Only owner")
     require(unlockDate < 10000000000, "Timestamp is in seconds")
     require(unlockDate > block.timestamp, "Unlock time must be in the future")
-      
-    tokenLock = s.tokenLocks[lpToken][lockId]
-    require(tokenLock.owner == msg.sender, "Only owner")
-    require(tokenLock.unlockDate < unlockDate, "Unlock date must be after current unlock date")
+    require(unlockDate > tokenLock.unlockDate, "Unlock date must be after current unlock date")
   
     tokenLock.unlockDate = unlockDate
-  
-    emit :Relocked, lpToken: lpToken, lockId: lockId, unlockDate: unlockDate
+    
+    emit :Relocked, lpToken: tokenLock.lpToken, lockId: lockId, unlockDate: unlockDate
   end
   
-  function :withdraw, { lpToken: :address, lockId: :uint256, amount: :uint256 }, :public do
-    require(amount > 0, "Amount must be greater than 0")
-  
-    tokenLock = s.tokenLocks[lpToken][lockId]
+  function :withdraw, { lockId: :uint256, amount: :uint256 }, :public do
+    tokenLock = s.tokenLocks[lockId]
+    
     require(tokenLock.owner == msg.sender, "Only owner")
-    require(tokenLock.unlockDate < block.timestamp, "Tokens are still locked")
+    require(amount > 0, "Amount must be greater than 0")
+    require(tokenLock != TokenLock(), "Lock does not exist")
+    require(block.timestamp > tokenLock.unlockDate, "Tokens are still locked")
     require(tokenLock.amount >= amount, "Insufficient balance")
   
     tokenLock.amount -= amount
   
+    lpToken = tokenLock.lpToken
+    
     if tokenLock.amount == 0
-      lastIndex = s.tokenLocks[lpToken].length - 1
-      
-      if lockId != lastIndex
-        s.tokenLocks[lpToken][lockId] = s.tokenLocks[lpToken][lastIndex]
-      end
-      
-      s.tokenLocks[lpToken].pop
+      s.tokenLocks[lockId] = TokenLock()
     end
     
     require(ERC20(lpToken).transfer(msg.sender, amount), "Transfer failed")
   
     emit :Withdraw, lpToken: lpToken, amount: amount, withdrawer: msg.sender, lockId: lockId
+  end
+  
+  function :pause, :public do
+    onlyOwner!
+    _pause()
+  end
+  
+  function :unpause, :public do
+    onlyOwner!
+    _unpause()
   end
 end
