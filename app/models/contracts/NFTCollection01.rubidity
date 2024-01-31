@@ -1,0 +1,189 @@
+pragma :rubidity, "1.0.0"
+
+import './Ownable.rubidity'
+import './Pausable.rubidity'
+import './Upgradeable.rubidity'
+import './ERC2981.rubidity'
+import './ERC721.rubidity'
+import './ERC20.rubidity'
+import './MerkleProof.rubidity'
+
+contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Pausable], upgradeable: true do
+  uint256 :public, :maxSupply
+  uint256 :public, :maxPerMint
+  string :public, :baseURI
+
+  uint256 :public, :publicMaxPerAddress
+  uint256 :public, :publicMintStart
+  uint256 :public, :publicMintEnd
+
+  bytes32 :public, :allowListMerkleRoot
+  uint256 :public, :allowListMaxPerAddress
+  uint256 :public, :allowListMintStart
+  uint256 :public, :allowListMintEnd
+
+  mapping ({ address: :uint256 }), :internal, :_publicMintCount
+  mapping ({ address: :uint256 }), :internal, :_allowListMintCount
+  
+  constructor(
+    name: :string,
+    symbol: :string,
+    owner: :address,
+    maxSupply: :uint256,
+    baseURI: :string
+  ) {
+    ERC721.constructor(name: name, symbol: symbol)
+    Ownable.constructor(owner: owner)
+    s.maxSupply = maxSupply
+    s.baseURI = baseURI
+    s.maxPerMint = 10
+  }
+
+  function :isPublicMintActive, :public, :view do
+    isNotMintedOut = s.totalSupply < s.maxSupply
+    isOwner = s.owner == msg.sender
+    isOrAfterStart = block.timestamp >= s.publicMintStart && s.publicMintStart > 0
+    isBeforeEnd = block.timestamp < s.publicMintEnd || s.publicMintEnd == 0
+    isWithinWindow = isOrAfterStart && isBeforeEnd
+    
+    isNotMintedOut && (isOwner || isWithinWindow)
+  end
+
+  function :isAllowListMintActive, :public, :view do
+    isNotMintedOut = s.totalSupply < s.maxSupply
+    isOwner = s.owner == msg.sender
+    isOrAfterStart = block.timestamp >= s.allowListMintStart && s.allowListMintStart > 0
+    isBeforeEnd = block.timestamp < s.allowListMintEnd || s.allowListMintEnd == 0
+    isWithinWindow = isOrAfterStart && isBeforeEnd
+    
+    isNotMintedOut && (isOwner || isWithinWindow)
+  end
+
+  function :isMintActive, :public, :view do
+    isPublicMintActive() || isAllowListMintActive()
+  end
+
+  function :isOnAllowList, { walletAddress: :address, merkleProof: [:bytes32] }, :public, :view do
+    MerkleProof.verify(
+      merkleProof,
+      s.allowListMerkleRoot,
+      keccak256(abi.encodePacked(walletAddress))
+    );
+  end
+
+  function :tokenURI, { tokenId: :uint256 }, :public, :view, :override, returns: :string do
+    require(_exists(id: id), "URI query for nonexistent token")
+
+    return s.baseURI != "" ? s.baseURI + tokenId.toString() : "";
+  end
+
+  function :airdrop, { to: :address, amount: :uint256 }, :public do
+    _handleMint(to: to, amount: amount)
+  end
+
+  function :mint, { amount: :uint256 }, :public do
+    _handleMint(to: msg.sender, amount: amount)
+  end
+
+  function :setPublicMaxPerAddress, { publicMaxPerAddress: :uint256 }, :public do
+    onlyOwner!
+
+    s.publicMaxPerAddress = publicMaxPerAddress
+  end
+
+  function :setPublicMintStart, { publicMintStart: :uint256 }, :public do
+    onlyOwner!
+
+    s.publicMintStart = publicMintStart
+  end
+
+  function :setPublicMintEnd, { publicMintEnd: :uint256 }, :public do
+    onlyOwner!
+
+    s.publicMintEnd = publicMintEnd
+  end
+
+  function :setAllowListMerkleRoot, { allowListMerkleRoot: :bytes32 }, :public do
+    onlyOwner!
+
+    s.allowListMerkleRoot = allowListMerkleRoot
+  end
+
+  function :setAllowListMaxPerAddress, { allowListMaxPerAddress: :bytes32 }, :public do
+    onlyOwner!
+
+    s.allowListMaxPerAddress = allowListMaxPerAddress
+  end
+
+  function :setAllowListMintStart, { allowListMintStart: :bytes32 }, :public do
+    onlyOwner!
+
+    s.allowListMintStart = allowListMintStart
+  end
+
+  function :setAllowListMintEnd, { allowListMintEnd: :bytes32 }, :public do
+    onlyOwner!
+
+    s.allowListMintEnd = allowListMintEnd
+  end
+
+  function :setPublicMintSettings, {
+    publicMaxPerAddress: :uint256,
+    publicMintStart: :uint256,
+    publicMintEnd: :uint256
+  }, :public do
+    onlyOwner!
+
+    s.publicMaxPerAddress = publicMaxPerAddress
+    s.publicMintStart = publicMintStart
+    s.publicMintEnd = publicMintEnd
+  end
+
+  function :setAllowListMintSettings, {
+    allowListMerkleRoot: :bytes32,
+    allowListMaxPerAddress: :uint256,
+    allowListMintStart: :uint256,
+    allowListMintEnd: :uint256
+  }, :public do
+    onlyOwner!
+
+    s.allowListMerkleRoot = allowListMerkleRoot
+    s.allowListMaxPerAddress = allowListMaxPerAddress
+    s.allowListMintStart = allowListMintStart
+    s.allowListMintEnd = allowListMintEnd
+  end
+
+  function :setBaseURI, { baseURI: :string }, :public do
+    onlyOwner!
+
+    s.baseURI = baseURI
+  end
+
+  function :_handleMint, { to: :address, amount: :uint256, merkleProof: [:bytes32] }, :internal do
+    require(isMintActive(), "Mint is not active")
+    require(amount > 0, "Amount must be positive")
+    require(s.totalSupply + amount <= s.maxSupply, "Exceeded max supply")
+
+    isAllowListMint = merkleProof.length > 0 && isAllowListMintActive() && isOnAllowList(to)
+    mintCount = 0
+    if isAllowListMint
+      maxPerAddress = s.allowListMaxPerAddress
+      mintCount = s._allowListMintCount[to] + amount
+      s._allowListMintCount[to] = mintCount
+    else
+      maxPerAddress = s.publicMaxPerAddress
+      mintCount = s._publicMintCount[to] + amount
+      s._publicMintCount[to] = mintCount
+    end
+    require(mintCount <= maxPerAddress, "Exceeded mint limit")
+    
+    initialId = s.totalSupply + 1
+
+    forLoop(
+      condition: -> i { i < amount },
+      max_iterations: s.maxPerMint
+    ) do |i|
+      _mint(to: to, id: initialId + i)
+    end
+  end
+end
