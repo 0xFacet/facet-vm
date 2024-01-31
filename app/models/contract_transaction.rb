@@ -143,7 +143,7 @@ class ContractTransaction < ApplicationRecord
         transaction_hash: "0x" + SecureRandom.hex(32),
         block_number: max_block_number + 1,
         block_blockhash: "0x" + SecureRandom.hex(32),
-        creator: from.downcase,
+        creator: from&.downcase,
         block_timestamp: Time.zone.now.to_i,
         transaction_index: 1,
         content_uri: uri,
@@ -306,6 +306,10 @@ class ContractTransaction < ApplicationRecord
   end
   
   def status
-    contract_calls.any?(&:failure?) ? :failure : :success
+    failed = contract_calls.any? do |call|
+      call.failure? && !call.in_low_level_call_context
+    end
+    
+    failed ? :failure : :success
   end
 end

@@ -72,6 +72,37 @@ class Ethscription < ApplicationRecord
     end
   end
   
+  def self.valid_for_vm
+    where(mimetype: valid_mimetypes).
+    where(initial_owner: required_initial_owner)
+  end
+  
+  def self.base_indexer_checksum
+    last_imported = EthBlock.where(block_number: EthBlock.select("MAX(block_number)"))
+    last_imported = last_imported.limit(1).first&.block_number
+    
+    return unless last_imported
+    
+    scope = Ethscription.
+      valid_for_vm.
+      where("block_number <= ?", last_imported).
+      oldest_first
+    
+    subquery = scope.select(:transaction_hash)
+    hash_value = Ethscription.from(subquery, :ethscriptions)
+      .select("encode(digest(array_to_string(array_agg(transaction_hash), ''), 'sha256'), 'hex')
+        as hash_value")
+      .take
+      .hash_value
+  end
+  
+  def self.valid_mimetypes
+    [
+      ContractTransaction.transaction_mimetype,
+      SystemConfigVersion.system_mimetype
+    ]
+  end
+  
   private
   
   def downcase_hex_fields
