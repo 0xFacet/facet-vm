@@ -15,6 +15,21 @@ contract :TestStruct do
   constructor() {
     person = Person(name: "Bob", age: 42)
     s.testPerson = person
+    person.age = 20
+    
+    require(s.testPerson.age == 42, "Age should still be 42")
+    
+    personA = Person(name: "Alice", age: 42)
+    
+    s.addressToPerson["Alice"] = personA
+    
+    personA.age = 20
+    
+    require(s.addressToPerson["Alice"].age == 42, "Age should still be 42")
+    
+    s.addressToPerson["Alice"].age = 100
+    
+    require(personA.age == 20, "Age should be 20")
     
     s.addressToPerson["1600 Penn"] = s.testPerson
     
