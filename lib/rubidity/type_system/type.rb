@@ -304,6 +304,6 @@ class Type
   end
   
   def is_value_type?
-    !mapping? && !array?
+    !mapping? && !array? && !struct?
   end
 end

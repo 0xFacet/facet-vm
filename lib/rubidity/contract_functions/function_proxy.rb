@@ -35,11 +35,11 @@ class FunctionProxy
   
   def args_for_json
     args.stringify_keys.map do |name, type|
-      type = Type.create(type)
+      type = create_type(type)
       
       if type.array?
         { name: name, type: "#{type.value_type}[#{type.initial_length}]" }
-      elsif type.is_value_type?
+      elsif type.is_value_type? || type.struct?
         { name: name, type: type.name.to_s }
       else
         raise "Invalid ABI serialization"
@@ -52,11 +52,11 @@ class FunctionProxy
     
     if returns.is_a?(Hash)
       returns.stringify_keys.map do |name, type|
-        type = Type.create(type)
+        type = create_type(type)
         { name: name, type: type.name.to_s }
       end
     else
-      type = Type.create(returns)
+      type = create_type(returns)
       [{ type: type.name.to_s }]
     end
   end

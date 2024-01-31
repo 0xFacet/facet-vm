@@ -33,6 +33,16 @@ contract :TestStruct do
     return nil
   end
   
+  function :setFanName, { _name: :string, _index: :uint256 }, :public do
+    s.movieFans[_index].name = _name
+    nil
+  end
+  
+  function :setFan, { _fan: :Person, _index: :uint256 }, :public do
+    s.movieFans[_index] = _fan
+    nil
+  end
+  
   function :getPersonFromAddress, { address: :string }, :public, :view, returns: :Person do
     return s.addressToPerson[address]
   end
