@@ -5,8 +5,8 @@ import './Pausable.rubidity'
 import './Ownable.rubidity'
 import './FacetSwapV1Factory02.rubidity'
 
-contract :TokenLocker, is: [:Ownable, :Upgradeable, :Pausable], upgradeable: true do
-  event :LockCreated, {
+contract :FacetSwapV1Locker, is: [:Ownable, :Upgradeable, :Pausable], upgradeable: true do
+  event :Deposit, {
     lpToken: :address,
     amount: :uint256,
     lockDate: :uint256,
@@ -15,7 +15,7 @@ contract :TokenLocker, is: [:Ownable, :Upgradeable, :Pausable], upgradeable: tru
     lockId: :uint256
   }
   
-  event :Relocked, {
+  event :Relock, {
     lpToken: :address,
     lockId: :uint256,
     unlockDate: :uint256
@@ -87,7 +87,7 @@ contract :TokenLocker, is: [:Ownable, :Upgradeable, :Pausable], upgradeable: tru
     
     s.nextLockId += 1
     
-    emit :LockCreated,
+    emit :Deposit,
       lpToken: tokenLock.lpToken,
       amount: tokenLock.amount,
       lockDate: tokenLock.lockDate,
@@ -106,7 +106,7 @@ contract :TokenLocker, is: [:Ownable, :Upgradeable, :Pausable], upgradeable: tru
   
     tokenLock.unlockDate = unlockDate
     
-    emit :Relocked, lpToken: tokenLock.lpToken, lockId: lockId, unlockDate: unlockDate
+    emit :Relock, lpToken: tokenLock.lpToken, lockId: lockId, unlockDate: unlockDate
   end
   
   function :withdraw, { lockId: :uint256, amount: :uint256 }, :public do

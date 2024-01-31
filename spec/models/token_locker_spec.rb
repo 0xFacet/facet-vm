@@ -12,10 +12,7 @@ describe 'TokenLocker contract' do
 
   before(:all) do
     update_supported_contracts(
-      'TokenLocker',
-      # 'FacetSwapV1Factory02',
-      # 'FacetSwapV1Router03',
-      # 'FacetSwapV1Pair02',
+      'FacetSwapV1Locker',
       'FacetSwapV1Router',
       'FacetSwapV1Pair',
       'FacetSwapV1Factory',
@@ -265,7 +262,7 @@ describe 'TokenLocker contract' do
       payload: {
         to: nil,
         data: {
-          type: "TokenLocker",
+          type: "FacetSwapV1Locker",
           args: { _facetSwapFactory: factory_address }
         }
       }
@@ -306,7 +303,7 @@ describe 'TokenLocker contract' do
       }
     )
     
-    lockDate = lock_token_receipt.logs.detect{|i| i['event'] == 'LockCreated'}['data']['lockDate']
+    lockDate = lock_token_receipt.logs.detect{|i| i['event'] == 'Deposit'}['data']['lockDate']
     
     token_lock = ContractTransaction.make_static_call(
       contract: token_locker_address,
@@ -345,7 +342,7 @@ describe 'TokenLocker contract' do
       }
     )
     
-    lockDate = lock_token_receipt.logs.detect{|i| i['event'] == 'LockCreated'}['data']['lockDate']
+    lockDate = lock_token_receipt.logs.detect{|i| i['event'] == 'Deposit'}['data']['lockDate']
 
     token_lock = ContractTransaction.make_static_call(
       contract: token_locker_address,
