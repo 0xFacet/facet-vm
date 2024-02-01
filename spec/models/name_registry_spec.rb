@@ -421,20 +421,12 @@ describe 'NameRegistry contract' do
     
     deadline = Time.current.to_i + 1000
     
-    chain_id = if ENV.fetch("ETHEREUM_NETWORK") == "eth-mainnet"
-      1
-    elsif ENV.fetch("ETHEREUM_NETWORK") == "eth-goerli"
-      5
-    else
-      raise "Unknown network: #{ENV.fetch("ETHEREUM_NETWORK")}"
-    end
-    
     data = {
       types: types,
       domain: {
         name: "Registry",
         version: "1",
-        chainId: chain_id,
+        chainId: chainid,
         verifyingContract: registry_address
       },
       primaryType: "StickerClaim",
