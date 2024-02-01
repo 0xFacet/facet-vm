@@ -5,14 +5,14 @@ contract :MerkleProof, abstract: true do
     proof: [:bytes32],
     root: :bytes32,
     leaf: :bytes32
-  }, :internal, :pure do
+  }, :internal, :pure, returns: :bool do
     processProof(proof, leaf) == root
   end
 
   function :processProof, {
     proof: [:bytes32],
     leaf: :bytes32
-  }, :internal, :pure do
+  }, :internal, :pure, returns: :bytes32 do
     computedHash = leaf
     forLoop(
       condition: -> i { i < proof.length },
@@ -27,14 +27,14 @@ contract :MerkleProof, abstract: true do
   function :_hashPair, {
     a: :bytes32,
     b: :bytes32
-  }, :private, :pure do
+  }, :private, :pure, returns: :bytes32 do
     a < b ? _efficientHash(a, b) : _efficientHash(b, a);
   end
 
   function :_efficientHash, {
     a: :bytes32,
     b: :bytes32
-  }, :private, :pure do
+  }, :private, :pure, returns: :bytes32 do
     keccak256(abi.encodePacked(a, b))
   end
 end
