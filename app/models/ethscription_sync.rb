@@ -1,32 +1,18 @@
 class EthscriptionSync
   include ContractErrors
-
-  def self.query_api(url, query = {})
-    url = ENV.fetch("INDEXER_API_BASE_URI") + "/ethscriptions/" + url
-    
-    headers = {
-      "Accept" => "application/json"
-    }
-    
-    if ENV['INTERNAL_API_BEARER_TOKEN'].present?
-      headers['Authorization'] = "Bearer #{ENV['INTERNAL_API_BEARER_TOKEN']}"
-    end
-    
-    HTTParty.get(url, query: query, headers: headers)
-  end
   
   def self.fetch_ethscriptions(
     new_block_number,
     max_ethscriptions: 2500,
     max_blocks: 10_000
   )
-    url = ENV.fetch("INDEXER_API_BASE_URI") + "/ethscriptions/newer_ethscriptions"
+    # url = ENV.fetch("INDEXER_API_BASE_URI") + "/ethscriptions/newer_ethscriptions"
     
     our_count = Ethscription.valid_for_vm.
       where("block_number < ?", new_block_number).
       count
     
-    query = {
+    EthsIndexerClient.newer_ethscriptions(
       block_number: new_block_number,
       mimetypes: Ethscription.valid_mimetypes,
       max_ethscriptions: max_ethscriptions,
@@ -34,19 +20,7 @@ class EthscriptionSync
       past_ethscriptions_count: our_count,
       past_ethscriptions_checksum: Ethscription.base_indexer_checksum,
       initial_owner: Ethscription.required_initial_owner,
-    }
-    
-    headers = {
-      "Accept" => "application/json"
-    }
-    
-    if ENV['INTERNAL_API_BEARER_TOKEN'].present?
-      headers['Authorization'] = "Bearer #{ENV['INTERNAL_API_BEARER_TOKEN']}"
-    end
-    
-    response = HTTParty.get(url, query: query, headers: headers)
-    
-    response.parsed_response
+    )
   end
 
   def self.import_eth_blocks_until_done
@@ -65,23 +39,8 @@ class EthscriptionSync
     EthBlock.transaction do
       db_blocks = EthBlock.order(block_number: :desc).limit(100)
 
-      url = ENV.fetch("INDEXER_API_BASE_URI") + "/blocks/newer_blocks"
-    
-      query = {
-        block_number: db_blocks.last.block_number,
-      }
+      parsed = EthsIndexerClient.newer_blocks(block_number: db_blocks.last.block_number)
       
-      headers = {
-        "Accept" => "application/json"
-      }
-      
-      if ENV['INTERNAL_API_BEARER_TOKEN'].present?
-        headers['Authorization'] = "Bearer #{ENV['INTERNAL_API_BEARER_TOKEN']}"
-      end
-      
-      response = HTTParty.get(url, query: query, headers: headers)
-      
-      parsed = response.parsed_response
       api_blocks = parsed.is_a?(Array) ? parsed : parsed['result']
       
       db_block_hash_map = db_blocks.each_with_object({}) { |block, hash| hash[block.block_number] = block.blockhash }
