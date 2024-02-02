@@ -52,6 +52,8 @@ The VM runs on postgres, so install it if you don't already have it:
 brew install postgresql
 ```
 
+Rename the `config/sample.database.yml` file to `config/database.yml` and edit it to match your database configuration.
+
 Create the database:
 
 ```bash

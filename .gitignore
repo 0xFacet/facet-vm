@@ -31,3 +31,5 @@
 .env
 
 .DS_Store
+
+config/database.yml
