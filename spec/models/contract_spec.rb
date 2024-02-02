@@ -15,8 +15,6 @@ RSpec.describe Contract, type: :model do
   end
   
   before do
-    ENV['INDEXER_API_BASE_URI'] = "http://sepolia-api.ethscriptions.com/api"
-    
     @creation_receipt = trigger_contract_interaction_and_expect_success(
       command: 'deploy',
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",

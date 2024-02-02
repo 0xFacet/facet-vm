@@ -10,8 +10,14 @@ class StatusController < ApplicationController
     timeout = 2
     
     core_indexer_status = Rails.cache.fetch("core_indexer_status", expires_in: 5.seconds) do
+      headers = {}
+      
+      if ENV['ETHSCRIPTIONS_API_BEARER_TOKEN'].present?
+        headers['Authorization'] = "Bearer #{ENV['ETHSCRIPTIONS_API_BEARER_TOKEN']}"
+      end
+        
       begin
-        response = HTTParty.get(url, timeout: timeout)
+        response = HTTParty.get(url, { headers: headers, timeout: timeout }.compact)
         raise HTTParty::ResponseError.new(response) unless response.success?
         response.parsed_response
       rescue Timeout::Error

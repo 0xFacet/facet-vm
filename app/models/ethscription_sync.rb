@@ -8,6 +8,10 @@ class EthscriptionSync
       "Accept" => "application/json"
     }
     
+    if ENV['ETHSCRIPTIONS_API_BEARER_TOKEN'].present?
+      headers['Authorization'] = "Bearer #{ENV['ETHSCRIPTIONS_API_BEARER_TOKEN']}"
+    end
+    
     HTTParty.get(url, query: query, headers: headers)
   end
   
@@ -35,6 +39,10 @@ class EthscriptionSync
     headers = {
       "Accept" => "application/json"
     }
+    
+    if ENV['ETHSCRIPTIONS_API_BEARER_TOKEN'].present?
+      headers['Authorization'] = "Bearer #{ENV['ETHSCRIPTIONS_API_BEARER_TOKEN']}"
+    end
     
     response = HTTParty.get(url, query: query, headers: headers)
     
@@ -66,6 +74,10 @@ class EthscriptionSync
       headers = {
         "Accept" => "application/json"
       }
+      
+      if ENV['ETHSCRIPTIONS_API_BEARER_TOKEN'].present?
+        headers['Authorization'] = "Bearer #{ENV['ETHSCRIPTIONS_API_BEARER_TOKEN']}"
+      end
       
       response = HTTParty.get(url, query: query, headers: headers)
       
