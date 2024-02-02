@@ -80,7 +80,10 @@ test:
 # for a full overview on how database connection configuration can be specified.
 #
 production:
-  <<: *default
-  database: ethscriptions_vm_production
-  username: ethscriptions_vm
-  password: <%= ENV["ETHSCRIPTIONS_VM_DATABASE_PASSWORD"] %>
+  primary:
+    <<: *default
+    url: <%= ENV['DATABASE_URL'] %>
+  primary_replica:
+    <<: *default
+    url: <%= ENV['FOLLOWER_DATABASE_URL'] %>
+    replica: true
