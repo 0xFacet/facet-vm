@@ -12,8 +12,8 @@ class StatusController < ApplicationController
     core_indexer_status = Rails.cache.fetch("core_indexer_status", expires_in: 5.seconds) do
       headers = {}
       
-      if ENV['ETHSCRIPTIONS_API_BEARER_TOKEN'].present?
-        headers['Authorization'] = "Bearer #{ENV['ETHSCRIPTIONS_API_BEARER_TOKEN']}"
+      if ENV['INTERNAL_API_BEARER_TOKEN'].present?
+        headers['Authorization'] = "Bearer #{ENV['INTERNAL_API_BEARER_TOKEN']}"
       end
         
       begin
