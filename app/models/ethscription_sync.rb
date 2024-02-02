@@ -6,8 +6,6 @@ class EthscriptionSync
     max_ethscriptions: 2500,
     max_blocks: 10_000
   )
-    # url = ENV.fetch("INDEXER_API_BASE_URI") + "/ethscriptions/newer_ethscriptions"
-    
     our_count = Ethscription.valid_for_vm.
       where("block_number < ?", new_block_number).
       count
