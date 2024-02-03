@@ -30,7 +30,7 @@ class ContractCallsController < ApplicationController
   
     result = Rails.cache.fetch(cache_key) do
       contract_calls = scope.page(page).per(per_page).to_a
-      convert_int_to_string(contract_calls)
+      numbers_to_strings(contract_calls)
     end
   
     render json: {

@@ -82,3 +82,5 @@ gem "awesome_print", "~> 1.9"
 gem "clipboard"
 
 gem "descriptive_statistics", "~> 2.5"
+
+gem 'facet_rails_common', git: 'https://github.com/0xfacet/facet_rails_common.git'
