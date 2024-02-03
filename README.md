@@ -52,7 +52,8 @@ The VM runs on postgres, so install it if you don't already have it:
 brew install postgresql
 ```
 
-Rename the `config/sample.database.yml` file to `config/database.yml` and edit it to match your database configuration.
+Set up your env vars by renaming `.sample.env` to `.env`, `.sample.env.development` to `.env.development`, and `.sample.env.test` to `.env.test`. These environment-specific env files just set the database you're using in each environment. You have the option of using a replica database for reads, but you can just leave this blank if you don't want to use it. There's also a `.sample.env.production` but you'll probably want to set production env vars at the system level.
+
 
 Create the database:
 
