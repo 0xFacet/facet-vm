@@ -38,14 +38,14 @@ module EthsIndexerClient
     
     res = begin
       response = HTTParty.send(method, url, { query: query, headers: headers, timeout: timeout, body: post_body }.compact)
-      raise HTTParty::ResponseError.new(response) unless response.success?
+      
+      if response.code.between?(500, 599)
+        raise HTTParty::ResponseError.new(response)
+      end
+      
       response.parsed_response
     rescue Timeout::Error
       { error: "Not responsive after #{timeout} seconds" }
-    rescue HTTParty::ResponseError => e
-      raise if e.response.code.between?(500, 599)
-      
-      { error: "HTTP Error", code: e.response.code, body: e.response.body }
     rescue ArgumentError => e
       { error: e.message }
     end
