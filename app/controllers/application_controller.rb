@@ -41,7 +41,7 @@ class ApplicationController < ActionController::API
   end
   
   def use_read_only_database_if_available
-    if ENV['REPLICA_DATABASE_URL'].present?
+    if ENV['DATABASE_REPLICA_URL'].present?
       ActiveRecord::Base.connected_to(role: :reading) { yield }
     else
       yield
