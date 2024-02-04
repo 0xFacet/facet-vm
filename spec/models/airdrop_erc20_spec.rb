@@ -5,8 +5,6 @@ RSpec.describe Contract, type: :model do
   let(:trusted_address) { "0x019824B229400345510A3a7EFcFB77fD6A78D8d0" }
 
   before do
-    ENV['INDEXER_API_BASE_URI'] = "http://goerli-api.ethscriptions.com/api"
-
     @creation_receipt_airdrop_erc20 = trigger_contract_interaction_and_expect_success(
       command: 'deploy',
       from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",

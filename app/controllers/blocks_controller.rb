@@ -16,7 +16,7 @@ class BlocksController < ApplicationController
   
     result = Rails.cache.fetch(cache_key) do
       res = scope.page(page).per(per_page).to_a
-      convert_int_to_string(res)
+      numbers_to_strings(res)
     end
   
     render json: {
@@ -41,7 +41,7 @@ class BlocksController < ApplicationController
     end
 
     render json: {
-      result: convert_int_to_string(eth_block)
+      result: numbers_to_strings(eth_block)
     }
   end
 
@@ -53,7 +53,7 @@ class BlocksController < ApplicationController
     end
     
     render json: {
-      result: convert_int_to_string(total_blocks)
+      result: numbers_to_strings(total_blocks)
     }
   end
   

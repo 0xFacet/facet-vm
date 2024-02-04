@@ -6,8 +6,8 @@ require "active_support/core_ext/integer/time"
 # and recreated between test runs. Don't rely on the data there!
 
 Rails.application.configure do
-  ENV['ETHEREUM_NETWORK'] = "eth-goerli"
-  config.logger = ActiveSupport::Logger.new(config.paths['log'].first, 1, 25 * 1_048_576)
+  ENV['ETHEREUM_NETWORK'] = "eth-sepolia"
+  config.logger = ActiveSupport::Logger.new("/dev/null")
 
   # Settings specified here will take precedence over those in config/application.rb.
 
