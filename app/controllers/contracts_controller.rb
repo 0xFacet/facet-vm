@@ -23,7 +23,7 @@ class ContractsController < ApplicationController
   
     result = Rails.cache.fetch(cache_key) do
       contracts = scope.page(page).per(per_page).to_a
-      convert_int_to_string(contracts)
+      numbers_to_strings(contracts)
     end
   
     render json: {
@@ -61,7 +61,7 @@ class ContractsController < ApplicationController
     end
 
     render json: {
-      result: convert_int_to_string(contract.as_json(include_current_state: true))
+      result: numbers_to_strings(contract.as_json(include_current_state: true))
     }
   end
 
@@ -86,7 +86,7 @@ class ContractsController < ApplicationController
     end
 
     render json: {
-      result: convert_int_to_string(result)
+      result: numbers_to_strings(result)
     }
   end
 
@@ -99,7 +99,7 @@ class ContractsController < ApplicationController
       }
     else
       render json: {
-        result: convert_int_to_string(receipt)
+        result: numbers_to_strings(receipt)
       }
     end
   end
@@ -119,7 +119,7 @@ class ContractsController < ApplicationController
     end
 
     render json: {
-      result: convert_int_to_string(receipts),
+      result: numbers_to_strings(receipts),
       count: receipts.total_count
     }
   end
@@ -145,7 +145,7 @@ class ContractsController < ApplicationController
       return
     end
   
-    render json: { result: convert_int_to_string(receipt) }
+    render json: { result: numbers_to_strings(receipt) }
   end
   
   def pairs_for_router
@@ -229,7 +229,7 @@ class ContractsController < ApplicationController
       end
     end
     
-    render json: convert_int_to_string(result)
+    render json: numbers_to_strings(result)
   end
   
   def pairs_with_tokens
@@ -290,7 +290,7 @@ class ContractsController < ApplicationController
         end
       end
       
-      convert_int_to_string(result)
+      numbers_to_strings(result)
     end
   
     render json: { result: pairs }

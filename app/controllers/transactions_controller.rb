@@ -41,7 +41,7 @@ class TransactionsController < ApplicationController
   
     result = Rails.cache.fetch(cache_key) do
       res = scope.page(page).per(per_page).to_a
-      convert_int_to_string(res)
+      numbers_to_strings(res)
     end
   
     render json: {
@@ -59,7 +59,7 @@ class TransactionsController < ApplicationController
     end
 
     render json: {
-      result: convert_int_to_string(transaction)
+      result: numbers_to_strings(transaction)
     }
   end
 
@@ -73,7 +73,7 @@ class TransactionsController < ApplicationController
     }
     
     render json: {
-      result: convert_int_to_string(result)
+      result: numbers_to_strings(result)
     }
   end
 end
