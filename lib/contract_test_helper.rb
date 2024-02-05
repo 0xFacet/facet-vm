@@ -315,7 +315,7 @@ module ContractTestHelper
     
     existing = Ethscription.newest_first.first
     
-    block = EthBlock.order(imported_at: :desc).first
+    block = EthBlock.order(block_number: :desc).first
     
     block_number = block&.block_number.to_i + 1
     transaction_index = existing&.transaction_index.to_i + 1

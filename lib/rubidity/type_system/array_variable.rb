@@ -38,8 +38,8 @@ class ArrayVariable < TypedVariable
       initial_length: nil,
       on_change: nil
     )
-      unless value_type.is_value_type?
-        raise VariableTypeError.new("Only value types can me array elements")
+      if value_type.mapping? || value_type.array?
+        raise VariableTypeError.new("Arrays of mappings or arrays are not supported")
       end
       
       self.value_type = value_type
@@ -61,8 +61,10 @@ class ArrayVariable < TypedVariable
       
       raise "Index out of bounds" if index_var >= data.size
 
-      value = data[index_var]
-      value.deep_dup || TypedVariable.create_or_validate(value_type, on_change: on_change)
+      value = data[index_var] ||
+        TypedVariable.create_or_validate(value_type, on_change: on_change)
+      
+      value_type.is_value_type? ? value.deep_dup : value
     end
   
     def []=(index, value)
