@@ -39,8 +39,21 @@ class FunctionProxy
       
       if type.array?
         { name: name, type: "#{type.value_type}[#{type.initial_length}]" }
-      elsif type.is_value_type? || type.struct?
+      elsif type.is_value_type?
         { name: name, type: type.name.to_s }
+      elsif type.struct?
+        {
+          name: name,
+          type: 'tuple',
+          internalType: "struct #{contract_class.name}.#{type.name}",
+          components: type.struct_definition.fields.map do |field_name, field_type|
+            {
+              name: field_name,
+              type: field_type[:type].name.to_s,
+              internalType: field_type[:type].name.to_s,
+            }
+          end
+        }
       else
         raise "Invalid ABI serialization"
       end
