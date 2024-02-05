@@ -70,7 +70,23 @@ class FunctionProxy
       end
     else
       type = create_type(returns)
-      [{ type: type.name.to_s }]
+      
+      if contract_class&.structs[type.name]
+        [{
+          name: type.name,
+          type: 'tuple',
+          internalType: "struct #{contract_class.name}.#{type.name}",
+          components: type.struct_definition.fields.map do |field_name, field_type|
+            {
+              name: field_name,
+              type: field_type[:type].name.to_s,
+              internalType: field_type[:type].name.to_s,
+            }
+          end
+        }]
+      else
+        [{ type: type.name.to_s }]
+      end
     end
   end
   
