@@ -22,6 +22,6 @@ class StatusController < ApplicationController
       core_indexer_status: core_indexer_status,
     }
         
-    render json: convert_int_to_string(resp)
+    render json: numbers_to_strings(resp)
   end
 end

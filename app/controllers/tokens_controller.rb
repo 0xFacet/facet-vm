@@ -66,7 +66,7 @@ class TokensController < ApplicationController
     }
     
     render json: {
-      result: convert_int_to_string(result)
+      result: numbers_to_strings(result)
     }
   end
   
@@ -94,7 +94,7 @@ class TokensController < ApplicationController
         return
       end
 
-      convert_int_to_string(state["balanceOf"])
+      numbers_to_strings(state["balanceOf"])
     end
 
     render json: {
@@ -183,7 +183,7 @@ class TokensController < ApplicationController
         }
       end
       
-      convert_int_to_string(cooked_transactions)
+      numbers_to_strings(cooked_transactions)
     end
   
     render json: {
@@ -204,7 +204,7 @@ class TokensController < ApplicationController
       total_volume = calculate_volume(contract_address: contract_address, volume_contract: volume_contract)
       last_24_hours_volume = calculate_volume(contract_address: contract_address, volume_contract: volume_contract, start_time: one_day_ago)
 
-      convert_int_to_string({
+      numbers_to_strings({
         total_volume: total_volume,
         last_24_hours_volume: last_24_hours_volume
       })
@@ -240,7 +240,7 @@ class TokensController < ApplicationController
         { token_address: address, last_swap_price: last_swap_price_in_wei.to_s }
       end
 
-      convert_int_to_string(prices)
+      numbers_to_strings(prices)
     end
 
     render json: {
