@@ -35,6 +35,8 @@ class TypedVariable
       ArrayVariable.new(type, value, **options)
     elsif type.contract?
       ContractVariable.new(type, value, **options)
+    elsif type.struct?
+      StructVariable.new(type, value, **options)
     else
       new(type, value, **options)
     end

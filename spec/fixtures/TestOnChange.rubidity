@@ -1,6 +1,13 @@
 pragma :rubidity, "1.0.0"
 
 contract :TestOnChange do
+  struct :Person do
+    string :name
+    uint8 :age
+  end
+  
+  Person :public, :person
+  
   string :public, :name
   string :public, :symbol
   uint8 :public, :decimals
@@ -23,6 +30,8 @@ contract :TestOnChange do
     
     s.allowance[msg.sender][address(this)] = 100
     s.testArray[0] = 1
+    
+    s.person = Person(name: "Alice", age: 42)
   }
   
   function :mappingSucceed1, :public, :view do
@@ -107,6 +116,11 @@ contract :TestOnChange do
   end
   
   function :staticCallShouldSucceed, :public, :view do
+    current_val = s.person.name
+    s.person.name = current_val
+    
+    s.person = s.person
+    
     current_val = s.name
     s.name = current_val
     s.name = s.name

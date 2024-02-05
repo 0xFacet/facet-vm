@@ -62,7 +62,7 @@ class AbiProxy
   end
   
   def create_and_add_function(name, args, *options, returns: nil, &block)
-    new_function = FunctionProxy.create(name, args, *options, returns: returns, &block)
+    new_function = FunctionProxy.create(name, args, *options, returns: returns, contract_class: contract_class, &block)
     add_function(name, new_function)
   end
   
