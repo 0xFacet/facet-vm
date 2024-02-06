@@ -1,12 +1,13 @@
 pragma :rubidity, "1.0.0"
 
-import './Ownable.rubidity'
-import './Pausable.rubidity'
-import './Upgradeable.rubidity'
-import './ERC2981.rubidity'
-import './ERC721.rubidity'
-import './ERC20.rubidity'
-import './MerkleProof.rubidity'
+import "./EditionMetadataRenderer01.rubidity"
+import "./Ownable.rubidity"
+import "./Pausable.rubidity"
+import "./Upgradeable.rubidity"
+import "./ERC2981.rubidity"
+import "./ERC721.rubidity"
+import "./ERC20.rubidity"
+import "./MerkleProof.rubidity"
 
 contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Pausable, :MerkleProof], upgradeable: true do
   event :Minted, { to: :address, amount: :uint256, isPublic: :bool }
@@ -21,12 +22,14 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
   event :AllowListMintPriceUpdated, { allowListMintPrice: :uint256 }
   event :MaxSupplyUpdated, { maxSupply: :uint256 }
   event :BaseURIUpdated, { baseURI: :string }
+  event :MetadataRendererUpdated, { metadataRenderer: :string }
 
   uint256 :public, :maxSupply
   uint256 :public, :totalSupply
   uint256 :public, :maxPerMint
   string :public, :baseURI
   address :public, :WETH
+  address :public, :metadataRenderer
 
   uint256 :public, :publicMaxPerAddress
   uint256 :public, :publicMintStart
@@ -137,6 +140,10 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
   function :tokenURI, { tokenId: :uint256 }, :public, :view, :override, returns: :string do
     require(_exists(id: tokenId), "URI query for nonexistent token")
 
+    if s.metadataRenderer != address(0)
+      return EditionMetadataRenderer01(metadataRenderer).tokenURI(tokenId)
+    end
+
     if s.baseURI.length == 0
       return ""
     end
@@ -228,6 +235,13 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     emit :MaxSupplyUpdated, maxSupply: maxSupply
   end
 
+  function :setMetadataRenderer, { metadataRenderer: :address }, :public do
+    onlyOwner!
+
+    s.metadataRenderer = metadataRenderer
+    emit :MetadataRendererUpdated, metadataRenderer: metadataRenderer
+  end
+
   function :setPublicMintSettings, {
     publicMaxPerAddress: :uint256,
     publicMintStart: :uint256,
@@ -260,13 +274,13 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     s.baseURI = baseURI
     emit :BaseURIUpdated, baseURI: baseURI
   end
-  
+
   function :pause, :public do
     onlyOwner!
     
     _pause()
   end
-  
+
   function :unpause, :public do
     onlyOwner!
     
@@ -279,25 +293,25 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     amount = ERC20(s.WETH).balanceOf(address(this))
     ERC20(s.WETH).transfer(s.owner, amount)
   end
-  
+
   function :setDefaultRoyalty, { receiver: :address, feeNumerator: :uint96 }, :public do
     onlyOwner!
     
     _setDefaultRoyalty(receiver: receiver, feeNumerator: feeNumerator)
   end
-  
+
   function :deleteDefaultRoyalty, :public do
     onlyOwner!
     
     _deleteDefaultRoyalty()
   end
-  
+
   function :setTokenRoyalty, { tokenId: :uint256, receiver: :address, feeNumerator: :uint96 }, :public do
     onlyOwner!
     
     _setTokenRoyalty(tokenId: tokenId, receiver: receiver, feeNumerator: feeNumerator)
   end
-  
+
   function :deleteTokenRoyalty, { tokenId: :uint256 }, :public do
     onlyOwner!
     

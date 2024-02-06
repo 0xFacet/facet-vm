@@ -1,0 +1,72 @@
+pragma :rubidity, "1.0.0"
+
+import "./ERC721.rubidity"
+import "./NFTCollection01.rubidity"
+import "./NFTMetadataRenderer01.rubidity"
+
+contract :EditionMetadataRenderer01, is: [:NFTMetadataRenderer01] do
+  struct :TokenEditionInfo do
+    string :description
+    string :imageURI
+    string :animationURI
+  end
+  
+  event :MediaURIsUpdated, { target: :address, sender: :address, imageURI: :string, animationURI: :string }
+  event :EditionInitialized, { target: :address, description: :string, imageURI: :string, animationURI: :string }
+  event :DescriptionUpdated, { target: :address, sender: :address, newDescription: :string }
+
+  mapping ({ address: :TokenEditionInfo }), :public, :tokenInfos
+
+  function :requireSenderAdmin, { target: :address }, :internal, :pure do
+    require(target == msg.sender || NFTCollection01(target).owner(msg.sender), "Admin access only")
+
+    return nil
+  end
+
+  function :updateMediaURIs, { target: :address, imageURI: :string, animationURI: :string }, :external do
+    requireSenderAdmin(target)
+
+    tokenInfos[target].imageURI = imageURI
+    tokenInfos[target].animationURI = animationURI
+    emit :MediaURIsUpdated, target: target, sender: msg.sender, imageURI: imageURI, animationURI: animationURI
+  end
+
+  function :updateDescription, { target: :address, newDescription: :string }, :external do
+    requireSenderAdmin(target)
+
+    tokenInfos[target].description = newDescription
+    emit :DescriptionUpdated, target: target, sender: msg.sender, newDescription: newDescription
+  end
+
+  function :initializeWithData, { description: :string, imageURI: :string, animationURI: :string }, :external do
+    tokenInfos[msg.sender] = TokenEditionInfo(description: description, imageURI: imageURI, animationURI: animationURI)
+    emit :EditionInitialized, target: msg.sender, description: description, imageURI: imageURI, animationURI: animationURI
+  end
+
+  function :contractURI, :external, :view, returns: :string do
+    target = msg.sender
+    editionInfo = tokenInfos[target]
+    
+    NFTMetadataRenderer.encodeContractURIJSON(
+      name: ERC721(target).name(),
+      description: editionInfo.description,
+      imageURI: editionInfo.imageURI,
+      animationURI: editionInfo.animationURI
+    )
+  end
+
+  function :tokenURI, { tokenId: :uint256 }, :external, :view, returns: :string do
+    target = msg.sender
+    info = tokenInfos[target]
+    maxSupply = NFTCollection01(target).maxSupply()
+    
+    NFTMetadataRenderer.createMetadataEdition(
+      name: ERC721(target).name(),
+      description: info.description,
+      imageURI: info.imageURI,
+      animationURI: info.animationURI,
+      tokenOfEdition: tokenId,
+      editionSize: maxSupply
+    )
+  end
+end
