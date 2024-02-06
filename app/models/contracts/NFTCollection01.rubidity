@@ -141,7 +141,7 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     require(_exists(id: tokenId), "URI query for nonexistent token")
 
     if s.metadataRenderer != address(0)
-      return EditionMetadataRenderer01(metadataRenderer).tokenURI(tokenId)
+      return EditionMetadataRenderer01(s.metadataRenderer).tokenURI(tokenId)
     end
 
     if s.baseURI.length == 0
@@ -153,6 +153,12 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     end
 
     s.baseURI + tokenId.toString()
+  end
+
+  function :contractURI, :public, :view, returns: :string do
+    require(s.metadataRenderer != address(0), "Metadata renderer not set")
+
+    EditionMetadataRenderer01(s.metadataRenderer).contractURI()
   end
 
   function :airdrop, { to: :address, amount: :uint256, merkleProof: [:bytes32] }, :public do
@@ -235,10 +241,12 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     emit :MaxSupplyUpdated, maxSupply: maxSupply
   end
 
-  function :setMetadataRenderer, { metadataRenderer: :address }, :public do
+  function :setMetadataRenderer, { metadataRenderer: :address, data: [:string] }, :public do
     onlyOwner!
 
     s.metadataRenderer = metadataRenderer
+    EditionMetadataRenderer01(metadataRenderer).initializeWithData(data)
+
     emit :MetadataRendererUpdated, metadataRenderer: metadataRenderer
   end
 

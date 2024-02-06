@@ -38,7 +38,10 @@ contract :EditionMetadataRenderer01, is: [:NFTMetadataRenderer01] do
     emit :DescriptionUpdated, target: target, sender: msg.sender, newDescription: newDescription
   end
 
-  function :initializeWithData, { description: :string, imageURI: :string, animationURI: :string }, :external do
+  function :initializeWithData, { data: [:string] }, :external do
+    description = data[0]
+    imageURI = data[1]
+    animationURI = data[2]
     tokenInfos[msg.sender] = TokenEditionInfo(description: description, imageURI: imageURI, animationURI: animationURI)
     emit :EditionInitialized, target: msg.sender, description: description, imageURI: imageURI, animationURI: animationURI
   end
