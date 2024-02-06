@@ -180,6 +180,10 @@ RSpec.describe "NFTCollection01", type: :model do
         )
         set_weth_allowance(wallet: non_owner_address, amount: 1.ether)
 
+        expect {
+          get_contract_state(nft_contract.address, 'tokenURI', 1)
+        }.to raise_error(StandardError, /URI query for nonexistent token/)
+
         unlimited_mint_receipt = trigger_contract_interaction_and_expect_success(
           from: non_owner_address,
           payload: {
@@ -197,6 +201,9 @@ RSpec.describe "NFTCollection01", type: :model do
 
         contract_weth_balance = get_contract_state(weth_contract.address, "balanceOf", nft_contract.address)
         expect(contract_weth_balance).to eq(1.ether)
+
+        token_uri = get_contract_state(nft_contract.address, 'tokenURI', 1)
+        expect(token_uri).to eq("https://example.com/1")
       end
 
       it 'enforces mint limit if maxPerAddress is a positive number' do
