@@ -104,26 +104,6 @@ class ContractsController < ApplicationController
     end
   end
 
-  def contract_call_receipts
-    page = (params[:page] || 1).to_i
-    per_page = (params[:per_page] || 25).to_i
-    per_page = 25 if per_page > 25
-
-    contract = Contract.find_by_address(params[:address])
-    receipts = contract.transaction_receipts.includes(:contract_transaction).
-      newest_first.page(page).per(per_page)
-
-    if contract.blank?
-      render json: { error: "Contract not found" }, status: 404
-      return
-    end
-
-    render json: {
-      result: numbers_to_strings(receipts),
-      count: receipts.total_count
-    }
-  end
-  
   def simulate_transaction
     # expires_in 1.second, public: true
     

@@ -1,4 +1,6 @@
 class TransactionReceipt < ApplicationRecord
+  include OrderQuery
+  
   belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number
 
   belongs_to :contract, primary_key: 'address', foreign_key: 'effective_contract_address', optional: true
@@ -7,9 +9,22 @@ class TransactionReceipt < ApplicationRecord
   primary_key: 'transaction_hash', foreign_key: 'transaction_hash',
   optional: true
   
-  scope :newest_first, -> { order(block_number: :desc, transaction_index: :desc) }
-  scope :oldest_first, -> { order(block_number: :asc, transaction_index: :asc) }
+  order_query :newest_first,
+    [:block_number, :desc],
+    [:transaction_index, :desc, unique: true]
   
+  order_query :oldest_first,
+    [:block_number, :asc],
+    [:transaction_index, :asc, unique: true]
+  
+  def self.find_by_page_key(...)
+    find_by_transaction_hash(...)
+  end
+  
+  def page_key
+    transaction_hash
+  end
+    
   def contract
     Contract.find_by_address(address)
   end
