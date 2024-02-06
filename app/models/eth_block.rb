@@ -8,8 +8,8 @@ class EthBlock < ApplicationRecord
   
   scope :processed, -> { where.not(processing_state: "pending") }
   
-  def self.max_processed_block_hash
-    EthBlock.processed.maximum(:blockhash).to_s
+  def self.most_recently_imported_blockhash
+    EthBlock.processed.newest_first.limit(1).pick(:blockhash)
   end
   
   def self.max_processed_block_number
