@@ -6,6 +6,10 @@ The VM handles logic, validation, and state persistance and exposes everything i
 
 You can interact with the VM using the [FacetScan](https://github.com/0xfacet/facetscan).
 
+## Important: When pulling changes!
+
+Always run `bundle install && rails db:migrate` after you pull in the latest changes.
+
 ## Installation Instructions
 
 The VM is a Ruby on Rails app. To install it, follow these steps:
