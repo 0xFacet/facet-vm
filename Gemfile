@@ -83,6 +83,6 @@ gem "clipboard"
 
 gem "descriptive_statistics", "~> 2.5"
 
-gem 'facet_rails_common', git: 'https://github.com/0xfacet/facet_rails_common.git', branch: 'dev'
+gem 'facet_rails_common', git: 'https://github.com/0xfacet/facet_rails_common.git'
 
 gem "order_query", "~> 0.5.3"
