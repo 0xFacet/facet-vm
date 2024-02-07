@@ -36,7 +36,6 @@ RSpec.describe "NFTCollection01", type: :model do
           args: {
             name: name,
             symbol: symbol,
-            owner: owner_address,
             maxSupply: max_supply,
             baseURI: base_uri,
             weth: weth_contract.address
@@ -190,7 +189,11 @@ RSpec.describe "NFTCollection01", type: :model do
           public_mint_end: 0,
           public_mint_price: 1.ether
         )
-        set_weth_allowance(wallet: non_owner_address, amount: 1.ether)
+      
+        mint_amount = 25
+        total_cost = mint_amount * 1.ether
+        
+        set_weth_allowance(wallet: non_owner_address, amount: total_cost)
 
         expect {
           get_contract_state(nft_contract.address, 'tokenURI', 1)
@@ -203,7 +206,7 @@ RSpec.describe "NFTCollection01", type: :model do
             data: {
               function: "mint",
               args: {
-                amount: 25,
+                amount: mint_amount,
                 merkleProof: []
               }
             }
@@ -212,7 +215,7 @@ RSpec.describe "NFTCollection01", type: :model do
         expect(unlimited_mint_receipt.logs).to include(hash_including('event' => 'Minted'))
 
         contract_weth_balance = get_contract_state(weth_contract.address, "balanceOf", nft_contract.address)
-        expect(contract_weth_balance).to eq(1.ether)
+        expect(contract_weth_balance).to eq(total_cost)
 
         token_uri = get_contract_state(nft_contract.address, 'tokenURI', 1)
         expect(token_uri).to eq("https://example.com/1")
