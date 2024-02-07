@@ -45,6 +45,17 @@ RSpec.describe "NFTCollection01", type: :model do
       }
     )
   end
+  let(:metadata_renderer) do
+    trigger_contract_interaction_and_expect_success(
+      from: owner_address,
+      payload: {
+        op: :create,
+        data: {
+          type: "EditionMetadataRenderer01"
+        }
+      }
+    )
+  end
   let(:merkle_proof) { [
     "0xd73fe8dee98c00bc502eb5e68b20c51dbf3cd4f79151d5a836baed2d694e569f",
     "0xa582328d0d0105f80325c9b25d15ba38e45b10cb83df026376d2c8c46e0fe3ea"
@@ -138,6 +149,7 @@ RSpec.describe "NFTCollection01", type: :model do
 
   before do
     update_supported_contracts("NFTCollection01")
+    update_supported_contracts("EditionMetadataRenderer01")
 
     trigger_contract_interaction_and_expect_success(
       from: non_owner_address,
@@ -488,6 +500,22 @@ RSpec.describe "NFTCollection01", type: :model do
         # Verify that the base URI was updated correctly
         expect(get_contract_state(nft_contract.address, :baseURI)).to eq(new_base_uri)
       end
+
+      it 'allows setting the metadata renderer' do
+        trigger_contract_interaction_and_expect_success(
+          from: owner_address,
+          payload: {
+            to: nft_contract.address,
+            data: {
+              function: "setMetadataRenderer",
+              args: {
+                metadataRenderer: metadata_renderer.address,
+                data: ["Test description", "https://test.com/image.png"]
+              }
+            }
+          }
+        )
+      end
     end
 
     context 'when non-owner calls' do
@@ -529,6 +557,132 @@ RSpec.describe "NFTCollection01", type: :model do
           }
         )
       end
+
+      it 'does not allow setting the metadata renderer' do
+        trigger_contract_interaction_and_expect_error(
+          error_msg_includes: 'msg.sender is not the owner',
+          from: non_owner_address,
+          payload: {
+            to: nft_contract.address,
+            data: {
+              function: "setMetadataRenderer",
+              args: {
+                metadataRenderer: metadata_renderer.address,
+                data: ["Test description", "https://test.com/image.png"]
+              }
+            }
+          }
+        )
+      end
+    end
+  end
+
+  describe 'interaction with the metadata renderer after setting' do
+    before do
+      trigger_contract_interaction_and_expect_success(
+        from: owner_address,
+        payload: {
+          to: nft_contract.address,
+          data: {
+            function: "setMetadataRenderer",
+            args: {
+              metadataRenderer: metadata_renderer.address,
+              data: ["Test description", "https://test.com/image.png"]
+            }
+          }
+        }
+      )
+      set_public_mint_settings(
+        public_max_per_address: 0,
+        public_mint_start: 1,
+        public_mint_end: 0,
+        public_mint_price: 1.ether
+      )
+      set_weth_allowance(wallet: non_owner_address, amount: 1.ether)
+      trigger_contract_interaction_and_expect_success(
+        from: non_owner_address,
+        payload: {
+          to: nft_contract.address,
+          data: {
+            function: "mint",
+            args: {
+              amount: 1,
+              merkleProof: []
+            }
+          }
+        }
+      )
+    end
+
+    it 'updates token URIs to reflect new metadata properties for newly minted tokens' do
+      token_uri = get_contract_state(nft_contract.address, 'tokenURI', 1)
+      expect(token_uri).to eq("data:application/json;base64,eyJuYW1lIjogIlRlc3RORlQgMSIsICJkZXNjcmlwdGlvbiI6ICJUZXN0IGRlc2NyaXB0aW9uIiwgImltYWdlIjogImh0dHBzOi8vdGVzdC5jb20vaW1hZ2UucG5nIiwgInByb3BlcnRpZXMiOiB7Im51bWJlciI6IDEsICJuYW1lIjogIlRlc3RORlQifX0=")
+  
+      trigger_contract_interaction_and_expect_error(
+        error_msg_includes: 'Admin access only',
+        from: non_owner_address,
+        payload: {
+          to: metadata_renderer.address,
+          data: {
+            function: "updateMediaURIs",
+            args: {
+              target: nft_contract.address,
+              imageURI: "https://example.com/new.png",
+              animationURI: "https://example.com/animation.png"
+            }
+          }
+        }
+      )
+  
+      trigger_contract_interaction_and_expect_success(
+        from: owner_address,
+        payload: {
+          to: metadata_renderer.address,
+          data: {
+            function: "updateMediaURIs",
+            args: {
+              target: nft_contract.address,
+              imageURI: "https://example.com/new.png",
+              animationURI: "https://example.com/animation.png"
+            }
+          }
+        }
+      )
+  
+      token_uri = get_contract_state(nft_contract.address, 'tokenURI', 1)
+      expect(token_uri).to eq("data:application/json;base64,eyJuYW1lIjogIlRlc3RORlQgMSIsICJkZXNjcmlwdGlvbiI6ICJUZXN0IGRlc2NyaXB0aW9uIiwgImltYWdlIjogImh0dHBzOi8vZXhhbXBsZS5jb20vbmV3LnBuZyIsICJhbmltYXRpb25fdXJsIjogImh0dHBzOi8vZXhhbXBsZS5jb20vYW5pbWF0aW9uLnBuZyIsICJwcm9wZXJ0aWVzIjogeyJudW1iZXIiOiAxLCAibmFtZSI6ICJUZXN0TkZUIn19")
+  
+      trigger_contract_interaction_and_expect_error(
+        error_msg_includes: 'Admin access only',
+        from: non_owner_address,
+        payload: {
+          to: metadata_renderer.address,
+          data: {
+            function: "updateDescription",
+            args: {
+              target: nft_contract.address,
+              newDescription: "New description"
+            }
+          }
+        }
+      )
+  
+      trigger_contract_interaction_and_expect_success(
+        from: owner_address,
+        payload: {
+          to: metadata_renderer.address,
+          data: {
+            function: "updateDescription",
+            args: {
+              target: nft_contract.address,
+              newDescription: "New description"
+            }
+          }
+        }
+      )
+  
+      token_uri = get_contract_state(nft_contract.address, 'tokenURI', 1)
+      expect(token_uri).to eq("data:application/json;base64,eyJuYW1lIjogIlRlc3RORlQgMSIsICJkZXNjcmlwdGlvbiI6ICJOZXcgZGVzY3JpcHRpb24iLCAiaW1hZ2UiOiAiaHR0cHM6Ly9leGFtcGxlLmNvbS9uZXcucG5nIiwgImFuaW1hdGlvbl91cmwiOiAiaHR0cHM6Ly9leGFtcGxlLmNvbS9hbmltYXRpb24ucG5nIiwgInByb3BlcnRpZXMiOiB7Im51bWJlciI6IDEsICJuYW1lIjogIlRlc3RORlQifX0=")  
     end
   end
 

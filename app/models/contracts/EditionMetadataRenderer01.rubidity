@@ -1,10 +1,12 @@
 pragma :rubidity, "1.0.0"
 
 import "./ERC721.rubidity"
-import "./NFTCollection01.rubidity"
-import "./NFTMetadataRenderer01.rubidity"
 
-contract :EditionMetadataRenderer01, is: [:NFTMetadataRenderer01] do
+contract :INFTCollection01, abstract: true do
+  function :owner, :external, :view, returns: :address
+end
+
+contract :EditionMetadataRenderer01 do
   struct :TokenEditionInfo do
     string :description
     string :imageURI
@@ -17,8 +19,10 @@ contract :EditionMetadataRenderer01, is: [:NFTMetadataRenderer01] do
 
   mapping ({ address: :TokenEditionInfo }), :public, :tokenInfos
 
+  constructor() {}
+
   function :requireSenderAdmin, { target: :address }, :internal, :pure do
-    require(target == msg.sender || NFTCollection01(target).owner(msg.sender), "Admin access only")
+    require(target == msg.sender || INFTCollection01(target).owner() == msg.sender, "Admin access only")
 
     return nil
   end
@@ -26,50 +30,113 @@ contract :EditionMetadataRenderer01, is: [:NFTMetadataRenderer01] do
   function :updateMediaURIs, { target: :address, imageURI: :string, animationURI: :string }, :external do
     requireSenderAdmin(target)
 
-    tokenInfos[target].imageURI = imageURI
-    tokenInfos[target].animationURI = animationURI
+    s.tokenInfos[target].imageURI = imageURI
+    s.tokenInfos[target].animationURI = animationURI
     emit :MediaURIsUpdated, target: target, sender: msg.sender, imageURI: imageURI, animationURI: animationURI
   end
 
   function :updateDescription, { target: :address, newDescription: :string }, :external do
     requireSenderAdmin(target)
 
-    tokenInfos[target].description = newDescription
+    s.tokenInfos[target].description = newDescription
     emit :DescriptionUpdated, target: target, sender: msg.sender, newDescription: newDescription
   end
 
   function :initializeWithData, { data: [:string] }, :external do
-    description = data[0]
-    imageURI = data[1]
-    animationURI = data[2]
-    tokenInfos[msg.sender] = TokenEditionInfo(description: description, imageURI: imageURI, animationURI: animationURI)
+    description = data.length > 0 ? data[0] : ""
+    imageURI = data.length > 1 ? data[1] : ""
+    animationURI = data.length > 2 ? data[2] : ""
+    s.tokenInfos[msg.sender] = TokenEditionInfo(description: description, imageURI: imageURI, animationURI: animationURI)
     emit :EditionInitialized, target: msg.sender, description: description, imageURI: imageURI, animationURI: animationURI
   end
 
   function :contractURI, :external, :view, returns: :string do
     target = msg.sender
-    editionInfo = tokenInfos[target]
+    editionInfo = s.tokenInfos[target]
     
-    NFTMetadataRenderer.encodeContractURIJSON(
-      name: ERC721(target).name(),
-      description: editionInfo.description,
-      imageURI: editionInfo.imageURI,
-      animationURI: editionInfo.animationURI
+    encodeContractURIJSON(
+      ERC721(target).name(),
+      editionInfo.description,
+      editionInfo.imageURI,
+      editionInfo.animationURI
     )
   end
 
   function :tokenURI, { tokenId: :uint256 }, :external, :view, returns: :string do
     target = msg.sender
-    info = tokenInfos[target]
-    maxSupply = NFTCollection01(target).maxSupply()
+    info = s.tokenInfos[target]
     
-    NFTMetadataRenderer.createMetadataEdition(
-      name: ERC721(target).name(),
-      description: info.description,
-      imageURI: info.imageURI,
-      animationURI: info.animationURI,
-      tokenOfEdition: tokenId,
-      editionSize: maxSupply
+    createMetadataEdition(
+      ERC721(target).name(),
+      info.description,
+      info.imageURI,
+      info.animationURI,
+      tokenId
     )
+  end
+
+  function :createMetadataEdition, {
+    name: :string,
+    description: :string,
+    imageURI: :string,
+    animationURI: :string,
+    tokenOfEdition: :uint256
+  }, :internal, :pure, returns: :string do
+    _tokenMediaData = tokenMediaData(imageURI, animationURI)
+    json = createMetadataJSON(
+      name,
+      description,
+      _tokenMediaData,
+      tokenOfEdition
+    )
+    encodeMetadataJSON(json)
+  end
+
+  function :encodeContractURIJSON, {
+    name: :string,
+    description: :string,
+    imageURI: :string,
+    animationURI: :string,
+    royaltyBPS: :uint256,
+    royaltyRecipient: :address
+  }, :internal, :pure, returns: :string do
+    imageSpace = imageURI.length > 0 ? '", "image": "' + imageURI : ""
+    animationSpace = animationURI.length > 0 ? '", "animation_url": "' + animationURI : ""
+
+    encodeMetadataJSON(
+      '{"name": "' + name +
+      '", "description": "' + description +
+      imageSpace + animationSpace + '"}'
+    )
+  end
+
+  function :createMetadataJSON, {
+    name: :string,
+    description: :string,
+    mediaData: :string,
+    tokenOfEdition: :uint256
+  }, :internal, :pure, returns: :string do
+    '{"name": "' + name + " " + tokenOfEdition.toString() +
+    '", "description": "' + description + '", "' + mediaData +
+    'properties": {"number": ' + tokenOfEdition.toString() +
+    ', "name": "' + name + '"}}'
+  end
+
+  function :encodeMetadataJSON, { json: :string }, :internal, :pure, returns: :string do
+    "data:application/json;base64," + json.base64Encode
+  end
+
+  function :tokenMediaData, { imageUrl: :string, animationUrl: :string }, :internal, :pure, returns: :string do
+    hasImage = imageUrl.length > 0
+    hasAnimation = animationUrl.length > 0
+    if hasImage && hasAnimation
+      return 'image": "' + imageUrl + '", "animation_url": "' + animationUrl + '", "'
+    elsif hasImage
+      return 'image": "' + imageUrl + '", "'
+    elsif hasAnimation
+      return 'animation_url": "' + animationUrl + '", "'
+    end
+    
+    ""
   end
 end

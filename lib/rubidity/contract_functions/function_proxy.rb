@@ -3,8 +3,12 @@ class FunctionProxy
   
   attr_accessor :args, :state_mutability, :visibility,
     :returns, :type, :implementation, :override_modifiers,
-    :from_parent
+    :from_parent, :contract_class
   
+  def create_type(...)
+    contract_class&.create_type(...) || Type.create(...)
+  end
+    
   def initialize(**opts)
     @args = opts[:args] || {}
     @state_mutability = opts[:state_mutability]
@@ -14,6 +18,7 @@ class FunctionProxy
     @override_modifiers = Array.wrap(opts[:override_modifiers]).uniq.map{|i| i.to_sym}
     @implementation = opts[:implementation]
     @from_parent = !!opts[:from_parent]
+    @contract_class = opts[:contract_class]
   end
   
   def as_json
@@ -30,12 +35,25 @@ class FunctionProxy
   
   def args_for_json
     args.stringify_keys.map do |name, type|
-      type = Type.create(type)
+      type = create_type(type)
       
       if type.array?
         { name: name, type: "#{type.value_type}[#{type.initial_length}]" }
       elsif type.is_value_type?
         { name: name, type: type.name.to_s }
+      elsif type.struct?
+        {
+          name: name,
+          type: 'tuple',
+          internalType: "struct #{contract_class.name}.#{type.name}",
+          components: type.struct_definition.fields.map do |field_name, field_type|
+            {
+              name: field_name,
+              type: field_type[:type].name.to_s,
+              internalType: field_type[:type].name.to_s,
+            }
+          end
+        }
       else
         raise "Invalid ABI serialization"
       end
@@ -47,12 +65,28 @@ class FunctionProxy
     
     if returns.is_a?(Hash)
       returns.stringify_keys.map do |name, type|
-        type = Type.create(type)
+        type = create_type(type)
         { name: name, type: type.name.to_s }
       end
     else
-      type = Type.create(returns)
-      [{ type: type.name.to_s }]
+      type = create_type(returns)
+      
+      if contract_class&.structs[type.name]
+        [{
+          name: type.name,
+          type: 'tuple',
+          internalType: "struct #{contract_class.name}.#{type.name}",
+          components: type.struct_definition.fields.map do |field_name, field_type|
+            {
+              name: field_name,
+              type: field_type[:type].name.to_s,
+              internalType: field_type[:type].name.to_s,
+            }
+          end
+        }]
+      else
+        [{ type: type.name.to_s }]
+      end
     end
   end
   
@@ -121,12 +155,12 @@ class FunctionProxy
     as_typed = if other_args.is_a?(Array)
       args.keys.zip(other_args).map do |key, value|
         type = args[key]
-        [key, TypedVariable.create_or_validate(type, value)]
+        [key, TypedVariable.create_or_validate(create_type(type), value)]
       end.to_h
     else
       other_args.each.with_object({}) do |(key, value), acc|
         type = args[key]
-        acc[key.to_sym] = TypedVariable.create_or_validate(type, value)
+        acc[key.to_sym] = TypedVariable.create_or_validate(create_type(type), value)
       end
     end
     
@@ -153,27 +187,27 @@ class FunctionProxy
       end
       DestructureOnly.new(ret_val)
     else
-      TypedVariable.create_or_validate(returns, ret_val)
+      TypedVariable.create_or_validate(create_type(returns), ret_val)
     end
   end
   
   def validate_args!
     args.values.each do |type|
-      Type.create(type)
+      create_type(type)
     end
     
     return unless returns.present?
     
     if returns.is_a?(Hash)
-      returns.values.each{|i| Type.create(i)}
+      returns.values.each{|i| create_type(i)}
     else
-      Type.create(returns)
+      create_type(returns)
     end
   rescue TypeError => e
     raise ContractDefinitionError.new(e.message)
   end
   
-  def self.create(name, args, *options, returns: nil, &block)
+  def self.create(name, args, *options, returns: nil, contract_class: nil, &block)
     options_hash = {
       state_mutability: :non_payable,
       visibility: :internal,
@@ -198,7 +232,8 @@ class FunctionProxy
       visibility: name == :constructor ? nil : options_hash[:visibility],
       returns: returns,
       type: name == :constructor ? :constructor : :function,
-      implementation: block
+      implementation: block,
+      contract_class: contract_class
     ).tap do |record|
       record.validate_args!
     end

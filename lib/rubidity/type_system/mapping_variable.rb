@@ -2,6 +2,10 @@ class MappingVariable < TypedVariable
   def initialize(...)
     super(...)
     value.on_change = on_change
+    
+    if key_type.struct?
+      raise TypeError, "Structs cannot be used as mapping keys"
+    end
   end
   
   def serialize
@@ -73,7 +77,7 @@ class MappingVariable < TypedVariable
         set_value(typed_key_var, value)
       end
       
-      value.deep_dup
+      value_type.is_value_type? ? value.deep_dup : value
     end
 
     def []=(key_var, value)
@@ -84,14 +88,14 @@ class MappingVariable < TypedVariable
         raise TypeError, "Mappings cannot be assigned to mappings"
       end
       
-      old_value = self.data[key_var]
+      old_value = self[key_var]
       
       if old_value != val_var
         on_change&.call
         
         transformed_keys.add(key_var)
 
-        if data[key_var].nil? || val_var.type.is_value_type?
+        if val_var.type.is_value_type?
           data[key_var] = val_var
         else
           data[key_var].value = val_var.value

@@ -1,126 +1,92 @@
 module StateTestingUtils
-  def production_tester
-    # heroku run rails runner "puts ContractTransaction.all.to_json" > ct.json -a ethscriptions-vm-server 
-    # heroku run rails runner "puts Contract.all.map{|i| {address: i.address, latest_state: i.current_state}}.to_json" > contracts.json -a ethscriptions-vm-server 
-    
-    j = JSON.parse(IO.read("ct.json"))
-    
-    max_block = j.map{|i| i['block_number']}.max
-    
-    them = j.map{|i| i['transaction_hash']}.to_set
-    
-    in_us_not_them = ContractTransaction.where("block_number >= ?", max_block).where.not(transaction_hash: them).to_set; nil
-    in_them_not_us = them.to_set - ContractTransaction.pluck(:transaction_hash).to_set; nil
-    
-    in_us_not_them.length.zero? && in_them_not_us.length.zero?
+  def self.compare_all(us_db_uri, them_db_uri, as_of_block)
+    {
+      contracts: compare_contracts_at_block(us_db_uri, them_db_uri, as_of_block),
+      transaction_receipts: compare_transaction_receipts(us_db_uri, them_db_uri, as_of_block)
+    }
   end
-  
-  def production_tester2
-    # heroku run rails runner "puts TransactionReceipt.all.to_json" > ct.json -a ethscriptions-vm-server 
-    # heroku run rails runner "puts Contract.all.map{|i| {address: i.address, latest_state: i.current_state}}.to_json" > contracts.json -a ethscriptions-vm-server 
-  
-    j = JSON.parse(IO.read("ct.json"))
-  
-    max_block = j.map{|i| i['block_number']}.max
-  
-    them = j.map{|i| [i['transaction_hash'], i['logs']]}.to_h
-  
-    us = TransactionReceipt.pluck(:transaction_hash, :logs).to_h
-  
-    differing_statuses = us.select { |hash, logs| them[hash] && them[hash] != logs }
-  
-    differing_statuses
-  end
-  
-  def state_test
-    cmd = %{heroku run rails runner "puts Contract.all.map{|i| {address: i.address, latest_state: i.current_state}}.to_json" -a #{ENV.fetch('HEROKU_APP_NAME')}}
-    
-    j = JSON.parse(`#{cmd}`)
-    
-    # j = JSON.parse(IO.read("contracts.json"));nil
-    
-    them = j.map{|i| [i['address'], i['current_state']]}.to_h
-  
-    us = Contract.pluck(:address, :current_state).to_h
-    
-    differing_states = us.each_with_object({}) do |(address, state), diff|
-      if them[address] && them[address] != state
-        diff[address] = { local: state, remote: them[address] }
-      end
-    end
-  
-    differing_states
-  end
-  
-  def state_test2(us_db_name, them_db_name)
-    ActiveRecord::Base.establish_connection(
-      adapter:  'postgresql',
-      host:     'localhost',
-      database: us_db_name,
-      username: `whoami`.chomp,
-      password: ''
-    )
-    us = ContractState.pluck(:contract_address, :transaction_hash, :state).map{|address, transaction_hash, state| [[address, transaction_hash], state]}.to_h
-  
-    ActiveRecord::Base.establish_connection(
-      adapter:  'postgresql',
-      host:     'localhost',
-      database: them_db_name,
-      username: `whoami`.chomp,
-      password: ''
-    )
-    them = ContractState.pluck(:contract_address, :transaction_hash, :state).map{|address, transaction_hash, state| [[address, transaction_hash], state]}.to_h
-  
-    differing_states = us.each_with_object({}) do |((address, transaction_hash), state), diff|
-      if them[[address, transaction_hash]] && them[[address, transaction_hash]] != state
-        diff[[address, transaction_hash]] = { local: state, remote: them[[address, transaction_hash]] }
-      end
-    end
-  
-    differing_states
-  end
-  
-  def __pt2
-    them = JSON.parse(IO.read("ctr.json")).sort_by{|i| [i['block_number'], i['transaction_index']]}
-    max_block = them.map{|i| i['block_number']}.max
-    
-    us = TransactionReceipt.includes(:contract_transaction).all.map(&:as_json).
-      select{|i| i['block_number'] <= max_block}.sort_by{|i| [i['block_number'], i['transaction_index']]}; nil
-    
-    different_values = them.select do |theirs|
-      ours = us.detect{|i| i['transaction_hash'] == theirs['transaction_hash']}
-      ours != theirs
-    end; nil
-  end
-  
-  def __pt2
-    them = JSON.parse(IO.read("ct.json")).index_by { |i| i['transaction_hash'] }
-    max_block = them.values.map { |i| i['block_number'] }.max
-  
-    us = TransactionReceipt.includes(:contract_transaction).all.map(&:as_json).
-      select{|i| i['block_number'] <= max_block}.sort_by{|i| [i['block_number'], i['transaction_index']]}.index_by { |i| i['transaction_hash'] }; nil
-    
-      different_values = {}
 
-      them.each do |tx_hash, theirs|
-        ours = us[tx_hash]
-        if ours != theirs
-          differences = {}
+  def self.compare_contracts_at_block(us_db_uri, them_db_uri, as_of_block)
+    ActiveRecord::Base.establish_connection(us_db_uri)
+  
+    our_contracts = Contract.all
+    us = our_contracts.each_with_object({}) do |contract, hash|
+      state = contract.states.where('block_number < ?', as_of_block).newest_first.first&.state
+      hash[contract.address] = state if state
+    end
+  
+    ActiveRecord::Base.establish_connection(them_db_uri)
+    their_contracts = Contract.all
+    them = their_contracts.each_with_object({}) do |contract, hash|
+      state = contract.states.where('block_number < ?', as_of_block).newest_first.first&.state
+      hash[contract.address] = state if state
+    end
     
-          ours.keys.each do |key|
-            if ours[key] != theirs[key]
-              differences[key] = { 'us' => ours[key], 'them' => theirs[key] }
-            end
-          end
-    
-          different_values[tx_hash] = { 'us' => ours, 'them' => theirs, 'differences' => differences }
-        end
+    unless our_contracts.map(&:address).sort == their_contracts.map(&:address).sort
+      raise "Different contracts in the two databases!"
+    end
+  
+    differing_states = us.each_with_object({}) do |(address, us_state), diff|
+      them_state = them[address]
+      if them_state && them_state != us_state
+        diff[address] = deep_diff(us_state, them_state)
       end
-    
-      different_values.to_a.map{|i| i.last['differences']}
+    end
+  
+    differing_states
+  ensure
+    ActiveRecord::Base.establish_connection
   end
   
-  def runtime_performance_stats(since = nil)
+  def self.compare_transaction_receipts(us_db_uri, them_db_uri, as_of_block)
+    ActiveRecord::Base.establish_connection(us_db_uri)
+  
+    us = TransactionReceipt.where('block_number < ?', as_of_block).newest_first.pluck(:transaction_hash, :status, :logs).map{|transaction_hash, status, logs| [transaction_hash, {status: status, logs: logs}]}.to_h
+  
+    ActiveRecord::Base.establish_connection(them_db_uri)
+  
+    them = TransactionReceipt.where('block_number < ?', as_of_block).newest_first.pluck(:transaction_hash, :status, :logs).map{|transaction_hash, status, logs| [transaction_hash, {status: status, logs: logs}]}.to_h
+  
+    differing_receipts = us.each_with_object({}) do |(transaction_hash, us_data), diff|
+      them_data = them[transaction_hash]
+      if them_data && (them_data[:status] != us_data[:status] || them_data[:logs] != us_data[:logs])
+        diff[transaction_hash] = { local: us_data, remote: them_data }
+      end
+    end
+  
+    differing_receipts
+  ensure
+    ActiveRecord::Base.establish_connection
+  end
+  
+  def self.deep_diff(us_state, them_state)
+    diff = {}
+  
+    all_keys = us_state.keys | them_state.keys
+  
+    all_keys.each do |key|
+      us_value = us_state[key]
+      them_value = them_state[key]
+  
+      if us_value.is_a?(Hash) && them_value.is_a?(Hash)
+        key_diff = deep_diff(us_value, them_value)
+        diff[key] = key_diff unless key_diff.empty?
+      elsif us_value.is_a?(Array) && them_value.is_a?(Array)
+        if us_value.length != them_value.length
+          diff[key] = { local: us_value, remote: them_value }
+        else
+          array_diff = us_value.zip(them_value).map.with_index { |(us_item, them_item), index| deep_diff(us_item, them_item) unless us_item == them_item }.compact
+          diff[key] = array_diff unless array_diff.empty?
+        end
+      elsif us_value != them_value
+        diff[key] = { local: us_value, remote: them_value }
+      end
+    end
+  
+    diff
+  end
+  
+  def self.runtime_performance_stats(since = nil)
     since = since&.to_i || 24.hours.ago.to_i
   
     block_runtimes = TransactionReceipt.joins(:eth_block).where('eth_blocks.timestamp >= ?', since).group(:block_number).sum(:runtime_ms)

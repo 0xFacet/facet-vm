@@ -43,7 +43,7 @@ RSpec.describe ContractAstProcessor do
         function(:test) {
           self.B.constructor
           self.A._mint
-          C.blah
+          self.C.blah
           self.D.fun
         }
       }

@@ -1,6 +1,5 @@
 pragma :rubidity, "1.0.0"
 
-import "./EditionMetadataRenderer01.rubidity"
 import "./Ownable.rubidity"
 import "./Pausable.rubidity"
 import "./Upgradeable.rubidity"
@@ -8,6 +7,12 @@ import "./ERC2981.rubidity"
 import "./ERC721.rubidity"
 import "./ERC20.rubidity"
 import "./MerkleProof.rubidity"
+
+contract :IEditionMetadataRenderer01, abstract: true do
+  function :tokenURI, { tokenId: :uint256 }, :external, :view, returns: :string
+  function :contractURI, :external, :view, returns: :string
+  function :initializeWithData, { data: [:string] }, :external
+end
 
 contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Pausable, :MerkleProof], upgradeable: true do
   event :Minted, { to: :address, amount: :uint256, isPublic: :bool }
@@ -141,7 +146,7 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     require(_exists(id: tokenId), "URI query for nonexistent token")
 
     if s.metadataRenderer != address(0)
-      return EditionMetadataRenderer01(s.metadataRenderer).tokenURI(tokenId)
+      return IEditionMetadataRenderer01(s.metadataRenderer).tokenURI(tokenId)
     end
 
     if s.baseURI.length == 0
@@ -158,7 +163,7 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
   function :contractURI, :public, :view, returns: :string do
     require(s.metadataRenderer != address(0), "Metadata renderer not set")
 
-    EditionMetadataRenderer01(s.metadataRenderer).contractURI()
+    IEditionMetadataRenderer01(s.metadataRenderer).contractURI()
   end
 
   function :airdrop, { to: :address, amount: :uint256, merkleProof: [:bytes32] }, :public do
@@ -245,7 +250,7 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     onlyOwner!
 
     s.metadataRenderer = metadataRenderer
-    EditionMetadataRenderer01(metadataRenderer).initializeWithData(data)
+    IEditionMetadataRenderer01(metadataRenderer).initializeWithData(data)
 
     emit :MetadataRendererUpdated, metadataRenderer: metadataRenderer
   end
