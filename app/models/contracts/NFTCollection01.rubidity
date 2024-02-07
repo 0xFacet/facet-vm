@@ -47,8 +47,8 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
   uint256 :public, :allowListMintEnd
   uint256 :public, :allowListMintPrice
 
-  mapping ({ address: :uint256 }), :internal, :_publicMintCount
-  mapping ({ address: :uint256 }), :internal, :_allowListMintCount
+  mapping ({ address: :uint256 }), :public, :publicMintCount
+  mapping ({ address: :uint256 }), :public, :allowListMintCount
   
   constructor(
     name: :string,
@@ -80,13 +80,13 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     maxPerAddress = s.publicMaxPerAddress
     if isAllowListMint
       require(isOnAllowList(to, merkleProof), "Not on allow list")
-      s._allowListMintCount[to] += amount
-      mintCount = s._allowListMintCount[to]
+      s.allowListMintCount[to] += amount
+      mintCount = s.allowListMintCount[to]
       maxPerAddress = s.allowListMaxPerAddress
       mintPrice = s.allowListMintPrice
     else
-      s._publicMintCount[to] += amount
-      mintCount = s._publicMintCount[to]
+      s.publicMintCount[to] += amount
+      mintCount = s.publicMintCount[to]
     end
     require(maxPerAddress == 0 || mintCount <= maxPerAddress, "Exceeded mint limit")
 
