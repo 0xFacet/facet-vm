@@ -513,7 +513,17 @@ RSpec.describe "NFTCollection01", type: :model do
               function: "setMetadataRenderer",
               args: {
                 metadataRenderer: metadata_renderer.address,
-                data: ["Test description", "https://test.com/image.png"]
+                data: {
+                  function: "initializeWithData",
+                  args: {
+                    info: {
+                      name: "Test Name",
+                      description: "Test description",
+                      imageURI: "https://test.com/image.png",
+                      animationURI: "https://test.com/animation.png"
+                    }
+                  }
+                }.to_json
               }
             }
           }
@@ -571,7 +581,17 @@ RSpec.describe "NFTCollection01", type: :model do
               function: "setMetadataRenderer",
               args: {
                 metadataRenderer: metadata_renderer.address,
-                data: ["Test description", "https://test.com/image.png"]
+                data: {
+                  function: "initializeWithData",
+                  args: {
+                    info: {
+                      name: "Test Name",
+                      description: "Test description",
+                      imageURI: "https://test.com/image.png",
+                      animationURI: ""
+                    }
+                  }
+                }.to_json
               }
             }
           }
@@ -590,7 +610,17 @@ RSpec.describe "NFTCollection01", type: :model do
             function: "setMetadataRenderer",
             args: {
               metadataRenderer: metadata_renderer.address,
-              data: ["Test description", "https://test.com/image.png"]
+              data: {
+                function: "initializeWithData",
+                args: {
+                  info: {
+                    name: "Test Name",
+                    description: "Test description",
+                    imageURI: "https://test.com/image.png",
+                    animationURI: ""
+                  }
+                }
+              }.to_json
             }
           }
         }
@@ -619,7 +649,7 @@ RSpec.describe "NFTCollection01", type: :model do
 
     it 'updates token URIs to reflect new metadata properties for newly minted tokens' do
       token_uri = get_contract_state(nft_contract.address, 'tokenURI', 1)
-      expect(token_uri).to eq("data:application/json;base64,eyJuYW1lIjogIlRlc3RORlQgMSIsICJkZXNjcmlwdGlvbiI6ICJUZXN0IGRlc2NyaXB0aW9uIiwgImltYWdlIjogImh0dHBzOi8vdGVzdC5jb20vaW1hZ2UucG5nIiwgInByb3BlcnRpZXMiOiB7Im51bWJlciI6IDEsICJuYW1lIjogIlRlc3RORlQifX0=")
+      expect(token_uri).to eq("data:application/json;base64,eyJuYW1lIjogIlRlc3QgTmFtZSAxIiwgImRlc2NyaXB0aW9uIjogIlRlc3QgZGVzY3JpcHRpb24iLCAiaW1hZ2UiOiAiaHR0cHM6Ly90ZXN0LmNvbS9pbWFnZS5wbmciLCAicHJvcGVydGllcyI6IHsibnVtYmVyIjogMSwgIm5hbWUiOiAiVGVzdCBOYW1lIn19")
   
       trigger_contract_interaction_and_expect_error(
         error_msg_includes: 'Admin access only',
@@ -653,7 +683,7 @@ RSpec.describe "NFTCollection01", type: :model do
       )
   
       token_uri = get_contract_state(nft_contract.address, 'tokenURI', 1)
-      expect(token_uri).to eq("data:application/json;base64,eyJuYW1lIjogIlRlc3RORlQgMSIsICJkZXNjcmlwdGlvbiI6ICJUZXN0IGRlc2NyaXB0aW9uIiwgImltYWdlIjogImh0dHBzOi8vZXhhbXBsZS5jb20vbmV3LnBuZyIsICJhbmltYXRpb25fdXJsIjogImh0dHBzOi8vZXhhbXBsZS5jb20vYW5pbWF0aW9uLnBuZyIsICJwcm9wZXJ0aWVzIjogeyJudW1iZXIiOiAxLCAibmFtZSI6ICJUZXN0TkZUIn19")
+      expect(token_uri).to eq("data:application/json;base64,eyJuYW1lIjogIlRlc3QgTmFtZSAxIiwgImRlc2NyaXB0aW9uIjogIlRlc3QgZGVzY3JpcHRpb24iLCAiaW1hZ2UiOiAiaHR0cHM6Ly9leGFtcGxlLmNvbS9uZXcucG5nIiwgImFuaW1hdGlvbl91cmwiOiAiaHR0cHM6Ly9leGFtcGxlLmNvbS9hbmltYXRpb24ucG5nIiwgInByb3BlcnRpZXMiOiB7Im51bWJlciI6IDEsICJuYW1lIjogIlRlc3QgTmFtZSJ9fQ==")
   
       trigger_contract_interaction_and_expect_error(
         error_msg_includes: 'Admin access only',
@@ -685,7 +715,7 @@ RSpec.describe "NFTCollection01", type: :model do
       )
   
       token_uri = get_contract_state(nft_contract.address, 'tokenURI', 1)
-      expect(token_uri).to eq("data:application/json;base64,eyJuYW1lIjogIlRlc3RORlQgMSIsICJkZXNjcmlwdGlvbiI6ICJOZXcgZGVzY3JpcHRpb24iLCAiaW1hZ2UiOiAiaHR0cHM6Ly9leGFtcGxlLmNvbS9uZXcucG5nIiwgImFuaW1hdGlvbl91cmwiOiAiaHR0cHM6Ly9leGFtcGxlLmNvbS9hbmltYXRpb24ucG5nIiwgInByb3BlcnRpZXMiOiB7Im51bWJlciI6IDEsICJuYW1lIjogIlRlc3RORlQifX0=")  
+      expect(token_uri).to eq("data:application/json;base64,eyJuYW1lIjogIlRlc3QgTmFtZSAxIiwgImRlc2NyaXB0aW9uIjogIk5ldyBkZXNjcmlwdGlvbiIsICJpbWFnZSI6ICJodHRwczovL2V4YW1wbGUuY29tL25ldy5wbmciLCAiYW5pbWF0aW9uX3VybCI6ICJodHRwczovL2V4YW1wbGUuY29tL2FuaW1hdGlvbi5wbmciLCAicHJvcGVydGllcyI6IHsibnVtYmVyIjogMSwgIm5hbWUiOiAiVGVzdCBOYW1lIn19")  
     end
   end
 

@@ -1,30 +1,32 @@
 pragma :rubidity, "1.0.0"
 
+import "./Upgradeable.rubidity"
 import "./ERC721.rubidity"
 
 contract :INFTCollection01, abstract: true do
   function :owner, :external, :view, returns: :address
 end
 
-contract :EditionMetadataRenderer01 do
+contract :EditionMetadataRenderer01, is: :Upgradeable, upgradeable: true do
   struct :TokenEditionInfo do
+    string :name
     string :description
     string :imageURI
     string :animationURI
   end
   
   event :MediaURIsUpdated, { target: :address, sender: :address, imageURI: :string, animationURI: :string }
-  event :EditionInitialized, { target: :address, description: :string, imageURI: :string, animationURI: :string }
+  event :EditionInitialized, { target: :address, description: :string, imageURI: :string, animationURI: :string, name: :string }
   event :DescriptionUpdated, { target: :address, sender: :address, newDescription: :string }
 
   mapping ({ address: :TokenEditionInfo }), :public, :tokenInfos
 
-  constructor() {}
+  constructor() {
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+  }
 
   function :requireSenderAdmin, { target: :address }, :internal, :pure do
     require(target == msg.sender || INFTCollection01(target).owner() == msg.sender, "Admin access only")
-
-    return nil
   end
 
   function :updateMediaURIs, { target: :address, imageURI: :string, animationURI: :string }, :external do
@@ -42,20 +44,20 @@ contract :EditionMetadataRenderer01 do
     emit :DescriptionUpdated, target: target, sender: msg.sender, newDescription: newDescription
   end
 
-  function :initializeWithData, { data: [:string] }, :external do
-    description = data.length > 0 ? data[0] : ""
-    imageURI = data.length > 1 ? data[1] : ""
-    animationURI = data.length > 2 ? data[2] : ""
-    s.tokenInfos[msg.sender] = TokenEditionInfo(description: description, imageURI: imageURI, animationURI: animationURI)
-    emit :EditionInitialized, target: msg.sender, description: description, imageURI: imageURI, animationURI: animationURI
+  function :initializeWithData, {
+    info: :TokenEditionInfo
+  }, :external do
+    s.tokenInfos[msg.sender] = info
+    
+    emit :EditionInitialized, target: msg.sender, description: info.description, imageURI: info.imageURI, animationURI: info.animationURI, name: info.name
   end
-
+  
   function :contractURI, :external, :view, returns: :string do
     target = msg.sender
     editionInfo = s.tokenInfos[target]
     
     encodeContractURIJSON(
-      ERC721(target).name(),
+      editionInfo.name,
       editionInfo.description,
       editionInfo.imageURI,
       editionInfo.animationURI
@@ -67,7 +69,7 @@ contract :EditionMetadataRenderer01 do
     info = s.tokenInfos[target]
     
     createMetadataEdition(
-      ERC721(target).name(),
+      info.name,
       info.description,
       info.imageURI,
       info.animationURI,

@@ -263,11 +263,13 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     emit :MaxSupplyUpdated, maxSupply: maxSupply
   end
 
-  function :setMetadataRenderer, { metadataRenderer: :address, data: [:string] }, :public do
+  function :setMetadataRenderer, { metadataRenderer: :address, data: :string }, :public do
     onlyOwner!
 
     s.metadataRenderer = metadataRenderer
-    IEditionMetadataRenderer01(metadataRenderer).initializeWithData(data)
+    
+    (success, _) = metadataRenderer.call(data)
+    require(success, "setMetadataRenderer failed")
 
     emit :MetadataRendererUpdated, metadataRenderer: metadataRenderer
   end
