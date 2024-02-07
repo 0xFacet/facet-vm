@@ -98,9 +98,7 @@ contract :EditionMetadataRenderer01, is: :Upgradeable, upgradeable: true do
     name: :string,
     description: :string,
     imageURI: :string,
-    animationURI: :string,
-    royaltyBPS: :uint256,
-    royaltyRecipient: :address
+    animationURI: :string
   }, :internal, :pure, returns: :string do
     imageSpace = imageURI.length > 0 ? '", "image": "' + imageURI : ""
     animationSpace = animationURI.length > 0 ? '", "animation_url": "' + animationURI : ""
