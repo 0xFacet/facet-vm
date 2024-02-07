@@ -1,0 +1,40 @@
+pragma :rubidity, "1.0.0"
+
+contract :MerkleProof, abstract: true do
+  function :verify, {
+    proof: [:bytes32],
+    root: :bytes32,
+    leaf: :bytes32
+  }, :internal, :pure, returns: :bool do
+    processProof(proof, leaf) == root
+  end
+
+  function :processProof, {
+    proof: [:bytes32],
+    leaf: :bytes32
+  }, :internal, :pure, returns: :bytes32 do
+    computedHash = leaf
+    forLoop(
+      condition: -> i { i < proof.length },
+      max_iterations: 25
+    ) do |i|
+      computedHash = _hashPair(computedHash, proof[i])
+    end
+    
+    computedHash
+  end
+
+  function :_hashPair, {
+    a: :bytes32,
+    b: :bytes32
+  }, :private, :pure, returns: :bytes32 do
+    a.cast(:uint256) < b.cast(:uint256) ? _efficientHash(a, b) : _efficientHash(b, a);
+  end
+
+  function :_efficientHash, {
+    a: :bytes32,
+    b: :bytes32
+  }, :private, :pure, returns: :bytes32 do
+    keccak256(abi.encodePacked(a, b))
+  end
+end
