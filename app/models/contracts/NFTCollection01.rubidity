@@ -175,8 +175,10 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
   end
 
   function :contractURI, :public, :view, returns: :string do
-    require(s.metadataRenderer != address(0), "Metadata renderer not set")
-
+    if s.metadataRenderer == address(0)
+      return ""
+    end
+    
     IEditionMetadataRenderer01(s.metadataRenderer).contractURI()
   end
 
@@ -255,6 +257,7 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     onlyOwner!
 
     require(s.maxSupply == 0, "Max supply already set")
+    require(maxSupply >= s.totalSupply, "New max supply must be greater than total supply")
 
     s.maxSupply = maxSupply
     emit :MaxSupplyUpdated, maxSupply: maxSupply
