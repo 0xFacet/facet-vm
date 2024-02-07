@@ -28,7 +28,7 @@ contract :MerkleProof, abstract: true do
     a: :bytes32,
     b: :bytes32
   }, :private, :pure, returns: :bytes32 do
-    a < b ? _efficientHash(a, b) : _efficientHash(b, a);
+    a.cast(:uint256) < b.cast(:uint256) ? _efficientHash(a, b) : _efficientHash(b, a);
   end
 
   function :_efficientHash, {
