@@ -3,12 +3,13 @@ require 'rails_helper'
 describe 'BridgeAndCall contract' do
   let(:alice) { "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
   let(:bob) { "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }
-  let(:daryl) { "0xdddddddddddddddddddddddddddddddddddddddd" }
+  let(:daryl) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
   let(:trusted_smart_contract) { "0xcccccccccccccccccccccccccccccccccccccccc" }
   let(:max_supply) { 10000 }
   let(:base_uri) { "https://example.com/" }
   let(:name) { "TestNFT" }
   let(:symbol) { "TNFT" }
+  let(:fee) { (0.0005.to_d * 1.ether).to_i }
   
   before(:all) do
     update_supported_contracts("EtherBridge02")
@@ -23,7 +24,11 @@ describe 'BridgeAndCall contract' do
         op: :create,
         data: {
           type: "BridgeAndCallHelper",
-          args: "0x0000000000000000000000000000000000000000"
+          args: {
+            bridge: "0x0000000000000000000000000000000000000000",
+            owner: alice,
+            fee: fee
+          }
         }
       }
     )
@@ -152,6 +157,14 @@ describe 'BridgeAndCall contract' do
       function_args: daryl
     )
     
-    expect(eth_balance).to eq(2.ether)
+    expect(eth_balance).to eq(2.ether - fee)
+    
+    eth_balance = ContractTransaction.make_static_call(
+      contract: bridge.address,
+      function_name: "balanceOf",
+      function_args: alice
+    )
+    
+    expect(eth_balance).to eq(fee)
   end
 end

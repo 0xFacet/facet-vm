@@ -11,24 +11,39 @@ contract :BridgeAndCallHelper, is: [:Upgradeable, :Ownable], upgradeable: true d
     calldata: :string,
     initialAmount: :uint256,
     finalAmount: :uint256,
+    feeAmount: :uint256,
     resultStatus: :bool,
     resultData: :string
   }
   
-  address :public, :bridge
+  event :BridgeUpdated, { newBridge: :address }
+  event :FeeUpdated, { newFee: :uint256 }
   
-  constructor(bridge: :address) {
-    Ownable.constructor(owner: msg.sender)
-    Upgradeable.constructor(upgradeAdmin: msg.sender)
+  address :public, :bridge
+  uint256 :public, :fee
+  
+  constructor(bridge: :address, fee: :uint256, owner: :address) {
+    Ownable.constructor(owner: owner)
+    Upgradeable.constructor(upgradeAdmin: owner)
 
     s.bridge = bridge
+    s.fee = fee
   }
   
   function :setBridge, { newBridge: :address }, :public do
     onlyOwner!
     
     s.bridge = newBridge
-    nil
+    
+    emit :BridgeUpdated, newBridge: newBridge
+  end
+  
+  function :setFee, { newFee: :uint256 }, :public do
+    onlyOwner!
+    
+    s.fee = newFee
+    
+    emit :FeeUpdated, newFee: newFee
   end
   
   function :callFromBridge, {
@@ -37,10 +52,15 @@ contract :BridgeAndCallHelper, is: [:Upgradeable, :Ownable], upgradeable: true d
     calldata: :string,
   }, :public do
     require(msg.sender == s.bridge, "Only the bridge can callFromBridge")
+    require(addressToCall != address(this), "Invalid addressToCall")
     
     initialBalance = _balance()
     
-    _approve(addressToCall, initialBalance)
+    calculatedFee = initialBalance < s.fee ? initialBalance : s.fee
+    
+    _transfer(s.owner, calculatedFee)
+    
+    _approve(addressToCall, initialBalance - calculatedFee)
     
     (success, data) = addressToCall.call(calldata)
     
@@ -48,7 +68,9 @@ contract :BridgeAndCallHelper, is: [:Upgradeable, :Ownable], upgradeable: true d
     
     finalBalance = _balance()
     
-    _transfer(bridgingUser, finalBalance)
+    if finalBalance > 0
+      _transfer(bridgingUser, finalBalance)
+    end
     
     emit :CallFromBridge,
         bridgingUser: bridgingUser,
@@ -56,6 +78,7 @@ contract :BridgeAndCallHelper, is: [:Upgradeable, :Ownable], upgradeable: true d
         calldata: calldata,
         initialAmount: initialBalance,
         finalAmount: finalBalance,
+        feeAmount: calculatedFee,
         resultStatus: success,
         resultData: data
   end
