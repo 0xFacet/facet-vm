@@ -89,9 +89,11 @@ class Contract < ApplicationRecord
     
     result = yield
     
+    post_execution_state = implementation.state_proxy.serialize
+    
     if old_implementation
       @implementation = old_implementation
-      implementation.state_proxy.load(current_state)
+      implementation.state_proxy.load(post_execution_state)
     end
     
     result

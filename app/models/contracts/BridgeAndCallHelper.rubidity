@@ -1,0 +1,74 @@
+pragma :rubidity, "1.0.0"
+
+import "./ERC20.rubidity"
+import "./Ownable.rubidity"
+import "./Upgradeable.rubidity"
+
+contract :BridgeAndCallHelper, is: [:Upgradeable, :Ownable], upgradeable: true do
+  event :CallFromBridge, {
+    bridgingUser: :address,
+    addressToCall: :address,
+    calldata: :string,
+    initialAmount: :uint256,
+    finalAmount: :uint256,
+    resultStatus: :bool,
+    resultData: :string
+  }
+  
+  address :public, :bridge
+  
+  constructor(bridge: :address) {
+    Ownable.constructor(owner: msg.sender)
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+
+    s.bridge = bridge
+  }
+  
+  function :setBridge, { newBridge: :address }, :public do
+    onlyOwner!
+    
+    s.bridge = newBridge
+    nil
+  end
+  
+  function :callFromBridge, {
+    bridgingUser: :address,
+    addressToCall: :address,
+    calldata: :string,
+  }, :public do
+    require(msg.sender == s.bridge, "Only the bridge can callFromBridge")
+    
+    initialBalance = _balance()
+    
+    _approve(addressToCall, initialBalance)
+    
+    (success, data) = addressToCall.call(calldata)
+    
+    _approve(addressToCall, 0)
+    
+    finalBalance = _balance()
+    
+    _transfer(bridgingUser, finalBalance)
+    
+    emit :CallFromBridge,
+        bridgingUser: bridgingUser,
+        addressToCall: addressToCall,
+        calldata: calldata,
+        initialAmount: initialBalance,
+        finalAmount: finalBalance,
+        resultStatus: success,
+        resultData: data
+  end
+  
+  function :_balance, :internal, :view, returns: :uint256 do
+    ERC20(s.bridge).balanceOf(address(this))
+  end
+  
+  function :_approve, { spender: :address, amount: :uint256 }, :internal, returns: :bool do
+    ERC20(s.bridge).approve(spender, amount)
+  end
+  
+  function :_transfer, { to: :address, amount: :uint256 }, :internal, returns: :bool do
+    ERC20(s.bridge).transfer(to, amount)
+  end
+end
