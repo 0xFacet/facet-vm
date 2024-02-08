@@ -13,27 +13,9 @@ class AbiProxy
   end
   
   def as_json
-    # Serialize function definitions
-    functions_json = data.map do |name, function_definition|
-      function_definition.as_json.merge(name: name).with_indifferent_access
+    data.map do |name, function_definition|
+      function_definition.as_json.merge(name: name)
     end
-  
-    # Serialize struct definitions
-    structs_json = contract_class.structs.map do |name, struct_definition|
-      {
-        type: 'struct',
-        name: name.to_s,
-        components: struct_definition.fields.map do |field_name, field_info|
-          {
-            name: field_name,
-            type: field_info['type'].name.to_s
-          }.with_indifferent_access
-        end
-      }.with_indifferent_access
-    end
-  
-    # Combine both function and struct definitions
-    { functions: functions_json, structs: structs_json }.with_indifferent_access
   end
   
   def merge_parent_events
