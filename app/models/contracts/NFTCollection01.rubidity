@@ -54,6 +54,9 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
   uint256 :public, :allowListMintStart
   uint256 :public, :allowListMintEnd
   uint256 :public, :allowListMintPrice
+  
+  uint256 :public, :perMintFee
+  address :public, :feeTo
 
   mapping ({ address: :uint256 }), :public, :publicNumberMinted
   mapping ({ address: :uint256 }), :public, :allowListNumberMinted
@@ -63,7 +66,9 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     symbol: :string,
     maxSupply: :uint256,
     baseURI: :string,
-    weth: :address
+    weth: :address,
+    perMintFee: :uint256,
+    feeTo: :address
   ) {
     ERC721.constructor(name: name, symbol: symbol)
     Ownable.constructor(owner: msg.sender)
@@ -72,6 +77,8 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     s.baseURI = baseURI
     s.WETH = weth
     s.maxPerMint = 25
+    s.perMintFee = perMintFee
+    s.feeTo = feeTo
   }
 
   function :_handleMint, { to: :address, amount: :uint256, merkleProof: [:bytes32] }, :internal do
@@ -96,6 +103,15 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     end
     
     require(maxPerAddress == 0 || numberMinted <= maxPerAddress, "Exceeded mint limit")
+    
+    totalFee = s.perMintFee * amount
+    if totalFee > 0 && s.feeTo != address(0)
+      ERC20(s.WETH).transferFrom(
+        msg.sender,
+        s.feeTo,
+        totalFee
+      )
+    end
     
     totalCost = mintPrice * amount
     if totalCost > 0
@@ -348,5 +364,12 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     onlyOwner!
     
     _deleteTokenRoyalty(tokenId)
+  end
+  
+  function :setFeeTo, { feeTo: :address }, :public do
+    require(msg.sender == s.feeTo, "Only feeTo can change feeTo")
+    
+    s.feeTo = feeTo
+    nil
   end
 end
