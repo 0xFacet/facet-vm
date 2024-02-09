@@ -1,0 +1,115 @@
+pragma :rubidity, "1.0.0"
+
+import "./ERC20.rubidity"
+import "./Upgradeable.rubidity"
+import "./BridgeAndCallHelper.rubidity"
+
+contract :EtherBridge02, is: [:ERC20, :Upgradeable, :Ownable], upgradeable: true do
+  event :BridgedIn, { to: :address, amount: :uint256 }
+  event :InitiateWithdrawal, { from: :address, amount: :uint256, withdrawalId: :bytes32 }
+  event :WithdrawalComplete, { to: :address, amount: :uint256, withdrawalId: :bytes32 }
+  
+  address :public, :trustedSmartContract
+  address :public, :bridgeAndCallHelper
+  
+  mapping ({ bytes32: :uint256 }), :public, :withdrawalIdAmount
+  mapping ({ address: :bytes32 }), :public, :userWithdrawalId
+  
+  constructor(
+    name: :string,
+    symbol: :string,
+    trustedSmartContract: :address,
+    bridgeAndCallHelper: :address
+  ) {
+    require(trustedSmartContract != address(0), "Invalid smart contract")
+
+    ERC20.constructor(name: name, symbol: symbol, decimals: 18)
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+    Ownable.constructor(owner: msg.sender)
+
+    s.trustedSmartContract = trustedSmartContract
+    s.bridgeAndCallHelper = bridgeAndCallHelper
+  }
+  
+  function :onUpgrade, {
+    owner: :address,
+    bridgeAndCallHelper: :address
+  }, :public do
+    require(msg.sender == address(this), "Only the contract itself can upgrade")
+    
+    s.owner = owner
+    s.bridgeAndCallHelper = bridgeAndCallHelper
+    return nil
+  end
+  
+  function :setBridgeAndCallHelper, { bridgeAndCallHelper: :address }, :public do
+    onlyOwner!
+    
+    s.bridgeAndCallHelper = bridgeAndCallHelper
+    nil
+  end
+  
+  function :bridgeIn, { to: :address, amount: :uint256 }, :public do
+    require(
+      msg.sender == s.trustedSmartContract,
+      "Only the trusted smart contract can bridge in tokens"
+    )
+    
+    _mint(to: to, amount: amount)
+    emit :BridgedIn, to: to, amount: amount
+  end
+  
+  function :bridgeAndCall, {
+    to: :address,
+    amount: :uint256,
+    addressToCall: :address,
+    calldata: :string
+  }, :public do
+    bridgeIn(to: s.bridgeAndCallHelper, amount: amount)
+    
+    BridgeAndCallHelper(s.bridgeAndCallHelper).callFromBridge(
+      bridgingUser: to,
+      addressToCall: addressToCall,
+      calldata: calldata
+    )
+  end
+  
+  function :bridgeOut, { amount: :uint256 }, :public do
+    withdrawalId = tx.current_transaction_hash
+    require(
+      s.userWithdrawalId[msg.sender] == bytes32(0),
+      "Withdrawal pending"
+    )
+    require(
+      s.withdrawalIdAmount[withdrawalId] == 0,
+      "Already bridged out"
+    )
+    require(amount > 0, "Invalid amount")
+
+    s.userWithdrawalId[msg.sender] = withdrawalId
+    s.withdrawalIdAmount[withdrawalId] = amount
+      
+    _burn(from: msg.sender, amount: amount)
+    emit :InitiateWithdrawal, from: msg.sender, amount: amount, withdrawalId: withdrawalId
+  end
+  
+  function :markWithdrawalComplete, {
+    to: :address,
+    withdrawalId: :bytes32
+  }, :public do
+    require(
+      msg.sender == s.trustedSmartContract,
+      "Only the trusted smart contract can mark withdrawals as complete"
+    )
+    require(
+      s.userWithdrawalId[to] == withdrawalId,
+      "Withdrawal id not found"
+    )
+    
+    amount = s.withdrawalIdAmount[withdrawalId]
+    s.withdrawalIdAmount[withdrawalId] = 0
+    s.userWithdrawalId[to] = bytes32(0)
+      
+    emit :WithdrawalComplete, to: to, amount: amount, withdrawalId: withdrawalId
+  end
+end

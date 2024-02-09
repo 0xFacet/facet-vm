@@ -2,7 +2,8 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
   attribute :call_stack, :current_call, :system_config,
-    :transaction_index, :current_transaction, :latest_artifact_hash
+    :transaction_index, :current_transaction, :latest_artifact_hash,
+    :current_event_index
   
   delegate :get_active_contract, to: :current_transaction
   
@@ -44,7 +45,10 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def log_event(event)
-    current_call.log_event(event)
+    current_index = current_event_index
+    self.current_event_index += 1
+    
+    current_call.log_event(event.merge(index: current_index))
   end
   
   def msg_sender
