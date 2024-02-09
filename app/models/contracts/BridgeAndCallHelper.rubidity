@@ -22,6 +22,8 @@ contract :BridgeAndCallHelper, is: [:Upgradeable, :Ownable], upgradeable: true d
   address :public, :bridge
   uint256 :public, :fee
   
+  bool :locked
+  
   constructor(bridge: :address, fee: :uint256, owner: :address) {
     Ownable.constructor(owner: owner)
     Upgradeable.constructor(upgradeAdmin: owner)
@@ -52,7 +54,10 @@ contract :BridgeAndCallHelper, is: [:Upgradeable, :Ownable], upgradeable: true d
     calldata: :string,
   }, :public do
     require(msg.sender == s.bridge, "Only the bridge can callFromBridge")
-    require(addressToCall != address(this), "Invalid addressToCall")
+    require(addressToCall != address(this), "Cannot call self")
+    
+    require(!s.locked, 'No reentrancy allowed')
+    s.locked = true
     
     initialBalance = _balance()
     
@@ -71,6 +76,8 @@ contract :BridgeAndCallHelper, is: [:Upgradeable, :Ownable], upgradeable: true d
     if finalBalance > 0
       _transfer(bridgingUser, finalBalance)
     end
+    
+    s.locked = false
     
     emit :CallFromBridge,
         bridgingUser: bridgingUser,

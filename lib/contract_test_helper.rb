@@ -151,6 +151,11 @@ module ContractTestHelper
   
   def self.set_initial_supported_contracts
     new_names = [
+      "BridgeAndCallHelper",
+      "EtherBridge02",
+      "FacetSwapV1Locker",
+      "EditionMetadataRenderer01",
+      "NFTCollection01",
       "FacetPortV101",
       "EtherBridge",
       "EthscriptionERC20Bridge03",
