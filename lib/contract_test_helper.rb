@@ -330,7 +330,7 @@ module ContractTestHelper
   
     block = nil
     
-    ethscriptions = transactions.map do |transaction|
+    ethscriptions = transactions.map.with_index do |transaction, index|
       from = transaction[:from]
       payload = transform_old_format_to_new(transaction[:payload]).with_indifferent_access
   
@@ -384,7 +384,7 @@ module ContractTestHelper
         "creator"=>from.downcase,
         block_timestamp: block_timestamp,
         "initial_owner"=> Ethscription.required_initial_owner,
-        "transaction_index"=>transaction_index,
+        "transaction_index"=>transaction_index + index,
         "content_uri"=> uri,
         mimetype: mimetype,
         processing_state: :pending
@@ -400,7 +400,6 @@ module ContractTestHelper
       contract_artifacts: [],
       ethscriptions: ethscriptions
     ) do
-      ap ethscriptions
       BlockContext.process!
     end
   

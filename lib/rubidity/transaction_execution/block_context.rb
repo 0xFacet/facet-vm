@@ -7,27 +7,6 @@ class BlockContext < ActiveSupport::CurrentAttributes
   
   delegate :current_transaction, :current_call, to: TransactionContext
   
-  # def valid_to
-  #   ethscriptions.select(&:valid_to?)
-  # end
-  
-  # def contract_transaction_ethscriptions
-  #   parsed_ethscriptions.select(&:triggers_contract_interaction?)
-  # end
-  
-  # def system_config_transactions_ethscriptions
-  #   valid_to.select(&:triggers_system_config_update?)
-  # end
-  
-  # def invalid_mimetype_ethscriptions
-  #   out = ethscriptions.reject(&:triggers_contract_interaction?).
-  #     reject(&:triggers_system_config_update?)
-      
-  #   out.assign_attributes(
-  #     processing_state: "failure"
-  #   )
-  # end
-  
   def ethscriptions=(ethscriptions)
     self.parsed_ethscriptions = (ethscriptions || []).map do |e|
       e.process!(persist: false)
@@ -125,7 +104,21 @@ class BlockContext < ActiveSupport::CurrentAttributes
     ).to_a
     
     contract_transactions.each do |contract_tx|
-      contract_tx.execute_transaction(persist: false)
+      TransactionContext.set(
+        call_stack: CallStack.new(TransactionContext),
+        active_contracts: [],
+        current_transaction: contract_tx,
+        current_event_index: 0,
+        tx_origin: contract_tx.tx_origin,
+        tx_current_transaction_hash: contract_tx.transaction_hash,
+        block_number: current_block.block_number,
+        block_timestamp: current_block.timestamp,
+        block_blockhash: current_block.blockhash,
+        block_chainid: current_chainid,
+        transaction_index: contract_tx.transaction_index
+      ) do
+        contract_tx.execute_transaction(persist: false)
+      end
     end
     
     return unless persist
@@ -156,6 +149,11 @@ class BlockContext < ActiveSupport::CurrentAttributes
     current_block.block_number >= system_config.start_block_number
   end
   
+  def add_contract(contract)
+    contracts << contract if contract
+    contract
+  end
+  
   def get_existing_contract(address)
     in_memory = contracts.detect do |contract|
       contract.deployed_successfully? &&
@@ -166,9 +164,7 @@ class BlockContext < ActiveSupport::CurrentAttributes
     
     from_db = Contract.find_by(deployed_successfully: true, address: address)
     
-    contracts << from_db if from_db
-    
-    from_db
+    add_contract(from_db)
   end
   
   def create_new_contract(address:, init_code_hash:, source_code:)
@@ -181,15 +177,12 @@ class BlockContext < ActiveSupport::CurrentAttributes
       transaction_hash: current_transaction.transaction_hash,
       block_number: current_block.block_number,
       transaction_index: current_transaction.transaction_index,
-      # internal_transaction_index: current_call.internal_transaction_index,
       address: address,
       current_type: new_contract_implementation.name,
       current_init_code_hash: init_code_hash
     )
     
-    contracts << new_contract
-    
-    new_contract
+    add_contract(new_contract)
   end
   
   def supported_contract_class(init_code_hash, source_code = nil, validate: true)

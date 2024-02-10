@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-describe 'BridgeAndCall contract' do
+describe 'BlockContext' do
   let(:alice) { "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
   let(:bob) { "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }
   let(:daryl) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
@@ -19,63 +19,64 @@ describe 'BridgeAndCall contract' do
   end
   
   it "does things" do
-    # contract = trigger_contract_interaction_and_expect_success(
-    #   from: alice,
-    #   payload: {
-    #     op: :create,
-    #     data: {
-    #       type: "TestBlockContext",
-    #       args: {}
-    #     }
-    #   }
-    # )
+    contract = trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: :create,
+        data: {
+          type: "TestBlockContext",
+          args: {}
+        }
+      }
+    )
     
-    # target = trigger_contract_interaction_and_expect_success(
-    #   from: alice,
-    #   payload: {
-    #     op: :create,
-    #     data: {
-    #       type: "TestBlockContext",
-    #       args: {}
-    #     }
-    #   }
-    # )
+    target = trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: :create,
+        data: {
+          type: "TestBlockContext",
+          args: {}
+        }
+      }
+    )
     
-    # in_block do |c|
-    #   c.trigger_contract_interaction_and_expect_error(
-    #     from: alice,
-    #     payload: {
-    #       op: :call,
-    #       data: {
-    #         to: "target.address",
-    #         function: "changeVar1",
-    #         args: [5, false]
-    #       }
-    #     }
-    #   )
+    in_block do |c|
+      c.trigger_contract_interaction_and_expect_success(
+        from: alice,
+        payload: {
+          op: :call,
+          data: {
+            to: target.address,
+            function: "changeVar1",
+            args: [5, false]
+          }
+        }
+      )
       
-    #   c.trigger_contract_interaction_and_expect_error(
-    #     from: alice,
-    #     payload: {
-    #       op: :call,
-    #       data: {
-    #         to: "contract.address",
-    #         function: "oneSuccessOneRevert",
-    #         args: ["target.address", 10]
-    #       }
-    #     }
-    #   )
-    # end
+      c.trigger_contract_interaction_and_expect_error(
+        from: alice,
+        payload: {
+          op: :call,
+          data: {
+            to: contract.address,
+            function: "oneSuccessOneRevert",
+            args: [target.address, 10]
+          }
+        }
+      )
+    end
     
-    # ts = ContractTransaction.make_static_call(
-    #   contract: target.address,
-    #   function_name: "var1",
-    #   function_args: {}
-    # )
+    ts = ContractTransaction.make_static_call(
+      contract: target.address,
+      function_name: "var1",
+      function_args: {}
+    )
     
-    # expect(ts).to eq(5)
-    # # binding.pry
+    expect(ts).to eq(5)
+    # binding.pry
     # exit
+
     nft = trigger_contract_interaction_and_expect_success(
       from: alice,
       payload: {
@@ -108,18 +109,6 @@ describe 'BridgeAndCall contract' do
         }
       )
 
-      c.trigger_contract_interaction_and_expect_success(
-        from: daryl,
-        payload: {
-          op: :call,
-          data: {
-            to: nft.address,
-            function: "mint",
-            args: 5
-          }
-        }
-      )
-      
       c.trigger_contract_interaction_and_expect_error(
         from: alice,
         payload: {
@@ -128,6 +117,18 @@ describe 'BridgeAndCall contract' do
             to: nft.address,
             function: "mint",
             args: 11
+          }
+        }
+      )
+      
+      c.trigger_contract_interaction_and_expect_success(
+        from: daryl,
+        payload: {
+          op: :call,
+          data: {
+            to: nft.address,
+            function: "mint",
+            args: 5
           }
         }
       )

@@ -245,6 +245,7 @@ class ContractTransaction < ApplicationRecord
       # system_config: SystemConfigVersion.current,
       # latest_artifact_hash: ContractArtifact.latest_tx_hash,
       call_stack: CallStack.new(TransactionContext),
+      active_contracts: [],
       current_transaction: self,
       current_event_index: 0,
       tx_origin: tx_origin,
@@ -260,18 +261,16 @@ class ContractTransaction < ApplicationRecord
   end
   
   def make_initial_call
-    with_global_context do
-      payload_data = OpenStruct.new(payload.data)
+    payload_data = OpenStruct.new(payload.data)
       
-      TransactionContext.call_stack.execute_in_new_frame(
-        to_contract_init_code_hash: payload_data.init_code_hash,
-        to_contract_source_code: payload_data.source_code,
-        to_contract_address: payload_data.to&.downcase,
-        function: payload_data.function,
-        args: payload_data.args,
-        type: payload.op.to_sym,
-      )
-    end
+    TransactionContext.call_stack.execute_in_new_frame(
+      to_contract_init_code_hash: payload_data.init_code_hash,
+      to_contract_source_code: payload_data.source_code,
+      to_contract_address: payload_data.to&.downcase,
+      function: payload_data.function,
+      args: payload_data.args,
+      type: payload.op.to_sym,
+    )
   end
   
   def execute_transaction(persist:)
@@ -284,50 +283,14 @@ class ContractTransaction < ApplicationRecord
     begin
       make_initial_call
     rescue ContractError, TransactionError
-      # binding.pry
-      revert_contract_changes
+    end
+    
+    if success?
+      TransactionContext.active_contracts.each(&:take_state_snapshot)
     end
     
     build_transaction_receipt
-    
-    # if persist
-    #   ContractTransaction.transaction do
-    #     save!
-    #     persist_contract_state_if_success!
-    #   end
-    # end
   end
-  
-  def revert_contract_changes
-    contract_calls.map(&:effective_contract).compact.uniq(&:address).each do |contract|
-      contract.revert_state_changes
-    end
-  end
-  
-  # def persist_contract_state_if_success!
-  #   return unless status == :success
-    
-  #   grouped_contracts = contract_calls.group_by { |call| call.effective_contract.address }
-
-  #   grouped_contracts.each do |address, calls|
-  #     states = calls.map { |call| call.effective_contract.current_state }.uniq
-  #     if states.length > 1
-  #       raise "Duplicate contracts with different states for address #{address}"
-  #     end
-  #   end
-    
-  #   contract_calls.map(&:effective_contract).uniq(&:address).each do |contract|
-  #     contract.save_new_state_if_needed!(
-  #       transaction: self,
-  #     )
-  #   end
-  # end
-  
-  # def get_active_contract(address)
-  #   contract_calls.detect do |call|
-  #     call.effective_contract&.address == address
-  #   end&.effective_contract
-  # end
   
   def success?
     status == :success

@@ -86,7 +86,7 @@ class ContractCall < ApplicationRecord
   end
   
   def find_and_validate_existing_contract!
-    self.effective_contract = BlockContext.get_existing_contract(to_contract_address)
+    self.effective_contract = TransactionContext.get_existing_contract(to_contract_address)
     
     if effective_contract.blank?
       raise CallingNonExistentContractError.new("Contract not found: #{to_contract_address}")
@@ -105,7 +105,7 @@ class ContractCall < ApplicationRecord
     #   address: calculate_new_contract_address
     # )
     
-    self.effective_contract = BlockContext.create_new_contract(
+    self.effective_contract = TransactionContext.create_new_contract(
       address: calculate_new_contract_address,
       init_code_hash: to_contract_init_code_hash,
       source_code: to_contract_source_code

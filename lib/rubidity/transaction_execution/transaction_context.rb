@@ -1,9 +1,7 @@
 class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
-  attribute :call_stack, :current_call, :transaction_index, :current_transaction, :current_event_index
-  
-  # delegate :get_active_contract, to: :current_transaction
+  attribute :call_stack, :current_call, :transaction_index, :current_transaction, :current_event_index, :active_contracts
   
   STRUCT_DETAILS = {
     msg:    { attributes: { sender: :address } },
@@ -33,6 +31,29 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   
   def transaction_hash
     tx.current_transaction_hash
+  end
+  
+  def get_existing_contract(address)
+    already_active = self.active_contracts.detect do |contract|
+      contract.address == address
+    end
+    
+    return already_active if already_active
+    
+    from_block = BlockContext.get_existing_contract(address)
+    
+    mark_active(from_block)
+  end
+  
+  def mark_active(contract)
+    contract.load_last_snapshot
+    active_contracts << contract
+    contract
+  end
+  
+  def create_new_contract(...)
+    from_block = BlockContext.create_new_contract(...)
+    mark_active(from_block)
   end
   
   # def supported_contract_class(init_code_hash, source_code = nil, validate: true)

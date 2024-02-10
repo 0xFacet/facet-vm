@@ -9,20 +9,40 @@ class Contract < ApplicationRecord
   
   has_many :contract_calls, foreign_key: :effective_contract_address, primary_key: :address
   has_one :transaction_receipt, through: :contract_transaction
+  delegate :implements?, to: :implementation
 
   attr_reader :implementation
   
-  delegate :implements?, to: :implementation
+  attr_accessor :state_snapshots
   
-  after_initialize :set_normalized_initial_state
+  after_initialize :ensure_initial_state_snapshot
   
-  def revert_state_changes
-    return unless should_save_new_state?
-ap @normalized_initial_state
-    self.current_init_code_hash = current_init_code_hash_was
-    self.current_type = current_type_was
-    self.current_state = @normalized_initial_state
+  def ensure_initial_state_snapshot
+    take_state_snapshot if state_snapshots.empty?
   end
+  
+  def state_snapshots
+    @state_snapshots ||= []
+  end
+  
+  def take_state_snapshot
+    state_snapshots.push({
+      state: current_state,
+      type: current_type,
+      init_code_hash: current_init_code_hash
+    })
+  end
+  
+  def load_last_snapshot
+    self.current_init_code_hash = state_snapshots.last[:init_code_hash]
+    self.current_type = state_snapshots.last[:type]
+    self.current_state = state_snapshots.last[:state]
+  end
+  
+  def should_save_new_state?
+    JsonSorter.sort_hash(state_snapshots.first) != JsonSorter.sort_hash(state_snapshots.last)
+  end
+  
   
   def new_state_for_save(block_number:)
     return unless should_save_new_state?
@@ -30,19 +50,12 @@ ap @normalized_initial_state
     ContractState.new(
       contract_address: address,
       block_number: block_number,
-      state: current_state,
-      type: current_type,
-      init_code_hash: current_init_code_hash
+      state: state_snapshots.last[:state],
+      type: state_snapshots.last[:type],
+      init_code_hash: state_snapshots.last[:init_code_hash]
     )
   end
   
-  def set_normalized_initial_state
-    @normalized_initial_state = JsonSorter.sort_hash(current_state)
-  end
-  
-  def normalized_state_changed?
-    @normalized_initial_state != JsonSorter.sort_hash(current_state)
-  end
   
   def implementation_class
     return unless current_init_code_hash
@@ -54,25 +67,6 @@ ap @normalized_initial_state
   
   def self.types_that_implement(base_type)
     ContractArtifact.types_that_implement(base_type)
-  end
-  
-  def should_save_new_state?
-    current_init_code_hash_changed? ||
-    current_type_changed? ||
-    normalized_state_changed?
-  end
-  
-  def save_new_state_if_needed!(transaction:)
-    return unless should_save_new_state?
-    
-    states.create!(
-      transaction_hash: transaction.transaction_hash,
-      block_number: transaction.block_number,
-      transaction_index: transaction.transaction_index,
-      state: current_state,
-      type: current_type,
-      init_code_hash: current_init_code_hash
-    )
   end
   
   def execute_function(function_name, args, is_static_call:)
