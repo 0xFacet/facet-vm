@@ -9,11 +9,17 @@ class EthBlock < ApplicationRecord
   scope :processed, -> { where.not(processing_state: "pending") }
   
   def self.most_recently_imported_blockhash
-    EthBlock.processed.newest_first.limit(1).pick(:blockhash)
+    max_block_number = max_processed_block_number
+    EthBlock.where(block_number: max_block_number).pick(:blockhash)
   end
   
   def self.max_processed_block_number
-    EthBlock.processed.maximum(:block_number).to_i
+    min_pending_block_number = EthBlock.where(processing_state: 'pending').minimum(:block_number)
+    if min_pending_block_number
+      EthBlock.processed.where('block_number < ?', min_pending_block_number).maximum(:block_number).to_i
+    else
+      EthBlock.processed.maximum(:block_number).to_i
+    end
   end
   
   def self.process_contract_actions_until_done
