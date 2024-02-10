@@ -64,22 +64,6 @@ CREATE FUNCTION public.check_block_sequence() RETURNS trigger
 
 
 --
--- Name: check_ethscription_order(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.check_ethscription_order() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-      BEGIN
-        IF NEW.block_number < (SELECT MAX(block_number) FROM ethscriptions) OR (NEW.block_number = (SELECT MAX(block_number) FROM ethscriptions) AND NEW.transaction_index <= (SELECT MAX(transaction_index) FROM ethscriptions WHERE block_number = NEW.block_number)) THEN
-          RAISE EXCEPTION 'New ethscription must be later in order';
-        END IF;
-        RETURN NEW;
-      END;
-      $$;
-
-
---
 -- Name: check_status(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -126,7 +110,7 @@ CREATE FUNCTION public.update_current_state() RETURNS trigger
           SELECT INTO latest_contract_state *
           FROM contract_states
           WHERE contract_address = NEW.contract_address
-          ORDER BY block_number DESC, transaction_index DESC
+          ORDER BY block_number DESC--, transaction_index DESC
           LIMIT 1;
 
           UPDATE contracts
@@ -139,7 +123,7 @@ CREATE FUNCTION public.update_current_state() RETURNS trigger
           FROM contract_states
           WHERE contract_address = OLD.contract_address
             AND id != OLD.id
-          ORDER BY block_number DESC, transaction_index DESC
+          ORDER BY block_number DESC--, transaction_index DESC
           LIMIT 1;
 
           UPDATE contracts
@@ -280,18 +264,15 @@ ALTER SEQUENCE public.contract_calls_id_seq OWNED BY public.contract_calls.id;
 
 CREATE TABLE public.contract_states (
     id bigint NOT NULL,
-    transaction_hash character varying NOT NULL,
     type character varying NOT NULL,
     init_code_hash character varying NOT NULL,
     state jsonb DEFAULT '{}'::jsonb NOT NULL,
     block_number bigint NOT NULL,
-    transaction_index bigint NOT NULL,
     contract_address character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_rails_0db74a781b CHECK (((contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_2be3a94567 CHECK (((init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT chk_rails_c9c6d246ab CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
+    CONSTRAINT chk_rails_2be3a94567 CHECK (((init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
 
@@ -462,10 +443,8 @@ CREATE TABLE public.ethscriptions (
     CONSTRAINT chk_rails_788fa87594 CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_84591e2730 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_b577b97822 CHECK (((creator)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_c97e7f929f CHECK ((((processing_state)::text = 'failure'::text) OR (processing_error IS NULL))),
     CONSTRAINT chk_rails_ca0ea47752 CHECK (((processing_state)::text = ANY ((ARRAY['pending'::character varying, 'success'::character varying, 'failure'::character varying])::text[]))),
-    CONSTRAINT chk_rails_df21fdbe02 CHECK (((initial_owner)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_fb6493689d CHECK ((((processing_state)::text <> 'failure'::text) OR (processing_error IS NOT NULL)))
+    CONSTRAINT chk_rails_df21fdbe02 CHECK (((initial_owner)::text ~ '^0x[a-f0-9]{40}$'::text))
 );
 
 
@@ -854,10 +833,10 @@ CREATE INDEX index_contract_calls_on_to_contract_address ON public.contract_call
 
 
 --
--- Name: index_contract_states_on_addr_block_number_tx_index; Type: INDEX; Schema: public; Owner: -
+-- Name: index_contract_states_on_block_number; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_contract_states_on_addr_block_number_tx_index ON public.contract_states USING btree (contract_address, block_number, transaction_index);
+CREATE INDEX index_contract_states_on_block_number ON public.contract_states USING btree (block_number);
 
 
 --
@@ -868,24 +847,10 @@ CREATE INDEX index_contract_states_on_contract_address ON public.contract_states
 
 
 --
--- Name: index_contract_states_on_contract_address_and_transaction_hash; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_contract_states_on_contract_address_and_transaction_hash ON public.contract_states USING btree (contract_address, transaction_hash);
-
-
---
 -- Name: index_contract_states_on_state; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX index_contract_states_on_state ON public.contract_states USING gin (state);
-
-
---
--- Name: index_contract_states_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_contract_states_on_transaction_hash ON public.contract_states USING btree (transaction_hash);
 
 
 --
@@ -1141,13 +1106,6 @@ CREATE TRIGGER trigger_check_block_order BEFORE INSERT ON public.eth_blocks FOR 
 
 
 --
--- Name: ethscriptions trigger_check_ethscription_order; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trigger_check_ethscription_order BEFORE INSERT ON public.ethscriptions FOR EACH ROW EXECUTE FUNCTION public.check_ethscription_order();
-
-
---
 -- Name: eth_blocks trigger_delete_later_blocks; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1186,51 +1144,11 @@ ALTER TABLE ONLY public.transaction_receipts
 
 
 --
--- Name: contract_states fk_rails_54fdb5b7e7; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.contract_states
-    ADD CONSTRAINT fk_rails_54fdb5b7e7 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
-
-
---
--- Name: contract_artifacts fk_rails_6aff674b66; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.contract_artifacts
-    ADD CONSTRAINT fk_rails_6aff674b66 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
-
-
---
 -- Name: system_config_versions fk_rails_71887ba27f; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.system_config_versions
     ADD CONSTRAINT fk_rails_71887ba27f FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
-
-
---
--- Name: contract_calls fk_rails_84969f6044; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.contract_calls
-    ADD CONSTRAINT fk_rails_84969f6044 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
-
-
---
--- Name: contract_transactions fk_rails_a3a2f6ff66; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.contract_transactions
-    ADD CONSTRAINT fk_rails_a3a2f6ff66 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
-
-
---
--- Name: system_config_versions fk_rails_a7468c93b0; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.system_config_versions
-    ADD CONSTRAINT fk_rails_a7468c93b0 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
 
 
 --
@@ -1242,35 +1160,11 @@ ALTER TABLE ONLY public.contract_transactions
 
 
 --
--- Name: contracts fk_rails_caa9d9df8b; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.contracts
-    ADD CONSTRAINT fk_rails_caa9d9df8b FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
-
-
---
 -- Name: contract_artifacts fk_rails_de6793fa43; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.contract_artifacts
     ADD CONSTRAINT fk_rails_de6793fa43 FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
-
-
---
--- Name: transaction_receipts fk_rails_e9589fbc7a; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.transaction_receipts
-    ADD CONSTRAINT fk_rails_e9589fbc7a FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
-
-
---
--- Name: contract_states fk_rails_ea304e7236; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.contract_states
-    ADD CONSTRAINT fk_rails_ea304e7236 FOREIGN KEY (contract_address) REFERENCES public.contracts(address) ON DELETE CASCADE;
 
 
 --

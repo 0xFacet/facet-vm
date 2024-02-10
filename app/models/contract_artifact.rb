@@ -4,7 +4,8 @@ class ContractArtifact < ApplicationRecord
   include ContractErrors
   extend Memoist
   
-  belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
+  belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, optional: true
+  # belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
   
   scope :newest_first, -> {
     order(

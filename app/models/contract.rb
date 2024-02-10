@@ -1,10 +1,11 @@
 class Contract < ApplicationRecord
   include ContractErrors
-    
+  
+  belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, optional: true
   has_many :states, primary_key: 'address', foreign_key: 'contract_address', class_name: "ContractState"
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
 
-  belongs_to :ethscription, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', optional: true
+  # belongs_to :ethscription, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', optional: true
   
   has_many :contract_calls, foreign_key: :effective_contract_address, primary_key: :address
   has_one :transaction_receipt, through: :contract_transaction
@@ -14,6 +15,26 @@ class Contract < ApplicationRecord
   delegate :implements?, to: :implementation
   
   after_initialize :set_normalized_initial_state
+  
+  def revert_state_changes
+    return unless should_save_new_state?
+ap @normalized_initial_state
+    self.current_init_code_hash = current_init_code_hash_was
+    self.current_type = current_type_was
+    self.current_state = @normalized_initial_state
+  end
+  
+  def new_state_for_save(block_number:)
+    return unless should_save_new_state?
+
+    ContractState.new(
+      contract_address: address,
+      block_number: block_number,
+      state: current_state,
+      type: current_type,
+      init_code_hash: current_init_code_hash
+    )
+  end
   
   def set_normalized_initial_state
     @normalized_initial_state = JsonSorter.sort_hash(current_state)
@@ -26,7 +47,7 @@ class Contract < ApplicationRecord
   def implementation_class
     return unless current_init_code_hash
     
-    TransactionContext.supported_contract_class(
+    BlockContext.supported_contract_class(
       current_init_code_hash, validate: false
     )
   end
