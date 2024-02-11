@@ -98,7 +98,10 @@ class BlockContext < ActiveSupport::CurrentAttributes
       t.payload.dig('data', 'to')&.downcase
     end.uniq.compact
     # binding.pry
-    self.contracts = Contract.where(address: initial_contracts, deployed_successfully: true).to_a
+    Contract.where(address: initial_contracts, deployed_successfully: true).each do |contract|
+      add_contract(contract)
+    end
+    
     self.contract_artifacts = ContractArtifact.where(
       init_code_hash: contracts.map(&:current_init_code_hash)
     ).to_a
@@ -151,6 +154,7 @@ class BlockContext < ActiveSupport::CurrentAttributes
   
   def add_contract(contract)
     contracts << contract if contract
+    contract&.take_state_snapshot
     contract
   end
   

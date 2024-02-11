@@ -281,7 +281,7 @@ GEM
       parser
     scrypt (3.0.7)
       ffi-compiler (>= 1.0, < 2.0)
-    stackprof (0.2.25)
+    stackprof (0.2.26)
     stringio (3.0.8)
     thor (1.2.2)
     timeout (0.4.0)
@@ -329,7 +329,7 @@ DEPENDENCIES
   rails (~> 7.1.2)
   rspec-rails
   scout_apm (~> 5.3)
-  stackprof (~> 0.2.25)
+  stackprof
   tzinfo-data
   unparser (~> 0.6.10)
 

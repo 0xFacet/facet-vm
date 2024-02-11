@@ -280,11 +280,28 @@ class ContractTransaction < ApplicationRecord
     #   raise InvalidEthscriptionError.new("Static calls cannot be persisted")
     # end
     
+    # ap BlockContext.contracts.detect{|c| c.address == '0x1673540243e793b0e77c038d4a88448eff524dce'}.state_snapshots.last[:state]['balanceOf']['0x921282d6804223d544107839809b88e6b9a5952d']
+    # ap "---"
+    # ap BlockContext.contracts.detect{|c| c.address == '0x1673540243e793b0e77c038d4a88448eff524dce'}.current_state['balanceOf']['0x921282d6804223d544107839809b88e6b9a5952d']
+    
+    # ap "---"
     begin
       make_initial_call
     rescue ContractError, TransactionError
     end
     
+    # ap BlockContext.contracts.detect{|c| c.address == '0x1673540243e793b0e77c038d4a88448eff524dce'}.state_snapshots.last[:state]['balanceOf']['0x921282d6804223d544107839809b88e6b9a5952d']
+    
+    # ap "---"
+    
+    # ap BlockContext.contracts.detect{|c| c.address == '0x1673540243e793b0e77c038d4a88448eff524dce'}.current_state['balanceOf']['0x921282d6804223d544107839809b88e6b9a5952d']
+    
+    # ap "---"
+    
+    # ap BlockContext.contracts.detect{|c| c.address == '0x1673540243e793b0e77c038d4a88448eff524dce'}.should_save_new_state?
+    # binding.pry if transaction_hash == '0x839c09360addfca8aaeb1f7e0141ab9404d8502801080cde21b37c07596f8722'
+    # binding.pry# if transaction_hash == '0xd81819b318afb68281c3b7a136eb05ce610a1d0926da9fcb2e2ab3b6bfd91050'
+
     if success?
       TransactionContext.active_contracts.each(&:take_state_snapshot)
     end

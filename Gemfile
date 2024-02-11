@@ -45,7 +45,7 @@ end
 group :development do
   # Speed up commands on slow machines / big apps [https://github.com/rails/spring]
   # gem "spring"
-  gem "stackprof", "~> 0.2.25"
+  gem "stackprof"
   gem "active_record_query_trace", "~> 1.8"
 end
 

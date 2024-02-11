@@ -14,13 +14,6 @@ class Contract < ApplicationRecord
   attr_reader :implementation
   
   attr_accessor :state_snapshots
-  
-  after_initialize :ensure_initial_state_snapshot
-  
-  def ensure_initial_state_snapshot
-    take_state_snapshot if state_snapshots.empty?
-  end
-  
   def state_snapshots
     @state_snapshots ||= []
   end
@@ -30,19 +23,20 @@ class Contract < ApplicationRecord
       state: current_state,
       type: current_type,
       init_code_hash: current_init_code_hash
-    })
+    }.deep_dup)
   end
   
   def load_last_snapshot
     self.current_init_code_hash = state_snapshots.last[:init_code_hash]
     self.current_type = state_snapshots.last[:type]
     self.current_state = state_snapshots.last[:state]
+    
+    @implementation = nil
   end
   
   def should_save_new_state?
     JsonSorter.sort_hash(state_snapshots.first) != JsonSorter.sort_hash(state_snapshots.last)
   end
-  
   
   def new_state_for_save(block_number:)
     return unless should_save_new_state?
