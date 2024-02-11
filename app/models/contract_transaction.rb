@@ -175,58 +175,27 @@ class ContractTransaction < ApplicationRecord
     contract:,
     function_name:,
     function_args: {},
-    msgSender: nil,
-    block_timestamp: nil,
-    block_number: nil
+    msgSender: nil
   )
-    fetched_block_timestamp, fetched_block_number = EthBlock.processed.newest_first.limit(1).
-      pluck(:timestamp, :block_number).first.map(&:to_i)
-    
-    block_timestamp ||= fetched_block_timestamp + 12
-    block_number ||= fetched_block_number + 1
-
-    cache_key = [
-      fetched_block_number,
-      contract,
-      function_name,
-      function_args,
-      msgSender
-    ].to_cache_key(:make_static_call)
-    
-    cache_key = Digest::SHA256.hexdigest(cache_key)
-    
-    Rails.cache.fetch(cache_key) do
-      record = new(
-        tx_origin: msgSender,
-        block_timestamp: block_timestamp,
-        block_number: block_number
-      )
-      
-      record.payload = OpenStruct.new(
+    simulate_transaction_result = simulate_transaction(
+      from: msgSender,
+      tx_payload: {
         op: :static_call,
         data: {
           function: function_name,
           args: function_args,
           to: contract
         }
-      )
-      
-      BlockContext.set(
-        system_config: SystemConfigVersion.current,
-        current_block: EthBlock.new(block_number: block_number),
-        contracts: [],
-        contract_artifacts: [],
-        ethscriptions: []
-      ) do
-        record.with_global_context do
-          begin
-            record.make_initial_call.as_json
-          rescue ContractError, CallingNonExistentContractError => e
-            raise StaticCallError.new("Static Call error #{e.message}")
-          end
-        end
-      end
+      }
+    )
+  
+    receipt = simulate_transaction_result[:transaction_receipt]
+    
+    if receipt.status != 'success'
+      raise StaticCallError.new("Static Call error #{receipt.error}")
     end
+    
+    receipt.return_value
   end
   
   def with_global_context
