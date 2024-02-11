@@ -1,7 +1,7 @@
 source "https://rubygems.org"
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
-ruby "3.2.2"
+ruby "3.3.0"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
 gem "rails", "~> 7.1.2"
@@ -71,7 +71,7 @@ gem "eth", "~> 0.5.11"
 
 gem "activerecord-import", "~> 1.5"
 
-gem "unparser", "~> 0.6.10"
+gem "unparser"
 
 gem "scout_apm", "~> 5.3"
 

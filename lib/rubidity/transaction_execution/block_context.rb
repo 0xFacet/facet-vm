@@ -154,7 +154,7 @@ class BlockContext < ActiveSupport::CurrentAttributes
   
   def add_contract(contract)
     contracts << contract if contract
-    contract&.take_state_snapshot
+    contract&.initialize_state
     contract
   end
   
@@ -250,7 +250,7 @@ class BlockContext < ActiveSupport::CurrentAttributes
   def get_cached_class(init_code_hash)
     ContractArtifact.cached_class_as_of_tx_hash(
       init_code_hash,
-      current_transaction.transaction_hash
+      current_transaction&.transaction_hash
     )
   end
   

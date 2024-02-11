@@ -847,13 +847,6 @@ CREATE INDEX index_contract_states_on_contract_address ON public.contract_states
 
 
 --
--- Name: index_contract_states_on_state; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_contract_states_on_state ON public.contract_states USING gin (state);
-
-
---
 -- Name: index_contract_transactions_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -886,13 +879,6 @@ CREATE UNIQUE INDEX index_contracts_on_address ON public.contracts USING btree (
 --
 
 CREATE INDEX index_contracts_on_current_init_code_hash ON public.contracts USING btree (current_init_code_hash);
-
-
---
--- Name: index_contracts_on_current_state; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_contracts_on_current_state ON public.contracts USING gin (current_state);
 
 
 --
@@ -1190,6 +1176,7 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20240211143732'),
 ('20240116192126'),
 ('20240109134209'),
 ('20231226174404'),

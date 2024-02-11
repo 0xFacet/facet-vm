@@ -1,10 +1,11 @@
 class StateProxy
   include ContractErrors
   
-  attr_reader :state_variables
+  attr_reader :state_variables, :unused_variables
   
   def initialize(definitions)
     @state_variables = {}.with_indifferent_access
+    @unused_variables = {}.with_indifferent_access
     @dirty_stack = []
     
     definitions.each do |name, definition|
@@ -50,23 +51,21 @@ class StateProxy
     end
   end
   
-  def serialize
-    serialized = state_variables.each.with_object({}) do |(key, value), h|
+  def serialize(dup: true)
+    val = state_variables.each.with_object({}) do |(key, value), h|
       h[key] = value.serialize
-    end
+    end.reverse_merge(unused_variables)
     
-    JsonSorter.sort_hash(serialized).deep_dup
+    dup ? val.deep_dup : val
   end
   
   def deserialize(state_data)
-    state_data.deep_dup.each do |var_name, value|
-      var = state_variables[var_name.to_sym]
-      
-      # If the variable is not defined in the contract, we ignore it
-      # It might be left from another implementation
-      next unless var
-      
-      var.deserialize(value)
+    state_data.each do |var_name, value|
+      if var = state_variables[var_name]
+        var.deserialize(value)
+      else
+        unused_variables[var_name] = value
+      end
     end
   end
   alias_method :load, :deserialize

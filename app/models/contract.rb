@@ -1,4 +1,29 @@
 class Contract < ApplicationRecord
+  class StateSnapshot
+    attr_accessor :state, :type, :init_code_hash
+    
+    def initialize(state:, type:, init_code_hash:)
+      @state = state
+      @type = type
+      @init_code_hash = init_code_hash
+    end
+    
+    def ==(other)
+      self.class == other.class &&
+      state.serialize(dup: false) == other.state.serialize(dup: false) &&
+      type == other.type &&
+      init_code_hash == other.init_code_hash
+    end
+    
+    def serialize(dup: true)
+      {
+        state: state.serialize(dup: dup),
+        type: type,
+        init_code_hash: init_code_hash
+      }
+    end
+  end
+  
   include ContractErrors
   
   belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, optional: true
@@ -18,35 +43,44 @@ class Contract < ApplicationRecord
     @state_snapshots ||= []
   end
   
+  def initialize_state
+    @implementation = implementation_class.new(
+      initial_state: current_state
+    )
+    
+    take_state_snapshot
+  end
+  
   def take_state_snapshot
-    state_snapshots.push({
-      state: current_state,
+    last_snapshot = state_snapshots.last
+    
+    new_snapshot = StateSnapshot.new(
+      state: implementation.state_proxy,
       type: current_type,
       init_code_hash: current_init_code_hash
-    }.deep_dup)
+    )
+    
+    if new_snapshot != last_snapshot
+      state_snapshots.push(new_snapshot)
+    end
   end
   
   def load_last_snapshot
-    self.current_init_code_hash = state_snapshots.last[:init_code_hash]
-    self.current_type = state_snapshots.last[:type]
-    self.current_state = state_snapshots.last[:state]
+    self.current_init_code_hash = state_snapshots.last.init_code_hash
+    self.current_type = state_snapshots.last.type
     
-    @implementation = nil
-  end
-  
-  def should_save_new_state?
-    JsonSorter.sort_hash(state_snapshots.first) != JsonSorter.sort_hash(state_snapshots.last)
+    @implementation = implementation_class.new(
+      initial_state: state_snapshots.last.state.serialize
+    )
   end
   
   def new_state_for_save(block_number:)
-    return unless should_save_new_state?
-
+    return if state_snapshots.first == state_snapshots.last
+    
     ContractState.new(
       contract_address: address,
       block_number: block_number,
-      state: state_snapshots.last[:state],
-      type: state_snapshots.last[:type],
-      init_code_hash: state_snapshots.last[:init_code_hash]
+      **state_snapshots.last.serialize(dup: false)
     )
   end
   
@@ -81,29 +115,31 @@ class Contract < ApplicationRecord
         implementation.public_send(function_name, *Array.wrap(args))
       end
       
-      unless read_only
-        self.current_state = self.current_state.merge(implementation.state_proxy.serialize)
-      end
-      
       result
     end
   end
   
   def with_correct_implementation
+    old_hash = implementation.send(:class).init_code_hash
+    new_hash = implementation_class.init_code_hash
+    in_upgrade = old_hash != new_hash
+    
+    unless in_upgrade
+      return yield
+    end
+    
     old_implementation = implementation
     @implementation = implementation_class.new(
-      initial_state: old_implementation&.state_proxy&.serialize ||
-        current_state
+      initial_state: old_implementation.state_proxy.serialize
     )
     
     result = yield
     
     post_execution_state = implementation.state_proxy.serialize
     
-    if old_implementation
-      @implementation = old_implementation
-      implementation.state_proxy.load(post_execution_state)
-    end
+    @implementation = old_implementation
+    
+    old_implementation.state_proxy.load(post_execution_state)
     
     result
   end
