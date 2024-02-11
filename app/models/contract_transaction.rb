@@ -130,12 +130,18 @@ class ContractTransaction < ApplicationRecord
       mimetype = ContractTransaction.transaction_mimetype
       uri = %{data:#{mimetype};rule=esip6,#{tx_payload.to_json}}
       
+      current_block = EthBlock.new(
+        block_number: max_block_number + 1,
+        timestamp: Time.zone.now.to_i,
+        blockhash: "0x" + SecureRandom.hex(32)
+      )
+      
       ethscription_attrs = {
         transaction_hash: "0x" + SecureRandom.hex(32),
-        block_number: max_block_number + 1,
-        block_blockhash: "0x" + SecureRandom.hex(32),
+        block_number: current_block.block_number,
+        block_blockhash: current_block.blockhash,
         creator: from&.downcase,
-        block_timestamp: Time.zone.now.to_i,
+        block_timestamp: current_block.timestamp,
         transaction_index: 1,
         content_uri: uri,
         initial_owner: Ethscription.required_initial_owner,
@@ -147,7 +153,7 @@ class ContractTransaction < ApplicationRecord
       
       BlockContext.set(
         system_config: SystemConfigVersion.current,
-        current_block: EthBlock.new(block_number: max_block_number + 1),
+        current_block: current_block,
         contracts: [],
         contract_artifacts: [],
         ethscriptions: [eth]

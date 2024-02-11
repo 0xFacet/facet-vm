@@ -84,7 +84,6 @@ class Contract < ApplicationRecord
     )
   end
   
-  
   def implementation_class
     return unless current_init_code_hash
     

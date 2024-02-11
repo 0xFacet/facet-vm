@@ -35,6 +35,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   
   def get_existing_contract(address)
     already_active = self.active_contracts.detect do |contract|
+      contract.deployed_successfully? &&
       contract.address == address
     end
     

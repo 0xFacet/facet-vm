@@ -79,21 +79,6 @@ class BlockContext < ActiveSupport::CurrentAttributes
   # end
   
   def process_contract_transactions(persist:)
-    # return unless start_block_passed?
-    
-    # self.contract_transactions = contract_transaction_ethscriptions.map do |eth|
-    #   begin
-    #     ContractTransaction.new(ethscription: eth)
-    #   rescue InvalidEthscriptionError => e
-    #     eth.assign_attributes(
-    #       processing_state: "failure",
-    #       processing_error: "Error: #{e.message}"
-    #     )
-        
-    #     nil
-    #   end
-    # end.compact
-    
     initial_contracts = contract_transactions.map do |t|
       t.payload.dig('data', 'to')&.downcase
     end.uniq.compact
@@ -127,16 +112,16 @@ class BlockContext < ActiveSupport::CurrentAttributes
     return unless persist
     
     ContractTransaction.import!(contract_transactions)
-    # binding.pry
+    
     TransactionReceipt.import!(
       contract_transactions.map(&:transaction_receipt)
     )
+    
     ContractCall.import!(
       contract_transactions.map(&:contract_calls).flatten
     )
     
     ContractArtifact.import!(contract_artifacts.select(&:new_record?))
-    # binding.pry
     
     Contract.import!(contracts.select(&:new_record?))
     
