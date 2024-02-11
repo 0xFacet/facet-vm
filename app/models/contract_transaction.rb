@@ -229,7 +229,7 @@ class ContractTransaction < ApplicationRecord
     )
   end
   
-  def execute_transaction(persist:)
+  def execute_transaction
     begin
       make_initial_call
     rescue ContractError, TransactionError

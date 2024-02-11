@@ -2,7 +2,6 @@ class BlockContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
   attribute :current_block, :system_config, :contract_artifacts,
-    # :contracts, :contract_transactions, :ethscriptions
     :contracts, :ethscriptions, :parsed_ethscriptions
   
   delegate :current_transaction, :current_call, to: TransactionContext
@@ -28,61 +27,27 @@ class BlockContext < ActiveSupport::CurrentAttributes
     
     system_config_versions.each(&:save!)
     
-    # system_config_transactions_ethscriptions.each do |e|
-    #   SystemConfigVersion.create_from_ethscription!(e, persist: true)
-    # end
-    # parsed_ethscriptions.each do |e|
-    #   e.processed_at = Time.current
-    # end
-    
     success_ethscriptions = parsed_ethscriptions.select { |e| e.processing_state == 'success' }
     failure_ethscriptions = parsed_ethscriptions.select { |e| e.processing_state == 'failure' }
   
-    # Update all success ethscriptions
     Ethscription.where(id: success_ethscriptions.map(&:id)).update_all(
       processing_state: 'success',
       processed_at: Time.current
     )
   
-    # Update all failure ethscriptions
     if failure_ethscriptions.present?
       Ethscription.where(id: failure_ethscriptions.map(&:id)).update_all(
         processing_state: 'failure',
         processed_at: Time.current
       ) 
     end
-    
-    # Ethscription.import!(
-    #   parsed_ethscriptions,
-    #   on_duplicate_key_update: {conflict_target: [:transaction_hash], columns: [
-    #     :processing_state, :processing_error, :processed_at
-    #   ]}
-    # )
   end
-  
-  # def output_ethscriptions
-  #   ethscriptions.map do |eth|
-  #     if eth.failure?
-  #       eth.assign_attributes(processing_state: "failure")
-  #     else
-  #       eth.assign_attributes(processing_state: "success")
-  #     end
-      
-  #     eth.assign_attributes(processed_at: Time.current)
-      
-  #     eth
-  #   end
-  # end
-  
-  # def past_contract_transactions
-  #   contract_transaction.select{|tx| tx.status.present? }
-  # end
   
   def process_contract_transactions(persist:)
     initial_contracts = contract_transactions.map do |t|
       t.payload.dig('data', 'to')&.downcase
     end.uniq.compact
-    # binding.pry
+    
     Contract.where(address: initial_contracts, deployed_successfully: true).each do |contract|
       add_contract(contract)
     end
@@ -105,7 +70,7 @@ class BlockContext < ActiveSupport::CurrentAttributes
         block_chainid: current_chainid,
         transaction_index: contract_tx.transaction_index
       ) do
-        contract_tx.execute_transaction(persist: false)
+        contract_tx.execute_transaction
       end
     end
     
