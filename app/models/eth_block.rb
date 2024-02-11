@@ -68,10 +68,6 @@ class EthBlock < ApplicationRecord
     end
   end
   
-  def self.a
-    process_contract_actions_for_next_block_with_ethscriptions
-  end
-  
   def self.process_contract_actions_for_next_block_with_ethscriptions
     EthBlock.transaction do
       start_time = Time.current

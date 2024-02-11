@@ -64,6 +64,22 @@ CREATE FUNCTION public.check_block_sequence() RETURNS trigger
 
 
 --
+-- Name: check_ethscription_order(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.check_ethscription_order() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+      BEGIN
+        IF NEW.block_number < (SELECT MAX(block_number) FROM ethscriptions) OR (NEW.block_number = (SELECT MAX(block_number) FROM ethscriptions) AND NEW.transaction_index <= (SELECT MAX(transaction_index) FROM ethscriptions WHERE block_number = NEW.block_number)) THEN
+          RAISE EXCEPTION 'New ethscription must be later in order';
+        END IF;
+        RETURN NEW;
+      END;
+      $$;
+
+
+--
 -- Name: check_status(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -110,26 +126,28 @@ CREATE FUNCTION public.update_current_state() RETURNS trigger
           SELECT INTO latest_contract_state *
           FROM contract_states
           WHERE contract_address = NEW.contract_address
-          ORDER BY block_number DESC--, transaction_index DESC
+          ORDER BY block_number DESC
           LIMIT 1;
 
           UPDATE contracts
           SET current_state = latest_contract_state.state,
               current_type = latest_contract_state.type,
-              current_init_code_hash = latest_contract_state.init_code_hash
+              current_init_code_hash = latest_contract_state.init_code_hash,
+              updated_at = NOW()
           WHERE address = NEW.contract_address;
         ELSIF TG_OP = 'DELETE' THEN
           SELECT INTO latest_contract_state *
           FROM contract_states
           WHERE contract_address = OLD.contract_address
             AND id != OLD.id
-          ORDER BY block_number DESC--, transaction_index DESC
+          ORDER BY block_number DESC
           LIMIT 1;
 
           UPDATE contracts
           SET current_state = latest_contract_state.state,
               current_type = latest_contract_state.type,
-              current_init_code_hash = latest_contract_state.init_code_hash
+              current_init_code_hash = latest_contract_state.init_code_hash,
+              updated_at = NOW()
           WHERE address = OLD.contract_address;
         END IF;
       
@@ -210,6 +228,7 @@ CREATE TABLE public.contract_calls (
     function character varying,
     args jsonb DEFAULT '{}'::jsonb NOT NULL,
     call_type character varying NOT NULL,
+    call_level character varying NOT NULL,
     return_value jsonb,
     logs jsonb DEFAULT '[]'::jsonb NOT NULL,
     error jsonb,
@@ -223,18 +242,17 @@ CREATE TABLE public.contract_calls (
     runtime_ms integer NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    call_level character varying NOT NULL,
     CONSTRAINT chk_rails_0351aa702f CHECK (((created_contract_address IS NULL) OR ((created_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_1a921ba712 CHECK ((((call_type)::text <> 'call'::text) OR (to_contract_address IS NOT NULL))),
     CONSTRAINT chk_rails_27a87dcd58 CHECK (((call_type)::text = ANY ((ARRAY['call'::character varying, 'create'::character varying])::text[]))),
     CONSTRAINT chk_rails_399807917b CHECK (((((status)::text = 'failure'::text) AND (logs = '[]'::jsonb)) OR ((status)::text = 'success'::text))),
     CONSTRAINT chk_rails_39b26367fa CHECK (((((status)::text = 'failure'::text) AND (error IS NOT NULL)) OR (((status)::text = 'success'::text) AND (error IS NULL)))),
+    CONSTRAINT chk_rails_4854800d80 CHECK (((((call_type)::text = 'create'::text) AND ((call_level)::text = 'high'::text)) OR (((call_type)::text = 'call'::text) AND ((call_level)::text = ANY ((ARRAY['high'::character varying, 'low'::character varying])::text[]))))),
     CONSTRAINT chk_rails_634aef3d55 CHECK (((effective_contract_address IS NULL) OR ((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_b5e513ec63 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_cebfc1a4ba CHECK (((to_contract_address IS NULL) OR ((to_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_db6bb5ee1f CHECK (((status)::text = ANY ((ARRAY['success'::character varying, 'failure'::character varying])::text[]))),
     CONSTRAINT chk_rails_dc9b9d8a70 CHECK (((((call_type)::text = 'create'::text) AND ((effective_contract_address)::text = (created_contract_address)::text)) OR (((call_type)::text = 'call'::text) AND ((effective_contract_address)::text = (to_contract_address)::text)))),
-    CONSTRAINT chk_rails_e54a911fe6 CHECK (((((call_type)::text = 'create'::text) AND ((call_level)::text = 'high'::text)) OR (((call_type)::text = 'call'::text) AND ((call_level)::text = ANY ((ARRAY['high'::character varying, 'low'::character varying])::text[]))))),
     CONSTRAINT chk_rails_f785dc90f8 CHECK (((from_address)::text ~ '^0x[a-f0-9]{40}$'::text))
 );
 
@@ -938,10 +956,17 @@ CREATE UNIQUE INDEX index_eth_blocks_on_blockhash ON public.eth_blocks USING btr
 
 
 --
--- Name: index_eth_blocks_on_blockhash_and_processing_state; Type: INDEX; Schema: public; Owner: -
+-- Name: index_eth_blocks_on_blockhash_and_processing_state_complete; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_eth_blocks_on_blockhash_and_processing_state ON public.eth_blocks USING btree (blockhash) WHERE ((processing_state)::text <> 'pending'::text);
+CREATE INDEX index_eth_blocks_on_blockhash_and_processing_state_complete ON public.eth_blocks USING btree (blockhash) WHERE ((processing_state)::text = 'complete'::text);
+
+
+--
+-- Name: index_eth_blocks_on_blockhash_and_processing_state_pending; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_eth_blocks_on_blockhash_and_processing_state_pending ON public.eth_blocks USING btree (blockhash) WHERE ((processing_state)::text <> 'pending'::text);
 
 
 --
@@ -1043,13 +1068,6 @@ CREATE INDEX index_transaction_receipts_on_from_address ON public.transaction_re
 
 
 --
--- Name: index_transaction_receipts_on_logs; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_transaction_receipts_on_logs ON public.transaction_receipts USING gin (logs);
-
-
---
 -- Name: index_transaction_receipts_on_runtime_ms; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1092,6 +1110,13 @@ CREATE TRIGGER trigger_check_block_order BEFORE INSERT ON public.eth_blocks FOR 
 
 
 --
+-- Name: ethscriptions trigger_check_ethscription_order; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trigger_check_ethscription_order BEFORE INSERT ON public.ethscriptions FOR EACH ROW EXECUTE FUNCTION public.check_ethscription_order();
+
+
+--
 -- Name: eth_blocks trigger_delete_later_blocks; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1130,11 +1155,43 @@ ALTER TABLE ONLY public.transaction_receipts
 
 
 --
+-- Name: contract_artifacts fk_rails_6aff674b66; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_artifacts
+    ADD CONSTRAINT fk_rails_6aff674b66 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
+
+
+--
 -- Name: system_config_versions fk_rails_71887ba27f; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.system_config_versions
     ADD CONSTRAINT fk_rails_71887ba27f FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
+
+
+--
+-- Name: contract_calls fk_rails_84969f6044; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_calls
+    ADD CONSTRAINT fk_rails_84969f6044 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
+
+
+--
+-- Name: contract_transactions fk_rails_a3a2f6ff66; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_transactions
+    ADD CONSTRAINT fk_rails_a3a2f6ff66 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
+
+
+--
+-- Name: system_config_versions fk_rails_a7468c93b0; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.system_config_versions
+    ADD CONSTRAINT fk_rails_a7468c93b0 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
 
 
 --
@@ -1146,11 +1203,35 @@ ALTER TABLE ONLY public.contract_transactions
 
 
 --
+-- Name: contracts fk_rails_caa9d9df8b; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contracts
+    ADD CONSTRAINT fk_rails_caa9d9df8b FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
+
+
+--
 -- Name: contract_artifacts fk_rails_de6793fa43; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.contract_artifacts
     ADD CONSTRAINT fk_rails_de6793fa43 FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
+
+
+--
+-- Name: transaction_receipts fk_rails_e9589fbc7a; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.transaction_receipts
+    ADD CONSTRAINT fk_rails_e9589fbc7a FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
+
+
+--
+-- Name: contract_states fk_rails_ea304e7236; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_states
+    ADD CONSTRAINT fk_rails_ea304e7236 FOREIGN KEY (contract_address) REFERENCES public.contracts(address) ON DELETE CASCADE;
 
 
 --
@@ -1176,12 +1257,6 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
-('20240211143732'),
-('20240116192126'),
-('20240109134209'),
-('20231226174404'),
-('20231215180426'),
-('20231203201813'),
 ('20231113223006'),
 ('20231110173854'),
 ('20230824174647'),
