@@ -58,11 +58,6 @@ class EthBlock < ApplicationRecord
         
         total_remaining -= batch_ethscriptions_processed
         
-        # puts "Processed #{iterations} blocks in #{batch_elapsed_time}s"
-        # puts " > Ethscriptions: #{batch_ethscriptions_processed}"
-        # puts " > Ethscriptions / s: #{ethscriptions_per_second}"
-        # puts " > Ethscriptions left: #{total_remaining}"
-        
         Rails.cache.write("total_ethscriptions_behind", total_remaining)
         
         batch_start_time = curr_time

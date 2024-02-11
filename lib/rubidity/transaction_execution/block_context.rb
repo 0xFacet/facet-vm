@@ -283,7 +283,7 @@ class BlockContext < ActiveSupport::CurrentAttributes
     raise "Need source code to create new artifact" unless source_code
   
     artifact = RubidityTranspiler.new(source_code).get_desired_artifact(init_code_hash)
-    # binding.pry
+    
     self.contract_artifacts << ContractArtifact.new(
       artifact.attributes.merge(
         block_number: current_block.block_number,

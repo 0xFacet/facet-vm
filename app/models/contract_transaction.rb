@@ -16,23 +16,6 @@ class ContractTransaction < ApplicationRecord
     "application/vnd.facet.tx+json"
   end
   
-  # def self.validate_start_block_passed!(ethscription)
-  #   system_start_block = SystemConfigVersion.current.start_block_number
-  #   valid = system_start_block && ethscription.block_number >= system_start_block
-    
-  #   unless valid
-  #     raise InvalidEthscriptionError.new("Start block not passed")
-  #   end
-  # end
-  
-  # def self.create_from_ethscription!(ethscription, persist:)
-  #   validate_start_block_passed!(ethscription)
-    
-  #   new(ethscription: ethscription).tap do |contract_tx|
-  #     contract_tx.execute_transaction(persist: persist)      
-  #   end
-  # end
-  
   def ethscription=(ethscription)
     assign_attributes(
       block_blockhash: ethscription.block_blockhash,
@@ -242,8 +225,6 @@ class ContractTransaction < ApplicationRecord
   
   def with_global_context
     TransactionContext.set(
-      # system_config: SystemConfigVersion.current,
-      # latest_artifact_hash: ContractArtifact.latest_tx_hash,
       call_stack: CallStack.new(TransactionContext),
       active_contracts: [],
       current_transaction: self,
@@ -274,33 +255,10 @@ class ContractTransaction < ApplicationRecord
   end
   
   def execute_transaction(persist:)
-    # validate_payload!
-    
-    # if persist && payload.op.to_sym == :static_call
-    #   raise InvalidEthscriptionError.new("Static calls cannot be persisted")
-    # end
-    
-    # ap BlockContext.contracts.detect{|c| c.address == '0x1673540243e793b0e77c038d4a88448eff524dce'}.state_snapshots.last[:state]['balanceOf']['0x921282d6804223d544107839809b88e6b9a5952d']
-    # ap "---"
-    # ap BlockContext.contracts.detect{|c| c.address == '0x1673540243e793b0e77c038d4a88448eff524dce'}.current_state['balanceOf']['0x921282d6804223d544107839809b88e6b9a5952d']
-    
-    # ap "---"
     begin
       make_initial_call
     rescue ContractError, TransactionError
     end
-    
-    # ap BlockContext.contracts.detect{|c| c.address == '0x1673540243e793b0e77c038d4a88448eff524dce'}.state_snapshots.last[:state]['balanceOf']['0x921282d6804223d544107839809b88e6b9a5952d']
-    
-    # ap "---"
-    
-    # ap BlockContext.contracts.detect{|c| c.address == '0x1673540243e793b0e77c038d4a88448eff524dce'}.current_state['balanceOf']['0x921282d6804223d544107839809b88e6b9a5952d']
-    
-    # ap "---"
-    
-    # ap BlockContext.contracts.detect{|c| c.address == '0x1673540243e793b0e77c038d4a88448eff524dce'}.should_save_new_state?
-    # binding.pry if transaction_hash == '0x839c09360addfca8aaeb1f7e0141ab9404d8502801080cde21b37c07596f8722'
-    # binding.pry# if transaction_hash == '0xd81819b318afb68281c3b7a136eb05ce610a1d0926da9fcb2e2ab3b6bfd91050'
 
     if success?
       TransactionContext.active_contracts.each(&:take_state_snapshot)
