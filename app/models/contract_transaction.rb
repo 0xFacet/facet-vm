@@ -2,9 +2,7 @@ class ContractTransaction < ApplicationRecord
   include ContractErrors
   
   belongs_to :ethscription, primary_key: :transaction_hash, foreign_key: :transaction_hash, optional: true
-  # has_one :transaction_receipt, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_states, foreign_key: :transaction_hash, primary_key: :transaction_hash
-  # has_many :contract_calls, foreign_key: :transaction_hash, primary_key: :transaction_hash, inverse_of: :contract_transaction
   has_many :contracts, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_artifacts, foreign_key: :transaction_hash, primary_key: :transaction_hash
 

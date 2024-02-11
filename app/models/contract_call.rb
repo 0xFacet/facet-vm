@@ -10,8 +10,6 @@ class ContractCall < ApplicationRecord
   belongs_to :called_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'to_contract_address', optional: true
   belongs_to :effective_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'effective_contract_address', optional: true
   
-  # belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true, inverse_of: :contract_calls
-  
   belongs_to :ethscription, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', optional: true
   
   scope :newest_first, -> { order(
