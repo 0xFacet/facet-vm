@@ -28,26 +28,28 @@ class CreateContractStates < ActiveRecord::Migration[7.1]
           SELECT INTO latest_contract_state *
           FROM contract_states
           WHERE contract_address = NEW.contract_address
-          ORDER BY block_number DESC--, transaction_index DESC
+          ORDER BY block_number DESC
           LIMIT 1;
 
           UPDATE contracts
           SET current_state = latest_contract_state.state,
               current_type = latest_contract_state.type,
-              current_init_code_hash = latest_contract_state.init_code_hash
+              current_init_code_hash = latest_contract_state.init_code_hash,
+              updated_at = NOW()
           WHERE address = NEW.contract_address;
         ELSIF TG_OP = 'DELETE' THEN
           SELECT INTO latest_contract_state *
           FROM contract_states
           WHERE contract_address = OLD.contract_address
             AND id != OLD.id
-          ORDER BY block_number DESC--, transaction_index DESC
+          ORDER BY block_number DESC
           LIMIT 1;
 
           UPDATE contracts
           SET current_state = latest_contract_state.state,
               current_type = latest_contract_state.type,
-              current_init_code_hash = latest_contract_state.init_code_hash
+              current_init_code_hash = latest_contract_state.init_code_hash,
+              updated_at = NOW()
           WHERE address = OLD.contract_address;
         END IF;
       
