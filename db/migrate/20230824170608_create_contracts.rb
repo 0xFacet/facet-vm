@@ -16,14 +16,13 @@ class CreateContracts < ActiveRecord::Migration[7.1]
       t.index :address, unique: true
       t.index :current_init_code_hash
       t.index :current_type
-      t.index :current_state, using: :gin
       t.index :transaction_hash
     
       t.check_constraint "address ~ '^0x[a-f0-9]{40}$'"
       t.check_constraint "current_init_code_hash ~ '^0x[a-f0-9]{64}$'"
       t.check_constraint "transaction_hash ~ '^0x[a-f0-9]{64}$'"
     
-      # t.foreign_key :ethscriptions, column: :transaction_hash, primary_key: :transaction_hash, on_delete: :cascade
+      t.foreign_key :ethscriptions, column: :transaction_hash, primary_key: :transaction_hash, on_delete: :cascade
       t.foreign_key :eth_blocks, column: :block_number, primary_key: :block_number, on_delete: :cascade
       
       t.timestamps

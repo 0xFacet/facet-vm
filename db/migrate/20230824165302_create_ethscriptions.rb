@@ -51,21 +51,21 @@ class CreateEthscriptions < ActiveRecord::Migration[7.1]
     #   FOR EACH ROW EXECUTE FUNCTION delete_later_ethscriptions();
     # SQL
     
-    # execute <<-SQL
-    #   CREATE OR REPLACE FUNCTION check_ethscription_order()
-    #   RETURNS TRIGGER AS $$
-    #   BEGIN
-    #     IF NEW.block_number < (SELECT MAX(block_number) FROM ethscriptions) OR (NEW.block_number = (SELECT MAX(block_number) FROM ethscriptions) AND NEW.transaction_index <= (SELECT MAX(transaction_index) FROM ethscriptions WHERE block_number = NEW.block_number)) THEN
-    #       RAISE EXCEPTION 'New ethscription must be later in order';
-    #     END IF;
-    #     RETURN NEW;
-    #   END;
-    #   $$ LANGUAGE plpgsql;
+    execute <<-SQL
+      CREATE OR REPLACE FUNCTION check_ethscription_order()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        IF NEW.block_number < (SELECT MAX(block_number) FROM ethscriptions) OR (NEW.block_number = (SELECT MAX(block_number) FROM ethscriptions) AND NEW.transaction_index <= (SELECT MAX(transaction_index) FROM ethscriptions WHERE block_number = NEW.block_number)) THEN
+          RAISE EXCEPTION 'New ethscription must be later in order';
+        END IF;
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
 
-    #   CREATE TRIGGER trigger_check_ethscription_order
-    #   BEFORE INSERT ON ethscriptions
-    #   FOR EACH ROW EXECUTE FUNCTION check_ethscription_order();
-    # SQL
+      CREATE TRIGGER trigger_check_ethscription_order
+      BEFORE INSERT ON ethscriptions
+      FOR EACH ROW EXECUTE FUNCTION check_ethscription_order();
+    SQL
     
     # execute <<-SQL
     #   CREATE OR REPLACE FUNCTION check_ethscription_sequence()
