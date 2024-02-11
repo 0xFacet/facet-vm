@@ -209,8 +209,6 @@ class BlockContext < ActiveSupport::CurrentAttributes
   end
   
   def calculate_contract_nonce(address)
-    # binding.pry
-
     in_this_block = previous_calls.select do |call|
       call.from_address == address &&
       call.is_create? &&

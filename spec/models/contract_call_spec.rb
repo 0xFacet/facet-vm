@@ -64,70 +64,75 @@ RSpec.describe ContractCall, type: :model do
   end
   
   it 'calculates contract_nonce correctly' do
-    # factory_deploy_receipt = trigger_contract_interaction_and_expect_success(
-    #   from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-    #   payload: {
-    #     to: nil,
-    #     data: {
-    #       type: "FacetSwapV1Factory",
-    #       args: { _feeToSetter: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97" }
-    #     }
-    #   }
-    # )
+    factory_deploy_receipt = trigger_contract_interaction_and_expect_success(
+      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      payload: {
+        to: nil,
+        data: {
+          type: "FacetSwapV1Factory",
+          args: { _feeToSetter: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97" }
+        }
+      }
+    )
   
-    # factory_address = factory_deploy_receipt.effective_contract_address
+    factory_address = factory_deploy_receipt.effective_contract_address
     
-    # create_pair_receipt = trigger_contract_interaction_and_expect_success(
-    #   from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-    #   payload: {
-    #     to: factory_deploy_receipt.address,
-    #     data: {
-    #       function: "createPair",
-    #       args: {
-    #         tokenA: "0x1000000000000000000000000000000000000000", 
-    #         tokenB: "0x2000000000000000000000000000000000000000"
-    #       }
-    #     }
-    #   }
-    # )
+    create_pair_receipt = trigger_contract_interaction_and_expect_success(
+      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      payload: {
+        to: factory_deploy_receipt.address,
+        data: {
+          function: "createPair",
+          args: {
+            tokenA: "0x1000000000000000000000000000000000000000", 
+            tokenB: "0x2000000000000000000000000000000000000000"
+          }
+        }
+      }
+    )
     
-    # create_pair_receipt = trigger_contract_interaction_and_expect_success(
-    #   from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-    #   payload: {
-    #     to: factory_deploy_receipt.address,
-    #     data: {
-    #       function: "createPair",
-    #       args: {
-    #         tokenA: "0x4000000000000000000000000000000000000000", 
-    #         tokenB: "0x5000000000000000000000000000000000000000"
-    #       }
-    #     }
-    #   }
-    # )
+    create_pair_receipt = trigger_contract_interaction_and_expect_success(
+      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      payload: {
+        to: factory_deploy_receipt.address,
+        data: {
+          function: "createPair",
+          args: {
+            tokenA: "0x4000000000000000000000000000000000000000", 
+            tokenB: "0x5000000000000000000000000000000000000000"
+          }
+        }
+      }
+    )
     
-    # create_pair_receipt = trigger_contract_interaction_and_expect_error(
-    #   from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
-    #   payload: {
-    #     to: factory_deploy_receipt.address,
-    #     data: {
-    #       function: "createPair",
-    #       args: {
-    #         tokenA: "zz", 
-    #         tokenB: "0x5000000000000000000000000000000000000000"
-    #       }
-    #     }
-    #   }
-    # )
+    create_pair_receipt = trigger_contract_interaction_and_expect_error(
+      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      payload: {
+        to: factory_deploy_receipt.address,
+        data: {
+          function: "createPair",
+          args: {
+            tokenA: "zz", 
+            tokenB: "0x5000000000000000000000000000000000000000"
+          }
+        }
+      }
+    )
     
-    # test_call = ContractCall.new(from_address: factory_address)
+    BlockContext.current_block = EthBlock.last
+
+    tx = ContractTransaction.new
+    call = ContractCall.new(from_address: factory_address, internal_transaction_index: 0)
+    tx.contract_calls = [call]
     
-    # contract_transaction = ContractTransaction.new
+    TransactionContext.current_call = call
+    TransactionContext.current_transaction = tx
     
-    # contract_transaction.contract_calls = [test_call]
+    BlockContext.ethscriptions = []
     
-    # test_call.contract_transaction = contract_transaction
-    
-    # expect(test_call.contract_nonce).to eq(2)
+    final_nonce = BlockContext.calculate_contract_nonce(factory_address)
+
+    expect(final_nonce).to eq(2)
   end
   
   it 'fails on read only write' do
