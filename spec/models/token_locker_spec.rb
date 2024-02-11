@@ -441,35 +441,37 @@ describe 'TokenLocker contract' do
     expect(token_lock['amount']).to eq(amountToLock * 2)
     expect(token_lock['unlockDate']).to eq(1.year.from_now.to_i)
     
-    trigger_contract_interaction_and_expect_error(
-      error_msg_includes: "Unlock time must be in the future",
-      from: user_address,
-      payload: {
-        to: token_locker_address,
-        data: {
-          function: "relock",
-          args: {
-            lockId: 2,
-            unlockDate: 1.day.ago.to_i
+    in_block do |c|
+      c.trigger_contract_interaction_and_expect_error(
+        error_msg_includes: "Unlock time must be in the future",
+        from: user_address,
+        payload: {
+          to: token_locker_address,
+          data: {
+            function: "relock",
+            args: {
+              lockId: 2,
+              unlockDate: 1.day.ago.to_i
+            }
           }
         }
-      }
-    )
-    
-    trigger_contract_interaction_and_expect_error(
-      error_msg_includes: "Tokens are still locked",
-      from: user_address,
-      payload: {
-        to: token_locker_address,
-        data: {
-          function: "withdraw",
-          args: {
-            lockId: 2,
-            amount: amountToLock
+      )
+      
+      c.trigger_contract_interaction_and_expect_error(
+        error_msg_includes: "Tokens are still locked",
+        from: user_address,
+        payload: {
+          to: token_locker_address,
+          data: {
+            function: "withdraw",
+            args: {
+              lockId: 2,
+              amount: amountToLock
+            }
           }
         }
-      }
-    )
+      )
+    end
     
     travel_to Time.now + 1.year + 1.day
     

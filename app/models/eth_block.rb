@@ -1,5 +1,7 @@
 class EthBlock < ApplicationRecord
   extend StateTestingUtils
+  
+  has_many :contract_states, foreign_key: :block_number, primary_key: :block_number
   has_many :ethscriptions, foreign_key: :block_number, primary_key: :block_number
   has_many :transaction_receipts, foreign_key: :block_number, primary_key: :block_number
   
@@ -56,11 +58,6 @@ class EthBlock < ApplicationRecord
         
         total_remaining -= batch_ethscriptions_processed
         
-        puts "Processed #{iterations} blocks in #{batch_elapsed_time}s"
-        puts " > Ethscriptions: #{batch_ethscriptions_processed}"
-        puts " > Ethscriptions / s: #{ethscriptions_per_second}"
-        puts " > Ethscriptions left: #{total_remaining}"
-        
         Rails.cache.write("total_ethscriptions_behind", total_remaining)
         
         batch_start_time = curr_time
@@ -70,7 +67,6 @@ class EthBlock < ApplicationRecord
       break if iterations >= 100 || unprocessed_ethscriptions == 0
     end
   end
-  
   
   def self.process_contract_actions_for_next_block_with_ethscriptions
     EthBlock.transaction do
@@ -85,12 +81,15 @@ class EthBlock < ApplicationRecord
       return unless locked_next_block
   
       ethscriptions = locked_next_block.ethscriptions.order(:transaction_index)
-      # StackProf.run(mode: :wall, out: 'stackprof-cpu.dump', raw: true) do
-      #   1000 / (Benchmark.ms{2.times{EthBlock.process_contract_actions_for_next_block_with_ethscriptions}} /  100.0)
-      # end
       
-      ethscriptions.each do |ethscription|
-        ethscription.process!(persist: true)
+      BlockContext.set(
+        system_config: SystemConfigVersion.current,
+        current_block: locked_next_block,
+        contracts: [],
+        contract_artifacts: [],
+        ethscriptions: ethscriptions,
+      ) do
+        BlockContext.process!
       end
       
       locked_next_block.update_columns(
@@ -100,6 +99,10 @@ class EthBlock < ApplicationRecord
         runtime_ms: (Time.current - start_time) * 1000
       )
   
+      puts "Imported block #{locked_next_block.block_number} in #{locked_next_block.runtime_ms}ms"
+      puts "> #{locked_next_block.transaction_count} ethscriptions"
+      puts "> #{(locked_next_block.transaction_count / (locked_next_block.runtime_ms / 1000.0)).round(2)} ethscriptions / s"
+      
       ethscriptions.length
     end
   end

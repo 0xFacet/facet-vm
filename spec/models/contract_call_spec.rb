@@ -13,7 +13,8 @@ RSpec.describe ContractCall, type: :model do
   end
   
   it 'calculates eoa_nonce correctly' do
-    initial_nonce = ContractCall.new(from_address: from_address).eoa_nonce
+    BlockContext.current_block = EthBlock.last
+    initial_nonce = BlockContext.calculate_eoa_nonce(from_address)
     
     receipt = trigger_contract_interaction_and_expect_success(
       from: from_address,
@@ -55,7 +56,9 @@ RSpec.describe ContractCall, type: :model do
       }
     )
     
-    final_nonce = ContractCall.new(from_address: from_address).eoa_nonce
+    BlockContext.current_block = EthBlock.new(block_number: EthBlock.last.block_number + 1)
+
+    final_nonce = BlockContext.calculate_eoa_nonce(from_address)
     
     expect(final_nonce - initial_nonce).to eq(3)
   end
@@ -116,15 +119,20 @@ RSpec.describe ContractCall, type: :model do
       }
     )
     
-    test_call = ContractCall.new(from_address: factory_address)
+    BlockContext.current_block = EthBlock.last
+
+    tx = ContractTransaction.new
+    call = ContractCall.new(from_address: factory_address, internal_transaction_index: 0)
+    tx.contract_calls = [call]
     
-    contract_transaction = ContractTransaction.new
+    TransactionContext.current_call = call
+    TransactionContext.current_transaction = tx
     
-    contract_transaction.contract_calls = [test_call]
+    BlockContext.ethscriptions = []
     
-    test_call.contract_transaction = contract_transaction
-    
-    expect(test_call.contract_nonce).to eq(2)
+    final_nonce = BlockContext.calculate_contract_nonce(factory_address)
+
+    expect(final_nonce).to eq(2)
   end
   
   it 'fails on read only write' do

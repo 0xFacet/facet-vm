@@ -39,7 +39,8 @@ class CallStack
     
     current_transaction = @transaction_context.current_transaction
       
-    call = @transaction_context.current_transaction.contract_calls.build(
+    call = ContractCall.new(
+      transaction_hash: current_transaction.transaction_hash,
       call_level: call_level,
       in_low_level_call_context: in_low_level_call_context(call_level),
       to_contract_address: to_contract_address,
@@ -57,6 +58,9 @@ class CallStack
       transaction_index: current_transaction.transaction_index,
       start_time: Time.current
     )
+    
+    @transaction_context.current_transaction.contract_calls ||= []
+    @transaction_context.current_transaction.contract_calls << call
     
     @transaction_context.set(current_call: call) do
       execute_in_frame(call)

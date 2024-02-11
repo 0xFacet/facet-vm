@@ -126,26 +126,28 @@ CREATE FUNCTION public.update_current_state() RETURNS trigger
           SELECT INTO latest_contract_state *
           FROM contract_states
           WHERE contract_address = NEW.contract_address
-          ORDER BY block_number DESC, transaction_index DESC
+          ORDER BY block_number DESC
           LIMIT 1;
 
           UPDATE contracts
           SET current_state = latest_contract_state.state,
               current_type = latest_contract_state.type,
-              current_init_code_hash = latest_contract_state.init_code_hash
+              current_init_code_hash = latest_contract_state.init_code_hash,
+              updated_at = NOW()
           WHERE address = NEW.contract_address;
         ELSIF TG_OP = 'DELETE' THEN
           SELECT INTO latest_contract_state *
           FROM contract_states
           WHERE contract_address = OLD.contract_address
             AND id != OLD.id
-          ORDER BY block_number DESC, transaction_index DESC
+          ORDER BY block_number DESC
           LIMIT 1;
 
           UPDATE contracts
           SET current_state = latest_contract_state.state,
               current_type = latest_contract_state.type,
-              current_init_code_hash = latest_contract_state.init_code_hash
+              current_init_code_hash = latest_contract_state.init_code_hash,
+              updated_at = NOW()
           WHERE address = OLD.contract_address;
         END IF;
       
@@ -226,6 +228,7 @@ CREATE TABLE public.contract_calls (
     function character varying,
     args jsonb DEFAULT '{}'::jsonb NOT NULL,
     call_type character varying NOT NULL,
+    call_level character varying NOT NULL,
     return_value jsonb,
     logs jsonb DEFAULT '[]'::jsonb NOT NULL,
     error jsonb,
@@ -239,18 +242,17 @@ CREATE TABLE public.contract_calls (
     runtime_ms integer NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    call_level character varying NOT NULL,
     CONSTRAINT chk_rails_0351aa702f CHECK (((created_contract_address IS NULL) OR ((created_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_1a921ba712 CHECK ((((call_type)::text <> 'call'::text) OR (to_contract_address IS NOT NULL))),
     CONSTRAINT chk_rails_27a87dcd58 CHECK (((call_type)::text = ANY ((ARRAY['call'::character varying, 'create'::character varying])::text[]))),
     CONSTRAINT chk_rails_399807917b CHECK (((((status)::text = 'failure'::text) AND (logs = '[]'::jsonb)) OR ((status)::text = 'success'::text))),
     CONSTRAINT chk_rails_39b26367fa CHECK (((((status)::text = 'failure'::text) AND (error IS NOT NULL)) OR (((status)::text = 'success'::text) AND (error IS NULL)))),
+    CONSTRAINT chk_rails_4854800d80 CHECK (((((call_type)::text = 'create'::text) AND ((call_level)::text = 'high'::text)) OR (((call_type)::text = 'call'::text) AND ((call_level)::text = ANY ((ARRAY['high'::character varying, 'low'::character varying])::text[]))))),
     CONSTRAINT chk_rails_634aef3d55 CHECK (((effective_contract_address IS NULL) OR ((effective_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_b5e513ec63 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_cebfc1a4ba CHECK (((to_contract_address IS NULL) OR ((to_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_db6bb5ee1f CHECK (((status)::text = ANY ((ARRAY['success'::character varying, 'failure'::character varying])::text[]))),
     CONSTRAINT chk_rails_dc9b9d8a70 CHECK (((((call_type)::text = 'create'::text) AND ((effective_contract_address)::text = (created_contract_address)::text)) OR (((call_type)::text = 'call'::text) AND ((effective_contract_address)::text = (to_contract_address)::text)))),
-    CONSTRAINT chk_rails_e54a911fe6 CHECK (((((call_type)::text = 'create'::text) AND ((call_level)::text = 'high'::text)) OR (((call_type)::text = 'call'::text) AND ((call_level)::text = ANY ((ARRAY['high'::character varying, 'low'::character varying])::text[]))))),
     CONSTRAINT chk_rails_f785dc90f8 CHECK (((from_address)::text ~ '^0x[a-f0-9]{40}$'::text))
 );
 
@@ -280,18 +282,15 @@ ALTER SEQUENCE public.contract_calls_id_seq OWNED BY public.contract_calls.id;
 
 CREATE TABLE public.contract_states (
     id bigint NOT NULL,
-    transaction_hash character varying NOT NULL,
     type character varying NOT NULL,
     init_code_hash character varying NOT NULL,
     state jsonb DEFAULT '{}'::jsonb NOT NULL,
     block_number bigint NOT NULL,
-    transaction_index bigint NOT NULL,
     contract_address character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_rails_0db74a781b CHECK (((contract_address)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_2be3a94567 CHECK (((init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT chk_rails_c9c6d246ab CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
+    CONSTRAINT chk_rails_2be3a94567 CHECK (((init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
 
@@ -462,10 +461,8 @@ CREATE TABLE public.ethscriptions (
     CONSTRAINT chk_rails_788fa87594 CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_84591e2730 CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_b577b97822 CHECK (((creator)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_c97e7f929f CHECK ((((processing_state)::text = 'failure'::text) OR (processing_error IS NULL))),
     CONSTRAINT chk_rails_ca0ea47752 CHECK (((processing_state)::text = ANY ((ARRAY['pending'::character varying, 'success'::character varying, 'failure'::character varying])::text[]))),
-    CONSTRAINT chk_rails_df21fdbe02 CHECK (((initial_owner)::text ~ '^0x[a-f0-9]{40}$'::text)),
-    CONSTRAINT chk_rails_fb6493689d CHECK ((((processing_state)::text <> 'failure'::text) OR (processing_error IS NOT NULL)))
+    CONSTRAINT chk_rails_df21fdbe02 CHECK (((initial_owner)::text ~ '^0x[a-f0-9]{40}$'::text))
 );
 
 
@@ -854,10 +851,10 @@ CREATE INDEX index_contract_calls_on_to_contract_address ON public.contract_call
 
 
 --
--- Name: index_contract_states_on_addr_block_number_tx_index; Type: INDEX; Schema: public; Owner: -
+-- Name: index_contract_states_on_block_number; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX index_contract_states_on_addr_block_number_tx_index ON public.contract_states USING btree (contract_address, block_number, transaction_index);
+CREATE INDEX index_contract_states_on_block_number ON public.contract_states USING btree (block_number);
 
 
 --
@@ -865,27 +862,6 @@ CREATE UNIQUE INDEX index_contract_states_on_addr_block_number_tx_index ON publi
 --
 
 CREATE INDEX index_contract_states_on_contract_address ON public.contract_states USING btree (contract_address);
-
-
---
--- Name: index_contract_states_on_contract_address_and_transaction_hash; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX index_contract_states_on_contract_address_and_transaction_hash ON public.contract_states USING btree (contract_address, transaction_hash);
-
-
---
--- Name: index_contract_states_on_state; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_contract_states_on_state ON public.contract_states USING gin (state);
-
-
---
--- Name: index_contract_states_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_contract_states_on_transaction_hash ON public.contract_states USING btree (transaction_hash);
 
 
 --
@@ -921,13 +897,6 @@ CREATE UNIQUE INDEX index_contracts_on_address ON public.contracts USING btree (
 --
 
 CREATE INDEX index_contracts_on_current_init_code_hash ON public.contracts USING btree (current_init_code_hash);
-
-
---
--- Name: index_contracts_on_current_state; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_contracts_on_current_state ON public.contracts USING gin (current_state);
 
 
 --
@@ -987,10 +956,17 @@ CREATE UNIQUE INDEX index_eth_blocks_on_blockhash ON public.eth_blocks USING btr
 
 
 --
--- Name: index_eth_blocks_on_blockhash_and_processing_state; Type: INDEX; Schema: public; Owner: -
+-- Name: index_eth_blocks_on_blockhash_and_processing_state_complete; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_eth_blocks_on_blockhash_and_processing_state ON public.eth_blocks USING btree (blockhash) WHERE ((processing_state)::text <> 'pending'::text);
+CREATE INDEX index_eth_blocks_on_blockhash_and_processing_state_complete ON public.eth_blocks USING btree (blockhash) WHERE ((processing_state)::text = 'complete'::text);
+
+
+--
+-- Name: index_eth_blocks_on_blockhash_and_processing_state_pending; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_eth_blocks_on_blockhash_and_processing_state_pending ON public.eth_blocks USING btree (blockhash) WHERE ((processing_state)::text <> 'pending'::text);
 
 
 --
@@ -1092,13 +1068,6 @@ CREATE INDEX index_transaction_receipts_on_from_address ON public.transaction_re
 
 
 --
--- Name: index_transaction_receipts_on_logs; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_transaction_receipts_on_logs ON public.transaction_receipts USING gin (logs);
-
-
---
 -- Name: index_transaction_receipts_on_runtime_ms; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1183,14 +1152,6 @@ ALTER TABLE ONLY public.ethscriptions
 
 ALTER TABLE ONLY public.transaction_receipts
     ADD CONSTRAINT fk_rails_54b606737e FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
-
-
---
--- Name: contract_states fk_rails_54fdb5b7e7; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.contract_states
-    ADD CONSTRAINT fk_rails_54fdb5b7e7 FOREIGN KEY (transaction_hash) REFERENCES public.ethscriptions(transaction_hash) ON DELETE CASCADE;
 
 
 --
@@ -1296,11 +1257,6 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
-('20240116192126'),
-('20240109134209'),
-('20231226174404'),
-('20231215180426'),
-('20231203201813'),
 ('20231113223006'),
 ('20231110173854'),
 ('20230824174647'),

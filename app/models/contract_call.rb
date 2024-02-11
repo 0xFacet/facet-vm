@@ -1,7 +1,7 @@
 class ContractCall < ApplicationRecord
   include ContractErrors
   
-  before_validation :ensure_runtime_ms, :trim_failed_contract_deploys
+  before_validation :ensure_runtime_ms
   
   attr_accessor :to_contract, :salt, :pending_logs, :to_contract_init_code_hash, :to_contract_source_code,
     :in_low_level_call_context
@@ -9,8 +9,6 @@ class ContractCall < ApplicationRecord
   belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
   belongs_to :called_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'to_contract_address', optional: true
   belongs_to :effective_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'effective_contract_address', optional: true
-  
-  belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true, inverse_of: :contract_calls
   
   belongs_to :ethscription, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', optional: true
   
@@ -61,6 +59,14 @@ class ContractCall < ApplicationRecord
         c.assign_attributes(
           deployed_successfully: success?
         )
+        
+        if failure?
+          c.assign_attributes(
+            current_init_code_hash: nil,
+            current_type: nil,
+            current_state: {}
+          )
+        end
       end
     elsif is_call?
       self.called_contract = effective_contract
@@ -78,8 +84,7 @@ class ContractCall < ApplicationRecord
   end
   
   def find_and_validate_existing_contract!
-    self.effective_contract = TransactionContext.get_active_contract(to_contract_address) ||
-      Contract.find_by(deployed_successfully: true, address: to_contract_address)
+    self.effective_contract = TransactionContext.get_existing_contract(to_contract_address)
     
     if effective_contract.blank?
       raise CallingNonExistentContractError.new("Contract not found: #{to_contract_address}")
@@ -91,30 +96,19 @@ class ContractCall < ApplicationRecord
   end
   
   def create_and_validate_new_contract!
-    self.effective_contract = Contract.new(
-      transaction_hash: TransactionContext.transaction_hash.value,
-      block_number: TransactionContext.block.number.value,
-      transaction_index: TransactionContext.transaction_index,
-      address: calculate_new_contract_address
+    self.effective_contract = TransactionContext.create_new_contract(
+      address: calculate_new_contract_address,
+      init_code_hash: to_contract_init_code_hash,
+      source_code: to_contract_source_code
     )
     
-    to_contract_implementation = TransactionContext.supported_contract_class(
-      to_contract_init_code_hash,
-      to_contract_source_code
-    )
+    if effective_contract.implementation_class.is_abstract_contract
+      raise TransactionError.new("Cannot deploy abstract contract: #{effective_contract.implementation_class.name}")
+    end
     
     if function
       raise ContractError.new("Cannot call function on contract creation")
     end
-    
-    if to_contract_implementation.is_abstract_contract
-      raise TransactionError.new("Cannot deploy abstract contract: #{to_contract_implementation.name}")
-    end
-    
-    self.effective_contract.assign_attributes(
-      current_type: to_contract_implementation.name,
-      current_init_code_hash: to_contract_init_code_hash
-    )
     
     self.function = :constructor
   rescue UnknownInitCodeHash => e
@@ -150,35 +144,14 @@ class ContractCall < ApplicationRecord
     address
   end
   
-  def contract_nonce
-    in_memory = contract_transaction.contract_calls.count do |call|
-      call.from_address == from_address &&
-      call.is_create? &&
-      call.success?
-    end
-    
-    scope = ContractCall.where(
-      from_address: from_address,
-      call_type: :create,
-      status: :success
-    )
-    
-    in_memory + scope.count
-  end
-  
-  def eoa_nonce
-    scope = ContractCall.where(
-      from_address: from_address,
-      call_type: [:create, :call]
-    )
-    
-    scope.count
-  end
-  
   def current_nonce
     raise "Not possible" unless is_create?
     
-    contract_initiated? ? contract_nonce : eoa_nonce
+    if contract_initiated?
+      BlockContext.calculate_contract_nonce(from_address)
+    else
+      BlockContext.calculate_eoa_nonce(from_address)
+    end
   end
   
   def contract_initiated?
@@ -261,15 +234,5 @@ class ContractCall < ApplicationRecord
     return if runtime_ms
     
     self.runtime_ms = calculated_runtime_ms
-  end
-  
-  def trim_failed_contract_deploys
-    if failure? && created_contract
-      created_contract.assign_attributes(
-        current_init_code_hash: nil,
-        current_type: nil,
-        current_state: {}
-      )
-    end
   end
 end

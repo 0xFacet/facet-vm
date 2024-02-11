@@ -2,33 +2,16 @@ class ContractTransaction < ApplicationRecord
   include ContractErrors
   
   belongs_to :ethscription, primary_key: :transaction_hash, foreign_key: :transaction_hash, optional: true
-  has_one :transaction_receipt, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_states, foreign_key: :transaction_hash, primary_key: :transaction_hash
-  has_many :contract_calls, foreign_key: :transaction_hash, primary_key: :transaction_hash, inverse_of: :contract_transaction
   has_many :contracts, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_artifacts, foreign_key: :transaction_hash, primary_key: :transaction_hash
 
+  attr_accessor :contract_calls, :transaction_receipt
+  
   attr_accessor :tx_origin, :payload
   
   def self.transaction_mimetype
     "application/vnd.facet.tx+json"
-  end
-  
-  def self.validate_start_block_passed!(ethscription)
-    system_start_block = SystemConfigVersion.current.start_block_number
-    valid = system_start_block && ethscription.block_number >= system_start_block
-    
-    unless valid
-      raise InvalidEthscriptionError.new("Start block not passed")
-    end
-  end
-  
-  def self.create_from_ethscription!(ethscription, persist:)
-    validate_start_block_passed!(ethscription)
-    
-    new(ethscription: ethscription).tap do |contract_tx|
-      contract_tx.execute_transaction(persist: persist)      
-    end
   end
   
   def ethscription=(ethscription)
@@ -46,10 +29,16 @@ class ContractTransaction < ApplicationRecord
       raise InvalidEthscriptionError.new("JSON parse error: #{e.message}")
     end
     
+    validate_payload!
+    
     super(ethscription)
   end
   
   def validate_payload!
+    unless BlockContext.start_block_passed?
+      raise InvalidEthscriptionError.new("Start block not passed")
+    end
+    
     unless payload.present? && payload.data&.is_a?(Hash)
       raise InvalidEthscriptionError.new("Payload not present")
     end
@@ -139,12 +128,18 @@ class ContractTransaction < ApplicationRecord
       mimetype = ContractTransaction.transaction_mimetype
       uri = %{data:#{mimetype};rule=esip6,#{tx_payload.to_json}}
       
+      current_block = EthBlock.new(
+        block_number: max_block_number + 1,
+        timestamp: Time.zone.now.to_i,
+        blockhash: "0x" + SecureRandom.hex(32)
+      )
+      
       ethscription_attrs = {
         transaction_hash: "0x" + SecureRandom.hex(32),
-        block_number: max_block_number + 1,
-        block_blockhash: "0x" + SecureRandom.hex(32),
+        block_number: current_block.block_number,
+        block_blockhash: current_block.blockhash,
         creator: from&.downcase,
-        block_timestamp: Time.zone.now.to_i,
+        block_timestamp: current_block.timestamp,
         transaction_index: 1,
         content_uri: uri,
         initial_owner: Ethscription.required_initial_owner,
@@ -154,7 +149,15 @@ class ContractTransaction < ApplicationRecord
       
       eth = Ethscription.new(ethscription_attrs)
       
-      eth.process!(persist: false)
+      BlockContext.set(
+        system_config: SystemConfigVersion.current,
+        current_block: current_block,
+        contracts: [],
+        contract_artifacts: [],
+        ethscriptions: [eth]
+      ) do
+        BlockContext.process_contract_transactions(persist: false)
+      end
       
       {
         transaction_receipt: eth.contract_transaction&.transaction_receipt,
@@ -170,69 +173,33 @@ class ContractTransaction < ApplicationRecord
     contract:,
     function_name:,
     function_args: {},
-    msgSender: nil,
-    block_timestamp: nil,
-    block_number: nil
+    msgSender: nil
   )
-    fetched_block_timestamp, fetched_block_number = EthBlock.processed.newest_first.limit(1).
-      pluck(:timestamp, :block_number).first.map(&:to_i)
-    
-    block_timestamp ||= fetched_block_timestamp + 12
-    block_number ||= fetched_block_number + 1
-
-    cache_key = [
-      fetched_block_number,
-      contract,
-      function_name,
-      function_args,
-      msgSender
-    ].to_cache_key(:make_static_call)
-    
-    cache_key = Digest::SHA256.hexdigest(cache_key)
-    
-    Rails.cache.fetch(cache_key) do
-      record = new(
-        tx_origin: msgSender,
-        block_timestamp: block_timestamp,
-        block_number: block_number
-      )
-      
-      record.payload = OpenStruct.new(
+    simulate_transaction_result = simulate_transaction(
+      from: msgSender,
+      tx_payload: {
         op: :static_call,
         data: {
           function: function_name,
           args: function_args,
           to: contract
         }
-      )
+      }
+    )
   
-      record.with_global_context do
-        begin
-          record.make_initial_call.as_json
-        rescue ContractError, CallingNonExistentContractError => e
-          raise StaticCallError.new("Static Call error #{e.message}")
-        end
-      end
+    receipt = simulate_transaction_result[:transaction_receipt]
+    
+    if receipt.status != 'success'
+      raise StaticCallError.new("Static Call error #{receipt.error}")
     end
-  end
-  
-  def current_chainid
-    if ENV.fetch("ETHEREUM_NETWORK") == "eth-mainnet"
-      1
-    elsif ENV.fetch("ETHEREUM_NETWORK") == "eth-goerli"
-      5
-    elsif ENV.fetch("ETHEREUM_NETWORK") == "eth-sepolia"
-      11155111
-    else
-      raise "Unknown network: #{ENV.fetch("ETHEREUM_NETWORK")}"
-    end
+    
+    receipt.return_value
   end
   
   def with_global_context
     TransactionContext.set(
-      system_config: SystemConfigVersion.current,
-      latest_artifact_hash: ContractArtifact.latest_tx_hash,
       call_stack: CallStack.new(TransactionContext),
+      active_contracts: [],
       current_transaction: self,
       current_event_index: 0,
       tx_origin: tx_origin,
@@ -240,7 +207,7 @@ class ContractTransaction < ApplicationRecord
       block_number: block_number,
       block_timestamp: block_timestamp,
       block_blockhash: block_blockhash,
-      block_chainid: current_chainid,
+      block_chainid: BlockContext.current_chainid,
       transaction_index: transaction_index
     ) do
       yield
@@ -248,65 +215,33 @@ class ContractTransaction < ApplicationRecord
   end
   
   def make_initial_call
-    with_global_context do
-      payload_data = OpenStruct.new(payload.data)
+    payload_data = OpenStruct.new(payload.data)
       
-      TransactionContext.call_stack.execute_in_new_frame(
-        to_contract_init_code_hash: payload_data.init_code_hash,
-        to_contract_source_code: payload_data.source_code,
-        to_contract_address: payload_data.to&.downcase,
-        function: payload_data.function,
-        args: payload_data.args,
-        type: payload.op.to_sym,
-      )
-    end
+    TransactionContext.call_stack.execute_in_new_frame(
+      to_contract_init_code_hash: payload_data.init_code_hash,
+      to_contract_source_code: payload_data.source_code,
+      to_contract_address: payload_data.to&.downcase,
+      function: payload_data.function,
+      args: payload_data.args,
+      type: payload.op.to_sym,
+    )
   end
   
-  def execute_transaction(persist:)
-    validate_payload!
-    
-    if persist && payload.op.to_sym == :static_call
-      raise InvalidEthscriptionError.new("Static calls cannot be persisted")
-    end
-    
+  def execute_transaction
     begin
       make_initial_call
     rescue ContractError, TransactionError
     end
+
+    if success?
+      TransactionContext.active_contracts.each(&:take_state_snapshot)
+    end
     
     build_transaction_receipt
-    
-    if persist
-      ContractTransaction.transaction do
-        save!
-        persist_contract_state_if_success!
-      end
-    end
   end
   
-  def persist_contract_state_if_success!
-    return unless status == :success
-    
-    grouped_contracts = contract_calls.group_by { |call| call.effective_contract.address }
-
-    grouped_contracts.each do |address, calls|
-      states = calls.map { |call| call.effective_contract.current_state }.uniq
-      if states.length > 1
-        raise "Duplicate contracts with different states for address #{address}"
-      end
-    end
-    
-    contract_calls.map(&:effective_contract).uniq(&:address).each do |contract|
-      contract.save_new_state_if_needed!(
-        transaction: self,
-      )
-    end
-  end
-  
-  def get_active_contract(address)
-    contract_calls.detect do |call|
-      call.effective_contract&.address == address
-    end&.effective_contract
+  def success?
+    status == :success
   end
   
   def status

@@ -1,0 +1,30 @@
+pragma :rubidity, "1.0.0"
+
+contract :TestBlockContext do
+  uint256 :public, :var1
+  uint256 :public, :var2
+  uint256 :public, :var3
+  uint256 :public, :var4
+  
+  constructor() {
+
+  }
+  
+  function :changeVar1, { newVar: :uint256, revert: :bool }, :public do
+    require(!revert, "Revert")
+    
+    s.var1 = newVar
+    nil
+  end
+  
+  function :changeOtherVar1, { target: :address, newVar: :uint256, revert: :bool }, :public do
+    TestBlockContext(target).changeVar1(newVar, revert)
+    nil
+  end
+  
+  function :oneSuccessOneRevert, { target: :address, newVar: :uint256 }, :public do
+    TestBlockContext(target).changeVar1(newVar, false)
+    TestBlockContext(target).changeVar1(newVar + 5, true)
+    nil
+  end
+end

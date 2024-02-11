@@ -3,12 +3,11 @@ class ContractState < ApplicationRecord
   
   belongs_to :contract, foreign_key: :contract_address, primary_key: :address, optional: true
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
-  belongs_to :ethscription,
-  primary_key: 'transaction_hash', foreign_key: 'transaction_hash',
-  optional: true
   
-  scope :newest_first, -> {
-    order(block_number: :desc, transaction_index: :desc) 
+  scope :newest_first, lambda {
+    order_clause = column_names.include?('transaction_index') ?
+    'block_number DESC, transaction_index DESC' : 'block_number DESC'
+    order(Arel.sql(order_clause))
   }
   
   def as_json(options = {})

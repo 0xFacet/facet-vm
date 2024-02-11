@@ -1,6 +1,8 @@
 require 'rails_helper'
 
 describe 'NameRegistry contract' do
+  include ActiveSupport::Testing::TimeHelpers
+
   let(:user_address) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
   let(:alice) { "0x000000000000000000000000000000000000000a" }
   let(:bob) { "0x000000000000000000000000000000000000000b" }
@@ -342,14 +344,17 @@ describe 'NameRegistry contract' do
       function_args: "shortdurationname"
     )
     
+    travel_to Time.now + 31.days
+    
     expect {
       ContractTransaction.make_static_call(
-        block_timestamp: 30.days.from_now,
         contract: registry_address,
         function_name: "resolveName",
         function_args: "shortdurationname"
       )
     }.to raise_error(Contract::StaticCallError, /Name expired/)
+    
+    travel_to Time.now - 31.days
     
     trigger_contract_interaction_and_expect_error(
       error_msg_includes: 'Name expired',
