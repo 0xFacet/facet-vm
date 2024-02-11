@@ -10,6 +10,8 @@ describe 'BridgeAndCall contract' do
   let(:name) { "TestNFT" }
   let(:symbol) { "TNFT" }
   let(:fee) { (0.0005.to_d * 1.ether).to_i }
+  let(:fee_to_address) { "0xf00000000000000000000000000000000000000f" }
+  let(:per_mint_fee) { (0.0005.to_d * 1.ether).to_i }
   
   before(:all) do
     update_supported_contracts("EtherBridge02")
@@ -87,7 +89,9 @@ describe 'BridgeAndCall contract' do
             symbol: symbol,
             maxSupply: max_supply,
             baseURI: base_uri,
-            weth: bridge.address
+            weth: bridge.address,
+            perMintFee: per_mint_fee,
+            feeTo: fee_to_address
           }
         }
       }
@@ -117,6 +121,8 @@ describe 'BridgeAndCall contract' do
         merkleProof: []
       }
     }.to_json
+    
+    mint_fee = 3 * per_mint_fee
     
     nft_balance = ContractTransaction.make_static_call(
       contract: nft_contract.address,
@@ -157,7 +163,7 @@ describe 'BridgeAndCall contract' do
       function_args: daryl
     )
     
-    expect(eth_balance).to eq(2.ether - fee)
+    expect(eth_balance).to eq(2.ether - fee - mint_fee)
     
     eth_balance = ContractTransaction.make_static_call(
       contract: bridge.address,

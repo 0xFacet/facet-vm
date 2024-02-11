@@ -4,6 +4,8 @@ RSpec.describe "NFTCollection01", type: :model do
   let(:owner_address) { "0x000000000000000000000000000000000000000a" }
   let(:non_owner_address) { "0x000000000000000000000000000000000000000b" }
   let(:allow_list_address) { "0x000000000000000000000000000000000000000c" }
+  let(:fee_to_address) { "0xf00000000000000000000000000000000000000f" }
+  let(:per_mint_fee) { (0.0005.to_d * 1.ether).to_i }
   let(:weth_contract) do
     trigger_contract_interaction_and_expect_success(
       from: owner_address,
@@ -38,7 +40,9 @@ RSpec.describe "NFTCollection01", type: :model do
             symbol: symbol,
             maxSupply: max_supply,
             baseURI: base_uri,
-            weth: weth_contract.address
+            weth: weth_contract.address,
+            perMintFee: per_mint_fee,
+            feeTo: fee_to_address
           }
         }
       }
@@ -192,8 +196,10 @@ RSpec.describe "NFTCollection01", type: :model do
       
         mint_amount = 25
         total_cost = mint_amount * 1.ether
+        total_fee = mint_amount * per_mint_fee
+        total = total_cost + total_fee
         
-        set_weth_allowance(wallet: non_owner_address, amount: total_cost)
+        set_weth_allowance(wallet: non_owner_address, amount: total)
 
         expect {
           get_contract_state(nft_contract.address, 'tokenURI', 1)
@@ -228,7 +234,12 @@ RSpec.describe "NFTCollection01", type: :model do
           public_mint_end: 0,
           public_mint_price: 0
         )
+        
+        amount = 5
+        set_weth_allowance(wallet: non_owner_address, amount: amount * per_mint_fee)
 
+        start_fee_to_address_balance = get_contract_state(weth_contract.address, "balanceOf", fee_to_address)
+        
         trigger_contract_interaction_and_expect_success(
           from: non_owner_address,
           payload: {
@@ -236,13 +247,17 @@ RSpec.describe "NFTCollection01", type: :model do
             data: {
               function: "mint",
               args: {
-                amount: 5,
+                amount: amount,
                 merkleProof: []
               }
             }
           }
         )
 
+        end_fee_to_address_balance = get_contract_state(weth_contract.address, "balanceOf", fee_to_address)
+        
+        expect(end_fee_to_address_balance - start_fee_to_address_balance).to eq(amount * per_mint_fee)
+        
         trigger_contract_interaction_and_expect_error(
           error_msg_includes: 'Exceeded mint limit',
           from: non_owner_address,
@@ -296,6 +311,9 @@ RSpec.describe "NFTCollection01", type: :model do
       end
 
       it 'allows minting for addresses on the allow list' do
+        amount = 1
+        set_weth_allowance(wallet: allow_list_address, amount: amount * per_mint_fee)
+        
         allow_list_mint_receipt = trigger_contract_interaction_and_expect_success(
           from: allow_list_address,
           payload: {
@@ -303,7 +321,7 @@ RSpec.describe "NFTCollection01", type: :model do
             data: {
               function: "mint",
               args: {
-                amount: 1,
+                amount: amount,
                 merkleProof: merkle_proof
               }
             }
@@ -631,7 +649,7 @@ RSpec.describe "NFTCollection01", type: :model do
         public_mint_end: 0,
         public_mint_price: 1.ether
       )
-      set_weth_allowance(wallet: non_owner_address, amount: 1.ether)
+      set_weth_allowance(wallet: non_owner_address, amount: 1.ether + per_mint_fee)
       trigger_contract_interaction_and_expect_success(
         from: non_owner_address,
         payload: {
