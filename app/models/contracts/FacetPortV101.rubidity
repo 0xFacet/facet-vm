@@ -14,6 +14,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     offerer: :address,
     buyer: :address,
     seller: :address,
+    recipient: :address,
     assetContract: :address,
     assetId: :uint256,
     considerationAmount: :uint256,
@@ -77,6 +78,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     offerType: :string,
     offerId: :bytes16,
     offerer: :address,
+    recipient: :address,
     assetContract: :address,
     assetId: :uint256,
     assetType: :string,
@@ -91,6 +93,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
       offerType: offerType,
       offerId: offerId,
       offerer: offerer,
+      recipient: recipient,
       assetContract: assetContract,
       assetId: assetId,
       assetType: assetType,
@@ -109,6 +112,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     offerTypes: [:string],
     offerIds: [:bytes16],
     offerers: [:address],
+    recipients: [:address],
     assetContracts: [:address],
     assetIds: [:uint256],
     assetTypes: [:string],
@@ -130,6 +134,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     require(offerIds.length == startTimes.length, "Offer ID and start times arrays must be the same length")
     require(offerIds.length == endTimes.length, "Offer ID and end times arrays must be the same length")
     require(offerIds.length == signatures.length, "Offer ID and signatures arrays must be the same length")
+    require(offerIds.length == recipients.length, "Offer ID and recipients arrays must be the same length")
     
     require(offerIds.length <= 20, "Cannot accept more than 20 offers at a time")
     
@@ -142,6 +147,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
         offerType: offerTypes[i],
         offerId: offerIds[i],
         offerer: offerers[i],
+        recipient: recipients[i],
         assetContract: assetContracts[i],
         assetId: assetIds[i],
         assetType: assetTypes[i],
@@ -163,6 +169,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     offerType: :string,
     offerId: :bytes16,
     offerer: :address,
+    recipient: :address,
     assetContract: :address,
     assetId: :uint256,
     assetType: :string,
@@ -234,6 +241,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
       assetId: assetId,
       seller: seller,
       buyer: buyer,
+      recipient: recipient,
       considerationAmount: considerationAmount,
       considerationToken: considerationToken
     )
@@ -244,6 +252,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
       offerer: offerer,
       buyer: buyer,
       seller: seller,
+      recipient: recipient,
       assetContract: assetContract,
       assetId: assetId,
       considerationAmount: considerationAmount,
@@ -259,9 +268,12 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     assetId: :uint256,
     seller: :address,
     buyer: :address,
+    recipient: :address,
     considerationAmount: :uint256,
     considerationToken: :address
   }, :internal, returns: :bool do
+    require(recipient == address(0) || msg.sender == buyer, "Only buyer can add recipient")
+
     currentOwner = ERC721(assetContract).ownerOf(assetId);
     
     return false unless currentOwner == seller
@@ -310,7 +322,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     _transferNFT(
       assetContract: assetContract,
       assetId: assetId,
-      recipient: buyer,
+      recipient: recipient == address(0) ? buyer : recipient,
       from: seller
     )
     
