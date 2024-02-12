@@ -14,6 +14,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     offerer: :address,
     buyer: :address,
     seller: :address,
+    recipient: :address,
     assetContract: :address,
     assetId: :uint256,
     considerationAmount: :uint256,
@@ -85,7 +86,8 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     considerationAmount: :uint256,
     startTime: :uint256,
     endTime: :uint256,
-    signature: :bytes
+    signature: :bytes,
+    recipient: :address
   }, :external do
     success = _acceptOfferWithSignature(
       offerType: offerType,
@@ -99,7 +101,8 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
       considerationAmount: considerationAmount,
       startTime: startTime,
       endTime: endTime,
-      signature: signature
+      signature: signature,
+      recipient: recipient
     )
     
     require(success, "Offer was not successfully accepted")
@@ -117,7 +120,8 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     considerationAmounts: [:uint256],
     startTimes: [:uint256],
     endTimes: [:uint256],
-    signatures: [:bytes]
+    signatures: [:bytes],
+    recipients: [:address]
   }, :external do
     require(offerIds.length == offerers.length, "Offer ID and offerer arrays must be the same length")
     require(offerIds.length == offerTypes.length, "Offer ID and offer types arrays must be the same length")
@@ -130,6 +134,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     require(offerIds.length == startTimes.length, "Offer ID and start times arrays must be the same length")
     require(offerIds.length == endTimes.length, "Offer ID and end times arrays must be the same length")
     require(offerIds.length == signatures.length, "Offer ID and signatures arrays must be the same length")
+    require(offerIds.length == recipients.length, "Offer ID and recipients arrays must be the same length")
     
     require(offerIds.length <= 20, "Cannot accept more than 20 offers at a time")
     
@@ -150,7 +155,8 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
         considerationAmount: considerationAmounts[i],
         startTime: startTimes[i],
         endTime: endTimes[i],
-        signature: signatures[i]
+        signature: signatures[i],
+        recipient: recipients[i]
       )
       
       atLeastOneSuccess = true if success
@@ -171,7 +177,8 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     considerationAmount: :uint256,
     startTime: :uint256,
     endTime: :uint256,
-    signature: :bytes
+    signature: :bytes,
+    recipient: :address
   }, :internal, returns: :bool do
     whenNotPaused!
     
@@ -234,6 +241,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
       assetId: assetId,
       seller: seller,
       buyer: buyer,
+      recipient: recipient,
       considerationAmount: considerationAmount,
       considerationToken: considerationToken
     )
@@ -244,6 +252,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
       offerer: offerer,
       buyer: buyer,
       seller: seller,
+      recipient: recipient,
       assetContract: assetContract,
       assetId: assetId,
       considerationAmount: considerationAmount,
@@ -259,6 +268,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     assetId: :uint256,
     seller: :address,
     buyer: :address,
+    recipient: :address,
     considerationAmount: :uint256,
     considerationToken: :address
   }, :internal, returns: :bool do
@@ -310,7 +320,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     _transferNFT(
       assetContract: assetContract,
       assetId: assetId,
-      recipient: buyer,
+      recipient: recipient == address(0) ? buyer : recipient,
       from: seller
     )
     
