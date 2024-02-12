@@ -79,11 +79,11 @@ class BlockContext < ActiveSupport::CurrentAttributes
     ContractTransaction.import!(contract_transactions)
     
     TransactionReceipt.import!(
-      contract_transactions.map(&:transaction_receipt)
+      contract_transactions.map(&:transaction_receipt_for_import)
     )
     
     ContractCall.import!(
-      contract_transactions.map(&:contract_calls).flatten
+      contract_transactions.flat_map{|i| i.contract_calls.target }
     )
     
     ContractArtifact.import!(contract_artifacts.select(&:new_record?))

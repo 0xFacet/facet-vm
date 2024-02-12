@@ -5,7 +5,7 @@ class Contract < ApplicationRecord
   has_many :states, primary_key: 'address', foreign_key: 'contract_address', class_name: "ContractState"
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
 
-  # belongs_to :ethscription, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', optional: true
+  belongs_to :ethscription, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', optional: true
   
   has_many :contract_calls, foreign_key: :effective_contract_address, primary_key: :address
   has_one :transaction_receipt, through: :contract_transaction
