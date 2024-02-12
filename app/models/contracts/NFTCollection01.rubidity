@@ -76,7 +76,7 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     s.maxSupply = maxSupply
     s.baseURI = baseURI
     s.WETH = weth
-    s.maxPerMint = 25
+    s.maxPerMint = 100
     s.perMintFee = perMintFee
     s.feeTo = feeTo
   }
