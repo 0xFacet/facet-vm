@@ -8,6 +8,10 @@ module RubidityTypeExtensions
       Base64.strict_encode64(value)
     end
     
+    def base64Decode
+      Base64.strict_decode64(value)
+    end
+    
     def isAlphaNumeric?
       TypedVariable.create(:bool, !!(value =~ /\A[a-z0-9]+\z/i))
     end
@@ -38,10 +42,15 @@ module RubidityTypeExtensions
     include ContractErrors
     
     def call(json_call_data = '{}', **kwargs)
-      calldata = (kwargs.empty? ? JSON.parse(json_call_data) : kwargs).with_indifferent_access
+      calldata = kwargs.empty? ? JSON.parse(json_call_data) : kwargs
       
-      function = calldata['function']
-      args = calldata['args']
+      function, args = if calldata.is_a?(Hash)
+        calldata = calldata.with_indifferent_access
+        
+        [calldata['function'], calldata['args']]
+      elsif calldata.is_a?(Array)
+        [calldata.first, calldata.drop(1)]
+      end
       
       data = TransactionContext.call_stack.execute_in_new_frame(
         call_level: :low,

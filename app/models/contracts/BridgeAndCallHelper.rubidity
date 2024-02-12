@@ -51,7 +51,7 @@ contract :BridgeAndCallHelper, is: [:Upgradeable, :Ownable], upgradeable: true d
   function :callFromBridge, {
     bridgingUser: :address,
     addressToCall: :address,
-    calldata: :string,
+    base64Calldata: :string
   }, :public do
     require(msg.sender == s.bridge, "Only the bridge can callFromBridge")
     require(addressToCall != address(this), "Cannot call self")
@@ -59,11 +59,14 @@ contract :BridgeAndCallHelper, is: [:Upgradeable, :Ownable], upgradeable: true d
     require(!s.locked, 'No reentrancy allowed')
     s.locked = true
     
+    calldata = base64Calldata.base64Decode
     initialBalance = _balance()
     
     calculatedFee = initialBalance < s.fee ? initialBalance : s.fee
     
-    _transfer(s.owner, calculatedFee)
+    if calculatedFee > 0
+      _transfer(s.owner, calculatedFee)
+    end
     
     _approve(addressToCall, initialBalance - calculatedFee)
     

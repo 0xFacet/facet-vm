@@ -1,5 +1,5 @@
 module ForLoop
-  MAX_LOOPS = 25
+  MAX_LOOPS = 100
   
   def forLoop(start: 0, condition:, step: 1, max_iterations: MAX_LOOPS)
     if max_iterations > MAX_LOOPS

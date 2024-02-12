@@ -1,12 +1,14 @@
 class Ethscription < ApplicationRecord
   include ContractErrors
   
-  belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, optional: true
+  belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, optional: true, autosave: false
   
-  has_many :contracts, primary_key: 'transaction_hash', foreign_key: 'transaction_hash'
-  has_one :transaction_receipt, primary_key: 'transaction_hash', foreign_key: 'transaction_hash'
+  has_many :contracts, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', autosave: false
+  has_one :transaction_receipt, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', autosave: false
 
-  attr_accessor :contract_transaction, :system_config_version
+  has_one :contract_transaction, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', autosave: false
+  has_one :system_config_version, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', autosave: false
+  has_many :contract_states, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', autosave: false
   
   before_validation :downcase_hex_fields
   
@@ -54,9 +56,7 @@ class Ethscription < ApplicationRecord
       end
       
       if mimetype == ContractTransaction.transaction_mimetype
-        tx = ContractTransaction.new(ethscription: self)
-        
-        assign_attributes(contract_transaction: tx)
+        build_contract_transaction(ethscription: self)
       elsif mimetype == SystemConfigVersion.system_mimetype
         version = SystemConfigVersion.create_from_ethscription!(self, persist: persist)
         

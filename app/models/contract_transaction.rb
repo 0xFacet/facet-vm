@@ -5,8 +5,9 @@ class ContractTransaction < ApplicationRecord
   has_many :contract_states, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contracts, foreign_key: :transaction_hash, primary_key: :transaction_hash
   has_many :contract_artifacts, foreign_key: :transaction_hash, primary_key: :transaction_hash
-
-  attr_accessor :contract_calls, :transaction_receipt
+  
+  has_one :transaction_receipt, foreign_key: :transaction_hash, primary_key: :transaction_hash, inverse_of: :contract_transaction
+  has_many :contract_calls, foreign_key: :transaction_hash, primary_key: :transaction_hash, inverse_of: :contract_transaction
   
   attr_accessor :tx_origin, :payload
   
@@ -77,17 +78,17 @@ class ContractTransaction < ApplicationRecord
   end
   
   def initial_call
-    contract_calls.sort_by(&:internal_transaction_index).first
+    contract_calls.target.sort_by(&:internal_transaction_index).first
   end
   
-  def build_transaction_receipt
+  def transaction_receipt_for_import
     base_attrs = {
       transaction_hash: transaction_hash,
       block_number: block_number,
       block_blockhash: block_blockhash,
       transaction_index: transaction_index,
       block_timestamp: block_timestamp,
-      logs: contract_calls.flat_map(&:logs).sort_by { |log| log['index'] }.map { |log| log.except('index') },
+      logs: contract_calls.target.flat_map(&:logs).sort_by { |log| log['index'] }.map { |log| log.except('index') },
       status: status,
       runtime_ms: initial_call.calculated_runtime_ms,
       gas_price: ethscription.gas_price,
@@ -109,7 +110,7 @@ class ContractTransaction < ApplicationRecord
     
     attrs = base_attrs.merge(call_attrs)
     
-    self.transaction_receipt = TransactionReceipt.new(attrs)
+    TransactionReceipt.new(attrs)
   end
   
   def self.simulate_transaction(from:, tx_payload:)
@@ -160,7 +161,7 @@ class ContractTransaction < ApplicationRecord
       end
       
       {
-        transaction_receipt: eth.contract_transaction&.transaction_receipt,
+        transaction_receipt: eth.contract_transaction&.transaction_receipt_for_import,
         internal_transactions: eth.contract_transaction&.contract_calls&.map(&:as_json),
         ethscription_status: eth.processing_state,
         ethscription_error: eth.processing_error,
@@ -236,8 +237,6 @@ class ContractTransaction < ApplicationRecord
     if success?
       TransactionContext.active_contracts.each(&:take_state_snapshot)
     end
-    
-    build_transaction_receipt
   end
   
   def success?
@@ -245,7 +244,7 @@ class ContractTransaction < ApplicationRecord
   end
   
   def status
-    failed = contract_calls.any? do |call|
+    failed = contract_calls.target.any? do |call|
       call.failure? && !call.in_low_level_call_context
     end
     

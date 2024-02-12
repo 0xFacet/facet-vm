@@ -63,14 +63,14 @@ contract :EtherBridge02, is: [:ERC20, :Upgradeable, :Ownable], upgradeable: true
     to: :address,
     amount: :uint256,
     addressToCall: :address,
-    calldata: :string
+    base64Calldata: :string
   }, :public do
     bridgeIn(to: s.bridgeAndCallHelper, amount: amount)
     
     BridgeAndCallHelper(s.bridgeAndCallHelper).callFromBridge(
       bridgingUser: to,
       addressToCall: addressToCall,
-      calldata: calldata
+      base64Calldata: base64Calldata
     )
   end
   

@@ -1,9 +1,9 @@
 class EthBlock < ApplicationRecord
   extend StateTestingUtils
   
-  has_many :contract_states, foreign_key: :block_number, primary_key: :block_number
-  has_many :ethscriptions, foreign_key: :block_number, primary_key: :block_number
-  has_many :transaction_receipts, foreign_key: :block_number, primary_key: :block_number
+  has_many :contract_states, foreign_key: :block_number, primary_key: :block_number, inverse_of: :eth_block, autosave: false
+  has_many :ethscriptions, foreign_key: :block_number, primary_key: :block_number, inverse_of: :eth_block, autosave: false
+  has_many :transaction_receipts, foreign_key: :block_number, primary_key: :block_number, inverse_of: :eth_block, autosave: false
   
   scope :newest_first, -> { order(block_number: :desc) }
   scope :oldest_first, -> { order(block_number: :asc) }

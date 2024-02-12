@@ -4,6 +4,7 @@ describe 'BridgeAndCall contract' do
   let(:alice) { "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
   let(:bob) { "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }
   let(:daryl) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
+  let(:charlie) { "0xcccccccccccccccccccccccccccccccccccccccc" }
   let(:trusted_smart_contract) { "0xcccccccccccccccccccccccccccccccccccccccc" }
   let(:max_supply) { 10000 }
   let(:base_uri) { "https://example.com/" }
@@ -143,7 +144,7 @@ describe 'BridgeAndCall contract' do
             to: daryl,
             amount: 5.ether,
             addressToCall: nft_contract.address,
-            calldata: call_data
+            base64Calldata: Base64.strict_encode64(call_data)
           }
         }
       }
@@ -172,5 +173,40 @@ describe 'BridgeAndCall contract' do
     )
     
     expect(eth_balance).to eq(fee)
+    
+    call_data = ["airdrop", charlie, 3, []].to_json
+    
+    trigger_contract_interaction_and_expect_success(
+      from: trusted_smart_contract,
+      payload: {
+        op: :call,
+        data: {
+          to: bridge.address,
+          function: "bridgeAndCall",
+          args: [
+            charlie,
+            5.ether,
+            nft_contract.address,
+            Base64.strict_encode64(call_data)
+          ]
+        }
+      }
+    )
+    
+    nft_balance = ContractTransaction.make_static_call(
+      contract: nft_contract.address,
+      function_name: "balanceOf",
+      function_args: charlie
+    )
+    
+    expect(nft_balance).to eq(3)
+    
+    eth_balance = ContractTransaction.make_static_call(
+      contract: bridge.address,
+      function_name: "balanceOf",
+      function_args: charlie
+    )
+    
+    expect(eth_balance).to eq(2.ether - fee - mint_fee)
   end
 end
