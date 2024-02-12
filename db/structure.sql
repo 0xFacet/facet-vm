@@ -80,6 +80,29 @@ CREATE FUNCTION public.check_ethscription_order() RETURNS trigger
 
 
 --
+-- Name: check_last_state(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.check_last_state() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  state_count INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO state_count
+  FROM contract_states
+  WHERE contract_address = OLD.contract_address;
+
+  IF state_count = 1 THEN
+    RAISE EXCEPTION 'Cannot delete the last state of a contract.';
+  END IF;
+
+  RETURN OLD; -- In a BEFORE trigger, returning OLD allows the operation to proceed
+END;
+$$;
+
+
+--
 -- Name: check_status(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -129,7 +152,7 @@ CREATE FUNCTION public.update_current_state() RETURNS trigger
           WHERE contract_address = NEW.contract_address
           ORDER BY block_number DESC
           LIMIT 1;
-      
+
           UPDATE contracts
           SET current_state = latest_contract_state.state,
               current_type = latest_contract_state.type,
@@ -137,22 +160,13 @@ CREATE FUNCTION public.update_current_state() RETURNS trigger
               updated_at = NOW()
           WHERE address = NEW.contract_address;
         ELSIF TG_OP = 'DELETE' THEN
-          -- Check if the state being deleted is the last state for the contract
-          SELECT COUNT(*) INTO state_count
-          FROM contract_states
-          WHERE contract_address = OLD.contract_address;
-      
-          IF state_count = 1 THEN
-            RAISE EXCEPTION 'Cannot delete the last state of a contract.';
-          END IF;
-      
           SELECT INTO latest_contract_state *
           FROM contract_states
           WHERE contract_address = OLD.contract_address
             AND id != OLD.id
           ORDER BY block_number DESC
           LIMIT 1;
-      
+
           UPDATE contracts
           SET current_state = latest_contract_state.state,
               current_type = latest_contract_state.type,
@@ -1096,6 +1110,13 @@ CREATE INDEX index_transaction_receipts_on_to_contract_address ON public.transac
 --
 
 CREATE UNIQUE INDEX index_transaction_receipts_on_transaction_hash ON public.transaction_receipts USING btree (transaction_hash);
+
+
+--
+-- Name: contract_states check_before_delete; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER check_before_delete BEFORE DELETE ON public.contract_states FOR EACH ROW EXECUTE FUNCTION public.check_last_state();
 
 
 --
