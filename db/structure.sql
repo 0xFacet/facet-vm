@@ -121,6 +121,7 @@ CREATE FUNCTION public.update_current_state() RETURNS trigger
     AS $$
       DECLARE
         latest_contract_state RECORD;
+        state_count INTEGER;
       BEGIN
         IF TG_OP = 'INSERT' THEN
           SELECT INTO latest_contract_state *
@@ -128,7 +129,7 @@ CREATE FUNCTION public.update_current_state() RETURNS trigger
           WHERE contract_address = NEW.contract_address
           ORDER BY block_number DESC
           LIMIT 1;
-
+      
           UPDATE contracts
           SET current_state = latest_contract_state.state,
               current_type = latest_contract_state.type,
@@ -136,13 +137,22 @@ CREATE FUNCTION public.update_current_state() RETURNS trigger
               updated_at = NOW()
           WHERE address = NEW.contract_address;
         ELSIF TG_OP = 'DELETE' THEN
+          -- Check if the state being deleted is the last state for the contract
+          SELECT COUNT(*) INTO state_count
+          FROM contract_states
+          WHERE contract_address = OLD.contract_address;
+      
+          IF state_count = 1 THEN
+            RAISE EXCEPTION 'Cannot delete the last state of a contract.';
+          END IF;
+      
           SELECT INTO latest_contract_state *
           FROM contract_states
           WHERE contract_address = OLD.contract_address
             AND id != OLD.id
           ORDER BY block_number DESC
           LIMIT 1;
-
+      
           UPDATE contracts
           SET current_state = latest_contract_state.state,
               current_type = latest_contract_state.type,

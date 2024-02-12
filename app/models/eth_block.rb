@@ -64,7 +64,7 @@ class EthBlock < ApplicationRecord
         batch_ethscriptions_processed = 0
       end
       
-      break if iterations >= 100 || unprocessed_ethscriptions == 0
+      break if iterations >= 10000 || unprocessed_ethscriptions == 0
     end
   end
   

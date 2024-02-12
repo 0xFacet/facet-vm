@@ -23,6 +23,7 @@ class CreateContractStates < ActiveRecord::Migration[7.1]
       CREATE OR REPLACE FUNCTION update_current_state() RETURNS TRIGGER AS $$
       DECLARE
         latest_contract_state RECORD;
+        state_count INTEGER;
       BEGIN
         IF TG_OP = 'INSERT' THEN
           SELECT INTO latest_contract_state *
@@ -38,6 +39,15 @@ class CreateContractStates < ActiveRecord::Migration[7.1]
               updated_at = NOW()
           WHERE address = NEW.contract_address;
         ELSIF TG_OP = 'DELETE' THEN
+          -- Check if the state being deleted is the last state for the contract
+          SELECT COUNT(*) INTO state_count
+          FROM contract_states
+          WHERE contract_address = OLD.contract_address;
+      
+          IF state_count = 1 THEN
+            RAISE EXCEPTION 'Cannot delete the last state of a contract.';
+          END IF;
+      
           SELECT INTO latest_contract_state *
           FROM contract_states
           WHERE contract_address = OLD.contract_address
