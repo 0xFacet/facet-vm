@@ -272,6 +272,8 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     considerationAmount: :uint256,
     considerationToken: :address
   }, :internal, returns: :bool do
+    require(recipient == address(0) || msg.sender == buyer, "Only buyer can add recipient")
+
     currentOwner = ERC721(assetContract).ownerOf(assetId);
     
     return false unless currentOwner == seller
