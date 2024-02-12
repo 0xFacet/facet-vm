@@ -63,11 +63,22 @@ class EthBlock < ApplicationRecord
         
         Rails.cache.write("total_ethscriptions_behind", total_remaining)
         
+        time_to_completion_in_words = if ethscriptions_per_second > 0
+          total_seconds = total_remaining / ethscriptions_per_second
+          ActionController::Base.helpers.distance_of_time_in_words(
+            Time.current,
+            Time.current + total_seconds
+          )
+        else
+          "N/A"
+        end
+
         puts "Imported #{reporting_frequency_in_blocks} blocks:"
         puts "> Total time: #{(batch_elapsed_time * 1000).round}ms"
         puts "> #{batch_ethscriptions_processed} ethscriptions processed"
         puts "> #{ethscriptions_per_second.round(2)} ethscriptions / s"  
-        puts "> #{blocks_per_second.round(2)} blocks / s"  
+        puts "> #{blocks_per_second.round(2)} blocks / s"
+        puts "> Time to completion: #{time_to_completion_in_words}"
         
         batch_start_time = curr_time
         batch_ethscriptions_processed = 0
