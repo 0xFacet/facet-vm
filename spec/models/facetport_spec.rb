@@ -243,7 +243,7 @@ describe 'FacetPort contract' do
             startTime: start_time.to_s,
             endTime: end_time.to_s,
             signature: "0x" + signature,
-            recipient: "0x0000000000000000000000000000000000000000"
+            recipient: charlie
           }
         }
       }
@@ -290,7 +290,23 @@ describe 'FacetPort contract' do
       function_name: "ownerOf",
       function_args: aliceNFTs.first
     )
-    expect(nft_owner).to eq(bob)
+    expect(nft_owner).to eq(charlie)
+
+    trigger_contract_interaction_and_expect_success(
+      from: charlie,
+      payload: {
+        op: "call",
+        data: {
+          to: nft.address,
+          function: "transferFrom",
+          args: {
+            from: charlie,
+            to: bob,
+            id: aliceNFTs.first
+          }
+        }
+      }
+    )
     
     bid_id = "0x" + SecureRandom.hex(16)
     start_time = Time.current.to_i

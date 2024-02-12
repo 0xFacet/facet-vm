@@ -78,6 +78,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     offerType: :string,
     offerId: :bytes16,
     offerer: :address,
+    recipient: :address,
     assetContract: :address,
     assetId: :uint256,
     assetType: :string,
@@ -86,13 +87,13 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     considerationAmount: :uint256,
     startTime: :uint256,
     endTime: :uint256,
-    signature: :bytes,
-    recipient: :address
+    signature: :bytes
   }, :external do
     success = _acceptOfferWithSignature(
       offerType: offerType,
       offerId: offerId,
       offerer: offerer,
+      recipient: recipient,
       assetContract: assetContract,
       assetId: assetId,
       assetType: assetType,
@@ -101,8 +102,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
       considerationAmount: considerationAmount,
       startTime: startTime,
       endTime: endTime,
-      signature: signature,
-      recipient: recipient
+      signature: signature
     )
     
     require(success, "Offer was not successfully accepted")
@@ -112,6 +112,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     offerTypes: [:string],
     offerIds: [:bytes16],
     offerers: [:address],
+    recipients: [:address],
     assetContracts: [:address],
     assetIds: [:uint256],
     assetTypes: [:string],
@@ -120,8 +121,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     considerationAmounts: [:uint256],
     startTimes: [:uint256],
     endTimes: [:uint256],
-    signatures: [:bytes],
-    recipients: [:address]
+    signatures: [:bytes]
   }, :external do
     require(offerIds.length == offerers.length, "Offer ID and offerer arrays must be the same length")
     require(offerIds.length == offerTypes.length, "Offer ID and offer types arrays must be the same length")
@@ -147,6 +147,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
         offerType: offerTypes[i],
         offerId: offerIds[i],
         offerer: offerers[i],
+        recipient: recipients[i],
         assetContract: assetContracts[i],
         assetId: assetIds[i],
         assetType: assetTypes[i],
@@ -155,8 +156,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
         considerationAmount: considerationAmounts[i],
         startTime: startTimes[i],
         endTime: endTimes[i],
-        signature: signatures[i],
-        recipient: recipients[i]
+        signature: signatures[i]
       )
       
       atLeastOneSuccess = true if success
@@ -169,6 +169,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     offerType: :string,
     offerId: :bytes16,
     offerer: :address,
+    recipient: :address,
     assetContract: :address,
     assetId: :uint256,
     assetType: :string,
@@ -177,8 +178,7 @@ contract :FacetPortV101, is: [:Upgradeable, :Ownable, :Pausable], upgradeable: t
     considerationAmount: :uint256,
     startTime: :uint256,
     endTime: :uint256,
-    signature: :bytes,
-    recipient: :address
+    signature: :bytes
   }, :internal, returns: :bool do
     whenNotPaused!
     
