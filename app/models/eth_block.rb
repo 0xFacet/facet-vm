@@ -38,6 +38,8 @@ class EthBlock < ApplicationRecord
     
     start_time = Time.current
     batch_start_time = Time.current
+    
+    reporting_frequency_in_blocks = 10
 
     loop do
       iterations += 1
@@ -49,16 +51,23 @@ class EthBlock < ApplicationRecord
       batch_ethscriptions_processed += just_processed
       unprocessed_ethscriptions -= just_processed
       
-      if iterations % 1 == 0
+      if iterations % reporting_frequency_in_blocks == 0
         curr_time = Time.current
         
         batch_elapsed_time = curr_time - batch_start_time
         
-        ethscriptions_per_second = batch_ethscriptions_processed.zero? ? 0 : batch_ethscriptions_processed / batch_elapsed_time.to_f
+        ethscriptions_per_second = batch_ethscriptions_processed / batch_elapsed_time
+        blocks_per_second = reporting_frequency_in_blocks / batch_elapsed_time
         
         total_remaining -= batch_ethscriptions_processed
         
         Rails.cache.write("total_ethscriptions_behind", total_remaining)
+        
+        puts "Imported #{reporting_frequency_in_blocks} blocks:"
+        puts "> Total time: #{(batch_elapsed_time * 1000).round}ms"
+        puts "> #{batch_ethscriptions_processed} ethscriptions processed"
+        puts "> #{ethscriptions_per_second.round(2)} ethscriptions / s"  
+        puts "> #{blocks_per_second.round(2)} blocks / s"  
         
         batch_start_time = curr_time
         batch_ethscriptions_processed = 0
@@ -99,9 +108,11 @@ class EthBlock < ApplicationRecord
         runtime_ms: (Time.current - start_time) * 1000
       )
   
-      puts "Imported block #{locked_next_block.block_number} in #{locked_next_block.runtime_ms}ms"
-      puts "> #{locked_next_block.transaction_count} ethscriptions"
-      puts "> #{(locked_next_block.transaction_count / (locked_next_block.runtime_ms / 1000.0)).round(2)} ethscriptions / s"
+      if ENV['VERBOSE_IMPORT_LOGS']
+        puts "Imported block #{locked_next_block.block_number} in #{locked_next_block.runtime_ms}ms"
+        puts "> #{locked_next_block.transaction_count} ethscriptions"
+        puts "> #{(locked_next_block.transaction_count / (locked_next_block.runtime_ms / 1000.0)).round(2)} ethscriptions / s"
+      end
       
       ethscriptions.length
     end
