@@ -9,6 +9,7 @@ class EthBlock < ApplicationRecord
   scope :oldest_first, -> { order(block_number: :asc) }
   
   scope :processed, -> { where.not(processing_state: "pending") }
+  scope :pending, -> { where(processing_state: "pending") }
   
   def self.most_recently_imported_blockhash
     max_block_number = max_processed_block_number
