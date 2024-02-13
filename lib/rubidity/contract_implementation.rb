@@ -167,7 +167,7 @@ class ContractImplementation < BasicObject
   end
   
   def self.struct(name, &block)
-    @structs ||= {}
+    @structs ||= {}.with_indifferent_access
     @structs[name] = ::StructDefinition.new(name, &block)
 
     define_method(name) do |**field_values|

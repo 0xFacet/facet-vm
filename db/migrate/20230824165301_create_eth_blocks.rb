@@ -1,5 +1,7 @@
 class CreateEthBlocks < ActiveRecord::Migration[7.1]
   def change
+    enable_extension 'pgcrypto' unless extension_enabled?('pgcrypto')
+    
     create_table :eth_blocks, force: :cascade do |t|
       t.bigint :block_number, null: false
       t.bigint :timestamp, null: false
@@ -14,6 +16,10 @@ class CreateEthBlocks < ActiveRecord::Migration[7.1]
       t.index :block_number, where: "(processing_state = 'complete')", name: "index_eth_blocks_on_block_number_completed"
       t.index :block_number, where: "(processing_state = 'pending')", name: "index_eth_blocks_on_block_number_pending"
       t.index :blockhash, unique: true
+      t.index :blockhash, where: "processing_state = 'complete'",
+      name: "index_eth_blocks_on_blockhash_and_processing_state_complete"
+      t.index :blockhash, where: "processing_state != 'pending'",
+        name: "index_eth_blocks_on_blockhash_and_processing_state_pending"
       t.index [:imported_at, :processing_state]
       t.index :imported_at
       t.index :parent_blockhash, unique: true

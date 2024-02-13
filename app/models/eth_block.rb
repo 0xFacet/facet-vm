@@ -1,19 +1,28 @@
 class EthBlock < ApplicationRecord
   extend StateTestingUtils
-  has_many :ethscriptions, foreign_key: :block_number, primary_key: :block_number
-  has_many :transaction_receipts, foreign_key: :block_number, primary_key: :block_number
+  
+  has_many :contract_states, foreign_key: :block_number, primary_key: :block_number, inverse_of: :eth_block, autosave: false
+  has_many :ethscriptions, foreign_key: :block_number, primary_key: :block_number, inverse_of: :eth_block, autosave: false
+  has_many :transaction_receipts, foreign_key: :block_number, primary_key: :block_number, inverse_of: :eth_block, autosave: false
   
   scope :newest_first, -> { order(block_number: :desc) }
   scope :oldest_first, -> { order(block_number: :asc) }
   
   scope :processed, -> { where.not(processing_state: "pending") }
+  scope :pending, -> { where(processing_state: "pending") }
   
   def self.most_recently_imported_blockhash
-    EthBlock.processed.newest_first.limit(1).pick(:blockhash)
+    max_block_number = max_processed_block_number
+    EthBlock.where(block_number: max_block_number).pick(:blockhash)
   end
   
   def self.max_processed_block_number
-    EthBlock.processed.maximum(:block_number).to_i
+    min_pending_block_number = EthBlock.where(processing_state: 'pending').minimum(:block_number)
+    if min_pending_block_number
+      EthBlock.processed.where('block_number < ?', min_pending_block_number).maximum(:block_number).to_i
+    else
+      EthBlock.processed.maximum(:block_number).to_i
+    end
   end
   
   def self.process_contract_actions_until_done
@@ -30,6 +39,8 @@ class EthBlock < ApplicationRecord
     
     start_time = Time.current
     batch_start_time = Time.current
+    
+    reporting_frequency_in_blocks = 10
 
     loop do
       iterations += 1
@@ -41,30 +52,42 @@ class EthBlock < ApplicationRecord
       batch_ethscriptions_processed += just_processed
       unprocessed_ethscriptions -= just_processed
       
-      if iterations % 1 == 0
+      if iterations % reporting_frequency_in_blocks == 0
         curr_time = Time.current
         
         batch_elapsed_time = curr_time - batch_start_time
         
-        ethscriptions_per_second = batch_ethscriptions_processed.zero? ? 0 : batch_ethscriptions_processed / batch_elapsed_time.to_f
+        ethscriptions_per_second = batch_ethscriptions_processed / batch_elapsed_time
+        blocks_per_second = reporting_frequency_in_blocks / batch_elapsed_time
         
         total_remaining -= batch_ethscriptions_processed
         
-        puts "Processed #{iterations} blocks in #{batch_elapsed_time}s"
-        puts " > Ethscriptions: #{batch_ethscriptions_processed}"
-        puts " > Ethscriptions / s: #{ethscriptions_per_second}"
-        puts " > Ethscriptions left: #{total_remaining}"
-        
         Rails.cache.write("total_ethscriptions_behind", total_remaining)
+        
+        time_to_completion_in_words = if ethscriptions_per_second > 0
+          total_seconds = total_remaining / ethscriptions_per_second
+          ActionController::Base.helpers.distance_of_time_in_words(
+            Time.current,
+            Time.current + total_seconds
+          )
+        else
+          "N/A"
+        end
+
+        puts "Imported #{reporting_frequency_in_blocks} blocks:"
+        puts "> Total time: #{(batch_elapsed_time * 1000).round}ms"
+        puts "> #{batch_ethscriptions_processed} ethscriptions processed"
+        puts "> #{ethscriptions_per_second.round(2)} ethscriptions / s"  
+        puts "> #{blocks_per_second.round(2)} blocks / s"
+        puts "> Time to completion: #{time_to_completion_in_words}"
         
         batch_start_time = curr_time
         batch_ethscriptions_processed = 0
       end
       
-      break if iterations >= 100 || unprocessed_ethscriptions == 0
+      break if iterations >= 10000 || unprocessed_ethscriptions == 0
     end
   end
-  
   
   def self.process_contract_actions_for_next_block_with_ethscriptions
     EthBlock.transaction do
@@ -79,12 +102,15 @@ class EthBlock < ApplicationRecord
       return unless locked_next_block
   
       ethscriptions = locked_next_block.ethscriptions.order(:transaction_index)
-      # StackProf.run(mode: :wall, out: 'stackprof-cpu.dump', raw: true) do
-      #   1000 / (Benchmark.ms{2.times{EthBlock.process_contract_actions_for_next_block_with_ethscriptions}} /  100.0)
-      # end
       
-      ethscriptions.each do |ethscription|
-        ethscription.process!(persist: true)
+      BlockContext.set(
+        system_config: SystemConfigVersion.current,
+        current_block: locked_next_block,
+        contracts: [],
+        contract_artifacts: [],
+        ethscriptions: ethscriptions,
+      ) do
+        BlockContext.process!
       end
       
       locked_next_block.update_columns(
@@ -94,6 +120,12 @@ class EthBlock < ApplicationRecord
         runtime_ms: (Time.current - start_time) * 1000
       )
   
+      if ENV['VERBOSE_IMPORT_LOGS']
+        puts "Imported block #{locked_next_block.block_number} in #{locked_next_block.runtime_ms}ms"
+        puts "> #{locked_next_block.transaction_count} ethscriptions"
+        puts "> #{(locked_next_block.transaction_count / (locked_next_block.runtime_ms / 1000.0)).round(2)} ethscriptions / s"
+      end
+      
       ethscriptions.length
     end
   end

@@ -1,6 +1,7 @@
 class Contract < ApplicationRecord
   include ContractErrors
-    
+  
+  belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, optional: true
   has_many :states, primary_key: 'address', foreign_key: 'contract_address', class_name: "ContractState"
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
 
@@ -8,50 +9,66 @@ class Contract < ApplicationRecord
   
   has_many :contract_calls, foreign_key: :effective_contract_address, primary_key: :address
   has_one :transaction_receipt, through: :contract_transaction
+  delegate :implements?, to: :implementation
 
   attr_reader :implementation
   
-  delegate :implements?, to: :implementation
-  
-  after_initialize :set_normalized_initial_state
-  
-  def set_normalized_initial_state
-    @normalized_initial_state = JsonSorter.sort_hash(current_state)
+  attr_accessor :state_snapshots
+  def state_snapshots
+    @state_snapshots ||= []
   end
   
-  def normalized_state_changed?
-    @normalized_initial_state != JsonSorter.sort_hash(current_state)
+  def initialize_state
+    @implementation = implementation_class.new(
+      initial_state: current_state
+    )
+    
+    take_state_snapshot
+  end
+  
+  def take_state_snapshot
+    last_snapshot = state_snapshots.last
+    
+    new_snapshot = ContractStateSnapshot.new(
+      state: implementation.state_proxy,
+      type: current_type,
+      init_code_hash: current_init_code_hash
+    )
+    
+    if new_snapshot != last_snapshot
+      state_snapshots.push(new_snapshot)
+    end
+  end
+  
+  def load_last_snapshot
+    self.current_init_code_hash = state_snapshots.last.init_code_hash
+    self.current_type = state_snapshots.last.type
+    
+    @implementation = implementation_class.new(
+      initial_state: state_snapshots.last.state.serialize
+    )
+  end
+  
+  def new_state_for_save(block_number:)
+    return if state_snapshots.first == state_snapshots.last
+    
+    ContractState.new(
+      contract_address: address,
+      block_number: block_number,
+      **state_snapshots.last.serialize(dup: false)
+    )
   end
   
   def implementation_class
     return unless current_init_code_hash
     
-    TransactionContext.supported_contract_class(
+    BlockContext.supported_contract_class(
       current_init_code_hash, validate: false
     )
   end
   
   def self.types_that_implement(base_type)
     ContractArtifact.types_that_implement(base_type)
-  end
-  
-  def should_save_new_state?
-    current_init_code_hash_changed? ||
-    current_type_changed? ||
-    normalized_state_changed?
-  end
-  
-  def save_new_state_if_needed!(transaction:)
-    return unless should_save_new_state?
-    
-    states.create!(
-      transaction_hash: transaction.transaction_hash,
-      block_number: transaction.block_number,
-      transaction_index: transaction.transaction_index,
-      state: current_state,
-      type: current_type,
-      init_code_hash: current_init_code_hash
-    )
   end
   
   def execute_function(function_name, args, is_static_call:)
@@ -72,27 +89,31 @@ class Contract < ApplicationRecord
         implementation.public_send(function_name, *Array.wrap(args))
       end
       
-      unless read_only
-        self.current_state = self.current_state.merge(implementation.state_proxy.serialize)
-      end
-      
       result
     end
   end
   
   def with_correct_implementation
+    old_hash = implementation.send(:class).init_code_hash
+    new_hash = implementation_class.init_code_hash
+    in_upgrade = old_hash != new_hash
+    
+    unless in_upgrade
+      return yield
+    end
+    
     old_implementation = implementation
     @implementation = implementation_class.new(
-      initial_state: old_implementation&.state_proxy&.serialize ||
-        current_state
+      initial_state: old_implementation.state_proxy.serialize
     )
     
     result = yield
     
-    if old_implementation
-      @implementation = old_implementation
-      implementation.state_proxy.load(current_state)
-    end
+    post_execution_state = implementation.state_proxy.serialize
+    
+    @implementation = old_implementation
+    
+    old_implementation.state_proxy.load(post_execution_state)
     
     result
   end

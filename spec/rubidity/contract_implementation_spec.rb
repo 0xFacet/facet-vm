@@ -38,7 +38,7 @@ RSpec.describe ContractImplementation, type: :model do
       }
     )
     
-    last_call = call_receipt.contract_transaction.contract_calls.last
+    last_call = ContractCall.where(transaction_hash: call_receipt.transaction_hash).order(:internal_transaction_index).last
     
     expect(last_call.function).to eq("sayHi")
     expect(last_call.return_value).to eq("hi")

@@ -26,6 +26,7 @@ class CreateTransactionReceipts < ActiveRecord::Migration[7.1]
       t.index :effective_contract_address
       t.index :created_contract_address
       t.index :to_contract_address
+      t.index :from_address
       t.index :transaction_hash, unique: true
 
       t.index :runtime_ms

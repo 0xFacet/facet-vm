@@ -19,6 +19,7 @@ class StatusController < ApplicationController
       current_block_number: current_block_number,
       max_processed_block_number: max_processed_block_number,
       blocks_behind: blocks_behind,
+      pending_block_count: EthBlock.pending.count,
       core_indexer_status: core_indexer_status,
     }
         

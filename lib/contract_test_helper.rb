@@ -16,22 +16,51 @@ module ContractTestHelper
   end
   
   def trigger_contract_interaction_and_expect_status(status:, **params)
-    eth = ContractTestHelper.trigger_contract_interaction(**params.except(:error_msg_includes))
+    transactions = params[:transactions] || [{ from: params[:from], payload: params.delete(:payload) || params.delete(:data) }]
+    ethscriptions = ContractTestHelper.trigger_contract_interaction(
+      transactions: transactions,
+      **params.slice(:block_timestamp)
+    )
     
-    receipt = eth&.contract_transaction&.transaction_receipt
-    
-    if !receipt
-      expect(status).to eq("failure")
-      return eth
+    ethscriptions.each do |eth|
+      receipt = eth&.contract_transaction&.transaction_receipt
+  
+      if !receipt
+        expect(status).to eq("failure")
+        return eth
+      end
+      
+      expect(receipt.status).to eq(status), failure_message(receipt)
+  
+      if status == "failure" && params[:error_msg_includes]
+        expect(receipt.error['message']).to include(params[:error_msg_includes])
+      end
     end
-    
-    expect(receipt.status).to eq(status), failure_message(receipt)
-    
-    if status == "failure" && params[:error_msg_includes]
-      expect(receipt.error['message']).to include(params[:error_msg_includes])
+  
+    receipts = ethscriptions.map { |eth| eth.contract_transaction&.transaction_receipt }
+    receipts.length == 1 ? receipts.first : receipts
+  end
+  
+  def trigger_contract_interaction_and_expect_status2(transactions:, block_timestamp:)
+    ethscriptions = ContractTestHelper.trigger_contract_interaction(
+      transactions: transactions.map { |t| t.except(:expected_status, :error_msg_includes) },
+      block_timestamp: block_timestamp
+    )
+  
+    transactions.each_with_index do |transaction, index|
+      eth = ethscriptions[index]
+      receipt = eth&.contract_transaction&.transaction_receipt
+  
+      if !receipt || receipt.status != transaction[:expected_status]
+        raise "Expected #{transaction[:expected_status]} but was #{receipt&.status || 'no receipt'}"
+      end
+  
+      if transaction[:expected_status] == "failure" && transaction[:error_msg_includes]
+        unless receipt.error['message'].include?(transaction[:error_msg_includes])
+          raise "Expected error message to include #{transaction[:error_msg_includes]}"
+        end
+      end
     end
-    
-    receipt
   end
   
   def chainid
@@ -151,6 +180,11 @@ module ContractTestHelper
   
   def self.set_initial_supported_contracts
     new_names = [
+      "BridgeAndCallHelper",
+      "EtherBridge02",
+      "FacetSwapV1Locker",
+      "EditionMetadataRenderer01",
+      "NFTCollection01",
       "FacetPortV101",
       "EtherBridge",
       "EthscriptionERC20Bridge03",
@@ -283,75 +317,122 @@ module ContractTestHelper
   
   def self.trigger_contract_interaction(
     command: nil,
-    from:,
+    from: nil,
     data: nil,
     payload: nil,
+    transactions: [],
     block_timestamp: Time.current.to_i
   )
-    payload = transform_old_format_to_new(data || payload).with_indifferent_access
-    
-    if payload['data'] && payload['data']['type']
-      item = RubidityTranspiler.transpile_and_get(payload['data'].delete('type'))
-      
-      payload['data']['source_code'] = item.source_code
-      payload['data']['init_code_hash'] = item.init_code_hash
+    use_old_api = transactions.blank?
+    if use_old_api
+      transactions = [{ from: from, payload: data || payload }]
     end
+  
+    block = nil
     
-    if !payload['op']
-      if payload['to']
-        payload = { 'op' => 'call' }.merge(payload)
-        payload['data'] = { 'to' => payload.delete('to') }.merge(payload['data'])
-      else
-        payload.delete('to')
-        payload = { 'op' => 'create' }.merge(payload)
+    ethscriptions = transactions.map.with_index do |transaction, index|
+      from = transaction[:from]
+      payload = transform_old_format_to_new(transaction[:payload]).with_indifferent_access
+  
+      if payload['data'] && payload['data']['type']
+        item = RubidityTranspiler.transpile_and_get(payload['data'].delete('type'))
+  
+        payload['data']['source_code'] = item.source_code
+        payload['data']['init_code_hash'] = item.init_code_hash
       end
+  
+      if !payload['op']
+        if payload['to']
+          payload = { 'op' => 'call' }.merge(payload)
+          payload['data'] = { 'to' => payload.delete('to') }.merge(payload['data'])
+        else
+          payload.delete('to')
+          payload = { 'op' => 'create' }.merge(payload)
+        end
+      end
+  
+      mimetype = ContractTransaction.transaction_mimetype
+      uri = %{data:#{mimetype},#{payload.to_json}}
+  
+      tx_hash = "0x" + SecureRandom.hex(32)
+      sha = Digest::SHA256.hexdigest(uri)
+  
+      existing = Ethscription.newest_first.first
+  
+      block = EthBlock.order(block_number: :desc).first
+  
+      block_number = block&.block_number.to_i + 1
+      transaction_index = existing&.transaction_index.to_i + 1
+  
+      blockhash = "0x" + SecureRandom.hex(32)
+  
+      block = EthBlock.create!(
+        block_number: block_number,
+        blockhash: blockhash,
+        parent_blockhash: block&.blockhash || "0x" + SecureRandom.hex(32),
+        timestamp: block_timestamp.to_i,
+        imported_at: Time.zone.now,
+        processing_state: "complete",
+        transaction_count: 1,
+        runtime_ms: 0
+      )
+  
+      ethscription_attrs = {
+        "transaction_hash"=>tx_hash,
+        "block_number"=> block_number,
+        "block_blockhash"=> blockhash,
+        "creator"=>from.downcase,
+        block_timestamp: block_timestamp.to_i,
+        "initial_owner"=> Ethscription.required_initial_owner,
+        "transaction_index"=>transaction_index + index,
+        "content_uri"=> uri,
+        mimetype: mimetype,
+        processing_state: :pending
+      }
+  
+      Ethscription.create!(ethscription_attrs)
     end
-    
-    mimetype = ContractTransaction.transaction_mimetype
-    uri = %{data:#{mimetype},#{payload.to_json}}
-    
-    tx_hash = "0x" + SecureRandom.hex(32)
-    sha = Digest::SHA256.hexdigest(uri)
-    
-    existing = Ethscription.newest_first.first
-    
-    block = EthBlock.order(block_number: :desc).first
-    
-    block_number = block&.block_number.to_i + 1
-    transaction_index = existing&.transaction_index.to_i + 1
-    
-    blockhash = "0x" + SecureRandom.hex(32)
-    
-    EthBlock.create!(
-      block_number: block_number,
-      blockhash: blockhash,
-      parent_blockhash: block&.blockhash || "0x" + SecureRandom.hex(32),
-      timestamp: Time.zone.now.to_i,
-      imported_at: Time.zone.now,
-      processing_state: "complete",
-      transaction_count: 1,
-      runtime_ms: 0
-    )
-    
-    ethscription_attrs = {
-      "transaction_hash"=>tx_hash,
-      "block_number"=> block_number,
-      "block_blockhash"=> blockhash,
-      "creator"=>from.downcase,
-      block_timestamp: block_timestamp,
-      "initial_owner"=> Ethscription.required_initial_owner,
-      "transaction_index"=>transaction_index,
-      "content_uri"=> uri,
-      mimetype: mimetype,
-      processing_state: :pending
-    }
-    
-    eth = Ethscription.create!(ethscription_attrs)
-    eth.process!(persist: true)
-    
-    eth
+  
+    BlockContext.set(
+      system_config: SystemConfigVersion.current,
+      current_block: block,
+      contracts: [],
+      contract_artifacts: [],
+      ethscriptions: ethscriptions
+    ) do
+      BlockContext.process!
+    end
+  
+    use_old_api ? ethscriptions.first : ethscriptions
+    ethscriptions
   end
   
+  def in_block(block_timestamp: Time.current.to_i, &block)
+    transactions = []
+    proxy = Object.new
+  
+    # Define the method on the proxy object
+    proxy.define_singleton_method(:trigger_contract_interaction_and_expect_success) do |from:, payload:|
+      transactions << { from: from, payload: payload, expected_status: 'success' }
+    end
+  
+    proxy.define_singleton_method(:trigger_contract_interaction_and_expect_error) do |from:, payload:|
+      transactions << { from: from, payload: payload, expected_status: "failure" }
+    end
+  
+    # Execute the block with the proxy object as the context
+    block.call(proxy)
+  
+    # Now trigger all the interactions in the same block context
+    unless transactions.empty?
+      # Extract error_msg_includes if it's specifically set for any transaction
+      trigger_contract_interaction_and_expect_status2(
+        transactions: transactions,
+        block_timestamp: block_timestamp
+      )
+    end
+  end
+
   def self.test_api
     creation_receipt = ContractTestHelper.trigger_contract_interaction(
       command: 'deploy',

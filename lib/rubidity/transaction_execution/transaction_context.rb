@@ -1,10 +1,7 @@
 class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
-  attribute :call_stack, :current_call, :system_config,
-    :transaction_index, :current_transaction, :latest_artifact_hash
-  
-  delegate :get_active_contract, to: :current_transaction
+  attribute :call_stack, :current_call, :transaction_index, :current_transaction, :current_event_index, :active_contracts
   
   STRUCT_DETAILS = {
     msg:    { attributes: { sender: :address } },
@@ -36,15 +33,35 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     tx.current_transaction_hash
   end
   
-  def supported_contract_class(init_code_hash, source_code = nil, validate: true)
-    validate_contract_support(init_code_hash) if validate
+  def get_existing_contract(address)
+    already_active = self.active_contracts.detect do |contract|
+      contract.deployed_successfully? &&
+      contract.address == address
+    end
     
-    find_and_build_class(init_code_hash) ||
-      create_artifact_and_build_class(init_code_hash, source_code)
+    return already_active if already_active
+    
+    from_block = BlockContext.get_existing_contract(address)
+    
+    mark_active(from_block)
+  end
+  
+  def mark_active(contract)
+    contract&.load_last_snapshot
+    active_contracts << contract if contract
+    contract
+  end
+  
+  def create_new_contract(...)
+    from_block = BlockContext.create_new_contract(...)
+    mark_active(from_block)
   end
   
   def log_event(event)
-    current_call.log_event(event)
+    current_index = current_event_index
+    self.current_event_index += 1
+    
+    current_call.log_event(event.merge(index: current_index))
   end
   
   def msg_sender
@@ -66,48 +83,5 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     end
     
     block_blockhash
-  end
-  
-  private
-  
-  def validate_contract_support(init_code_hash)
-    unless system_config.contract_supported?(init_code_hash)
-      raise ContractError.new("Contract is not supported: #{init_code_hash.inspect}")
-    end
-  end
-  
-  def get_cached_class(init_code_hash)
-    ContractArtifact.cached_class_as_of_tx_hash(
-      init_code_hash,
-      latest_artifact_hash
-    )
-  end
-  
-  def find_and_build_class(init_code_hash)
-    unless current_transaction
-      return get_cached_class(init_code_hash)
-    end
-    
-    current = current_transaction.contract_artifacts.detect do |artifact|
-      artifact.init_code_hash == init_code_hash
-    end
-  
-    current&.build_class || get_cached_class(init_code_hash)
-  end
-  
-  def create_artifact_and_build_class(init_code_hash, source_code = nil)
-    raise "Need source code to create new artifact" unless source_code
-  
-    artifact = RubidityTranspiler.new(source_code).get_desired_artifact(init_code_hash)
-    
-    current_transaction.contract_artifacts.build(
-      artifact.attributes.merge(
-        block_number: block.number.value,
-        transaction_index: transaction_index,
-        internal_transaction_index: current_call.internal_transaction_index,
-      )
-    )
-    
-    artifact&.build_class
   end
 end
