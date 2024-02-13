@@ -1,7 +1,13 @@
 class PostgresClient
   DB_USER = `whoami`.chomp
   DATABASE_THATS_ALWAYS_THERE = 'postgres'
-  ACTUAL_DATABASE_NAME = Rails.configuration.database_configuration.dig("development", "database")
+  
+  ACTUAL_DATABASE_NAME = if ENV['DATABASE_URL']
+    URI.parse(ENV['DATABASE_URL']).path[1..-1]
+  else
+    Rails.configuration.database_configuration.dig("development", "database")
+  end
+  
   SWAP_IN_DATABASE_NAME = "#{ACTUAL_DATABASE_NAME}-fresh"
   SWAP_OUT_DATABASE_NAME = "#{ACTUAL_DATABASE_NAME}-old"
   
