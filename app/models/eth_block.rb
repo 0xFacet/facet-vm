@@ -146,6 +146,7 @@ class EthBlock < ApplicationRecord
         :imported_at,
         :processing_state,
         :transaction_count,
+        :runtime_ms,
       ]
     )).tap do |json|
       if association(:transaction_receipts).loaded?

@@ -1,5 +1,5 @@
 class Type
-  MAX_STRING_LENGTH = 96.kilobytes
+  MAX_STRING_LENGTH = 256.kilobytes
   
   include ContractErrors
   
@@ -192,7 +192,7 @@ class Type
       end
       
       if literal.bytesize > MAX_STRING_LENGTH
-        raise_variable_type_error(literal)
+        raise "Max string length is #{MAX_STRING_LENGTH}"
       end
       
       return literal.freeze
@@ -224,7 +224,7 @@ class Type
       end
       
       if literal.length / 2 > MAX_STRING_LENGTH
-        raise_variable_type_error(literal)
+        raise "Max string length is #{MAX_STRING_LENGTH}"
       end
       
       return literal.downcase.freeze
