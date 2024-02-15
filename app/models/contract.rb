@@ -27,17 +27,13 @@ class Contract < ApplicationRecord
   end
   
   def take_state_snapshot
-    last_snapshot = state_snapshots.last
-    
     new_snapshot = ContractStateSnapshot.new(
       state: implementation.state_proxy,
       type: current_type,
       init_code_hash: current_init_code_hash
     )
     
-    if new_snapshot != last_snapshot
-      state_snapshots.push(new_snapshot)
-    end
+    state_snapshots.push(new_snapshot)
   end
   
   def load_last_snapshot
