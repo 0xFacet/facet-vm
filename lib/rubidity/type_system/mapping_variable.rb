@@ -1,7 +1,7 @@
 class MappingVariable < TypedVariable
   def initialize(...)
     super(...)
-    value.on_change = on_change
+    value.on_change = -> { on_change&.call }
     
     if key_type.struct?
       raise TypeError, "Structs cannot be used as mapping keys"
@@ -45,14 +45,6 @@ class MappingVariable < TypedVariable
       other.serialize == serialize
     end
     
-    def on_change=(new_on_change)
-      @on_change = new_on_change
-      
-      (data || {}).each_value do |value|
-        value.on_change = new_on_change if value.respond_to?(:on_change=)
-      end
-    end
-    
     def initialize(initial_value = {}, key_type:, value_type:, on_change: nil)
       self.key_type = key_type
       self.value_type = value_type
@@ -85,7 +77,12 @@ class MappingVariable < TypedVariable
         set_value(typed_key_var, value)
       end
       
-      value_type.is_value_type? ? value.deep_dup : value
+      if value_type.is_value_type?
+        value.deep_dup
+      else
+        value.on_change = -> { on_change&.call }
+        value
+      end
     end
 
     def []=(key_var, value)

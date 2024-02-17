@@ -3,7 +3,7 @@ class ArrayVariable < TypedVariable
   
   def initialize(...)
     super(...)
-    value.on_change = on_change
+    value.on_change = -> { on_change&.call }
   end
   
   def serialize
@@ -32,14 +32,6 @@ class ArrayVariable < TypedVariable
       other.data == data
     end
   
-    def on_change=(new_on_change)
-      @on_change = new_on_change
-      
-      Array.wrap(data).each do |value|
-        value.on_change = new_on_change if value.respond_to?(:on_change=)
-      end
-    end
-    
     def initialize(
       initial_value = [],
       value_type:,
@@ -71,7 +63,12 @@ class ArrayVariable < TypedVariable
       value = data[index_var] ||
         TypedVariable.create_or_validate(value_type, on_change: on_change)
       
-      value_type.is_value_type? ? value.deep_dup : value
+      if value_type.is_value_type?
+        value.deep_dup
+      else
+        value.on_change = -> { on_change&.call }
+        value
+      end
     end
   
     def []=(index, value)
