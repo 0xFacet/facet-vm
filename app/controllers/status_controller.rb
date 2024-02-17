@@ -1,5 +1,7 @@
 class StatusController < ApplicationController
   def vm_status
+    expires_in(0, "s-maxage": 12.seconds, public: true)
+    
     total_newer_ethscriptions = Rails.cache.read("total_ethscriptions_behind").to_i
     max_processed_block_number = EthBlock.max_processed_block_number
     
