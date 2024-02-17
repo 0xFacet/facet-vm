@@ -39,6 +39,7 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
 
   uint256 :public, :maxSupply
   uint256 :public, :totalSupply
+  uint256 :public, :nextTokenId
   uint256 :public, :maxPerMint
   string :public, :baseURI
   address :public, :WETH
@@ -79,6 +80,7 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     s.maxPerMint = 25
     s.perMintFee = perMintFee
     s.feeTo = feeTo
+    s.nextTokenId = 1
   }
 
   function :_handleMint, { to: :address, amount: :uint256, merkleProof: [:bytes32] }, :internal do
@@ -124,7 +126,9 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
       )
     end
     
-    initialId = s.totalSupply + 1
+    initialId = s.nextTokenId
+    
+    s.nextTokenId += amount
     s.totalSupply += amount
 
     forLoop(
@@ -321,6 +325,29 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
 
     s.baseURI = baseURI
     emit :BaseURIUpdated, baseURI: baseURI
+  end
+  
+  function :burn, { tokenId: :uint256 }, :public do
+    require(
+      isApprovedOrOwner(spender: msg.sender, id: tokenId),
+      "ERC721: msg.sender not authorized to burn id #{tokenId.toString}"
+    );
+    
+    s.totalSupply -= 1
+    
+    _burn(tokenId)
+  end
+  
+  function :burnMultiple, { tokenIds: [:uint256] }, :public do
+    require(tokenIds.length > 0, "No token ids provided")
+    require(tokenIds.length <= 20, "Too many token ids provided")
+    
+    forLoop(
+      condition: -> i { i < tokenIds.length },
+      max_iterations: 20
+    ) do |i|
+      burn(tokenIds[i])
+    end
   end
 
   function :pause, :public do
