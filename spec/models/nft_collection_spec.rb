@@ -435,6 +435,33 @@ RSpec.describe "NFTCollection01", type: :model do
       expect { get_contract_state(nft_contract.address, "ownerOf", 1) }.to raise_error(
         ContractErrors::StaticCallError, /ERC721: owner query for nonexistent token/
       )
+      
+      trigger_contract_interaction_and_expect_success(
+        from: non_owner_address,
+        payload: {
+          to: nft_contract.address,
+          data: {
+            function: "mint",
+            args: {
+              amount: 2,
+              merkleProof: []
+            }
+          }
+        }
+      )
+      
+      trigger_contract_interaction_and_expect_success(
+        from: non_owner_address,
+        payload: {
+          to: nft_contract.address,
+          data: {
+            function: "burnMultiple",
+            args: {
+              tokenIds: [2, 3],
+            }
+          }
+        }
+      )
     end
 
     context 'when minting exceeds max supply' do
