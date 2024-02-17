@@ -45,6 +45,14 @@ class MappingVariable < TypedVariable
       other.serialize == serialize
     end
     
+    def on_change=(new_on_change)
+      @on_change = new_on_change
+      
+      (data || {}).each_value do |value|
+        value.on_change = new_on_change if value.respond_to?(:on_change=)
+      end
+    end
+    
     def initialize(initial_value = {}, key_type:, value_type:, on_change: nil)
       self.key_type = key_type
       self.value_type = value_type

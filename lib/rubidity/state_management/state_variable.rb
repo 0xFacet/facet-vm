@@ -110,6 +110,10 @@ class StateVariable
     typed_variable.respond_to?(name, include_private) || super
   end
   
+  def calculated_on_change
+    type.bool? ? @on_change : typed_variable.on_change
+  end
+  
   def typed_variable=(new_value)
     new_typed_variable = TypedVariable.create_or_validate(
       type,
@@ -118,7 +122,7 @@ class StateVariable
     )
     
     if new_typed_variable != @typed_variable
-      on_change&.call
+      calculated_on_change&.call
       @typed_variable = new_typed_variable
     end
   rescue StateVariableMutabilityError => e

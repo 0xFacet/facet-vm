@@ -2,6 +2,7 @@ class StateProxy
   include ContractErrors
   
   attr_reader :state_variables, :unused_variables
+  attr_accessor :state_changed
   
   def initialize(definitions)
     @state_variables = {}.with_indifferent_access
@@ -31,9 +32,15 @@ class StateProxy
   end
   
   def mark_dirty
+    self.state_changed = true
+    
     return if @dirty_stack.empty?
     
     @dirty_stack[-1] = true
+  end
+  
+  def clear_changed
+    self.state_changed = false
   end
   
   def method_missing(name, *args)

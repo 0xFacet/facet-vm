@@ -32,6 +32,14 @@ class ArrayVariable < TypedVariable
       other.data == data
     end
   
+    def on_change=(new_on_change)
+      @on_change = new_on_change
+      
+      Array.wrap(data).each do |value|
+        value.on_change = new_on_change if value.respond_to?(:on_change=)
+      end
+    end
+    
     def initialize(
       initial_value = [],
       value_type:,
@@ -43,17 +51,16 @@ class ArrayVariable < TypedVariable
       end
       
       self.value_type = value_type
+      self.on_change = on_change
       self.data = initial_value
-      
+
       if initial_length
         amount_to_pad = initial_length - data.size
         
         amount_to_pad.times do
-          data << TypedVariable.create(value_type) 
+          data << TypedVariable.create(value_type, on_change: on_change)
         end
       end
-      
-      self.on_change = on_change
     end
   
     def [](index)

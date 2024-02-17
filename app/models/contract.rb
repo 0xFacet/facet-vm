@@ -26,9 +26,18 @@ class Contract < ApplicationRecord
     take_state_snapshot
   end
   
+  def should_take_snapshot?
+    state_snapshots.blank? ||
+    current_init_code_hash_changed? ||
+    current_type_changed? ||
+    implementation.state_proxy.state_changed
+  end
+  
   def take_state_snapshot
+    return unless should_take_snapshot?
+    
     new_snapshot = ContractStateSnapshot.new(
-      state: implementation.state_proxy,
+      state: implementation.state_proxy.serialize,
       type: current_type,
       init_code_hash: current_init_code_hash
     )
@@ -40,9 +49,7 @@ class Contract < ApplicationRecord
     self.current_init_code_hash = state_snapshots.last.init_code_hash
     self.current_type = state_snapshots.last.type
     
-    @implementation = implementation_class.new(
-      initial_state: state_snapshots.last.state.serialize
-    )
+    implementation.state_proxy.load(state_snapshots.last.state.deep_dup)
   end
   
   def new_state_for_save(block_number:)
@@ -51,7 +58,9 @@ class Contract < ApplicationRecord
     ContractState.new(
       contract_address: address,
       block_number: block_number,
-      **state_snapshots.last.serialize(dup: false)
+      init_code_hash: state_snapshots.last.init_code_hash,
+      type: state_snapshots.last.type,
+      state: state_snapshots.last.state
     )
   end
   
@@ -109,7 +118,7 @@ class Contract < ApplicationRecord
     
     @implementation = old_implementation
     
-    old_implementation.state_proxy.load(post_execution_state)
+    implementation.state_proxy.load(post_execution_state)
     
     result
   end

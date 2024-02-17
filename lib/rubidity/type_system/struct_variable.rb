@@ -20,6 +20,14 @@ class StructVariable < TypedVariable
     value.state_proxy.serialize
   end
   
+  def on_change=(new_on_change)
+    @on_change = new_on_change
+    
+    if value.respond_to?(:on_change=)
+      value.on_change = new_on_change
+    end
+  end
+  
   def deserialize(hash)
     self.value = Value.new(
       struct_definition: type.struct_definition,
