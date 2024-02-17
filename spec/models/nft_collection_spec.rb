@@ -348,6 +348,95 @@ RSpec.describe "NFTCollection01", type: :model do
       end
     end
 
+    it 'burns' do
+      trigger_contract_interaction_and_expect_success(
+        from: owner_address,
+        payload: {
+          to: nft_contract.address,
+          data: {
+            function: "setMetadataRenderer",
+            args: {
+              metadataRenderer: metadata_renderer.address,
+              data: {
+                function: "initializeWithData",
+                args: {
+                  info: {
+                    name: "Test Name",
+                    description: "Test description",
+                    imageURI: "https://test.com/image.png",
+                    animationURI: ""
+                  }
+                }
+              }.to_json
+            }
+          }
+        }
+      )
+      set_public_mint_settings(
+        public_max_per_address: 0,
+        public_mint_start: 1,
+        public_mint_end: 0,
+        public_mint_price: 1.ether
+      )
+      set_weth_allowance(wallet: non_owner_address, amount: 10.ether + per_mint_fee)
+      trigger_contract_interaction_and_expect_success(
+        from: non_owner_address,
+        payload: {
+          to: nft_contract.address,
+          data: {
+            function: "mint",
+            args: {
+              amount: 1,
+              merkleProof: []
+            }
+          }
+        }
+      )
+      
+      supply = get_contract_state(nft_contract.address, "totalSupply")
+      bal = get_contract_state(nft_contract.address, "balanceOf", non_owner_address)
+      owner = get_contract_state(nft_contract.address, "ownerOf", 1)
+      
+      expect(supply).to eq(1)
+      expect(bal).to eq(1)
+      expect(owner).to eq(non_owner_address)
+      
+      trigger_contract_interaction_and_expect_error(
+        from: owner_address,
+        payload: {
+          to: nft_contract.address,
+          data: {
+            function: "burn",
+            args: {
+              tokenId: 1,
+            }
+          }
+        }
+      )
+      
+      trigger_contract_interaction_and_expect_success(
+        from: non_owner_address,
+        payload: {
+          to: nft_contract.address,
+          data: {
+            function: "burn",
+            args: {
+              tokenId: 1,
+            }
+          }
+        }
+      )
+      
+      supply = get_contract_state(nft_contract.address, "totalSupply")
+      bal = get_contract_state(nft_contract.address, "balanceOf", non_owner_address)
+      expect(supply).to eq(0)
+      expect(bal).to eq(0)
+      
+      expect { get_contract_state(nft_contract.address, "ownerOf", 1) }.to raise_error(
+        ContractErrors::StaticCallError, /ERC721: owner query for nonexistent token/
+      )
+    end
+
     context 'when minting exceeds max supply' do
       it 'does not allow minting that exceeds max supply' do
         set_public_mint_settings(
