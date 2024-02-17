@@ -322,6 +322,29 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
     s.baseURI = baseURI
     emit :BaseURIUpdated, baseURI: baseURI
   end
+  
+  function :burn, { tokenId: :uint256 }, :public do
+    require(
+      isApprovedOrOwner(spender: msg.sender, id: tokenId),
+      "ERC721: msg.sender not authorized to burn id #{tokenId.toString}"
+    );
+    
+    s.totalSupply -= 1
+    
+    _burn(tokenId)
+  end
+  
+  function :burnMultiple, { tokenIds: [:uint256] }, :public do
+    require(tokenIds.length > 0, "No token ids provided")
+    require(tokenIds.length <= 20, "Too many token ids provided")
+    
+    forLoop(
+      condition: -> i { i < tokenIds.length },
+      max_iterations: 20
+    ) do |i|
+      burn(tokenIds[i])
+    end
+  end
 
   function :pause, :public do
     onlyOwner!
