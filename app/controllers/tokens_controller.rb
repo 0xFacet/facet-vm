@@ -103,7 +103,7 @@ class TokensController < ApplicationController
   end
 
   def swaps
-    # expires_in 1.second, public: true
+    expires_in(6, "s-maxage": 12.seconds, public: true)
     
     contract_address = params[:address]&.downcase
     from_timestamp = params[:from_timestamp].to_i
