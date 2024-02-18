@@ -136,6 +136,8 @@ class ContractsController < ApplicationController
       
       render json: { result: result }
     end
+  rescue PG::InvalidTextRepresentation => e
+    render json: { error: "Invalid args: #{e.message}" }, status: :bad_request
   end
 
   def show_call_receipt
