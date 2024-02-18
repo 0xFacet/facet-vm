@@ -169,4 +169,25 @@ class Contract < ApplicationRecord
       function_args: args
     )
   end
+  
+  def self.get_storage_value_by_path(contract_address, keys)
+    sanitized_keys = keys.map do |key|
+      ActiveRecord::Base.connection.quote_string(key.to_s)
+    end
+  
+    # Convert sanitized keys to a JSON path format expected by PostgreSQL
+    json_path = "{#{sanitized_keys.join(',')}}"
+  
+    # Construct a SQL expression that checks the type of the JSON value
+    # and returns the value only if it's not an 'object' or 'array'.
+    sql_expression = <<-SQL
+      CASE 
+        WHEN jsonb_typeof(current_state #> '#{json_path}') IN ('object', 'array') THEN NULL
+        ELSE current_state #>> '#{json_path}'
+      END
+    SQL
+  
+    # Use `pick` with the safely constructed SQL expression
+    result = where(address: contract_address).pick(Arel.sql(sql_expression))
+  end
 end
