@@ -1,6 +1,6 @@
 class StatusController < ApplicationController
   def vm_status
-    expires_in(1.minute, "s-maxage": 1.minute, public: true)
+    expires_in(12, "s-maxage": 12.seconds, public: true)
     
     resp = Rails.cache.fetch("vm_status", expires_in: 6.seconds) do
       total_newer_ethscriptions = Rails.cache.read("total_ethscriptions_behind").to_i
