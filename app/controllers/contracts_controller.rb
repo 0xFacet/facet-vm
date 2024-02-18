@@ -136,7 +136,9 @@ class ContractsController < ApplicationController
       
       render json: { result: result }
     end
-  rescue PG::InvalidTextRepresentation => e
+  rescue ActiveRecord::StatementInvalid => e
+    raise unless e.message.starts_with?("PG::InvalidTextRepresentation")
+    
     render json: { error: "Invalid args: #{e.message}" }, status: :bad_request
   end
 
