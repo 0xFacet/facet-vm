@@ -1,7 +1,7 @@
 class CallStack
   include ContractErrors
   
-  MAX_CALL_COUNT = 100
+  MAX_CALL_COUNT = 200
 
   def initialize(transaction_context)
     @frames = []
