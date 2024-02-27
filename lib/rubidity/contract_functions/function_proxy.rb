@@ -183,7 +183,7 @@ class FunctionProxy
     
     if returns.is_a?(Hash)
       ret_val.each.with_object({}) do |(key, value), acc|
-        acc[key.to_sym] = TypedVariable.create_or_validate(returns[key], value)
+        acc[key.to_sym] = TypedVariable.create_or_validate(create_type(returns[key]), value)
       end
       DestructureOnly.new(ret_val)
     else
