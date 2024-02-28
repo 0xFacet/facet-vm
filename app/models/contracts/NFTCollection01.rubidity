@@ -288,8 +288,10 @@ contract :NFTCollection01, is: [:ERC721, :ERC2981, :Upgradeable, :Ownable, :Paus
 
     s.metadataRenderer = metadataRenderer
     
-    (success, _) = metadataRenderer.call(data)
-    require(success, "setMetadataRenderer failed")
+    if data.length > 0
+      (success, _) = metadataRenderer.call(data)
+      require(success, "setMetadataRenderer failed")
+    end
 
     emit :MetadataRendererUpdated, metadataRenderer: metadataRenderer
   end
