@@ -112,7 +112,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
     )
   end
 
-  def set_weth_allowance(wallet:, amount:)
+  def set_weth_allowance(wallet:, spender: nft_contract.address, amount:)
     trigger_contract_interaction_and_expect_success(
       from: wallet,
       payload: {
@@ -120,7 +120,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
         data: {
           function: "approve",
           args: {
-            spender: nft_contract.address,
+            spender: spender,
             amount: amount
           }
         }
@@ -202,7 +202,8 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
               animationURI: "https://test.com/animation.png"
             },
             perUpgradeFee: per_mint_fee,
-            feeTo: fee_to_address
+            feeTo: fee_to_address,
+            weth: weth_contract.address
           }
         }
       }
@@ -291,8 +292,29 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
     
     expect(active_level['index']).to eq(1)
     
+    set_weth_allowance(
+      wallet: non_owner_address,
+      spender: upgrader.address,
+      amount: amount * per_mint_fee
+    )
     
+    trigger_contract_interaction_and_expect_success(
+      from: non_owner_address,
+      payload: {
+        to: upgrader.address,
+        data: {
+          function: "upgradeMultipleTokens",
+          args: {
+            tokenIds: [1, 2]
+          }
+        }
+      }
+    )
     
+    token_uri_base_64 = get_contract_state(upgrader.address, "tokenURI", 1)
     
+    token_uri = JSON.parse(Base64.decode64(token_uri_base_64.split("data:application/json;base64,").last))
+    
+    expect(token_uri['image']).to eq("https://example.com/image2.png")
   end
 end

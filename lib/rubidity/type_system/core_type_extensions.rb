@@ -5,6 +5,12 @@ module CoreTypeExtensions
     end
   end
   
+  module Base64Able
+    def base64Encode
+      TypedVariable.create(:string, self).base64Encode
+    end
+  end
+  
   module Etherable
     def ether
       (self.to_d * 1e18.to_d).to_i
@@ -34,6 +40,7 @@ module CoreTypeExtensions
   end
   
   ::String.include Castable
+  ::String.include Base64Able
   
   ::Integer.include Castable
   ::Integer.include Etherable

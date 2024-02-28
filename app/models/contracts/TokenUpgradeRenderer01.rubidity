@@ -2,6 +2,7 @@ pragma :rubidity, "1.0.0"
 
 import "./Upgradeable.rubidity"
 import "./ERC721.rubidity"
+import "./ERC20.rubidity"
 
 contract :INFTCollection01, abstract: true do
   function :owner, :external, :view, returns: :address
@@ -60,13 +61,15 @@ contract :TokenUpgradeRenderer01, is: :Upgradeable, upgradeable: true do
   address :public, :nftCollection
   uint256 :public, :perUpgradeFee
   address :public, :feeTo
+  address :public, :WETH
   
   constructor(
     nftCollection: :address,
     initialLevel: :TokenUpgradeLevel,
     contractInfo: :ContractInfo,
     perUpgradeFee: :uint256,
-    feeTo: :address
+    feeTo: :address,
+    weth: :address
   ) {
     Upgradeable.constructor(upgradeAdmin: msg.sender)
     
@@ -79,6 +82,8 @@ contract :TokenUpgradeRenderer01, is: :Upgradeable, upgradeable: true do
     s.contractInfo = contractInfo
     s.perUpgradeFee = perUpgradeFee
     s.feeTo = feeTo
+    
+    s.WETH = weth
     
     requireSenderAdmin
   }
@@ -148,11 +153,11 @@ contract :TokenUpgradeRenderer01, is: :Upgradeable, upgradeable: true do
   
   function :_upgradeToken, { tokenId: :uint256 }, :internal do
     require(
-      isApprovedOrOwner(spender: msg.sender, id: tokenId),
+      ERC721(s.nftCollection).isApprovedOrOwner(spender: msg.sender, id: tokenId),
       "TokenUpgradeRenderer: msg.sender not authorized to upgrade id #{tokenId.toString}"
     );
     
-    tokenStatus = tokenStatuses[tokenId]
+    tokenStatus = s.tokenStatuses[tokenId]
     activeUpgrade, activeUpgradeIndex = activeUpgradeLevel()
     
     require(activeUpgradeIndex > 0, "TokenUpgradeRenderer: No active upgrade level")
@@ -210,28 +215,34 @@ contract :TokenUpgradeRenderer01, is: :Upgradeable, upgradeable: true do
     end
     
     # Safely encode values using json.stringify
-    name_json = json.stringify("#{upgradeLevel.name} #{index}")
+    name_json = json.stringify("#{upgradeLevel.name} #{index.toString()}")
     description_json = json.stringify('')
     image_json = json.stringify(upgradeLevel.imageURI)
     animation_url_json = json.stringify(upgradeLevel.animationURI)
-    attributes_json = json.stringify([
+    
+    # Basic attributes
+    basic_attributes_json = json.stringify([
       {"display_type": "number", "trait_type": "Number", "value": index},
       {"trait_type": "Upgrade Level", "value": upgradeLevel.name}
     ])
     
-    # Prepare extraAttributesJson, ensuring it doesn't break JSON when blank
-    extra_attributes_part = upgradeLevel.extraAttributesJson.length == 0 ?
-    "" :
-    ", #{upgradeLevel.extraAttributesJson}"
+    extra_json_present = upgradeLevel.extraAttributesJson != "" &&
+      upgradeLevel.extraAttributesJson != "{}"
     
-    # Construct the final JSON string with conditional inclusion of extra attributes
+    # Prepare extraAttributesJson, ensuring it's correctly formatted as JSON array elements
+    extra_attributes_json = extra_json_present ? ", " + upgradeLevel.extraAttributesJson : ""
+    
+    # Combine basic attributes with extra attributes
+    attributes_json = "[#{basic_attributes_json[1..-2]}#{extra_attributes_json}]"
+    
+    # Construct the final JSON string
     json_data = <<-JSON
       {
         "name": #{name_json},
         "description": #{description_json},
         "image": #{image_json},
         "animation_url": #{animation_url_json},
-        "attributes": #{attributes_json}#{extra_attributes_part}
+        "attributes": #{attributes_json}
       }
     JSON
     
