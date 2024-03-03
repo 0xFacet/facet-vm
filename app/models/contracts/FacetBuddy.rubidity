@@ -1,0 +1,91 @@
+pragma :rubidity, "1.0.0"
+
+import "./Upgradeable.rubidity"
+import "./Ownable.rubidity"
+import "./ERC20.rubidity"
+
+contract :FacetBuddy, is: [:Upgradeable, :Ownable], upgradeable: true do
+  address :public, :erc20Bridge
+  address :public, :forUser
+  
+  bool :locked
+  
+  constructor(
+    erc20Bridge: :address,
+    forUser: :address
+  ) {
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+    
+    s.erc20Bridge = erc20Bridge
+    s.forUser = forUser
+  }
+  
+  function :_makeCall, {
+    addressToCall: :address,
+    calldata: :string
+  }, :public do
+    require(addressToCall != address(this), "Cannot call self")
+    require(!s.locked, 'No reentrancy allowed')
+    s.locked = true
+    
+    _approve(addressToCall, _balance())
+    
+    (success, data) = addressToCall.call(calldata)
+    
+    _approve(addressToCall, 0)
+    
+    finalBalance = _balance()
+    
+    if finalBalance > 0
+      _transfer(s.forUser, finalBalance)
+    end
+    
+    s.locked = false
+  end
+  
+  function :callFromUser, {
+    amountToSpend: :uint256,
+    addressToCall: :address,
+    calldata: :string
+  }, :public do
+    require(msg.sender == s.forUser, "Only the user can callFromUser")
+    
+    ERC20(s.erc20Bridge).transferFrom(
+      s.forUser,
+      address(this),
+      amountToSpend
+    )
+    
+    _makeCall(addressToCall, calldata)
+  end
+  
+  function :callFromBridge, {
+    addressToCall: :address,
+    calldata: :string
+  }, :public do
+    require(msg.sender == s.erc20Bridge, "Only the bridge can callFromBridge")
+    
+    _makeCall(addressToCall, calldata)
+    
+    # emit :CallFromBridge,
+    #     bridgingUser: bridgingUser,
+    #     addressToCall: addressToCall,
+    #     calldata: calldata,
+    #     initialAmount: initialBalance,
+    #     finalAmount: finalBalance,
+    #     resultStatus: success,
+    #     resultData: data
+  end
+  
+  function :_balance, :internal, :view, returns: :uint256 do
+    ERC20(s.erc20Bridge).balanceOf(address(this))
+  end
+  
+  function :_approve, { spender: :address, amount: :uint256 }, :internal, returns: :bool do
+    ERC20(s.erc20Bridge).approve(spender, amount)
+  end
+  
+  function :_transfer, { to: :address, amount: :uint256 }, :internal, returns: :bool do
+    ERC20(s.erc20Bridge).transfer(to, amount)
+  end
+end
