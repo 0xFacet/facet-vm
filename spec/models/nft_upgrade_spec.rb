@@ -3,6 +3,11 @@ require 'rails_helper'
 RSpec.describe "TokenUpgradeRenderer01", type: :model do
   include ActiveSupport::Testing::TimeHelpers
 
+  let(:alice) { "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
+  let(:bob) { "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }
+  let(:daryl) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
+  let(:charlie) { "0xcccccccccccccccccccccccccccccccccccccccc" }
+  let(:trusted_smart_contract) { "0xcccccccccccccccccccccccccccccccccccccccc" }
   let(:owner_address) { "0x000000000000000000000000000000000000000a" }
   let(:non_owner_address) { "0x000000000000000000000000000000000000000b" }
   let(:allow_list_address) { "0x000000000000000000000000000000000000000c" }
@@ -62,6 +67,9 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
   before(:all) do
     update_supported_contracts("TokenUpgradeRenderer01")
     update_supported_contracts("NFTCollection01")
+    update_supported_contracts("EtherBridge03")
+    update_supported_contracts("FacetBuddyFactory")
+    update_supported_contracts("FacetBuddy")
   end
 
   def set_public_mint_settings(
@@ -178,6 +186,19 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
   end
   
   it 'deploys the upgrader' do
+    factory = trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: :create,
+        data: {
+          type: "FacetBuddyFactory",
+          args: {
+            erc20Bridge: weth_contract.address,
+          }
+        }
+      }
+    )
+    
     upgrader = trigger_contract_interaction_and_expect_success(
       from: owner_address,
       payload: {
@@ -316,5 +337,104 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
     token_uri = JSON.parse(Base64.decode64(token_uri_base_64.split("data:application/json;base64,").last))
     
     expect(token_uri['image']).to eq("https://example.com/image2.png")
+    
+    trigger_contract_interaction_and_expect_error(
+      error_msg_includes: "Token already upgraded at this level",
+      from: non_owner_address,
+      payload: {
+        to: upgrader.address,
+        data: {
+          function: "upgradeMultipleTokens",
+          args: {
+            tokenIds: [1, 2]
+          }
+        }
+      }
+    )
+    
+    buddy_receipt = trigger_contract_interaction_and_expect_success(
+      from: non_owner_address,
+      payload: {
+        to: factory.address,
+        data: {
+          function: "findOrCreateBuddy",
+          args: non_owner_address
+        }
+      }
+    )
+    
+    buddy_address = buddy_receipt.logs.detect { |log| log['event'] == "BuddyCreated" }['data']['buddy']
+    
+    trigger_contract_interaction_and_expect_success(
+      from: non_owner_address,
+      payload: {
+        to: nft_contract.address,
+        data: {
+          function: "setApprovalForAll",
+          args: {
+            operator: buddy_address,
+            approved: true
+          }
+        }
+      }
+    )
+    
+    set_weth_allowance(
+      wallet: non_owner_address,
+      spender: buddy_address,
+      amount: 2  ** 256 - 1
+    )
+    
+    calldata = {
+      function: "upgradeMultipleTokens",
+      args: {
+        tokenIds: [3, 4]
+      }
+    }
+    
+    trigger_contract_interaction_and_expect_success(
+      from: non_owner_address,
+      payload: {
+        to: buddy_address,
+        data: {
+          function: "callFromUser",
+          args: {
+            amountToSpend: per_mint_fee * 2,
+            addressToCall: upgrader.address,
+            calldata: calldata.to_json
+          }
+        }
+      }
+    )
+    
+    token_uri_base_64 = get_contract_state(upgrader.address, "tokenURI", 4)
+    
+    token_uri = JSON.parse(Base64.decode64(token_uri_base_64.split("data:application/json;base64,").last))
+    
+    expect(token_uri['image']).to eq("https://example.com/image2.png")
+    
+    calldata = {
+      function: "upgradeMultipleTokens",
+      args: {
+        tokenIds: [5]
+      }
+    }
+    
+    trigger_contract_interaction_and_expect_success(
+      from: non_owner_address,
+      payload: {
+        to: buddy_address,
+        data: {
+          function: "callFromUser",
+          args: {
+            amountToSpend: per_mint_fee * 2,
+            addressToCall: upgrader.address,
+            calldata: calldata.to_json
+          }
+        }
+      }
+    )
+    
+    expect(get_contract_state(weth_contract.address, "balanceOf", buddy_address)).to eq(0)
   end
 end
