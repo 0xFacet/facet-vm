@@ -20,8 +20,7 @@ contract :EtherBridge03, is: [:ERC20, :Upgradeable, :Ownable], upgradeable: true
   constructor(
     name: :string,
     symbol: :string,
-    trustedSmartContract: :address,
-    facetBuddyFactory: :address
+    trustedSmartContract: :address
   ) {
     require(trustedSmartContract != address(0), "Invalid smart contract")
 
@@ -30,7 +29,6 @@ contract :EtherBridge03, is: [:ERC20, :Upgradeable, :Ownable], upgradeable: true
     Ownable.constructor(owner: msg.sender)
 
     s.trustedSmartContract = trustedSmartContract
-    s.facetBuddyFactory = facetBuddyFactory
   }
   
   function :setFacetBuddyFactory, { facetBuddyFactory: :address }, :public do
