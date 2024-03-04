@@ -1,10 +1,9 @@
 pragma :rubidity, "1.0.0"
 
-import "./Ownable.rubidity"
 import "./FacetBuddy.rubidity"
 import "./Upgradeable.rubidity"
 
-contract :FacetBuddyFactory, is: [:Ownable, :Upgradeable], upgradeable: true do
+contract :FacetBuddyFactory, is: [:Upgradeable], upgradeable: true do
   event :BuddyCreated, {
     forUser: :address,
     buddy: :address
@@ -19,23 +18,19 @@ contract :FacetBuddyFactory, is: [:Ownable, :Upgradeable], upgradeable: true do
     require(erc20Bridge != address(0), "Invalid smart contract")
 
     Upgradeable.constructor(upgradeAdmin: msg.sender)
-    Ownable.constructor(owner: msg.sender)
-
     s.erc20Bridge = erc20Bridge
   }
   
   function :findOrCreateBuddy, {
     forUser: :address
   }, :public, returns: :address do
-    require(msg.sender == s.erc20Bridge, "Only erc20Bridge can create a buddy")
-    
     existingBuddy = s.buddyForUser[forUser]
     
     if existingBuddy != address(0)
       return existingBridge
     end
     
-    salt = keccak256(abi.encodePacked(s.erc20Bridge, forUser))
+    salt = keccak256(abi.encodePacked(forUser))
     
     buddy = new FacetBuddy(
       s.erc20Bridge,

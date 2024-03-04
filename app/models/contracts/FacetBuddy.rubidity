@@ -1,10 +1,18 @@
 pragma :rubidity, "1.0.0"
 
-import "./Upgradeable.rubidity"
-import "./Ownable.rubidity"
 import "./ERC20.rubidity"
 
-contract :FacetBuddy, is: [:Upgradeable, :Ownable], upgradeable: true do
+contract :FacetBuddy do
+  event :CallOnBehalfOfUser, {
+    onBehalfOf: :address,
+    addressToCall: :address,
+    calldata: :string,
+    initialAmount: :uint256,
+    finalAmount: :uint256,
+    resultStatus: :bool,
+    resultData: :string
+  }
+  
   address :public, :erc20Bridge
   address :public, :forUser
   
@@ -14,8 +22,6 @@ contract :FacetBuddy, is: [:Upgradeable, :Ownable], upgradeable: true do
     erc20Bridge: :address,
     forUser: :address
   ) {
-    Upgradeable.constructor(upgradeAdmin: msg.sender)
-    
     s.erc20Bridge = erc20Bridge
     s.forUser = forUser
   }
@@ -28,7 +34,9 @@ contract :FacetBuddy, is: [:Upgradeable, :Ownable], upgradeable: true do
     require(!s.locked, 'No reentrancy allowed')
     s.locked = true
     
-    _approve(addressToCall, _balance())
+    initialBalance = _balance()
+    
+    _approve(addressToCall, initialBalance)
     
     (success, data) = addressToCall.call(calldata)
     
@@ -41,6 +49,15 @@ contract :FacetBuddy, is: [:Upgradeable, :Ownable], upgradeable: true do
     end
     
     s.locked = false
+    
+    emit :CallOnBehalfOfUser,
+        onBehalfOf: s.forUser,
+        addressToCall: addressToCall,
+        calldata: calldata,
+        initialAmount: initialBalance,
+        finalAmount: finalBalance,
+        resultStatus: success,
+        resultData: data
   end
   
   function :callFromUser, {
@@ -66,15 +83,6 @@ contract :FacetBuddy, is: [:Upgradeable, :Ownable], upgradeable: true do
     require(msg.sender == s.erc20Bridge, "Only the bridge can callFromBridge")
     
     _makeCall(addressToCall, calldata)
-    
-    # emit :CallFromBridge,
-    #     bridgingUser: bridgingUser,
-    #     addressToCall: addressToCall,
-    #     calldata: calldata,
-    #     initialAmount: initialBalance,
-    #     finalAmount: finalBalance,
-    #     resultStatus: success,
-    #     resultData: data
   end
   
   function :_balance, :internal, :view, returns: :uint256 do

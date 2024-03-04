@@ -2,6 +2,7 @@ pragma :rubidity, "1.0.0"
 
 import "./ERC20.rubidity"
 import "./Upgradeable.rubidity"
+import "./Ownable.rubidity"
 import "./FacetBuddyFactory.rubidity"
 import "./FacetBuddy.rubidity"
 
@@ -31,15 +32,6 @@ contract :EtherBridge03, is: [:ERC20, :Upgradeable, :Ownable], upgradeable: true
     s.trustedSmartContract = trustedSmartContract
     s.facetBuddyFactory = facetBuddyFactory
   }
-  
-  function :onUpgrade, {
-    facetBuddyFactory: :address
-  }, :public do
-    require(msg.sender == address(this), "Only the contract itself can upgrade")
-    
-    s.facetBuddyFactory = facetBuddyFactory
-    return nil
-  end
   
   function :setFacetBuddyFactory, { facetBuddyFactory: :address }, :public do
     onlyOwner!
