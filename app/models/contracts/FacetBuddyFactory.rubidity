@@ -47,4 +47,12 @@ contract :FacetBuddyFactory, is: [:Upgradeable], upgradeable: true do
     
     return buddy
   end
+  
+  function :predictBuddyAddress, { forUser: :address }, :public, :view, returns: :address do
+    return create2_address(
+      salt: keccak256(abi.encodePacked(forUser)),
+      deployer: address(this),
+      contract_type: "FacetBuddy"
+    )
+  end
 end

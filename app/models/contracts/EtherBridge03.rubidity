@@ -68,6 +68,10 @@ contract :EtherBridge03, is: [:ERC20, :Upgradeable, :Ownable], upgradeable: true
     )
   end
   
+  function :predictBuddyAddress, { forUser: :address }, :public, :view, returns: :address do
+    return FacetBuddyFactory(s.facetBuddyFactory).predictBuddyAddress(forUser)
+  end
+  
   function :bridgeOut, { amount: :uint256 }, :public do
     withdrawalId = tx.current_transaction_hash
     require(

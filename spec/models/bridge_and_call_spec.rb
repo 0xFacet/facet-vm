@@ -131,6 +131,12 @@ describe 'BridgeAndCall contract' do
     
     expect(nft_balance).to eq(0)
     
+    expected_buddy_address = ContractTransaction.make_static_call(
+      contract: bridge.address,
+      function_name: "predictBuddyAddress",
+      function_args: daryl
+    )
+    
     trigger_contract_interaction_and_expect_success(
       from: trusted_smart_contract,
       payload: {
@@ -147,6 +153,14 @@ describe 'BridgeAndCall contract' do
         }
       }
     )
+    
+    actual_buddy_address = ContractTransaction.make_static_call(
+      contract: factory.address,
+      function_name: "buddyForUser",
+      function_args: daryl
+    )
+    
+    expect(actual_buddy_address).to eq(expected_buddy_address)
     
     nft_balance = ContractTransaction.make_static_call(
       contract: nft_contract.address,
