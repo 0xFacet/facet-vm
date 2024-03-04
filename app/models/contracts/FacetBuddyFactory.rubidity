@@ -27,7 +27,7 @@ contract :FacetBuddyFactory, is: [:Upgradeable], upgradeable: true do
     existingBuddy = s.buddyForUser[forUser]
     
     if existingBuddy != address(0)
-      return existingBridge
+      return existingBuddy
     end
     
     salt = keccak256(abi.encodePacked(forUser))
