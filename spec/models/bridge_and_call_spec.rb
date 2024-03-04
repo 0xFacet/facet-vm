@@ -29,8 +29,7 @@ describe 'BridgeAndCall contract' do
           args: {
             name: "Facet Ether",
             symbol: "FETH",
-            trustedSmartContract: trusted_smart_contract,
-            facetBuddyFactory: "0x0000000000000000000000000000000000000000"
+            trustedSmartContract: trusted_smart_contract
           }
         }
       }

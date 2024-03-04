@@ -16,14 +16,12 @@ contract :TokenUpgradeRenderer01, is: :Upgradeable, upgradeable: true do
     animationURI: :string,
     startTime: :uint256,
     endTime: :uint256,
-    countAtLevel: :uint256,
     newRecord: :bool
   }
   
   event :TokenUpgraded, {
     tokenId: :uint256,
     upgradeLevel: :uint256,
-    indexWithinLevel: :uint256
   }
   
   event :ContractInfoUpdated, {
@@ -37,12 +35,10 @@ contract :TokenUpgradeRenderer01, is: :Upgradeable, upgradeable: true do
     string :extraAttributesJson
     uint256 :startTime
     uint256 :endTime
-    uint256 :countAtLevel
   end
   
   struct :TokenStatus do
     uint256 :upgradeLevel
-    uint256 :indexWithinLevel
     uint256 :lastUpgradeTime
   end
   
@@ -73,8 +69,6 @@ contract :TokenUpgradeRenderer01, is: :Upgradeable, upgradeable: true do
   ) {
     Upgradeable.constructor(upgradeAdmin: msg.sender)
     
-    initialLevel.countAtLevel = 0
-    
     s.tokenUpgradeLevels.push(initialLevel)
     s.nftCollection = nftCollection
     s.maxUpgradeLevelCount = 30
@@ -95,8 +89,6 @@ contract :TokenUpgradeRenderer01, is: :Upgradeable, upgradeable: true do
     require(newLevel.endTime > newLevel.startTime, "End time must be after start time")
     require(newLevel.startTime > lastLevel.endTime, "Start time must be after last level end time")
     require(s.tokenUpgradeLevels.length + 1 <= s.maxUpgradeLevelCount, "Max upgrade level count reached")
-
-    newLevel.countAtLevel = 0
     
     s.tokenUpgradeLevels.push(newLevel)
     
@@ -107,7 +99,6 @@ contract :TokenUpgradeRenderer01, is: :Upgradeable, upgradeable: true do
       animationURI: newLevel.animationURI,
       startTime: newLevel.startTime,
       endTime: newLevel.endTime,
-      countAtLevel: newLevel.countAtLevel,
       newRecord: true
   end
   
@@ -121,9 +112,6 @@ contract :TokenUpgradeRenderer01, is: :Upgradeable, upgradeable: true do
     end
     
     require(newLevel.endTime > newLevel.startTime, "End time must be after start time")
-
-    existingLevel = s.tokenUpgradeLevels[index]
-    newLevel.countAtLevel = existingLevel.countAtLevel
         
     s.tokenUpgradeLevels[index] = newLevel
     
@@ -134,7 +122,6 @@ contract :TokenUpgradeRenderer01, is: :Upgradeable, upgradeable: true do
       animationURI: newLevel.animationURI,
       startTime: newLevel.startTime,
       endTime: newLevel.endTime,
-      countAtLevel: newLevel.countAtLevel,
       newRecord: false
   end
   
@@ -151,31 +138,28 @@ contract :TokenUpgradeRenderer01, is: :Upgradeable, upgradeable: true do
     return { level: TokenUpgradeLevel(), index: 0 }
   end
   
-  function :_upgradeToken, { tokenId: :uint256 }, :internal do
+  function :_upgradeToken, {
+    tokenId: :uint256,
+    activeUpgrade: :TokenUpgradeLevel
+  }, :internal do
     require(
       ERC721(s.nftCollection).isApprovedOrOwner(spender: msg.sender, id: tokenId),
       "TokenUpgradeRenderer: msg.sender not authorized to upgrade id #{tokenId.toString}"
     );
     
     tokenStatus = s.tokenStatuses[tokenId]
-    activeUpgrade, activeUpgradeIndex = activeUpgradeLevel()
-    
-    require(activeUpgradeIndex > 0, "TokenUpgradeRenderer: No active upgrade level")
-    require(tokenStatus.lastUpgradeTime < activeUpgrade.startTime, "TokenUpgradeRenderer: Token already upgraded at this level")
+
+    require(tokenStatus.lastUpgradeTime < activeUpgrade.startTime, "TokenUpgradeRenderer: Token already upgraded during this period")
     
     targetLevelIndex = tokenStatus.upgradeLevel + 1
-    targetLevel = s.tokenUpgradeLevels[targetLevelIndex]
+    require(targetLevelIndex < s.tokenUpgradeLevels.length, "TokenUpgradeRenderer: No more upgrade levels")
     
-    targetLevel.countAtLevel += 1
+    targetLevel = s.tokenUpgradeLevels[targetLevelIndex]
     
     tokenStatus.upgradeLevel = targetLevelIndex
     tokenStatus.lastUpgradeTime = block.timestamp
-    tokenStatus.indexWithinLevel = targetLevel.countAtLevel
     
-    emit :TokenUpgraded,
-      tokenId: tokenId,
-      upgradeLevel: tokenStatus.upgradeLevel,
-      indexWithinLevel: tokenStatus.indexWithinLevel
+    emit :TokenUpgraded, tokenId: tokenId, upgradeLevel: tokenStatus.upgradeLevel
   end
   
   function :upgradeMultipleTokens, { tokenIds: [:uint256] }, :public do
@@ -190,10 +174,17 @@ contract :TokenUpgradeRenderer01, is: :Upgradeable, upgradeable: true do
       )
     end
     
+    activeUpgrade, activeUpgradeIndex = activeUpgradeLevel()
+    
+    require(activeUpgradeIndex > 0, "TokenUpgradeRenderer: No active upgrade level")
+    
     forLoop(
       condition: -> i { i < tokenIds.length }
     ) do |i|
-      _upgradeToken(tokenIds[i])
+      _upgradeToken(
+        tokenId: tokenIds[i],
+        activeUpgrade: activeUpgrade
+      )
     end
   end
 
@@ -208,22 +199,14 @@ contract :TokenUpgradeRenderer01, is: :Upgradeable, upgradeable: true do
     status = s.tokenStatuses[tokenId]
     upgradeLevel = s.tokenUpgradeLevels[status.upgradeLevel]
     
-    index = if status.upgradeLevel == 0
-      tokenId
-    else
-      status.indexWithinLevel
-    end
-    
-    # Safely encode values using json.stringify
-    name_json = json.stringify("#{upgradeLevel.name} #{index.toString()}")
-    description_json = json.stringify('')
+    name_json = json.stringify("#{upgradeLevel.name} #{tokenId.toString()}")
+    description_json = json.stringify(s.contractInfo.description)
     image_json = json.stringify(upgradeLevel.imageURI)
     animation_url_json = json.stringify(upgradeLevel.animationURI)
     
-    # Basic attributes
     basic_attributes_json = json.stringify([
-      {"display_type": "number", "trait_type": "Number", "value": index},
-      {"trait_type": "Upgrade Level", "value": upgradeLevel.name}
+      {"trait_type": "Number", "display_type": "number", "value": tokenId},
+      {"trait_type": "Level", "value": upgradeLevel.name}
     ])
     
     extra_json_present = upgradeLevel.extraAttributesJson != "" &&

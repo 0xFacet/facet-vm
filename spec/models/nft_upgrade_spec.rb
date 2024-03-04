@@ -214,7 +214,6 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
               extraAttributesJson: "{}",
               startTime: 0,
               endTime: 1,
-              countAtLevel: 0
             },
             contractInfo: {
               name: "Test Name",
@@ -237,7 +236,6 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
       extraAttributesJson: "{}",
       startTime: Time.now.to_i + 30.minutes,
       endTime: Time.now.to_i + 1.day,
-      countAtLevel: 0
     }
     
     expect {
@@ -339,7 +337,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
     expect(token_uri['image']).to eq("https://example.com/image2.png")
     
     trigger_contract_interaction_and_expect_error(
-      error_msg_includes: "Token already upgraded at this level",
+      error_msg_includes: "Token already upgraded during this period",
       from: non_owner_address,
       payload: {
         to: upgrader.address,
