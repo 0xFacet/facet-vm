@@ -9,7 +9,7 @@ contract :FacetBuddy do
     calldata: :string,
     initialAmount: :uint256,
     finalAmount: :uint256,
-    resultStatus: :bool,
+    resultSuccess: :bool,
     resultData: :string
   }
   
@@ -56,7 +56,7 @@ contract :FacetBuddy do
         calldata: calldata,
         initialAmount: initialBalance,
         finalAmount: finalBalance,
-        resultStatus: success,
+        resultSuccess: success,
         resultData: data
   end
   

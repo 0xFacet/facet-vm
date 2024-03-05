@@ -206,24 +206,41 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
         data: {
           type: "TokenUpgradeRenderer01",
           args: {
-            nftCollection: nft_contract.address,
-            initialLevel: {
-              name: "Level 1",
-              imageURI: "https://example.com/image.png",
-              animationURI: "https://example.com/animation.png",
-              extraAttributesJson: "{}",
-              startTime: 0,
-              endTime: 1,
-            },
-            contractInfo: {
-              name: "Test Name",
-              description: "Test description",
-              imageURI: "https://test.com/image.png",
-              animationURI: "https://test.com/animation.png"
-            },
             perUpgradeFee: per_mint_fee,
             feeTo: fee_to_address,
             weth: weth_contract.address
+          }
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: owner_address,
+      payload: {
+        to: nft_contract.address,
+        data: {
+          function: "setMetadataRenderer",
+          args: {
+            metadataRenderer: upgrader.address,
+            data: {
+              function: "initializeWithData",
+              args: {
+                initialLevel: {
+                  name: "Level 1",
+                  imageURI: "https://example.com/image.png",
+                  animationURI: "https://example.com/animation.png",
+                  extraAttributesJson: "{}",
+                  startTime: 0,
+                  endTime: 1,
+                },
+                contractInfo: {
+                  name: "Test Name",
+                  description: "Test contract description",
+                  imageURI: "https://test.com/image.png",
+                  animationURI: "https://test.com/animation.png"
+                }
+              }
+            }.to_json
           }
         }
       }
@@ -246,16 +263,17 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
           data: {
             function: "addUpgradeLevel",
             args: {
+              collection: nft_contract.address,
               newLevel: new_level
             }
           }
         }
       )
-    }.to change { get_contract_state(upgrader.address, "upgradeLevelCount") }.by(1)
+    }.to change { get_contract_state(upgrader.address, "upgradeLevelCount", nft_contract.address) }.by(1)
     
     edited_level_2 = new_level.merge(name: "Edited Level 2")
     
-    current_2 = get_contract_state(upgrader.address, "tokenUpgradeLevels", 1)
+    current_2 = get_contract_state(upgrader.address, "tokenUpgradeLevelsByCollection", nft_contract.address, 1)
     
     expect(current_2['name']).to eq("Level 2")
     
@@ -266,6 +284,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
         data: {
           function: "editUpgradeLevel",
           args: {
+            collection: nft_contract.address,
             index: 1,
             newLevel: edited_level_2
           }
@@ -273,7 +292,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
       }
     )
     
-    new_2 = get_contract_state(upgrader.address, "tokenUpgradeLevels", 1)
+    new_2 = get_contract_state(upgrader.address, "tokenUpgradeLevelsByCollection", nft_contract.address, 1)
     
     expect(new_2['name']).to eq("Edited Level 2")
     
@@ -301,15 +320,15 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
       }
     )
     
-    active_level = get_contract_state(upgrader.address, "activeUpgradeLevel")
+    active_level = get_contract_state(upgrader.address, "activeUpgradeLevelIndex", nft_contract.address)
     
-    expect(active_level['index']).to eq(0)
+    expect(active_level).to eq(0)
     
     travel_to Time.current + 1.hour
 
-    active_level = get_contract_state(upgrader.address, "activeUpgradeLevel")
+    active_level = get_contract_state(upgrader.address, "activeUpgradeLevelIndex", nft_contract.address)
     
-    expect(active_level['index']).to eq(1)
+    expect(active_level).to eq(1)
     
     set_weth_allowance(
       wallet: non_owner_address,
@@ -324,13 +343,14 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
         data: {
           function: "upgradeMultipleTokens",
           args: {
+            collection: nft_contract.address,
             tokenIds: [1, 2]
           }
         }
       }
     )
     
-    token_uri_base_64 = get_contract_state(upgrader.address, "tokenURI", 1)
+    token_uri_base_64 = get_contract_state(nft_contract.address, "tokenURI", 1)
     
     token_uri = JSON.parse(Base64.decode64(token_uri_base_64.split("data:application/json;base64,").last))
     
@@ -344,6 +364,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
         data: {
           function: "upgradeMultipleTokens",
           args: {
+            collection: nft_contract.address,
             tokenIds: [1, 2]
           }
         }
@@ -386,6 +407,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
     calldata = {
       function: "upgradeMultipleTokens",
       args: {
+        collection: nft_contract.address,
         tokenIds: [3, 4]
       }
     }
@@ -405,7 +427,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
       }
     )
     
-    token_uri_base_64 = get_contract_state(upgrader.address, "tokenURI", 4)
+    token_uri_base_64 = get_contract_state(nft_contract.address, "tokenURI", 4)
     
     token_uri = JSON.parse(Base64.decode64(token_uri_base_64.split("data:application/json;base64,").last))
     
@@ -414,6 +436,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
     calldata = {
       function: "upgradeMultipleTokens",
       args: {
+        collection: nft_contract.address,
         tokenIds: [5]
       }
     }
@@ -434,5 +457,11 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
     )
     
     expect(get_contract_state(weth_contract.address, "balanceOf", buddy_address)).to eq(0)
+    
+    contract_uri_base_64 = get_contract_state(nft_contract.address, "contractURI")
+    
+    contract_uri = JSON.parse(Base64.decode64(contract_uri_base_64.split("data:application/json;base64,").last))
+    
+    expect(contract_uri['description']).to eq("Test contract description")
   end
 end
