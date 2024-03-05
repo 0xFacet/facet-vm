@@ -50,18 +50,18 @@ class ArrayVariable < TypedVariable
         amount_to_pad = initial_length - data.size
         
         amount_to_pad.times do
-          data << TypedVariable.create(value_type, on_change: on_change)
+          data << TypedVariable.create(value_type, on_change: -> { on_change&.call })
         end
       end
     end
   
     def [](index)
-      index_var = TypedVariable.create_or_validate(:uint256, index, on_change: on_change)
+      index_var = TypedVariable.create_or_validate(:uint256, index, on_change: -> { on_change&.call })
       
       raise "Index out of bounds" if index_var >= data.size
 
       value = data[index_var] ||
-        TypedVariable.create_or_validate(value_type, on_change: on_change)
+        TypedVariable.create_or_validate(value_type, on_change: -> { on_change&.call })
       
       if value_type.is_value_type?
         value.deep_dup
@@ -72,13 +72,13 @@ class ArrayVariable < TypedVariable
     end
   
     def []=(index, value)
-      index_var = TypedVariable.create_or_validate(:uint256, index, on_change: on_change)
+      index_var = TypedVariable.create_or_validate(:uint256, index, on_change: -> { on_change&.call })
       
       raise "Sparse arrays are not supported" if index_var > data.size
       raise "Max array length is #{MAX_ARRAY_LENGTH}" if index_var >= MAX_ARRAY_LENGTH
 
       old_value = self.data[index_var]
-      val_var = TypedVariable.create_or_validate(value_type, value, on_change: on_change)
+      val_var = TypedVariable.create_or_validate(value_type, value, on_change: -> { on_change&.call })
       
       if old_value != val_var
         on_change&.call
