@@ -229,7 +229,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
                   name: "Level 1",
                   imageURI: "https://example.com/image.png",
                   animationURI: "https://example.com/animation.png",
-                  extraAttributesJson: "{}",
+                  extraAttributesJson: "",
                   startTime: 0,
                   endTime: 1,
                 },
@@ -249,8 +249,10 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
     new_level = {
       name: "Level 2",
       imageURI: "https://example.com/image2.png",
-      animationURI: "https://example.com/animation2.png",
-      extraAttributesJson: "{}",
+      animationURI: "",
+      extraAttributesJson: {
+        "trait_type": "Defining Trait", "value": "Mohawk"
+      }.to_json,
       startTime: Time.now.to_i + 30.minutes,
       endTime: Time.now.to_i + 1.day,
     }
