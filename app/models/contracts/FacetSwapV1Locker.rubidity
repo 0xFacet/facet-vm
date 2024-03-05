@@ -3,11 +3,11 @@ pragma :rubidity, "1.0.0"
 import './Upgradeable.rubidity'
 import './Pausable.rubidity'
 import './Ownable.rubidity'
-import './FacetSwapV1Factory02.rubidity'
+import './ERC20.rubidity'
 
 contract :FacetSwapV1Locker, is: [:Ownable, :Upgradeable, :Pausable], upgradeable: true do
   event :Deposit, {
-    lpToken: :address,
+    token: :address,
     amount: :uint256,
     lockDate: :uint256,
     unlockDate: :uint256,
@@ -16,13 +16,13 @@ contract :FacetSwapV1Locker, is: [:Ownable, :Upgradeable, :Pausable], upgradeabl
   }
   
   event :Relock, {
-    lpToken: :address,
+    token: :address,
     lockId: :uint256,
     unlockDate: :uint256
   }
   
   event :Withdraw, {
-    lpToken: :address,
+    token: :address,
     amount: :uint256,
     withdrawer: :address,
     lockId: :uint256
@@ -30,27 +30,25 @@ contract :FacetSwapV1Locker, is: [:Ownable, :Upgradeable, :Pausable], upgradeabl
    
   struct :TokenLock do
     uint256 :lockId
-    address :lpToken
+    address :token
     address :owner
     uint256 :amount
     uint256 :lockDate
     uint256 :unlockDate
   end
   
-  address :public, :facetSwapFactory
   uint256 :public, :nextLockId
   mapping ({ uint256: :TokenLock }), :public, :tokenLocks
   
-  constructor(_facetSwapFactory: :address) {
-    s.facetSwapFactory = _facetSwapFactory
+  constructor() {
     s.nextLockId = 1
     
     Upgradeable.constructor(upgradeAdmin: msg.sender)
     Ownable.constructor(owner: msg.sender)
   }
   
-  function :lockLPToken, {
-    lpToken: :address,
+  function :lockToken, {
+    token: :address,
     amount: :uint256,
     unlockDate: :uint256,
     withdrawer: :address
@@ -62,19 +60,11 @@ contract :FacetSwapV1Locker, is: [:Ownable, :Upgradeable, :Pausable], upgradeabl
     require(amount > 0, "Amount must be greater than 0")
     require(withdrawer != address(0), "Invalid withdrawer")
   
-    lpair = FacetSwapV1Pair02(lpToken)
-    
-    factoryPairAddress = FacetSwapV1Factory02(s.facetSwapFactory).getPair(
-      lpair.token0(),
-      lpair.token1()
-    )
-    require(factoryPairAddress == lpToken, "Invalid LP token")  
-    
-    require(ERC20(lpToken).transferFrom(msg.sender, address(this), amount), "Transfer failed")
+    require(ERC20(token).transferFrom(msg.sender, address(this), amount), "Transfer failed")
   
     tokenLock = TokenLock(
       lockId: s.nextLockId,
-      lpToken: lpToken,
+      token: token,
       owner: withdrawer,
       amount: amount,
       lockDate: block.timestamp,
@@ -88,7 +78,7 @@ contract :FacetSwapV1Locker, is: [:Ownable, :Upgradeable, :Pausable], upgradeabl
     s.nextLockId += 1
     
     emit :Deposit,
-      lpToken: tokenLock.lpToken,
+      token: tokenLock.token,
       amount: tokenLock.amount,
       lockDate: tokenLock.lockDate,
       unlockDate: tokenLock.unlockDate,
@@ -106,7 +96,7 @@ contract :FacetSwapV1Locker, is: [:Ownable, :Upgradeable, :Pausable], upgradeabl
   
     tokenLock.unlockDate = unlockDate
     
-    emit :Relock, lpToken: tokenLock.lpToken, lockId: lockId, unlockDate: unlockDate
+    emit :Relock, token: tokenLock.token, lockId: lockId, unlockDate: unlockDate
   end
   
   function :withdraw, { lockId: :uint256, amount: :uint256 }, :public do
@@ -120,15 +110,15 @@ contract :FacetSwapV1Locker, is: [:Ownable, :Upgradeable, :Pausable], upgradeabl
   
     tokenLock.amount -= amount
   
-    lpToken = tokenLock.lpToken
+    token = tokenLock.token
     
     if tokenLock.amount == 0
       s.tokenLocks[lockId] = TokenLock()
     end
     
-    require(ERC20(lpToken).transfer(msg.sender, amount), "Transfer failed")
+    require(ERC20(token).transfer(msg.sender, amount), "Transfer failed")
   
-    emit :Withdraw, lpToken: lpToken, amount: amount, withdrawer: msg.sender, lockId: lockId
+    emit :Withdraw, token: token, amount: amount, withdrawer: msg.sender, lockId: lockId
   end
   
   function :pause, :public do

@@ -262,8 +262,7 @@ describe 'TokenLocker contract' do
       payload: {
         to: nil,
         data: {
-          type: "FacetSwapV1Locker",
-          args: { _facetSwapFactory: factory_address }
+          type: "FacetSwapV1Locker"
         }
       }
     )
@@ -292,9 +291,9 @@ describe 'TokenLocker contract' do
       payload: {
         to: token_locker_address,
         data: {
-          function: "lockLPToken",
+          function: "lockToken",
           args: {
-            lpToken: pair_address,
+            token: pair_address,
             amount: amountToLock,
             unlockDate: unlockDate,
             withdrawer: user_address
@@ -312,7 +311,7 @@ describe 'TokenLocker contract' do
     )
     
     expect(token_lock).to eq({
-      lpToken: pair_address,
+      token: pair_address,
       lockDate: lockDate,
       amount: amountToLock,
       unlockDate: unlockDate,
@@ -331,9 +330,9 @@ describe 'TokenLocker contract' do
       payload: {
         to: token_locker_address,
         data: {
-          function: "lockLPToken",
+          function: "lockToken",
           args: {
-            lpToken: pair_address,
+            token: pair_address,
             amount: amountToLock * 2,
             unlockDate: unlockDate,
             withdrawer: user_address
@@ -351,7 +350,7 @@ describe 'TokenLocker contract' do
     )
     
     expect(token_lock).to eq({
-      lpToken: pair_address,
+      token: pair_address,
       lockDate: lockDate,
       amount: amountToLock * 2,
       unlockDate: unlockDate,
@@ -396,7 +395,7 @@ describe 'TokenLocker contract' do
     )
 
     expect(token_lock).to eq({
-      lpToken: "0x0000000000000000000000000000000000000000",
+      token: "0x0000000000000000000000000000000000000000",
       lockDate: 0,
       amount: 0,
       unlockDate: 0,
