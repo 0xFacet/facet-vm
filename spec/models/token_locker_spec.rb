@@ -12,7 +12,7 @@ describe 'TokenLocker contract' do
 
   before(:all) do
     update_supported_contracts(
-      'FacetSwapV1Locker',
+      'ERC20Locker',
       'FacetSwapV1Router',
       'FacetSwapV1Pair',
       'FacetSwapV1Factory',
@@ -262,7 +262,7 @@ describe 'TokenLocker contract' do
       payload: {
         to: nil,
         data: {
-          type: "FacetSwapV1Locker"
+          type: "ERC20Locker"
         }
       }
     )

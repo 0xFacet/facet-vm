@@ -5,7 +5,7 @@ import './Pausable.rubidity'
 import './Ownable.rubidity'
 import './ERC20.rubidity'
 
-contract :FacetSwapV1Locker, is: [:Ownable, :Upgradeable, :Pausable], upgradeable: true do
+contract :ERC20Locker, is: [:Ownable, :Upgradeable, :Pausable], upgradeable: true do
   event :Deposit, {
     token: :address,
     amount: :uint256,
