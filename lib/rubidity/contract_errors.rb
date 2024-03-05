@@ -30,5 +30,6 @@ module ContractErrors
   class InvalidStateVariableChange < StandardError; end
   class UnknownInitCodeHash < StandardError; end
   class UnknownContractName < StandardError; end
+  class ContractSourceNotProvided < StandardError; end
   class InvalidEthscriptionError < StandardError; end
 end

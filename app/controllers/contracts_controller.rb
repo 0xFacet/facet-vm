@@ -51,7 +51,7 @@ class ContractsController < ApplicationController
   end
 
   def show
-    # expires_in 1.second, public: true
+    expires_in(6, "s-maxage": 12.seconds, public: true)
     
     contract = Contract.find_by_address(params[:id])
 
@@ -66,7 +66,7 @@ class ContractsController < ApplicationController
   end
 
   def static_call
-    # expires_in 1.second, public: true
+    expires_in(6, "s-maxage": 12.seconds, public: true)
     
     args = JSON.parse(params.fetch(:args) { '{}' })
     env = JSON.parse(params.fetch(:env) { '{}' })
@@ -89,6 +89,58 @@ class ContractsController < ApplicationController
       result: numbers_to_strings(result)
     }
   end
+  
+  def storage_get
+    address = params[:address]&.downcase
+    first_key = params[:first_key]
+    raw_args = params[:args].presence || "[]"
+    
+    parsed_args = begin
+      JSON.parse(raw_args)
+    rescue JSON::ParserError
+      raw_args
+    end
+  
+    args = if parsed_args.is_a?(Hash)
+      parsed_args.values
+    else
+      Array.wrap(parsed_args)
+    end
+    
+    args = [first_key] + args
+    
+    args.map! do |param|
+      param =~ /\A0x([a-f0-9]{2})+\z/i ? param.downcase : param
+    end
+  
+    updated_at = Contract.where(address: address).pick(:updated_at)
+    
+    if updated_at.blank?
+      render json: { error: "Contract not found" }, status: :not_found
+      return
+    end
+    
+    args_hash = Digest::SHA1.hexdigest(args.to_json)
+    
+    cache_key = [
+      "contracts_storage_get",
+      address,
+      updated_at,
+      args_hash
+    ]
+    
+    set_cache_control_headers(etag: cache_key, max_age: 12.seconds) do
+      result = Rails.cache.fetch(cache_key) do
+        Contract.get_storage_value_by_path(address, args)
+      end
+      
+      render json: { result: result }
+    end
+  rescue ActiveRecord::StatementInvalid => e
+    raise unless e.message.starts_with?("PG::InvalidTextRepresentation")
+    
+    render json: { error: "Invalid args: #{e.message}" }, status: :bad_request
+  end
 
   def show_call_receipt
     receipt = TransactionReceipt.includes(:contract_transaction).find_by_transaction_hash(params[:transaction_hash])
@@ -104,28 +156,8 @@ class ContractsController < ApplicationController
     end
   end
 
-  def contract_call_receipts
-    page = (params[:page] || 1).to_i
-    per_page = (params[:per_page] || 25).to_i
-    per_page = 25 if per_page > 25
-
-    contract = Contract.find_by_address(params[:address])
-    receipts = contract.transaction_receipts.includes(:contract_transaction).
-      newest_first.page(page).per(per_page)
-
-    if contract.blank?
-      render json: { error: "Contract not found" }, status: 404
-      return
-    end
-
-    render json: {
-      result: numbers_to_strings(receipts),
-      count: receipts.total_count
-    }
-  end
-  
   def simulate_transaction
-    # expires_in 1.second, public: true
+    expires_in(6, "s-maxage": 12.seconds, public: true)
     
     from = params[:from]
     
@@ -149,7 +181,7 @@ class ContractsController < ApplicationController
   end
   
   def pairs_for_router
-    # expires_in 1.second, public: true
+    expires_in(6, "s-maxage": 12.seconds, public: true)
     
     user_address = params[:user_address]&.downcase
     router_address = params[:router]&.downcase

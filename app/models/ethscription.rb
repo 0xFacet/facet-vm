@@ -1,14 +1,15 @@
 class Ethscription < ApplicationRecord
   include ContractErrors
   
-  belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, optional: true
+  belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, optional: true, autosave: false
   
-  has_many :contracts, primary_key: 'transaction_hash', foreign_key: 'transaction_hash'
-  has_one :transaction_receipt, primary_key: 'transaction_hash', foreign_key: 'transaction_hash'
-  has_one :contract_transaction, primary_key: 'transaction_hash', foreign_key: 'transaction_hash'
-  has_one :system_config_version, primary_key: 'transaction_hash', foreign_key: 'transaction_hash'
-  has_many :contract_states, primary_key: 'transaction_hash', foreign_key: 'transaction_hash'
+  has_many :contracts, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', autosave: false
+  has_one :transaction_receipt, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', autosave: false
 
+  has_one :contract_transaction, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', autosave: false
+  has_one :system_config_version, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', autosave: false
+  has_many :contract_states, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', autosave: false
+  
   before_validation :downcase_hex_fields
   
   scope :newest_first, -> { order(block_number: :desc, transaction_index: :desc) }
@@ -28,48 +29,56 @@ class Ethscription < ApplicationRecord
     processing_state != "pending"
   end
   
+  def failure?
+    processing_state == "failure"
+  end
+
+  def success?
+    processing_state == "success"
+  end
+
+  def pending?
+    processing_state == "pending"
+  end
+  
   def self.required_initial_owner
     "0x00000000000000000000000000000000000face7"
   end
   
   def process!(persist:)
-    Ethscription.transaction do
-      if processed?
-        raise "Ethscription already processed: #{inspect}"
-      end
-      
-      begin
-        unless initial_owner == self.class.required_initial_owner
-          raise InvalidEthscriptionError.new("Invalid initial owner: #{initial_owner}")
-        end
-        
-        if mimetype == ContractTransaction.transaction_mimetype
-          tx = ContractTransaction.create_from_ethscription!(self, persist: persist)
-          
-          assign_attributes(contract_transaction: tx)
-        elsif mimetype == SystemConfigVersion.system_mimetype
-          version = SystemConfigVersion.create_from_ethscription!(self, persist: persist)
-          
-          assign_attributes(system_config_version: version)
-        else
-          raise InvalidEthscriptionError.new("Unexpected mimetype: #{mimetype}")
-        end
-        
-        assign_attributes(
-          processing_state: "success",
-        )
-      rescue InvalidEthscriptionError => e
-        assign_attributes(
-          processing_state: "failure",
-          processing_error: e.message
-        )
-      end
-      
-      assign_attributes(processed_at: Time.current)
-      
-      update_columns(changes.transform_values(&:last)) if persist
-      self
+    if processed?
+      raise "Ethscription already processed: #{inspect}"
     end
+    
+    begin
+      unless initial_owner == self.class.required_initial_owner
+        raise InvalidEthscriptionError.new("Invalid initial owner: #{initial_owner}")
+      end
+      
+      if mimetype == ContractTransaction.transaction_mimetype
+        build_contract_transaction(ethscription: self)
+      elsif mimetype == SystemConfigVersion.system_mimetype
+        version = SystemConfigVersion.create_from_ethscription!(self, persist: persist)
+        
+        assign_attributes(system_config_version: version)
+      else
+        raise InvalidEthscriptionError.new("Unexpected mimetype: #{mimetype}")
+      end
+      
+      assign_attributes(
+        processing_state: "success",
+      )
+    rescue InvalidEthscriptionError => e
+      assign_attributes(
+        processing_state: "failure",
+        processing_error: e.message
+      )
+    end
+    
+    assign_attributes(processed_at: Time.current)
+    
+    update_columns(changes.transform_values(&:last)) if persist
+    self
   end
   
   def self.valid_for_vm
@@ -101,6 +110,18 @@ class Ethscription < ApplicationRecord
       ContractTransaction.transaction_mimetype,
       SystemConfigVersion.system_mimetype
     ]
+  end
+  
+  def triggers_contract_interaction?
+    mimetype == ContractTransaction.transaction_mimetype
+  end
+  
+  def triggers_system_config_update?
+    mimetype == SystemConfigVersion.system_mimetype
+  end
+  
+  def valid_to?
+    initial_owner == self.class.required_initial_owner
   end
   
   private

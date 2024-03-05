@@ -1,53 +1,61 @@
 class TransactionsController < ApplicationController
   def index
-    page = (params[:page] || 1).to_i
-    per_page = (params[:per_page] || 50).to_i
-    per_page = 50 if per_page > 50
+    in_cursor_mode = !!(params[:user_cursor_pagination] || params[:page_key])
     
-    if page > 20
-      render json: { error: "Page depth restricted to 20 for performance reasons.
-        Soon we will switch to cursor-based pagination for this endpoint.
-        Please contact hello@facet.org with questions".squish }, status: 400
-      return
+    if in_cursor_mode
+      scope = TransactionReceipt.all
+    else
+      scope = TransactionReceipt.newest_first
+      
+      page = (params[:page] || 1).to_i
+      per_page = (params[:per_page] || 50).to_i
+      per_page = 50 if per_page > 50
+      
+      if page > 20
+        render json: { error: "Page depth restricted to 20 for performance reasons.
+          Soon we will switch to cursor-based pagination for this endpoint.
+          Please contact hello@facet.org with questions".squish }, status: 400
+        return
+      end
     end
     
-    scope = TransactionReceipt.newest_first
-    
-    cache_key = ["transactions_index", EthBlock.max_processed_block_number, page, per_page]
-    
-    if params[:block_number].present?
-      scope = scope.where(block_number: params[:block_number])
-      cache_key << params[:block_number]
-    end
+    scope = filter_by_params(scope, :block_number)
     
     if params[:from].present?
-      scope = scope.where(from_address: params[:from].downcase)
-      cache_key << params[:from].downcase
+      scope = scope.where(from_address: Array.wrap(params[:from]).map(&:downcase))
     end
     
     if params[:to].present?
-      scope = scope.where(effective_contract_address: params[:to].downcase)
-      cache_key << params[:to].downcase
+      scope = scope.where(effective_contract_address: Array.wrap(params[:to]).map(&:downcase))
     end
     
     if params[:to_or_from].present?
-      to_or_from = params[:to_or_from].downcase
+      to_or_from = Array.wrap(params[:to_or_from]).map(&:downcase)
       scope = scope.where(
-        "from_address = :addr OR effective_contract_address = :addr",
+        "from_address = ANY (ARRAY[:addr]) OR effective_contract_address = ANY (ARRAY[:addr])",
         addr: to_or_from
       )
-      cache_key << params[:to_or_from].downcase
     end
-  
-    result = Rails.cache.fetch(cache_key) do
-      res = scope.page(page).per(per_page).to_a
-      numbers_to_strings(res)
+    
+    if params[:after_block].present?
+      scope = scope.where("block_number > ?", params[:after_block])
     end
-  
-    render json: {
-      result: result,
-      count: (scope.count if page <= 10)
-    }
+
+    cache_on_block do
+      if in_cursor_mode
+        results, pagination_response = paginate(scope)
+      
+        render json: {
+          result: numbers_to_strings(results),
+          pagination: pagination_response
+        }
+      else
+        render json: {
+          result: numbers_to_strings(scope.page(page).per(per_page).to_a),
+          count: (scope.count if page <= 10)
+        }
+      end
+    end
   end
 
   def show

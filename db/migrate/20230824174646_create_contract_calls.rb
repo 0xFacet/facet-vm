@@ -10,6 +10,7 @@ class CreateContractCalls < ActiveRecord::Migration[7.1]
       t.string :function
       t.jsonb :args, default: {}, null: false
       t.string :call_type, null: false
+      t.string :call_level, null: false
       t.jsonb :return_value
       t.jsonb :logs, default: [], null: false
       t.jsonb :error
@@ -39,10 +40,13 @@ class CreateContractCalls < ActiveRecord::Migration[7.1]
       t.check_constraint "from_address ~ '^0x[a-f0-9]{40}$'"
       
       t.check_constraint "call_type IN ('call', 'create')"
-      t.check_constraint "call_type <> 'create' OR created_contract_address IS NOT NULL"
       t.check_constraint "call_type <> 'call' OR to_contract_address IS NOT NULL"
-      t.check_constraint "(to_contract_address IS NULL) != (created_contract_address IS NULL)"
       t.check_constraint "(call_type = 'create' AND effective_contract_address = created_contract_address) OR (call_type = 'call' AND effective_contract_address = to_contract_address)"
+      
+      t.check_constraint "
+        (call_type = 'create' AND call_level = 'high') OR
+        (call_type = 'call' AND call_level IN ('high', 'low'))
+      "
       
       t.check_constraint "status IN ('success', 'failure')"
       t.check_constraint "(status = 'failure' AND error IS NOT NULL) OR (status = 'success' AND error IS NULL)"

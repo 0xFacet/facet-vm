@@ -1,0 +1,142 @@
+pragma :rubidity, "1.0.0"
+
+import "./Upgradeable.rubidity"
+import "./ERC721.rubidity"
+
+contract :INFTCollection01, abstract: true do
+  function :owner, :external, :view, returns: :address
+end
+
+contract :EditionMetadataRenderer01, is: :Upgradeable, upgradeable: true do
+  struct :TokenEditionInfo do
+    string :name
+    string :description
+    string :imageURI
+    string :animationURI
+  end
+  
+  event :MediaURIsUpdated, { target: :address, sender: :address, imageURI: :string, animationURI: :string }
+  event :EditionInitialized, { target: :address, description: :string, imageURI: :string, animationURI: :string, name: :string }
+  event :DescriptionUpdated, { target: :address, sender: :address, newDescription: :string }
+
+  mapping ({ address: :TokenEditionInfo }), :public, :tokenInfos
+
+  constructor() {
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+  }
+
+  function :requireSenderAdmin, { target: :address }, :internal, :pure do
+    require(target == msg.sender || INFTCollection01(target).owner() == msg.sender, "Admin access only")
+  end
+
+  function :updateMediaURIs, { target: :address, imageURI: :string, animationURI: :string }, :external do
+    requireSenderAdmin(target)
+
+    s.tokenInfos[target].imageURI = imageURI
+    s.tokenInfos[target].animationURI = animationURI
+    emit :MediaURIsUpdated, target: target, sender: msg.sender, imageURI: imageURI, animationURI: animationURI
+  end
+
+  function :updateDescription, { target: :address, newDescription: :string }, :external do
+    requireSenderAdmin(target)
+
+    s.tokenInfos[target].description = newDescription
+    emit :DescriptionUpdated, target: target, sender: msg.sender, newDescription: newDescription
+  end
+
+  function :initializeWithData, {
+    info: :TokenEditionInfo
+  }, :external do
+    s.tokenInfos[msg.sender] = info
+    
+    emit :EditionInitialized, target: msg.sender, description: info.description, imageURI: info.imageURI, animationURI: info.animationURI, name: info.name
+  end
+  
+  function :contractURI, :external, :view, returns: :string do
+    target = msg.sender
+    editionInfo = s.tokenInfos[target]
+    
+    encodeContractURIJSON(
+      editionInfo.name,
+      editionInfo.description,
+      editionInfo.imageURI,
+      editionInfo.animationURI
+    )
+  end
+
+  function :tokenURI, { tokenId: :uint256 }, :external, :view, returns: :string do
+    target = msg.sender
+    info = s.tokenInfos[target]
+    
+    createMetadataEdition(
+      info.name,
+      info.description,
+      info.imageURI,
+      info.animationURI,
+      tokenId
+    )
+  end
+
+  function :createMetadataEdition, {
+    name: :string,
+    description: :string,
+    imageURI: :string,
+    animationURI: :string,
+    tokenOfEdition: :uint256
+  }, :internal, :pure, returns: :string do
+    _tokenMediaData = tokenMediaData(imageURI, animationURI)
+    json = createMetadataJSON(
+      name,
+      description,
+      _tokenMediaData,
+      tokenOfEdition
+    )
+    encodeMetadataJSON(json)
+  end
+
+  function :encodeContractURIJSON, {
+    name: :string,
+    description: :string,
+    imageURI: :string,
+    animationURI: :string
+  }, :internal, :pure, returns: :string do
+    imageSpace = imageURI.length > 0 ? '", "image": "' + imageURI : ""
+    animationSpace = animationURI.length > 0 ? '", "animation_url": "' + animationURI : ""
+
+    encodeMetadataJSON(
+      '{"name": "' + name +
+      '", "description": "' + description +
+      imageSpace + animationSpace + '"}'
+    )
+  end
+
+  function :createMetadataJSON, {
+    name: :string,
+    description: :string,
+    mediaData: :string,
+    tokenOfEdition: :uint256
+  }, :internal, :pure, returns: :string do
+    '{"name": "' + name + " " + tokenOfEdition.toString() +
+    '", "description": "' + description + '", "' + mediaData +
+    'properties": {"number": ' + tokenOfEdition.toString() +
+    ', "name": "' + name + '"}}'
+  end
+
+  function :encodeMetadataJSON, { json: :string }, :internal, :pure, returns: :string do
+    "data:application/json;base64," + json.base64Encode
+  end
+
+  function :tokenMediaData, { imageUrl: :string, animationUrl: :string }, :internal, :pure, returns: :string do
+    hasImage = imageUrl.length > 0
+    hasAnimation = animationUrl.length > 0
+    if hasImage && hasAnimation
+      return 'image": "' + imageUrl + '", "animation_url": "' + animationUrl + '", "'
+    elsif hasImage
+      return 'image": "' + imageUrl + '", "'
+    elsif hasAnimation
+      return 'animation_url": "' + animationUrl + '", "'
+    end
+    
+    ""
+  end
+end

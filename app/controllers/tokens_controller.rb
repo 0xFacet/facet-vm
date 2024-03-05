@@ -89,12 +89,14 @@ class TokensController < ApplicationController
 
       state = contract.current_state
 
-      if !state["balanceOf"]
+      holderBalances = state["balanceOf"] || state["_balanceOf"]
+
+      if !holderBalances
         render json: { error: "Invalid contract" }, status: 400
         return
       end
 
-      numbers_to_strings(state["balanceOf"])
+      numbers_to_strings(holderBalances)
     end
 
     render json: {
@@ -103,7 +105,7 @@ class TokensController < ApplicationController
   end
 
   def swaps
-    # expires_in 1.second, public: true
+    expires_in(6, "s-maxage": 12.seconds, public: true)
     
     contract_address = params[:address]&.downcase
     from_timestamp = params[:from_timestamp].to_i

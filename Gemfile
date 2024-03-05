@@ -1,7 +1,7 @@
 source "https://rubygems.org"
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
-ruby "3.2.2"
+ruby "3.3.0"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
 gem "rails", "~> 7.1.2"
@@ -45,7 +45,7 @@ end
 group :development do
   # Speed up commands on slow machines / big apps [https://github.com/rails/spring]
   # gem "spring"
-  gem "stackprof", "~> 0.2.25"
+  gem "stackprof"
   gem "active_record_query_trace", "~> 1.8"
 end
 
@@ -71,7 +71,7 @@ gem "eth", "~> 0.5.11"
 
 gem "activerecord-import", "~> 1.5"
 
-gem "unparser", "~> 0.6.10"
+gem "unparser"
 
 gem "scout_apm", "~> 5.3"
 
@@ -84,3 +84,5 @@ gem "clipboard"
 gem "descriptive_statistics", "~> 2.5"
 
 gem 'facet_rails_common', git: 'https://github.com/0xfacet/facet_rails_common.git'
+
+gem "order_query", "~> 0.5.3"

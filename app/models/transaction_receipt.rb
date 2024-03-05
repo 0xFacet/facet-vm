@@ -1,15 +1,30 @@
 class TransactionReceipt < ApplicationRecord
-  belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number
+  include OrderQuery
+  
+  belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, inverse_of: :transaction_receipts, optional: true, autosave: false
 
-  belongs_to :contract, primary_key: 'address', foreign_key: 'effective_contract_address', optional: true
-  belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
+  belongs_to :contract, primary_key: 'address', foreign_key: 'effective_contract_address', optional: true, autosave: false
+  belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true, inverse_of: :transaction_receipt, autosave: false
   belongs_to :ethscription,
   primary_key: 'transaction_hash', foreign_key: 'transaction_hash',
-  optional: true
+  optional: true, autosave: false, inverse_of: :transaction_receipt
   
-  scope :newest_first, -> { order(block_number: :desc, transaction_index: :desc) }
-  scope :oldest_first, -> { order(block_number: :asc, transaction_index: :asc) }
+  order_query :newest_first,
+    [:block_number, :desc],
+    [:transaction_index, :desc, unique: true]
   
+  order_query :oldest_first,
+    [:block_number, :asc],
+    [:transaction_index, :asc, unique: true]
+  
+  def self.find_by_page_key(...)
+    find_by_transaction_hash(...)
+  end
+  
+  def page_key
+    transaction_hash
+  end
+    
   def contract
     Contract.find_by_address(address)
   end

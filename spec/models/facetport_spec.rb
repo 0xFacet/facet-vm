@@ -242,7 +242,8 @@ describe 'FacetPort contract' do
             considerationAmount: 1.ether.to_s,
             startTime: start_time.to_s,
             endTime: end_time.to_s,
-            signature: "0x" + signature
+            signature: "0x" + signature,
+            recipient: charlie
           }
         }
       }
@@ -289,7 +290,23 @@ describe 'FacetPort contract' do
       function_name: "ownerOf",
       function_args: aliceNFTs.first
     )
-    expect(nft_owner).to eq(bob)
+    expect(nft_owner).to eq(charlie)
+
+    trigger_contract_interaction_and_expect_success(
+      from: charlie,
+      payload: {
+        op: "call",
+        data: {
+          to: nft.address,
+          function: "transferFrom",
+          args: {
+            from: charlie,
+            to: bob,
+            id: aliceNFTs.first
+          }
+        }
+      }
+    )
     
     bid_id = "0x" + SecureRandom.hex(16)
     start_time = Time.current.to_i
@@ -373,7 +390,8 @@ describe 'FacetPort contract' do
             considerationAmounts: [bid_amount],
             startTimes: [start_time],
             endTimes: [end_time],
-            signatures: ["0x" + signature]
+            signatures: ["0x" + signature],
+            recipients: ["0x0000000000000000000000000000000000000000"]
           }
         }
       }
@@ -490,7 +508,8 @@ describe 'FacetPort contract' do
             considerationAmounts: bid_amounts,
             startTimes: Array.new(bid_count, start_time),
             endTimes: Array.new(bid_count, end_time),
-            signatures: signatures.map { |sig| "0x" + sig }
+            signatures: signatures.map { |sig| "0x" + sig },
+            recipients: Array.new(bid_count, "0x0000000000000000000000000000000000000000")
           }
         }
       }
@@ -620,7 +639,8 @@ describe 'FacetPort contract' do
             considerationAmounts: prices,
             startTimes: Array.new(listing_count, start_time),
             endTimes: Array.new(listing_count, end_time),
-            signatures: signatures.map { |sig| "0x" + sig }
+            signatures: signatures.map { |sig| "0x" + sig },
+            recipients: Array.new(listing_count, "0x0000000000000000000000000000000000000000")
           }
         }
       }

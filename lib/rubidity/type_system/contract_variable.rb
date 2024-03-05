@@ -84,11 +84,11 @@ class ContractVariable < TypedVariable
       end
       
       begin
-        new_implementation_class = TransactionContext.supported_contract_class(
+        new_implementation_class = BlockContext.supported_contract_class(
           new_init_code_hash,
           typed_source.value.presence
         )
-      rescue UnknownInitCodeHash, Parser::SyntaxError => e
+      rescue UnknownInitCodeHash, ContractSourceNotProvided, Parser::SyntaxError => e
         raise ContractError.new(e.message, target)
       end
       

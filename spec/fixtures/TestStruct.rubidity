@@ -1,0 +1,101 @@
+pragma :rubidity, "1.0.0"
+
+contract :TestStruct do
+  struct :Person do
+    string :name
+    uint256 :age
+  end
+  
+  Person :public, :testPerson
+  
+  mapping ({ string: :Person }), :public, :addressToPerson
+  
+  array :Person, :public, :movieFans
+  
+  constructor() {
+    person = Person(name: "Bob", age: 42)
+    s.testPerson = person
+    person.age = 20
+    
+    require(s.testPerson.age == 42, "Age should still be 42")
+    
+    personA = Person(name: "Alice", age: 42)
+    
+    s.addressToPerson["Alice"] = personA
+    
+    personA.age = 20
+    
+    require(s.addressToPerson["Alice"].age == 42, "Age should still be 42")
+    
+    s.addressToPerson["Alice"].age = 100
+    
+    require(personA.age == 20, "Age should be 20")
+    
+    s.addressToPerson["1600 Penn"] = s.testPerson
+    
+    fan1 = Person(name: "Robert", age: 20)
+    fan2 = Person(name: "Roberta", age: 30)
+    s.movieFans.push(fan1)
+    s.movieFans.push(fan2)
+  }
+  
+  function :getAllMovieFans, :public, :view, returns: array(:Person) do
+    return s.movieFans
+  end
+  
+  function :addMovieFan, { _fan: :Person }, :public do
+    s.movieFans.push(_fan)
+    return nil
+  end
+  
+  function :setFanName, { _name: :string, _index: :uint256 }, :public do
+    s.movieFans[_index].name = _name
+    nil
+  end
+  
+  function :setFan, { _fan: :Person, _index: :uint256 }, :public do
+    s.movieFans[_index] = _fan
+    nil
+  end
+  
+  function :getPersonFromAddress, { address: :string }, :public, :view, returns: :Person do
+    return s.addressToPerson[address]
+  end
+  
+  function :setPersonFromAddress, { address: :string, _person: :Person }, :public do
+    s.addressToPerson[address] = _person
+    nil
+  end
+  
+  function :getAge, :public, :view, returns: :uint256 do
+    return s.testPerson.age
+  end
+  
+  function :setAge, { _age: :uint256 }, :public do
+    memory = memory(s.testPerson)
+    storage = s.testPerson
+    
+    storage.age = _age
+    memory.age = 10000
+    
+    nil
+  end
+  
+  function :getPerson, :public, :view, returns: :Person do
+    return s.testPerson
+  end
+  
+  function :setPerson, { _person: :Person }, :public do
+    s.testPerson = _person
+    nil
+  end
+  
+  function :setPersonVerbose, { age: :uint256, name: :string }, :public do
+    s.testPerson = Person(name: name, age: age)
+    nil
+  end
+  
+  function :getName, { _person: :Person }, :public, :view, returns: :string do
+    return _person.name
+  end
+end

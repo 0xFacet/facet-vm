@@ -28,28 +28,12 @@ class CreateEthscriptions < ActiveRecord::Migration[7.1]
     
       t.check_constraint "processing_state IN ('pending', 'success', 'failure')"
       
-      t.check_constraint "processing_state != 'failure' OR processing_error IS NOT NULL"
       t.check_constraint "processing_state = 'pending' OR processed_at IS NOT NULL"
-      t.check_constraint "processing_state = 'failure' OR processing_error IS NULL"
       
       t.foreign_key :eth_blocks, column: :block_number, primary_key: :block_number, on_delete: :cascade
       
       t.timestamps
     end    
-    
-    # execute <<-SQL
-    #   CREATE OR REPLACE FUNCTION delete_later_ethscriptions()
-    #   RETURNS TRIGGER AS $$
-    #   BEGIN
-    #     DELETE FROM ethscriptions WHERE block_number > OLD.block_number OR (block_number = OLD.block_number AND transaction_index > OLD.transaction_index);
-    #     RETURN OLD;
-    #   END;
-    #   $$ LANGUAGE plpgsql;
-
-    #   CREATE TRIGGER trigger_delete_later_ethscriptions
-    #   AFTER DELETE ON ethscriptions
-    #   FOR EACH ROW EXECUTE FUNCTION delete_later_ethscriptions();
-    # SQL
     
     execute <<-SQL
       CREATE OR REPLACE FUNCTION check_ethscription_order()
@@ -66,31 +50,5 @@ class CreateEthscriptions < ActiveRecord::Migration[7.1]
       BEFORE INSERT ON ethscriptions
       FOR EACH ROW EXECUTE FUNCTION check_ethscription_order();
     SQL
-    
-    # execute <<-SQL
-    #   CREATE OR REPLACE FUNCTION check_ethscription_sequence()
-    #   RETURNS TRIGGER AS $$
-    #   BEGIN
-    #     IF NEW.processing_state != 'pending' THEN
-    #       IF EXISTS (
-    #         SELECT 1
-    #         FROM ethscriptions
-    #         WHERE 
-    #           (block_number < NEW.block_number AND processing_state = 'pending')
-    #           OR 
-    #           (block_number = NEW.block_number AND transaction_index < NEW.transaction_index AND processing_state = 'pending')
-    #         LIMIT 1
-    #       ) THEN
-    #         RAISE EXCEPTION 'Previous ethscription with either a lower block number or a lower transaction index in the same block not yet processed';
-    #       END IF;
-    #     END IF;
-    #     RETURN NEW;
-    #   END;
-    #   $$ LANGUAGE plpgsql;
-      
-    #   CREATE TRIGGER check_ethscription_sequence_trigger
-    #   BEFORE UPDATE OF processing_state ON ethscriptions
-    #   FOR EACH ROW EXECUTE FUNCTION check_ethscription_sequence();
-    # SQL
   end
 end
