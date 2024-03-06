@@ -55,7 +55,7 @@ contract :FacetBuddyFactory, is: [:Upgradeable], upgradeable: true do
   }, :public do
     buddy = findOrCreateBuddy(msg.sender)
     
-    buddy.callForUser(
+    FacetBuddy(buddy).callForUser(
       amountToSpend: amountToSpend,
       addressToCall: addressToCall,
       calldata: calldata
