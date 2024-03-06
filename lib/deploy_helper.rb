@@ -25,6 +25,7 @@ class DeployHelper
       "FacetSwapV1Pair02",
       "FacetSwapV1Router03",
       "AirdropERC20",
+      "MultiSenderERC20",
     ]
     
     supported_contracts = supported_contracts.map do |name|
@@ -74,6 +75,7 @@ class DeployHelper
       "FacetSwapV1Pair02",
       "FacetSwapV1Router02",
       "AirdropERC20",
+      "MultiSenderERC20",
     ]
     
     supported_contracts = supported_contracts.map do |name|
