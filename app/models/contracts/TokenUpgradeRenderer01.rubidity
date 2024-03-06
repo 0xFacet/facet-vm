@@ -55,7 +55,6 @@ contract :TokenUpgradeRenderer01, is: :Upgradeable, upgradeable: true do
     string :name
     string :description
     string :imageURI
-    string :animationURI
   end
   
   mapping ({ address: array(:TokenUpgradeLevel, 1) }), :public, :tokenUpgradeLevelsByCollection
@@ -273,8 +272,7 @@ end
     json_data = json.stringify(
       name: contractInfo.name,
       description: contractInfo.description,
-      image: contractInfo.imageURI,
-      animation_url: contractInfo.animationURI
+      image: contractInfo.imageURI
     )
     
     "data:application/json;base64," + json_data.base64Encode

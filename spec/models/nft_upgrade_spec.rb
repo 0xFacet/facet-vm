@@ -236,8 +236,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
                 contractInfo: {
                   name: "Test Name",
                   description: "Test contract description",
-                  imageURI: "https://test.com/image.png",
-                  animationURI: "https://test.com/animation.png"
+                  imageURI: "https://test.com/image.png"
                 }
               }
             }.to_json
