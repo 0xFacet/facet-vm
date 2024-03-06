@@ -10,43 +10,39 @@ describe 'BridgeAndCall contract' do
   let(:base_uri) { "https://example.com/" }
   let(:name) { "TestNFT" }
   let(:symbol) { "TNFT" }
-  let(:fee) { (0.0005.to_d * 1.ether).to_i }
-  let(:fee_to_address) { "0xf00000000000000000000000000000000000000f" }
   let(:per_mint_fee) { (0.0005.to_d * 1.ether).to_i }
-  
+  let(:fee_to_address) { "0xf00000000000000000000000000000000000000f" }
+
   before(:all) do
-    update_supported_contracts("EtherBridge02")
-    update_supported_contracts("BridgeAndCallHelper")
-    update_supported_contracts("NFTCollection01")
+    update_supported_contracts("EtherBridge03")
+    update_supported_contracts("FacetBuddyFactory")
+    update_supported_contracts("FacetBuddy")
   end
   
   it "does things" do
-    helper = trigger_contract_interaction_and_expect_success(
+    erc20Bridge = trigger_contract_interaction_and_expect_success(
       from: alice,
       payload: {
         op: :create,
         data: {
-          type: "BridgeAndCallHelper",
+          type: "EtherBridge03",
           args: {
-            bridge: "0x0000000000000000000000000000000000000000",
-            owner: alice,
-            fee: fee
+            name: "Facet Ether",
+            symbol: "FETH",
+            trustedSmartContract: trusted_smart_contract
           }
         }
       }
     )
     
-    bridge = trigger_contract_interaction_and_expect_success(
+    factory = trigger_contract_interaction_and_expect_success(
       from: alice,
       payload: {
         op: :create,
         data: {
-          type: "EtherBridge02",
+          type: "FacetBuddyFactory",
           args: {
-            name: "Facet Ether",
-            symbol: "FETH",
-            trustedSmartContract: trusted_smart_contract,
-            bridgeAndCallHelper: helper.address
+            erc20Bridge: erc20Bridge.address,
           }
         }
       }
@@ -57,9 +53,9 @@ describe 'BridgeAndCall contract' do
       payload: {
         op: :call,
         data: {
-          to: helper.address,
-          function: "setBridge",
-          args: bridge.address
+          to: erc20Bridge.address,
+          function: "setFacetBuddyFactory",
+          args: factory.address
         }
       }
     )
@@ -69,7 +65,7 @@ describe 'BridgeAndCall contract' do
       payload: {
         op: :call,
         data: {
-          to: bridge.address,
+          to: erc20Bridge.address,
           function: "bridgeIn",
           args: {
             to: bob,
@@ -78,6 +74,8 @@ describe 'BridgeAndCall contract' do
         }
       }
     )
+    
+    bridge = erc20Bridge
     
     nft_contract = trigger_contract_interaction_and_expect_success(
       from: alice,
@@ -133,6 +131,12 @@ describe 'BridgeAndCall contract' do
     
     expect(nft_balance).to eq(0)
     
+    expected_buddy_address = ContractTransaction.make_static_call(
+      contract: bridge.address,
+      function_name: "predictBuddyAddress",
+      function_args: daryl
+    )
+    
     trigger_contract_interaction_and_expect_success(
       from: trusted_smart_contract,
       payload: {
@@ -150,6 +154,14 @@ describe 'BridgeAndCall contract' do
       }
     )
     
+    actual_buddy_address = ContractTransaction.make_static_call(
+      contract: factory.address,
+      function_name: "buddyForUser",
+      function_args: daryl
+    )
+    
+    expect(actual_buddy_address).to eq(expected_buddy_address)
+    
     nft_balance = ContractTransaction.make_static_call(
       contract: nft_contract.address,
       function_name: "balanceOf",
@@ -164,15 +176,7 @@ describe 'BridgeAndCall contract' do
       function_args: daryl
     )
     
-    expect(eth_balance).to eq(2.ether - fee - mint_fee)
-    
-    eth_balance = ContractTransaction.make_static_call(
-      contract: bridge.address,
-      function_name: "balanceOf",
-      function_args: alice
-    )
-    
-    expect(eth_balance).to eq(fee)
+    expect(eth_balance).to eq(2.ether - mint_fee)
     
     call_data = ["airdrop", charlie, 3, []].to_json
     
@@ -207,6 +211,6 @@ describe 'BridgeAndCall contract' do
       function_args: charlie
     )
     
-    expect(eth_balance).to eq(2.ether - fee - mint_fee)
+    expect(eth_balance).to eq(2.ether - mint_fee)
   end
 end

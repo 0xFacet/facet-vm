@@ -1,0 +1,295 @@
+pragma :rubidity, "1.0.0"
+
+import "./Upgradeable.rubidity"
+import "./ERC721.rubidity"
+import "./ERC20.rubidity"
+
+contract :INFTCollection01, abstract: true do
+  function :owner, :external, :view, returns: :address
+end
+
+contract :TokenUpgradeRenderer01, is: :Upgradeable, upgradeable: true do
+  event :CollectionInitialized, {
+    collection: :address,
+    contractInfo: :ContractInfo,
+    initialLevel: :TokenUpgradeLevel
+  }
+  
+  event :UpgradeLevelUpdated, {
+    collection: :address,
+    index: :uint256,
+    name: :string,
+    imageURI: :string,
+    animationURI: :string,
+    startTime: :uint256,
+    endTime: :uint256,
+    newRecord: :bool
+  }
+  
+  event :TokenUpgraded, {
+    collection: :address,
+    tokenId: :uint256,
+    upgradeLevel: :uint256
+  }
+  
+  event :ContractInfoUpdated, {
+    collection: :address,
+    newInfo: :ContractInfo
+  }
+  
+  struct :TokenUpgradeLevel do
+    string :name
+    string :imageURI
+    string :animationURI
+    string :extraAttributesJson
+    uint256 :startTime
+    uint256 :endTime
+  end
+  
+  struct :TokenStatus do
+    uint256 :upgradeLevel
+    uint256 :lastUpgradeTime
+  end
+  
+  struct :ContractInfo do
+    string :name
+    string :description
+    string :imageURI
+  end
+  
+  mapping ({ address: array(:TokenUpgradeLevel, 1) }), :public, :tokenUpgradeLevelsByCollection
+  mapping ({ address: mapping(uint256: :TokenStatus) }), :public, :tokenStatusByCollection
+  mapping ({ address: :ContractInfo }), :public, :contractInfoByCollection
+  
+  uint256 :public, :perUpgradeFee
+  address :public, :feeTo
+  address :public, :WETH
+  uint256 :public, :maxUpgradeLevelCount
+  
+  constructor(
+    perUpgradeFee: :uint256,
+    feeTo: :address,
+    weth: :address
+  ) {
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+    
+    s.maxUpgradeLevelCount = 30
+    s.perUpgradeFee = perUpgradeFee
+    s.feeTo = feeTo
+    s.WETH = weth
+  }
+  
+  function :addUpgradeLevel, { collection: :address, newLevel: :TokenUpgradeLevel }, :public do
+    requireSenderAdmin(collection)
+    
+    lastLevel = s.tokenUpgradeLevelsByCollection[collection].last
+    
+    require(newLevel.endTime > newLevel.startTime, "End time must be after start time")
+    require(newLevel.startTime > lastLevel.endTime, "Start time must be after last level end time")
+    require(s.tokenUpgradeLevelsByCollection[collection].length + 1 <= s.maxUpgradeLevelCount, "Max upgrade level count reached")
+    
+    s.tokenUpgradeLevelsByCollection[collection].push(newLevel)
+    
+    emit :UpgradeLevelUpdated,
+      collection: collection,
+      index: s.tokenUpgradeLevelsByCollection[collection].length - 1,
+      name: newLevel.name,
+      imageURI: newLevel.imageURI,
+      animationURI: newLevel.animationURI,
+      startTime: newLevel.startTime,
+      endTime: newLevel.endTime,
+      newRecord: true
+  end
+  
+  function :editUpgradeLevel, { collection: :address, index: :uint256, newLevel: :TokenUpgradeLevel }, :public do
+    requireSenderAdmin(collection)
+    
+    editingFirstLevel = index == 0
+    editingLastLevel = index == s.tokenUpgradeLevelsByCollection[collection].length - 1
+    
+    unless editingLastLevel
+      nextLevel = s.tokenUpgradeLevelsByCollection[collection][index + 1]
+      require(newLevel.endTime < nextLevel.startTime, "End time must be before next level start time")
+    end
+    
+    if editingFirstLevel
+      newLevel.startTime = 0
+      newLevel.endTime = 0
+    else
+      precedingLevel = s.tokenUpgradeLevelsByCollection[collection][index - 1]
+      
+      require(newLevel.startTime > precedingLevel.endTime, "Start time must be after preceding level end time")
+      require(newLevel.endTime > newLevel.startTime, "End time must be after start time")
+    end
+        
+    s.tokenUpgradeLevelsByCollection[collection][index] = newLevel
+    
+    emit :UpgradeLevelUpdated,
+      collection: collection,
+      index: index,
+      name: newLevel.name,
+      imageURI: newLevel.imageURI,
+      animationURI: newLevel.animationURI,
+      startTime: newLevel.startTime,
+      endTime: newLevel.endTime,
+      newRecord: false
+  end
+  
+  function :activeUpgradeLevelIndex, { collection: :address }, :public, :view, returns: :uint256 do
+    forLoop(
+      condition: -> i { i < s.tokenUpgradeLevelsByCollection[collection].length }
+    ) do |i|
+      level = s.tokenUpgradeLevelsByCollection[collection][i]
+      if level.startTime <= block.timestamp && level.endTime > block.timestamp
+        return i
+      elsif level.startTime > block.timestamp
+        return 0
+      end
+    end
+    
+    return 0
+  end
+  
+  function :activeUpgradeLevel, { collection: :address }, :public, :view, returns: :TokenUpgradeLevel do
+    index = activeUpgradeLevelIndex(collection)
+    
+    return index == 0 ? TokenUpgradeLevel() : s.tokenUpgradeLevelsByCollection[collection][index]
+  end
+  
+  function :_upgradeToken, {
+    collection: :address,
+    tokenId: :uint256,
+    activeUpgrade: :TokenUpgradeLevel
+  }, :internal do
+    require(
+      ERC721(collection).isApprovedOrOwner(spender: msg.sender, id: tokenId),
+      "TokenUpgradeRenderer: msg.sender not authorized to upgrade id #{tokenId.toString}"
+    );
+    
+    tokenStatus = s.tokenStatusByCollection[collection][tokenId]
+
+    require(tokenStatus.lastUpgradeTime < activeUpgrade.startTime, "TokenUpgradeRenderer: Token already upgraded during this period")
+    
+    targetLevelIndex = tokenStatus.upgradeLevel + 1
+    require(targetLevelIndex < s.tokenUpgradeLevelsByCollection[collection].length, "TokenUpgradeRenderer: No more upgrade levels")
+    
+    tokenStatus.upgradeLevel = targetLevelIndex
+    tokenStatus.lastUpgradeTime = block.timestamp
+    
+    emit :TokenUpgraded, collection: collection, tokenId: tokenId, upgradeLevel: tokenStatus.upgradeLevel
+  end
+  
+  function :upgradeMultipleTokens, { collection: :address, tokenIds: [:uint256] }, :public do
+    require(tokenIds.length <= 100, "TokenUpgradeRenderer: Cannot upgrade more than 50 tokens at once")
+    
+    totalFee = s.perUpgradeFee * tokenIds.length
+    if totalFee > 0 && s.feeTo != address(0)
+      ERC20(s.WETH).transferFrom(
+        msg.sender,
+        s.feeTo,
+        totalFee
+      )
+    end
+    
+    activeUpgradeIndex = activeUpgradeLevelIndex(collection)
+    require(activeUpgradeIndex > 0, "TokenUpgradeRenderer: No active upgrade level")
+    
+    activeUpgrade = s.tokenUpgradeLevelsByCollection[collection][activeUpgradeIndex]
+    
+    forLoop(
+      condition: -> i { i < tokenIds.length }
+    ) do |i|
+      _upgradeToken(
+        collection: collection,
+        tokenId: tokenIds[i],
+        activeUpgrade: activeUpgrade
+      )
+    end
+  end
+
+  function :setContractInfo, { collection: :address, info: :ContractInfo }, :public do
+    requireSenderAdmin(collection)
+    
+    s.contractInfoByCollection[collection] = info
+    emit :ContractInfoUpdated, collection: collection, newInfo: info
+  end
+
+function :tokenURI, { tokenId: :uint256 }, :external, :view, returns: :string do
+  collection = msg.sender
+  
+  status = s.tokenStatusByCollection[collection][tokenId]
+  upgradeLevel = s.tokenUpgradeLevelsByCollection[collection][status.upgradeLevel]
+  
+  name_json = json.stringify("#{upgradeLevel.name} ##{tokenId.toString()}")
+  description_json = json.stringify(s.contractInfoByCollection[collection].description)
+  
+  image_field = upgradeLevel.imageURI.length == 0 ? "" : %Q("image": #{json.stringify(upgradeLevel.imageURI)},)
+  animation_url_field = upgradeLevel.animationURI.length == 0 ? "" : %Q("animation_url": #{json.stringify(upgradeLevel.animationURI)},)
+  
+  basic_attributes_json = json.stringify([
+    {"trait_type": "Number", "display_type": "number", "value": tokenId},
+    {"trait_type": "Level", "value": upgradeLevel.name}
+  ])
+  
+  extra_attributes_json = upgradeLevel.extraAttributesJson != "" ? ", " + upgradeLevel.extraAttributesJson : ""
+  
+  json_data = <<-JSON
+    {
+      "name": #{name_json},
+      "description": #{description_json},
+      #{image_field}
+      #{animation_url_field}
+      "attributes": [#{basic_attributes_json[1..-2]}#{extra_attributes_json}]
+    }
+  JSON
+  
+  "data:application/json;base64," + json_data.base64Encode
+end
+  
+  function :initializeWithData, {
+    contractInfo: :ContractInfo,
+    initialLevel: :TokenUpgradeLevel,
+  }, :external do
+    setContractInfo(
+      collection: msg.sender,
+      info: contractInfo
+    )
+    
+    editUpgradeLevel(
+      collection: msg.sender,
+      index: 0,
+      newLevel: initialLevel
+    )
+    
+    emit :CollectionInitialized, collection: msg.sender, contractInfo: contractInfo, initialLevel: initialLevel
+  end
+  
+  function :contractURI, :external, :view, returns: :string do
+    collection = msg.sender
+    
+    contractInfo = s.contractInfoByCollection[collection]
+    
+    json_data = json.stringify(
+      name: contractInfo.name,
+      description: contractInfo.description,
+      image: contractInfo.imageURI
+    )
+    
+    "data:application/json;base64," + json_data.base64Encode
+  end
+  
+  function :upgradeLevelCount, { collection: :address }, :public, :view, returns: :uint256 do
+    return s.tokenUpgradeLevelsByCollection[collection].length
+  end
+  
+  function :requireSenderAdmin, { target: :address }, :internal, :view do
+    require(target == msg.sender || INFTCollection01(target).owner() == msg.sender, "Admin access only")
+  end
+  
+  function :setFeeTo, { feeTo: :address }, :public do
+    require(msg.sender == s.feeTo, "Only feeTo can change feeTo")
+    
+    s.feeTo = feeTo
+    nil
+  end
+end

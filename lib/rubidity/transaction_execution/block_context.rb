@@ -228,7 +228,9 @@ class BlockContext < ActiveSupport::CurrentAttributes
   end
     
   def create_artifact_and_build_class(init_code_hash, source_code = nil)
-    raise "Need source code to create new artifact" unless source_code
+    unless source_code
+      raise ContractSourceNotProvided.new("Need source code to create new artifact")
+    end
   
     artifact = RubidityTranspiler.new(source_code).get_desired_artifact(init_code_hash)
     
