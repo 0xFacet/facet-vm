@@ -231,7 +231,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
                   animationURI: "https://example.com/animation.png",
                   extraAttributesJson: "",
                   startTime: 0,
-                  endTime: 1,
+                  endTime: 0,
                 },
                 contractInfo: {
                   name: "Test Name",
