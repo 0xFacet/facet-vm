@@ -5,7 +5,7 @@ RSpec.describe Contract, type: :model do
   let(:trusted_address) { "0x019824B229400345510A3a7EFcFB77fD6A78D8d0" }
 
   before(:all) do
-    update_supported_contracts("MultiSenderERC20")
+    update_supported_contracts("ERC20BatchTransfer")
   end
 
   before do
@@ -13,7 +13,7 @@ RSpec.describe Contract, type: :model do
       command: 'deploy',
       from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
       data: {
-        "protocol": "MultiSenderERC20",
+        "protocol": "ERC20BatchTransfer",
         "constructorArgs": {
         },
       }
@@ -26,7 +26,7 @@ RSpec.describe Contract, type: :model do
         command: 'call',
         from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
        data: {
-              "protocol": "MultiSenderERC20",
+              "protocol": "ERC20BatchTransfer",
               "constructorArgs": {
               },
             }
@@ -47,8 +47,8 @@ RSpec.describe Contract, type: :model do
     end
 
    it "will simulate a deploy transaction for multi sender ERC20" do
-      transpiled = RubidityTranspiler.transpile_file("MultiSenderERC20")
-      item = transpiled.detect{|i| i.name.to_s == "MultiSenderERC20"}
+      transpiled = RubidityTranspiler.transpile_file("ERC20BatchTransfer")
+      item = transpiled.detect{|i| i.name.to_s == "ERC20BatchTransfer"}
 
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
       data = {

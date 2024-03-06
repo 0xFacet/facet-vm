@@ -2,7 +2,7 @@ pragma :rubidity, "1.0.0"
 
 import './ERC20.rubidity'
 
-contract :MultiSenderERC20 do
+contract :ERC20BatchTransfer do
   event :MultiTransfer, { tokenAddress: :address, recipients: [:address], amounts: [:uint256] }
   event :WithdrawStuckTokens, { tokenAddress: :address, to: :address, amount: :uint256 }
   
