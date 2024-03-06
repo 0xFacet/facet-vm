@@ -30,7 +30,8 @@ contract :FacetBuddy do
   
   function :_makeCall, {
     addressToCall: :address,
-    calldata: :string
+    calldata: :string,
+    revertOnFailure: :bool
   }, :internal do
     require(addressToCall != address(this), "Cannot call self")
     require(!s.locked, 'No reentrancy allowed')
@@ -41,6 +42,8 @@ contract :FacetBuddy do
     _approve(addressToCall, initialBalance)
     
     (success, data) = addressToCall.call(calldata)
+    
+    require(success || !revertOnFailure, "Call failed: (#{calldata})")
     
     _approve(addressToCall, 0)
     
@@ -62,12 +65,15 @@ contract :FacetBuddy do
         resultData: data
   end
   
-  function :callFromUser, {
+  function :callForUser, {
     amountToSpend: :uint256,
     addressToCall: :address,
     calldata: :string
   }, :public do
-    require(msg.sender == s.forUser, "Only the user can callFromUser")
+    require(
+      msg.sender == s.forUser || msg.sender == s.factory,
+      "Only the user or factory can callFromPermissionedNonBridge"
+    )
     
     ERC20(s.erc20Bridge).transferFrom(
       s.forUser,
@@ -75,23 +81,7 @@ contract :FacetBuddy do
       amountToSpend
     )
     
-    _makeCall(addressToCall, calldata)
-  end
-  
-  function :callFromFactory, {
-    amountToSpend: :uint256,
-    addressToCall: :address,
-    calldata: :string
-  }, :public do
-    require(msg.sender == s.factory, "Only the factory can callFromFactory")
-    
-    ERC20(s.erc20Bridge).transferFrom(
-      s.forUser,
-      address(this),
-      amountToSpend
-    )
-    
-    _makeCall(addressToCall, calldata)
+    _makeCall(addressToCall, calldata, true)
   end
   
   function :callFromBridge, {
@@ -100,7 +90,7 @@ contract :FacetBuddy do
   }, :public do
     require(msg.sender == s.erc20Bridge, "Only the bridge can callFromBridge")
     
-    _makeCall(addressToCall, calldata)
+    _makeCall(addressToCall, calldata, false)
   end
   
   function :_balance, :internal, :view, returns: :uint256 do
