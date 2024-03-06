@@ -448,5 +448,59 @@ RSpec.describe Contract, type: :model do
         expect(call_receipt_fail).to be_a(TransactionReceipt)
         expect(call_receipt_fail.status).to eq("failure")
         end
+
+
+   it "will make an actual call to withdraw mistaken funds" do
+   deploy = trigger_contract_interaction_and_expect_success(
+                 command: 'deploy',
+                 from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
+                 data: {
+                   "protocol": "AirdropERC20",
+                   "constructorArgs": {
+                     "name": "My Funs Token",
+                     "symbol": "FUN",
+                     "owner": "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
+                     "maxSupply": "21000000",
+                     "perMintLimit": "1000",
+                     "decimals": 18
+                   },
+                 }
+               )
+
+   trigger_contract_interaction_and_expect_success(
+     command: 'call',
+     from: '0x019824B229400345510A3a7EFcFB77fD6A78D8d0',
+     data: {
+       "contract": deploy.address,
+       functionName: "airdropMultiple",
+       args: [
+         [@creation_receipt_multi_sender_erc20.address],
+         ["10"]
+       ]
+     }
+   )
+
+    withdraw = trigger_contract_interaction_and_expect_success(
+            command: 'call',
+            from: '0x019824B229400345510A3a7EFcFB77fD6A78D8d0',
+            data: {
+              "contract": @creation_receipt_multi_sender_erc20.address,
+              functionName: "withdrawStuckTokens",
+              args: [
+                deploy.address, '0x019824B229400345510A3a7EFcFB77fD6A78D8d0', "10"
+                ]
+            }
+          )
+
+          erc20_balance = ContractTransaction.make_static_call(
+            contract: deploy.address,
+            function_name: "balanceOf",
+            function_args: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0"
+          )
+
+          expect(erc20_balance).to eq(10)
+
+        expect(withdraw.contract.states.count).to eq(1)
+        end
     end
 end
