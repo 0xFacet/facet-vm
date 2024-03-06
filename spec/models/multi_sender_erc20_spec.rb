@@ -31,7 +31,7 @@ RSpec.describe Contract, type: :model do
       )
     end
 
-    it "won't call constructor after deployed (airdrop)" do
+    it "won't call constructor after deployed (multi sender)" do
       trigger_contract_interaction_and_expect_call_error(
         command: 'call',
         from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
@@ -45,7 +45,7 @@ RSpec.describe Contract, type: :model do
       )
     end
 
-   it "will simulate a deploy transaction for airdrop ERC20" do
+   it "will simulate a deploy transaction for multi sender" do
       transpiled = RubidityTranspiler.transpile_file("MultiSenderERC20")
       item = transpiled.detect{|i| i.name.to_s == "MultiSenderERC20"}
 
@@ -74,7 +74,7 @@ RSpec.describe Contract, type: :model do
       }
     end
 
-    it "will simulate a call to check airdrop is working" do
+    it "will simulate a call to check multi send transfer multiple is working" do
        deploy = trigger_contract_interaction_and_expect_success(
               command: 'deploy',
               from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
