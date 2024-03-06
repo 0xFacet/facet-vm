@@ -48,14 +48,14 @@ contract :FacetBuddyFactory, is: [:Upgradeable], upgradeable: true do
     return buddy
   end
   
-  function :callBuddyFromUser, {
+  function :callBuddyForUser, {
     amountToSpend: :uint256,
     addressToCall: :address,
     calldata: :string
   }, :public do
     buddy = findOrCreateBuddy(msg.sender)
     
-    buddy.callFromFactory(
+    FacetBuddy(buddy).callForUser(
       amountToSpend: amountToSpend,
       addressToCall: addressToCall,
       calldata: calldata
