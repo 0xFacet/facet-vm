@@ -29,7 +29,7 @@ contract :FacetBuddy do
   function :_makeCall, {
     addressToCall: :address,
     calldata: :string
-  }, :public do
+  }, :internal do
     require(addressToCall != address(this), "Cannot call self")
     require(!s.locked, 'No reentrancy allowed')
     s.locked = true
