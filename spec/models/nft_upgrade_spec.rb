@@ -418,7 +418,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
       payload: {
         to: buddy_address,
         data: {
-          function: "callFromUser",
+          function: "callForUser",
           args: {
             amountToSpend: per_mint_fee * 2,
             addressToCall: upgrader.address,
@@ -447,7 +447,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
       payload: {
         to: buddy_address,
         data: {
-          function: "callFromUser",
+          function: "callForUser",
           args: {
             amountToSpend: per_mint_fee * 2,
             addressToCall: upgrader.address,
