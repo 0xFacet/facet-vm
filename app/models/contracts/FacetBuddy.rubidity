@@ -72,7 +72,7 @@ contract :FacetBuddy do
   }, :public do
     require(
       msg.sender == s.forUser || msg.sender == s.factory,
-      "Only the user or factory can callFromPermissionedNonBridge"
+      "Only the user or factory can callForUser"
     )
     
     ERC20(s.erc20Bridge).transferFrom(
