@@ -509,7 +509,7 @@ RSpec.describe Contract, type: :model do
         end
         
         
-   it "will make an actual call to deploy and to batch transfer" do
+   it "will make an actual call to deploy and to batch transfer to many participants" do
    deploy = trigger_contract_interaction_and_expect_success(
                  command: 'deploy',
                  from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
