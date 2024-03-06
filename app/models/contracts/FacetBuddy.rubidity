@@ -13,6 +13,7 @@ contract :FacetBuddy do
     resultData: :string
   }
   
+  address :public, :factory
   address :public, :erc20Bridge
   address :public, :forUser
   
@@ -22,6 +23,7 @@ contract :FacetBuddy do
     erc20Bridge: :address,
     forUser: :address
   ) {
+    s.factory = msg.sender
     s.erc20Bridge = erc20Bridge
     s.forUser = forUser
   }
@@ -66,6 +68,22 @@ contract :FacetBuddy do
     calldata: :string
   }, :public do
     require(msg.sender == s.forUser, "Only the user can callFromUser")
+    
+    ERC20(s.erc20Bridge).transferFrom(
+      s.forUser,
+      address(this),
+      amountToSpend
+    )
+    
+    _makeCall(addressToCall, calldata)
+  end
+  
+  function :callFromFactory, {
+    amountToSpend: :uint256,
+    addressToCall: :address,
+    calldata: :string
+  }, :public do
+    require(msg.sender == s.factory, "Only the factory can callFromFactory")
     
     ERC20(s.erc20Bridge).transferFrom(
       s.forUser,

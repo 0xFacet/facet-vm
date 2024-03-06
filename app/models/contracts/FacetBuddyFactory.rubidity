@@ -48,6 +48,20 @@ contract :FacetBuddyFactory, is: [:Upgradeable], upgradeable: true do
     return buddy
   end
   
+  function :callBuddyFromUser, {
+    amountToSpend: :uint256,
+    addressToCall: :address,
+    calldata: :string
+  }, :public do
+    buddy = findOrCreateBuddy(msg.sender)
+    
+    buddy.callFromFactory(
+      amountToSpend: amountToSpend,
+      addressToCall: addressToCall,
+      calldata: calldata
+    )
+  end
+  
   function :predictBuddyAddress, { forUser: :address }, :public, :view, returns: :address do
     return create2_address(
       salt: keccak256(abi.encodePacked(forUser)),
