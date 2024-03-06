@@ -1,75 +1,37 @@
 pragma :rubidity, "1.0.0"
 
 import './ERC20.rubidity'
-import './Ownable.rubidity'
 
-contract :MultiSenderERC20, is: [:Ownable] do
-  event :MultiTransfer, { tokenAddress: :address, addresses: [:address], amounts: [:uint256] }
-  event :WithdrawMultiple, { addresses: [:address], amounts: [:uint256] }
+contract :MultiSenderERC20 do
+  event :MultiTransfer, { tokenAddress: :address, recipients: [:address], amounts: [:uint256] }
   uint256 :public, :singleTxAirdropLimit
   
   constructor(
-    owner: :address
   ) {
-    Ownable.constructor(owner: owner)
-
-    s.singleTxAirdropLimit = 25
+    s.singleTxAirdropLimit = 50
   }
 
-  function :transferMultiple, { tokenAddress: :address, addresses: [:address], amounts: [:uint256] }, :public do
-    require(addresses.length == amounts.length, 'Address and amount arrays must be the same length')
-    require(addresses.length <= s.singleTxAirdropLimit, 'Cannot import more than 10 addresses at a time')
-
-    sum = 0
-    forLoop(
-      condition: -> i { i < amounts.length },
-      max_iterations: amounts.length
-    ) do |i|
-      sum += amounts[i]
-    end
-
-    msgSenderAllowance = ERC20(tokenAddress).allowance(msg.sender,address(this))
-    require(msgSenderAllowance >= sum, "Insufficient allowance provided")
+  function :transferMultiple, { tokenAddress: :address, recipients: [:address], amounts: [:uint256] }, :public do
+    require(recipients.length == amounts.length, 'Address and amount arrays must be the same length')
+    require(recipients.length <= s.singleTxAirdropLimit, 'Cannot import more than 25 addresses at a time')
 
     forLoop(
-      condition: -> i { i < addresses.length },
+      condition: -> i { i < recipients.length },
       max_iterations: s.singleTxAirdropLimit
     ) do |i|
-      to = addresses[i]
+      to = recipients[i]
       amount = amounts[i]
 
       ERC20(tokenAddress).transferFrom(
               from: msg.sender,
-              to: address(this),
-              amount: amount
-            )
-
-      ERC20(tokenAddress).transfer(
               to: to,
               amount: amount
             )
     end
-
-    emit :MultiTransfer, tokenAddress: tokenAddress, addresses: addresses, amounts: amounts
+    emit :MultiTransfer, tokenAddress: tokenAddress, recipients: recipients, amounts: amounts
   end
 
-  function :withdrawMultiple, { addresses: [:address], amounts: [:uint256] }, :public do
-      onlyOwner!
-      require(addresses.length == amounts.length, 'Address and amount arrays must be the same length')
-      require(addresses.length <= s.singleTxAirdropLimit, 'Cannot withdraw more than 10 addresses at a time')
-
-      forLoop(
-        condition: -> i { i < addresses.length },
-        max_iterations: s.singleTxAirdropLimit
-      ) do |i|
-        tokenAddress = addresses[i]
-        amount = amounts[i]
-
-        ERC20(tokenAddress).transfer(
-                to: msg.sender,
-                amount: amount
-        )
-    end
-    emit :WithdrawMultiple, addresses: addresses, amounts: amounts
+  function :withdrawStuckTokens, { tokenAddress: :address, to: :address, amount: :uint256 }, :public do
+      ERC20(tokenAddress).transfer(to: to, amount: amount)
   end
 end
