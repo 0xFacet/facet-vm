@@ -4,6 +4,10 @@ RSpec.describe Contract, type: :model do
   let(:user_address) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
   let(:trusted_address) { "0x019824B229400345510A3a7EFcFB77fD6A78D8d0" }
 
+  before(:all) do
+    update_supported_contracts("MultiSenderERC20")
+  end
+
   before do
     @creation_receipt_multi_sender_erc20 = trigger_contract_interaction_and_expect_success(
       command: 'deploy',
@@ -11,7 +15,6 @@ RSpec.describe Contract, type: :model do
       data: {
         "protocol": "MultiSenderERC20",
         "constructorArgs": {
-          "owner": "0x019824B229400345510A3a7EFcFB77fD6A78D8d0"
         },
       }
     )
@@ -25,7 +28,6 @@ RSpec.describe Contract, type: :model do
        data: {
               "protocol": "MultiSenderERC20",
               "constructorArgs": {
-                "owner": "0x019824B229400345510A3a7EFcFB77fD6A78D8d0"
               },
             }
       )
@@ -39,13 +41,12 @@ RSpec.describe Contract, type: :model do
           "contract": @creation_receipt_multi_sender_erc20.address,
           "functionName": "constructor",
           "args": {
-             "owner": "0x019824B229400345510A3a7EFcFB77fD6A78D8d0"
           },
         }
       )
     end
 
-   it "will simulate a deploy transaction for multi sender" do
+   it "will simulate a deploy transaction for multi sender ERC20" do
       transpiled = RubidityTranspiler.transpile_file("MultiSenderERC20")
       item = transpiled.detect{|i| i.name.to_s == "MultiSenderERC20"}
 
@@ -56,7 +57,6 @@ RSpec.describe Contract, type: :model do
           source_code: item.source_code,
           init_code_hash: item.init_code_hash,
           args: {
-         "owner": "0x019824B229400345510A3a7EFcFB77fD6A78D8d0"
           }
         }
       }
@@ -74,7 +74,7 @@ RSpec.describe Contract, type: :model do
       }
     end
 
-    it "will simulate a call to check multi send transfer multiple is working" do
+    it "will simulate a call to check multi sender is working" do
        deploy = trigger_contract_interaction_and_expect_success(
               command: 'deploy',
               from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
@@ -373,8 +373,8 @@ RSpec.describe Contract, type: :model do
               "to": @creation_receipt_multi_sender_erc20.address,
               "function": "transferMultiple",
               "args": [deploy.address,
-                                      ["0xC2172a6315c1D7f6855768F843c420EbB36eDa97","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"] * 100,
-                                      ["5","5"] * 100
+                                      ["0xC2172a6315c1D7f6855768F843c420EbB36eDa97","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"] * 26,
+                                      ["5","5"] * 26
               ],
             }
           }
@@ -447,61 +447,6 @@ RSpec.describe Contract, type: :model do
 
         expect(call_receipt_fail).to be_a(TransactionReceipt)
         expect(call_receipt_fail.status).to eq("failure")
-        end
-
-
-   it "will make an actual call to withdraw multiple for dust or mistaken funds" do
-   deploy = trigger_contract_interaction_and_expect_success(
-                 command: 'deploy',
-                 from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
-                 data: {
-                   "protocol": "AirdropERC20",
-                   "constructorArgs": {
-                     "name": "My Funs Token",
-                     "symbol": "FUN",
-                     "owner": "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
-                     "maxSupply": "21000000",
-                     "perMintLimit": "1000",
-                     "decimals": 18
-                   },
-                 }
-               )
-
-   trigger_contract_interaction_and_expect_success(
-     command: 'call',
-     from: '0x019824B229400345510A3a7EFcFB77fD6A78D8d0',
-     data: {
-       "contract": deploy.address,
-       functionName: "airdropMultiple",
-       args: [
-         [@creation_receipt_multi_sender_erc20.address],
-         ["10"]
-       ]
-     }
-   )
-
-    withdrawMultiple = trigger_contract_interaction_and_expect_success(
-            command: 'call',
-            from: '0x019824B229400345510A3a7EFcFB77fD6A78D8d0',
-            data: {
-              "contract": @creation_receipt_multi_sender_erc20.address,
-              functionName: "withdrawMultiple",
-              args: [
-                [deploy.address, deploy.address],
-                ["5","5"]
-              ]
-            }
-          )
-
-          erc20_balance = ContractTransaction.make_static_call(
-            contract: deploy.address,
-            function_name: "balanceOf",
-            function_args: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0"
-          )
-
-          expect(erc20_balance).to eq(10)
-
-        expect(withdrawMultiple.contract.states.count).to eq(1)
         end
     end
 end
