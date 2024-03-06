@@ -3,7 +3,7 @@ pragma :rubidity, "1.0.0"
 import './ERC20.rubidity'
 
 contract :ERC20BatchTransfer do
-  event :MultiTransfer, { tokenAddress: :address, recipients: [:address], amounts: [:uint256] }
+  event :BatchTransfer, { tokenAddress: :address, recipients: [:address], amounts: [:uint256] }
   event :WithdrawStuckTokens, { tokenAddress: :address, to: :address, amount: :uint256 }
   
   uint256 :public, :singleTxAirdropLimit
@@ -12,7 +12,7 @@ contract :ERC20BatchTransfer do
     s.singleTxAirdropLimit = 50
   }
 
-  function :transferMultiple, { tokenAddress: :address, recipients: [:address], amounts: [:uint256] }, :public do
+  function :batchTransfer, { tokenAddress: :address, recipients: [:address], amounts: [:uint256] }, :public do
     require(recipients.length > 0, "Must import at least one address")
     require(recipients.length == amounts.length, "Address and amount arrays must be the same length")
     require(
@@ -34,7 +34,7 @@ contract :ERC20BatchTransfer do
       )
     end
     
-    emit :MultiTransfer, tokenAddress: tokenAddress, recipients: recipients, amounts: amounts
+    emit :BatchTransfer, tokenAddress: tokenAddress, recipients: recipients, amounts: amounts
   end
 
   function :withdrawStuckTokens, { tokenAddress: :address, to: :address, amount: :uint256 }, :public do
