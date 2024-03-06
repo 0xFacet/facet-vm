@@ -38,7 +38,7 @@ RSpec.describe Contract, type: :model do
       )
     end
 
-    it "won't call constructor after deployed (batch transferer)" do
+    it "won't call constructor after deployed (batch transfer)" do
       trigger_contract_interaction_and_expect_call_error(
         command: 'call',
         from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
@@ -51,7 +51,7 @@ RSpec.describe Contract, type: :model do
       )
     end
 
-   it "will simulate a deploy transaction for batch transferer ERC20" do
+   it "will simulate a deploy transaction for batch transfer ERC20" do
       transpiled = RubidityTranspiler.transpile_file("ERC20BatchTransfer")
       item = transpiled.detect{|i| i.name.to_s == "ERC20BatchTransfer"}
 
@@ -79,7 +79,7 @@ RSpec.describe Contract, type: :model do
       }
     end
 
-    it "will simulate a call to check batch transferer is working" do
+    it "will simulate a call to check batch transfer is working" do
        deploy = trigger_contract_interaction_and_expect_success(
               command: 'deploy',
               from: "0x019824B229400345510A3a7EFcFB77fD6A78D8d0",
