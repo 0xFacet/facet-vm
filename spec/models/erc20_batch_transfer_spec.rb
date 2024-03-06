@@ -551,7 +551,31 @@ RSpec.describe Contract, type: :model do
            }
        )
 
-    batchTransfer = trigger_contract_interaction_and_expect_success(
+          expect(ContractTransaction.make_static_call(
+                             contract: deploy.address,
+                             function_name: "balanceOf",
+                             function_args: alice
+                           )).to eq(0)
+
+          expect(ContractTransaction.make_static_call(
+                             contract: deploy.address,
+                             function_name: "balanceOf",
+                             function_args: bob
+                           )).to eq(0)
+
+          expect(ContractTransaction.make_static_call(
+                             contract: deploy.address,
+                             function_name: "balanceOf",
+                             function_args: charlie
+                           )).to eq(0)
+
+          expect(ContractTransaction.make_static_call(
+                             contract: deploy.address,
+                             function_name: "balanceOf",
+                             function_args: daryl
+                           )).to eq(0)
+
+        batchTransfer = trigger_contract_interaction_and_expect_success(
             command: 'call',
             from: '0x019824B229400345510A3a7EFcFB77fD6A78D8d0',
             data: {
@@ -562,27 +586,27 @@ RSpec.describe Contract, type: :model do
                 ["10","20","30","40"]
               ]
             }
-          )
+        )
 
-          expect(ContractTransaction.make_static_call(
+        expect(ContractTransaction.make_static_call(
                              contract: deploy.address,
                              function_name: "balanceOf",
                              function_args: alice
                            )).to eq(10)
 
-          expect(ContractTransaction.make_static_call(
+        expect(ContractTransaction.make_static_call(
                              contract: deploy.address,
                              function_name: "balanceOf",
                              function_args: bob
                            )).to eq(20)
 
-          expect(ContractTransaction.make_static_call(
+        expect(ContractTransaction.make_static_call(
                              contract: deploy.address,
                              function_name: "balanceOf",
                              function_args: charlie
                            )).to eq(30)
 
-          expect(ContractTransaction.make_static_call(
+        expect(ContractTransaction.make_static_call(
                              contract: deploy.address,
                              function_name: "balanceOf",
                              function_args: daryl
