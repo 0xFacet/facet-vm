@@ -123,7 +123,7 @@ RSpec.describe Contract, type: :model do
           op: "call",
           data: {
             "to": @creation_receipt_multi_sender_erc20.address,
-            "function": "transferMultiple",
+            "function": "batchTransfer",
             "args": [deploy.address,
             ["0x019824B229400345510A3a7EFcFB77fD6A78D8d0","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"],
              ["5","10"]
@@ -184,12 +184,12 @@ RSpec.describe Contract, type: :model do
            }
        )
 
-    transferMultiple = trigger_contract_interaction_and_expect_success(
+    batchTransfer = trigger_contract_interaction_and_expect_success(
             command: 'call',
             from: '0x019824B229400345510A3a7EFcFB77fD6A78D8d0',
             data: {
               "contract": @creation_receipt_multi_sender_erc20.address,
-              functionName: "transferMultiple",
+              functionName: "batchTransfer",
               args: [deploy.address,
                 ["0xC2172a6315c1D7f6855768F843c420EbB36eDa97","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"],
                 ["5","5"]
@@ -205,7 +205,7 @@ RSpec.describe Contract, type: :model do
 
           expect(erc20_balance).to eq(20)
 
-        expect(transferMultiple.contract.states.count).to eq(1)
+        expect(batchTransfer.contract.states.count).to eq(1)
         end
 
 
@@ -257,7 +257,7 @@ RSpec.describe Contract, type: :model do
             op: :call,
             data: {
               "to": @creation_receipt_multi_sender_erc20.address,
-              "function": "transferMultiple",
+              "function": "batchTransfer",
               "args": [deploy.address,
                                       ["0xC2172a6315c1D7f6855768F843c420EbB36eDa97","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"],
                                       ["500","500"]
@@ -308,7 +308,7 @@ RSpec.describe Contract, type: :model do
             op: :call,
             data: {
               "to": @creation_receipt_multi_sender_erc20.address,
-              "function": "transferMultiple",
+              "function": "batchTransfer",
               "args": [deploy.address,
                                       ["0xC2172a6315c1D7f6855768F843c420EbB36eDa97","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"],
                                       ["5","5"]
@@ -371,7 +371,7 @@ RSpec.describe Contract, type: :model do
             op: :call,
             data: {
               "to": @creation_receipt_multi_sender_erc20.address,
-              "function": "transferMultiple",
+              "function": "batchTransfer",
               "args": [deploy.address,
                                       ["0xC2172a6315c1D7f6855768F843c420EbB36eDa97","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"] * 26,
                                       ["5","5"] * 26
@@ -434,7 +434,7 @@ RSpec.describe Contract, type: :model do
             op: :call,
             data: {
               "to": @creation_receipt_multi_sender_erc20.address,
-              "function": "transferMultiple",
+              "function": "batchTransfer",
               "args": [deploy.address,
                                       ["0xC2172a6315c1D7f6855768F843c420EbB36eDa97","0xC2172a6315c1D7f6855768F843c420EbB36eDa97"],
                                       ["5"]
