@@ -138,18 +138,15 @@ class TokensController < ApplicationController
     cache_key << max_processed_block_timestamp if max_processed_block_timestamp - to_timestamp < 1.hour
   
     result = Rails.cache.fetch(cache_key) do
-      transactions = TransactionReceipt.where(
-        to_contract_address: router_address,
-        status: "success",
-        function: ["swapExactTokensForTokens", "swapTokensForExactTokens"]
-      )
-        .where("block_timestamp >= ? AND block_timestamp <= ?", from_timestamp, to_timestamp)
-        .where("EXISTS (
-          SELECT 1
-          FROM jsonb_array_elements(logs) AS log
-          WHERE (log ->> 'contractAddress') = ?
-          AND (log ->> 'event') = 'Transfer'
-        )", contract_address)
+      transactions = TransactionReceipt
+        .select(:transaction_hash, :from_address, :block_timestamp, :transaction_index, :block_number, :logs)
+        .where(
+          to_contract_address: router_address,
+          status: "success",
+          function: ["swapExactTokensForTokens", "swapTokensForExactTokens"],
+          block_timestamp: from_timestamp..to_timestamp
+        )
+        .where("logs @> ?::jsonb", [{ contractAddress: contract_address, event: 'Transfer' }].to_json)
 
       if transactions.blank?
         render json: { error: "Transactions not found" }, status: 404
@@ -313,13 +310,9 @@ class TokensController < ApplicationController
   end
   
   def calculate_volume(contract_address:, volume_contract:, start_time: nil)
-    query = TransactionReceipt.where(status: "success", function: ["swapExactTokensForTokens", "swapTokensForExactTokens"])
-      .where("EXISTS (
-        SELECT 1
-        FROM jsonb_array_elements(logs) AS log
-        WHERE (log ->> 'contractAddress') = ?
-        AND (log ->> 'event') = 'Transfer'
-      )", contract_address)
+    query = TransactionReceipt
+      .where(status: "success", function: ["swapExactTokensForTokens", "swapTokensForExactTokens"])
+      .where("logs @> ?::jsonb", [{ contractAddress: contract_address, event: 'Transfer' }].to_json)
     query = query.where("block_timestamp >= ?", start_time.to_i) if start_time
 
     query.pluck(:logs)
