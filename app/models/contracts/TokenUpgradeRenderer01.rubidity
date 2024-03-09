@@ -213,38 +213,61 @@ contract :TokenUpgradeRenderer01, is: :Upgradeable, upgradeable: true do
     s.contractInfoByCollection[collection] = info
     emit :ContractInfoUpdated, collection: collection, newInfo: info
   end
+  
+  function :lastUpgradeLevel, { collection: :address, tokenId: :uint256 }, :public, :view, returns: :TokenUpgradeLevel do
+    status = s.tokenStatusByCollection[collection][tokenId]
+    upgradeTime = status.lastUpgradeTime
+    
+    if upgradeTime == 0
+      return TokenUpgradeLevel()
+    end
+    
+    forLoop(
+      condition: -> i { i < s.tokenUpgradeLevelsByCollection[collection].length }
+    ) do |i|
+      level = s.tokenUpgradeLevelsByCollection[collection][i]
+      if level.startTime <= upgradeTime && level.endTime > upgradeTime
+        return level
+      end
+    end
+    
+    return TokenUpgradeLevel()
+  end
 
-function :tokenURI, { tokenId: :uint256 }, :external, :view, returns: :string do
-  collection = msg.sender
-  
-  status = s.tokenStatusByCollection[collection][tokenId]
-  upgradeLevel = s.tokenUpgradeLevelsByCollection[collection][status.upgradeLevel]
-  
-  name_json = json.stringify("#{upgradeLevel.name} ##{tokenId.toString()}")
-  description_json = json.stringify(s.contractInfoByCollection[collection].description)
-  
-  image_field = upgradeLevel.imageURI.length == 0 ? "" : %Q("image": #{json.stringify(upgradeLevel.imageURI)},)
-  animation_url_field = upgradeLevel.animationURI.length == 0 ? "" : %Q("animation_url": #{json.stringify(upgradeLevel.animationURI)},)
-  
-  basic_attributes_json = json.stringify([
-    {"trait_type": "Number", "display_type": "number", "value": tokenId},
-    {"trait_type": "Level", "value": upgradeLevel.name}
-  ])
-  
-  extra_attributes_json = upgradeLevel.extraAttributesJson != "" ? ", " + upgradeLevel.extraAttributesJson : ""
-  
-  json_data = <<-JSON
+  function :tokenURI, { tokenId: :uint256 }, :external, :view, returns: :string do
+    collection = msg.sender
+    
+    status = s.tokenStatusByCollection[collection][tokenId]
+    upgradeLevel = s.tokenUpgradeLevelsByCollection[collection][status.upgradeLevel]
+    
+    name_json = json.stringify("#{upgradeLevel.name} ##{tokenId.toString()}")
+    description_json = json.stringify(s.contractInfoByCollection[collection].description)
+    
+    image_field = upgradeLevel.imageURI.length == 0 ? "" : %Q("image": #{json.stringify(upgradeLevel.imageURI)},\n)
+    animation_url_field = upgradeLevel.animationURI.length == 0 ? "" : %Q("animation_url": #{json.stringify(upgradeLevel.animationURI)},\n)
+    
+    last_level = lastUpgradeLevel(collection: collection, tokenId: tokenId)
+    last_upgrade_level_json = last_level != TokenUpgradeLevel() ? %Q(, {"trait_type": "Last Upgrade Level", "value": #{json.stringify(last_level.name)}}\n) : ""
+    
+    extra_attributes_json = upgradeLevel.extraAttributesJson != "" ? ", " + upgradeLevel.extraAttributesJson : ""
+    
+    json_data = <<-JSON
     {
       "name": #{name_json},
       "description": #{description_json},
       #{image_field}
       #{animation_url_field}
-      "attributes": [#{basic_attributes_json[1..-2]}#{extra_attributes_json}]
+      "attributes": [
+        {"trait_type": "Number", "display_type": "number", "value": #{tokenId.toString()}},
+        {"trait_type": "Level", "value": #{json.stringify(upgradeLevel.name)}}
+        #{last_upgrade_level_json}
+        #{extra_attributes_json}
+      ]
     }
-  JSON
-  
-  "data:application/json;base64," + json_data.base64Encode
-end
+    JSON
+    
+    "data:application/json;base64," + json_data.base64Encode
+  end
   
   function :initializeWithData, {
     contractInfo: :ContractInfo,
