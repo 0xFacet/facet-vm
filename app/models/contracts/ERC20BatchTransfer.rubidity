@@ -1,0 +1,45 @@
+pragma :rubidity, "1.0.0"
+
+import './ERC20.rubidity'
+
+contract :ERC20BatchTransfer do
+  event :BatchTransfer, { tokenAddress: :address, recipients: [:address], amounts: [:uint256] }
+  event :WithdrawStuckTokens, { tokenAddress: :address, to: :address, amount: :uint256 }
+  
+  uint256 :public, :singleTxAirdropLimit
+  
+  constructor() {
+    s.singleTxAirdropLimit = 50
+  }
+
+  function :batchTransfer, { tokenAddress: :address, recipients: [:address], amounts: [:uint256] }, :public do
+    require(recipients.length > 0, "Must import at least one address")
+    require(recipients.length == amounts.length, "Address and amount arrays must be the same length")
+    require(
+      recipients.length <= s.singleTxAirdropLimit,
+      "Cannot import more than #{s.singleTxAirdropLimit.toString()} addresses at a time"
+    )
+
+    forLoop(
+      condition: -> i { i < recipients.length },
+      max_iterations: s.singleTxAirdropLimit
+    ) do |i|
+      to = recipients[i]
+      amount = amounts[i]
+
+      ERC20(tokenAddress).transferFrom(
+        from: msg.sender,
+        to: to,
+        amount: amount
+      )
+    end
+    
+    emit :BatchTransfer, tokenAddress: tokenAddress, recipients: recipients, amounts: amounts
+  end
+
+  function :withdrawStuckTokens, { tokenAddress: :address, to: :address, amount: :uint256 }, :public do
+    ERC20(tokenAddress).transfer(to: to, amount: amount)
+    
+    emit :WithdrawStuckTokens, tokenAddress: tokenAddress, to: to, amount: amount
+  end
+end

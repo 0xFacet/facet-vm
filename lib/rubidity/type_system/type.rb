@@ -1,5 +1,5 @@
 class Type
-  MAX_STRING_LENGTH = 256.kilobytes
+  MAX_STRING_LENGTH = 128.kilobytes * 10
   
   include ContractErrors
   
