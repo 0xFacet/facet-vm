@@ -32,16 +32,13 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
   event :BridgeCreated, {
     smartContract: :address,
     dumbContract: :address,
-    tokenSmartContract: :address,
-    bridgeLength: :uint256
+    tokenSmartContract: :address
   }
 
   address :public, :trustedSmartContract
   
   mapping ({ address: :address }), :public, :bridgeDumbContractToSmartContract
   mapping ({ address: :address }), :public, :bridgeSmartContractToDumbContract
-  
-  array :address, :public, :allBridges
   
   mapping ({ address: :bytes32 }), :public, :userWithdrawalId
   mapping ({ bytes32: :uint256 }), :public, :withdrawalIdAmount
@@ -97,12 +94,12 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
       return existingBridge
     end
     
-    salt = keccak256(abi.encodePacked(address(this), tokenSmartContract))
+    salt = keccak256(abi.encodePacked(tokenSmartContract))
     
     bridge = new ERC20Bridge(
       tokenSmartContract,
-      "Facet #{name}",
-      "F-#{symbol}",
+      "Wrapped #{name}",
+      "W#{symbol}",
       decimals,
       { salt: salt }
     )
@@ -112,13 +109,10 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
     s.bridgeSmartContractToDumbContract[tokenSmartContract] = bridge
     s.bridgeDumbContractToSmartContract[bridge] = tokenSmartContract
     
-    s.allBridges.push(bridge)
-    
     emit :BridgeCreated,
       smartContract: tokenSmartContract,
       dumbContract: bridge,
-      tokenSmartContract: tokenSmartContract,
-      bridgeLength: s.allBridges.length
+      tokenSmartContract: tokenSmartContract
     
     return bridge
   end
