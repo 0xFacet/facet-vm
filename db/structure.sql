@@ -80,29 +80,6 @@ CREATE FUNCTION public.check_ethscription_order() RETURNS trigger
 
 
 --
--- Name: check_last_state(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.check_last_state() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-DECLARE
-  state_count INTEGER;
-BEGIN
-  SELECT COUNT(*) INTO state_count
-  FROM contract_states
-  WHERE contract_address = OLD.contract_address;
-
-  IF state_count = 1 THEN
-    RAISE EXCEPTION 'Cannot delete the last state of a contract.';
-  END IF;
-
-  RETURN OLD; -- In a BEFORE trigger, returning OLD allows the operation to proceed
-END;
-$$;
-
-
---
 -- Name: check_status(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1113,13 +1090,6 @@ CREATE UNIQUE INDEX index_transaction_receipts_on_transaction_hash ON public.tra
 
 
 --
--- Name: contract_states check_before_delete; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER check_before_delete BEFORE DELETE ON public.contract_states FOR EACH ROW EXECUTE FUNCTION public.check_last_state();
-
-
---
 -- Name: eth_blocks check_block_sequence_trigger; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1288,6 +1258,7 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20240309162632'),
 ('20231113223006'),
 ('20231110173854'),
 ('20230824174647'),
