@@ -12,8 +12,7 @@ class EthBlock < ApplicationRecord
   scope :pending, -> { where(processing_state: "pending") }
   
   def self.most_recently_imported_blockhash
-    max_block_number = max_processed_block_number
-    EthBlock.where(block_number: max_block_number).pick(:blockhash)
+    EthBlock.where(processing_state: "complete").newest_first.pick(:blockhash)
   end
   
   def self.max_processed_block_number

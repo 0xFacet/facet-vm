@@ -1,4 +1,6 @@
 class TransactionsController < ApplicationController
+  cache_actions_on_block s_max_age: 12.seconds
+  
   def index
     in_cursor_mode = !!(params[:user_cursor_pagination] || params[:page_key])
     
@@ -41,20 +43,18 @@ class TransactionsController < ApplicationController
       scope = scope.where("block_number > ?", params[:after_block])
     end
 
-    cache_on_block do
-      if in_cursor_mode
-        results, pagination_response = paginate(scope)
-      
-        render json: {
-          result: numbers_to_strings(results),
-          pagination: pagination_response
-        }
-      else
-        render json: {
-          result: numbers_to_strings(scope.page(page).per(per_page).to_a),
-          count: (scope.count if page <= 10)
-        }
-      end
+    if in_cursor_mode
+      results, pagination_response = paginate(scope)
+    
+      render json: {
+        result: numbers_to_strings(results),
+        pagination: pagination_response
+      }
+    else
+      render json: {
+        result: numbers_to_strings(scope.page(page).per(per_page).to_a),
+        count: (scope.count if page <= 10)
+      }
     end
   end
 
