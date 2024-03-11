@@ -1,4 +1,6 @@
 class BlocksController < ApplicationController
+  cache_actions_on_block s_max_age: 12.seconds
+
   def index
     page = (params[:page] || 1).to_i
     per_page = (params[:per_page] || 50).to_i

@@ -1,4 +1,6 @@
 class ContractsController < ApplicationController
+  cache_actions_on_block except: :storage_get, s_max_age: 12.seconds
+  
   def index
     page = (params[:page] || 1).to_i
     per_page = (params[:per_page] || 50).to_i
@@ -51,8 +53,6 @@ class ContractsController < ApplicationController
   end
 
   def show
-    expires_in(6, "s-maxage": 12.seconds, public: true)
-    
     contract = Contract.find_by_address(params[:id])
 
     if contract.blank?
@@ -66,8 +66,6 @@ class ContractsController < ApplicationController
   end
 
   def static_call
-    expires_in(6, "s-maxage": 12.seconds, public: true)
-    
     args = JSON.parse(params.fetch(:args) { '{}' })
     env = JSON.parse(params.fetch(:env) { '{}' })
 
@@ -157,8 +155,6 @@ class ContractsController < ApplicationController
   end
 
   def simulate_transaction
-    expires_in(6, "s-maxage": 12.seconds, public: true)
-    
     from = params[:from]
     
     tx_payload = if request.method == 'POST'
@@ -181,8 +177,6 @@ class ContractsController < ApplicationController
   end
   
   def pairs_for_router
-    expires_in(6, "s-maxage": 12.seconds, public: true)
-    
     user_address = params[:user_address]&.downcase
     router_address = params[:router]&.downcase
     
@@ -331,6 +325,8 @@ class ContractsController < ApplicationController
       error: e.message
     }
   end
+  
+  private
   
   def make_static_call(**kwargs)
     ContractTransaction.make_static_call(**kwargs)
