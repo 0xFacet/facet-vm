@@ -1,0 +1,72 @@
+pragma :rubidity, "1.0.0"
+
+import "./FacetBuddy.rubidity"
+import "./Upgradeable.rubidity"
+
+contract :FacetBuddyFactory, is: [:Upgradeable], upgradeable: true do
+  event :BuddyCreated, {
+    forUser: :address,
+    buddy: :address
+  }
+
+  address :public, :erc20Bridge
+  
+  mapping ({ address: :address }), :public, :buddyForUser
+  mapping ({ address: :address }), :public, :userForBuddy
+  
+  constructor(erc20Bridge: :address) {
+    require(erc20Bridge != address(0), "Invalid smart contract")
+
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+    s.erc20Bridge = erc20Bridge
+  }
+  
+  function :findOrCreateBuddy, {
+    forUser: :address
+  }, :public, returns: :address do
+    existingBuddy = s.buddyForUser[forUser]
+    
+    if existingBuddy != address(0)
+      return existingBuddy
+    end
+    
+    salt = keccak256(abi.encodePacked(forUser))
+    
+    buddy = new FacetBuddy(
+      s.erc20Bridge,
+      forUser,
+      { salt: salt }
+    )
+    
+    require(s.userForBuddy[buddy] == address(0), "Buddy already exists for user")
+    
+    s.buddyForUser[forUser] = buddy
+    s.userForBuddy[buddy] = forUser
+    
+    emit :BuddyCreated, forUser: forUser, buddy: buddy
+    
+    return buddy
+  end
+  
+  function :callBuddyForUser, {
+    amountToSpend: :uint256,
+    addressToCall: :address,
+    calldata: :string
+  }, :public do
+    buddy = findOrCreateBuddy(msg.sender)
+    
+    FacetBuddy(buddy).callForUser(
+      amountToSpend: amountToSpend,
+      addressToCall: addressToCall,
+      calldata: calldata
+    )
+  end
+  
+  function :predictBuddyAddress, { forUser: :address }, :public, :view, returns: :address do
+    return create2_address(
+      salt: keccak256(abi.encodePacked(forUser)),
+      deployer: address(this),
+      contract_type: "FacetBuddy"
+    )
+  end
+end

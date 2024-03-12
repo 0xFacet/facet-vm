@@ -290,8 +290,8 @@ class ContractImplementation < BasicObject
 
   def json
     ::Object.new.tap do |proxy|
-      def proxy.stringify(*args, **kwargs)
-        res = (args.presence || kwargs).to_json
+      def proxy.stringify(...)
+        res = ::ActiveSupport::JSON.encode(...)
         ::TypedVariable.create(:string, res)
       end
     end

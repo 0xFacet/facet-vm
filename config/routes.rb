@@ -2,6 +2,7 @@ Rails.application.routes.draw do
   resources :contracts, only: [:index, :show] do
     collection do
       get "/:address/static-call/:function", to: "contracts#static_call", constraints: { address: /(0x)?[a-zA-Z0-9]{40}/ }
+      get "/:address/storage-get/:first_key", to: "contracts#storage_get", constraints: { address: /(0x)?[a-zA-Z0-9]{40}/ }
       get "/transactions/:transaction_hash", to: "contracts#show_call_receipt", constraints: { transaction_hash: /(0x)?[a-zA-Z0-9]{64}/ }
       get "/simulate", to: "contracts#simulate_transaction"
       post "/simulate", to: "contracts#simulate_transaction"

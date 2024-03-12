@@ -1,4 +1,6 @@
 class TransactionsController < ApplicationController
+  cache_actions_on_block s_max_age: 12.seconds
+  
   def index
     in_cursor_mode = !!(params[:user_cursor_pagination] || params[:page_key])
     
@@ -22,17 +24,17 @@ class TransactionsController < ApplicationController
     scope = filter_by_params(scope, :block_number)
     
     if params[:from].present?
-      scope = scope.where(from_address: params[:from].downcase)
+      scope = scope.where(from_address: Array.wrap(params[:from]).map(&:downcase))
     end
     
     if params[:to].present?
-      scope = scope.where(effective_contract_address: params[:to].downcase)
+      scope = scope.where(effective_contract_address: Array.wrap(params[:to]).map(&:downcase))
     end
     
     if params[:to_or_from].present?
-      to_or_from = params[:to_or_from].downcase
+      to_or_from = Array.wrap(params[:to_or_from]).map(&:downcase)
       scope = scope.where(
-        "from_address = :addr OR effective_contract_address = :addr",
+        "from_address = ANY (ARRAY[:addr]) OR effective_contract_address = ANY (ARRAY[:addr])",
         addr: to_or_from
       )
     end
@@ -41,20 +43,18 @@ class TransactionsController < ApplicationController
       scope = scope.where("block_number > ?", params[:after_block])
     end
 
-    cache_on_block do
-      if in_cursor_mode
-        results, pagination_response = paginate(scope)
-      
-        render json: {
-          result: numbers_to_strings(results),
-          pagination: pagination_response
-        }
-      else
-        render json: {
-          result: numbers_to_strings(scope.page(page).per(per_page).to_a),
-          count: (scope.count if page <= 10)
-        }
-      end
+    if in_cursor_mode
+      results, pagination_response = paginate(scope)
+    
+      render json: {
+        result: numbers_to_strings(results),
+        pagination: pagination_response
+      }
+    else
+      render json: {
+        result: numbers_to_strings(scope.page(page).per(per_page).to_a),
+        count: (scope.count if page <= 10)
+      }
     end
   end
 

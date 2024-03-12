@@ -1,7 +1,7 @@
 class TokensController < ApplicationController
+  cache_actions_on_block s_max_age: 12.seconds
+  
   def get_allowance
-    # expires_in 1.second, public: true
-    
     address = TypedVariable.validated_value(:address, params[:address])
     owner = TypedVariable.validated_value(:address, params[:owner])
     spender = TypedVariable.validated_value(:address, params[:spender])
@@ -89,12 +89,14 @@ class TokensController < ApplicationController
 
       state = contract.current_state
 
-      if !state["balanceOf"]
+      holderBalances = state["balanceOf"] || state["_balanceOf"]
+
+      if !holderBalances
         render json: { error: "Invalid contract" }, status: 400
         return
       end
 
-      numbers_to_strings(state["balanceOf"])
+      numbers_to_strings(holderBalances)
     end
 
     render json: {
@@ -103,8 +105,6 @@ class TokensController < ApplicationController
   end
 
   def swaps
-    # expires_in 1.second, public: true
-    
     contract_address = params[:address]&.downcase
     from_timestamp = params[:from_timestamp].to_i
     to_timestamp = params[:to_timestamp].to_i
@@ -192,13 +192,13 @@ class TokensController < ApplicationController
   end
 
   def volume
-    # expires_in 1.second, public: true
-    
     volume_contract = params[:volume_contract]&.downcase
     contract_address = params[:address]&.downcase
     one_day_ago = 24.hours.ago.to_i
 
     cache_key = ["token_volume", contract_address, volume_contract]
+    
+    set_cache_control_headers(max_age: 12.seconds, s_max_age: 1.hour)
 
     result = Rails.cache.fetch(cache_key, expires_in: 1.hour) do
       total_volume = calculate_volume(contract_address: contract_address, volume_contract: volume_contract)
