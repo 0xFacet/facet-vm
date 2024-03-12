@@ -1,5 +1,5 @@
 class TransactionsController < ApplicationController
-  cache_actions_on_block s_max_age: 12.seconds
+  cache_actions_on_block
   
   def index
     in_cursor_mode = !!(params[:user_cursor_pagination] || params[:page_key])

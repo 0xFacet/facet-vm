@@ -1,5 +1,5 @@
 class NameRegistriesController < ApplicationController
-  cache_actions_on_block s_max_age: 12.seconds
+  cache_actions_on_block
   
   def owned_by_address
     registry_contract = params[:registry_contract]&.downcase
