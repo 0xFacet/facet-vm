@@ -231,13 +231,12 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
                   animationURI: "https://example.com/animation.png",
                   extraAttributesJson: "",
                   startTime: 0,
-                  endTime: 1,
+                  endTime: 0,
                 },
                 contractInfo: {
                   name: "Test Name",
                   description: "Test contract description",
-                  imageURI: "https://test.com/image.png",
-                  animationURI: "https://test.com/animation.png"
+                  imageURI: "https://test.com/image.png"
                 }
               }
             }.to_json
@@ -338,6 +337,12 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
       amount: amount * per_mint_fee
     )
     
+    token_uri_base_64 = get_contract_state(nft_contract.address, "tokenURI", 1)
+    
+    token_uri = JSON.parse(Base64.decode64(token_uri_base_64.split("data:application/json;base64,").last))
+    
+    expect(token_uri["attributes"].none? { |attr| attr["trait_type"] == "Last Upgrade Level" }).to be true
+    
     trigger_contract_interaction_and_expect_success(
       from: non_owner_address,
       payload: {
@@ -356,6 +361,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
     
     token_uri = JSON.parse(Base64.decode64(token_uri_base_64.split("data:application/json;base64,").last))
     
+    expect(token_uri["attributes"].any? { |attr| attr["trait_type"] == "Last Upgrade Level" }).to be true
     expect(token_uri['image']).to eq("https://example.com/image2.png")
     
     trigger_contract_interaction_and_expect_error(
@@ -417,9 +423,9 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
     trigger_contract_interaction_and_expect_success(
       from: non_owner_address,
       payload: {
-        to: buddy_address,
+        to: factory.address,
         data: {
-          function: "callFromUser",
+          function: "callBuddyForUser",
           args: {
             amountToSpend: per_mint_fee * 2,
             addressToCall: upgrader.address,
@@ -448,7 +454,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
       payload: {
         to: buddy_address,
         data: {
-          function: "callFromUser",
+          function: "callForUser",
           args: {
             amountToSpend: per_mint_fee * 2,
             addressToCall: upgrader.address,
