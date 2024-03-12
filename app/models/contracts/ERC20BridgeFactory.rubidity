@@ -30,8 +30,7 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
   }
   
   event :BridgeCreated, {
-    smartContract: :address,
-    dumbContract: :address,
+    newBridge: :address,
     tokenSmartContract: :address
   }
 
@@ -39,10 +38,6 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
   
   mapping ({ address: :address }), :public, :bridgeDumbContractToSmartContract
   mapping ({ address: :address }), :public, :bridgeSmartContractToDumbContract
-  
-  mapping ({ address: :bytes32 }), :public, :userWithdrawalId
-  mapping ({ bytes32: :uint256 }), :public, :withdrawalIdAmount
-  mapping ({ bytes32: :address }), :public, :withdrawalIdTokenSmartContract
   
   constructor(trustedSmartContract: :address) {
     require(trustedSmartContract != address(0), "Invalid smart contract")
@@ -73,7 +68,7 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
       name: name
     )
     
-    ERC20Bridge(bridge).mintFromFactory(to: to, amount: amount)
+    ERC20Bridge(bridge).bridgeIn(to: to, amount: amount)
     
     emit :BridgedIn,
       to: to,
@@ -98,6 +93,7 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
     
     bridge = new ERC20Bridge(
       tokenSmartContract,
+      s.trustedSmartContract,
       "Wrapped #{name}",
       "W#{symbol}",
       decimals,
@@ -110,8 +106,7 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
     s.bridgeDumbContractToSmartContract[bridge] = tokenSmartContract
     
     emit :BridgeCreated,
-      smartContract: tokenSmartContract,
-      dumbContract: bridge,
+      newBridge: bridge,
       tokenSmartContract: tokenSmartContract
     
     return bridge
@@ -124,31 +119,12 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
     
     require(smartContract != address(0), "Bridge not found")
     
-    withdrawalId = tx.current_transaction_hash
-    require(
-      s.userWithdrawalId[msg.sender] == bytes32(0),
-      "Withdrawal pending"
-    )
-    require(
-      s.withdrawalIdAmount[withdrawalId] == 0,
-      "Already bridged out"
-    )
-    require(
-      s.withdrawalIdTokenSmartContract[withdrawalId] == address(0),
-      "Already bridged out"
-    )
-    require(amount > 0, "Invalid amount")
-
-    s.userWithdrawalId[msg.sender] = withdrawalId
-    s.withdrawalIdAmount[withdrawalId] = amount
-    s.withdrawalIdTokenSmartContract[withdrawalId] = smartContract
-    
-    ERC20Bridge(bridgeDumbContract).burnFromFactory(from: msg.sender, amount: amount)
+    ERC20Bridge(bridgeDumbContract).bridgeOut(from: msg.sender, amount: amount)
     
     emit :InitiateWithdrawal,
       from: msg.sender,
       amount: amount,
-      withdrawalId: withdrawalId,
+      withdrawalId: tx.current_transaction_hash,
       dumbContract: bridgeDumbContract,
       smartContract: smartContract
   end
@@ -162,21 +138,12 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
       msg.sender == s.trustedSmartContract,
       "Only the trusted smart contract can mark withdrawals as complete"
     )
-    require(
-      s.userWithdrawalId[to] == withdrawalId,
-      "Withdrawal id not found"
-    )
-    require(
-      s.withdrawalIdTokenSmartContract[withdrawalId] == tokenSmartContract,
-      "Invalid token smart contract"
-    )
     
     dumbContract = s.bridgeSmartContractToDumbContract[tokenSmartContract]
-    amount = s.withdrawalIdAmount[withdrawalId]
     
-    s.withdrawalIdAmount[withdrawalId] = 0
-    s.userWithdrawalId[to] = bytes32(0)
-    s.withdrawalIdTokenSmartContract[withdrawalId] = address(0)
+    amount = ERC20Bridge(dumbContract).withdrawalIdAmount(withdrawalId)
+    
+    ERC20Bridge(dumbContract).markWithdrawalComplete(to: to, withdrawalId: withdrawalId)
     
     emit :WithdrawalComplete,
       to: to,

@@ -44,7 +44,7 @@ describe 'ERC20BridgeFactory contract' do
       }
     )
     
-    created_address = bridge_in.logs.detect{|i| i['event'] == 'BridgeCreated'}['data']['dumbContract']
+    created_address = bridge_in.logs.detect{|i| i['event'] == 'BridgeCreated'}['data']['newBridge']
     
     daryl_initial_balance = ContractTransaction.make_static_call(
       contract: created_address,
@@ -123,7 +123,7 @@ describe 'ERC20BridgeFactory contract' do
     )
     
     expect(ContractTransaction.make_static_call(
-      contract: factory.address,
+      contract: created_address,
       function_name: "withdrawalIdAmount",
       function_args: withdrawalId
     )).to eq(0)
