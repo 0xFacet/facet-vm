@@ -1,5 +1,5 @@
 class ContractsController < ApplicationController
-  cache_actions_on_block except: :storage_get, s_max_age: 12.seconds
+  cache_actions_on_block except: :storage_get
   
   def index
     page = (params[:page] || 1).to_i
@@ -127,7 +127,7 @@ class ContractsController < ApplicationController
       args_hash
     ]
     
-    set_cache_control_headers(etag: cache_key, max_age: 12.seconds) do
+    set_cache_control_headers(etag: cache_key, max_age: 6.seconds) do
       result = Rails.cache.fetch(cache_key) do
         Contract.get_storage_value_by_path(address, args)
       end
