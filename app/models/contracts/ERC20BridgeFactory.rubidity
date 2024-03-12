@@ -1,0 +1,165 @@
+pragma :rubidity, "1.0.0"
+
+import "./Pausable.rubidity"
+import "./Ownable.rubidity"
+import "./ERC20Bridge.rubidity"
+import "./Upgradeable.rubidity"
+
+contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeable: true do
+  event :BridgedIn, {
+    to: :address,
+    amount: :uint256,
+    smartContract: :address,
+    dumbContract: :address
+  }
+  
+  event :InitiateWithdrawal, {
+    from: :address,
+    amount: :uint256,
+    withdrawalId: :bytes32,
+    smartContract: :address,
+    dumbContract: :address,
+  }
+  
+  event :WithdrawalComplete, {
+    to: :address,
+    amount: :uint256,
+    withdrawalId: :bytes32,
+    smartContract: :address,
+    dumbContract: :address,
+  }
+  
+  event :BridgeCreated, {
+    newBridge: :address,
+    tokenSmartContract: :address
+  }
+
+  address :public, :trustedSmartContract
+  
+  mapping ({ address: :address }), :public, :bridgeDumbContractToSmartContract
+  mapping ({ address: :address }), :public, :bridgeSmartContractToDumbContract
+  
+  constructor(trustedSmartContract: :address) {
+    require(trustedSmartContract != address(0), "Invalid smart contract")
+
+    Upgradeable.constructor(upgradeAdmin: msg.sender)
+    Ownable.constructor(owner: msg.sender)
+
+    s.trustedSmartContract = trustedSmartContract
+  }
+  
+  function :bridgeIn, {
+    tokenSmartContract: :address,
+    decimals: :uint8,
+    symbol: :string,
+    name: :string,
+    to: :address,
+    amount: :uint256
+  }, :public do
+    require(
+      msg.sender == s.trustedSmartContract,
+      "Only the trusted smart contract can bridge in tokens"
+    )
+    
+    bridge = findOrCreateBridge(
+      tokenSmartContract: tokenSmartContract,
+      decimals: decimals,
+      symbol: symbol,
+      name: name
+    )
+    
+    ERC20Bridge(bridge).bridgeIn(to: to, amount: amount)
+    
+    emit :BridgedIn,
+      to: to,
+      amount: amount,
+      dumbContract: bridge,
+      smartContract: tokenSmartContract
+  end
+  
+  function :findOrCreateBridge, {
+    tokenSmartContract: :address,
+    decimals: :uint8,
+    symbol: :string,
+    name: :string
+  }, :internal, returns: :address do
+    existingBridge = s.bridgeSmartContractToDumbContract[tokenSmartContract]
+    
+    if existingBridge != address(0)
+      return existingBridge
+    end
+    
+    salt = keccak256(abi.encodePacked(tokenSmartContract))
+    
+    bridge = new ERC20Bridge(
+      tokenSmartContract,
+      s.trustedSmartContract,
+      "Wrapped #{name}",
+      "W#{symbol}",
+      decimals,
+      { salt: salt }
+    )
+    
+    require(s.bridgeDumbContractToSmartContract[bridge] == address(0), "Bridge already exists")
+    
+    s.bridgeSmartContractToDumbContract[tokenSmartContract] = bridge
+    s.bridgeDumbContractToSmartContract[bridge] = tokenSmartContract
+    
+    emit :BridgeCreated,
+      newBridge: bridge,
+      tokenSmartContract: tokenSmartContract
+    
+    return bridge
+  end
+  
+  function :bridgeOut, { bridgeDumbContract: :address, amount: :uint256 }, :public do
+    whenNotPaused!
+    
+    smartContract = s.bridgeDumbContractToSmartContract[bridgeDumbContract]
+    
+    require(smartContract != address(0), "Bridge not found")
+    
+    ERC20Bridge(bridgeDumbContract).bridgeOut(from: msg.sender, amount: amount)
+    
+    emit :InitiateWithdrawal,
+      from: msg.sender,
+      amount: amount,
+      withdrawalId: tx.current_transaction_hash,
+      dumbContract: bridgeDumbContract,
+      smartContract: smartContract
+  end
+  
+  function :markWithdrawalComplete, {
+    to: :address,
+    withdrawalId: :bytes32,
+    tokenSmartContract: :address
+  }, :public do
+    require(
+      msg.sender == s.trustedSmartContract,
+      "Only the trusted smart contract can mark withdrawals as complete"
+    )
+    
+    dumbContract = s.bridgeSmartContractToDumbContract[tokenSmartContract]
+    
+    amount = ERC20Bridge(dumbContract).withdrawalIdAmount(withdrawalId)
+    
+    ERC20Bridge(dumbContract).markWithdrawalComplete(to: to, withdrawalId: withdrawalId)
+    
+    emit :WithdrawalComplete,
+      to: to,
+      amount: amount,
+      withdrawalId: withdrawalId,
+      dumbContract: dumbContract,
+      smartContract: tokenSmartContract
+  end
+  
+  function :pause, :public do
+    onlyOwner!
+    _pause()
+  end
+  
+  function :unpause, :public do
+    onlyOwner!
+    _unpause()
+  end
+end
