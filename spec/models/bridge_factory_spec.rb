@@ -127,5 +127,21 @@ describe 'ERC20BridgeFactory contract' do
       function_name: "withdrawalIdAmount",
       function_args: withdrawalId
     )).to eq(0)
+    
+    bridge_in = trigger_contract_interaction_and_expect_success(
+      from: trusted_smart_contract,
+      payload: {
+        op: "call",
+        data: {
+          to: factory.address,
+          function: "bridgeIntoExistingBridge",
+          args: {
+            tokenSmartContract: token_smart_contract,
+            to: daryl,
+            amount: 1.ether
+          }
+        }
+      }
+    )
   end
 end

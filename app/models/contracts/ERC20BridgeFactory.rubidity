@@ -81,6 +81,26 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
       smartContract: tokenSmartContract
   end
   
+  function :bridgeIntoExistingBridge, {
+    tokenSmartContract: :address,
+    to: :address,
+    amount: :uint256
+  }, :public do
+    onlyTrustedSmartContract!
+    
+    bridge = s.tokenSmartContractToBridgeDumbContract[tokenSmartContract]
+    
+    require(bridge != address(0), "Bridge not found")
+    
+    ERC20Bridge(bridge).bridgeIn(to: to, amount: amount)
+    
+    emit :FactoryBridgedIn,
+      to: to,
+      amount: amount,
+      dumbContract: bridge,
+      smartContract: tokenSmartContract
+  end
+  
   function :findOrCreateBridge, {
     tokenSmartContract: :address,
     decimals: :uint8,
