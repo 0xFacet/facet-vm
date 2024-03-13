@@ -67,11 +67,6 @@ contract :TestStruct do
     nil
   end
   
-  function :setPersonAgeFromAddress, { address: :string, _age: :uint256 }, :public do
-    s.addressToPerson[address].age = _age
-    nil
-  end
-  
   function :getAge, :public, :view, returns: :uint256 do
     return s.testPerson.age
   end
