@@ -47,7 +47,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def mark_active(contract)
-    contract&.implementation&.state_proxy&.clear_changed
+    contract&.load_last_snapshot
     active_contracts << contract if contract
     contract
   end

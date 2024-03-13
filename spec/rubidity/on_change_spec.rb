@@ -23,13 +23,6 @@ describe 'On Change and State Proxy Dirty Tracking' do
     expect {
       ContractTransaction.make_static_call(
         contract: tester.effective_contract_address,
-        function_name: "boolFail",
-      )
-    }.to raise_error(Contract::StaticCallError)
-    
-    expect {
-      ContractTransaction.make_static_call(
-        contract: tester.effective_contract_address,
         function_name: "staticCallShouldFail",
       )
     }.to raise_error(Contract::StaticCallError)

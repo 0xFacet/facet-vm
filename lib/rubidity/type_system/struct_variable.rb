@@ -7,7 +7,7 @@ class StructVariable < TypedVariable
     self.value = Value.new(
       struct_definition: type.struct_definition,
       values: value,
-      on_change: -> { on_change&.call }
+      on_change: on_change
     )
   end
   
@@ -24,7 +24,7 @@ class StructVariable < TypedVariable
     self.value = Value.new(
       struct_definition: type.struct_definition,
       values: hash,
-      on_change: -> { on_change&.call }
+      on_change: on_change
     )
   end
   

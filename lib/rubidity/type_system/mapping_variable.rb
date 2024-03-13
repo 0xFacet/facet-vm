@@ -1,7 +1,7 @@
 class MappingVariable < TypedVariable
   def initialize(...)
     super(...)
-    value.on_change = -> { on_change&.call }
+    value.on_change = on_change
     
     if key_type.struct?
       raise TypeError, "Structs cannot be used as mapping keys"
@@ -58,14 +58,14 @@ class MappingVariable < TypedVariable
       raw_key = key_var.is_a?(TypedObject) ? key_var.value : key_var
       string_key = raw_key.to_s
     
-      typed_key_var = TypedVariable.create_or_validate(key_type, key_var, on_change: -> { on_change&.call })
+      typed_key_var = TypedVariable.create_or_validate(key_type, key_var, on_change: on_change)
     
       # First, attempt a lookup using the typed key
       value = data[typed_key_var]
     
       # If no value is found, try looking it up as a string (how it would be stored in JSONB)
       if value.nil? && data.key?(string_key)
-        value = TypedVariable.create_or_validate(value_type, data[string_key], on_change: -> { on_change&.call })
+        value = TypedVariable.create_or_validate(value_type, data[string_key], on_change: on_change)
         
         data.delete(string_key)
         set_value(typed_key_var, value)
@@ -73,21 +73,16 @@ class MappingVariable < TypedVariable
     
       # If the value is still nil, it truly doesn't exist; create a new default value
       if value.nil?
-        value = TypedVariable.create_or_validate(value_type, on_change: -> { on_change&.call })
+        value = TypedVariable.create_or_validate(value_type, on_change: on_change)
         set_value(typed_key_var, value)
       end
       
-      if value_type.is_value_type?
-        value.deep_dup
-      else
-        value.on_change = -> { on_change&.call }
-        value
-      end
+      value_type.is_value_type? ? value.deep_dup : value
     end
 
     def []=(key_var, value)
-      key_var = TypedVariable.create_or_validate(key_type, key_var, on_change: -> { on_change&.call })
-      val_var = TypedVariable.create_or_validate(value_type, value, on_change: -> { on_change&.call })
+      key_var = TypedVariable.create_or_validate(key_type, key_var, on_change: on_change)
+      val_var = TypedVariable.create_or_validate(value_type, value, on_change: on_change)
 
       if value_type.mapping?
         raise TypeError, "Mappings cannot be assigned to mappings"
