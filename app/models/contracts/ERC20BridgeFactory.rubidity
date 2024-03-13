@@ -6,14 +6,14 @@ import "./ERC20Bridge.rubidity"
 import "./Upgradeable.rubidity"
 
 contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeable: true do
-  event :BridgedIn, {
+  event :FactoryBridgedIn, {
     to: :address,
     amount: :uint256,
     smartContract: :address,
     dumbContract: :address
   }
   
-  event :InitiateWithdrawal, {
+  event :FactoryInitiateWithdrawal, {
     from: :address,
     amount: :uint256,
     withdrawalId: :bytes32,
@@ -21,7 +21,7 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
     dumbContract: :address,
   }
   
-  event :WithdrawalComplete, {
+  event :FactoryWithdrawalComplete, {
     to: :address,
     amount: :uint256,
     withdrawalId: :bytes32,
@@ -36,8 +36,8 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
 
   address :public, :trustedSmartContract
   
-  mapping ({ address: :address }), :public, :bridgeDumbContractToSmartContract
-  mapping ({ address: :address }), :public, :bridgeSmartContractToDumbContract
+  mapping ({ address: :address }), :public, :bridgeDumbContractToTokenSmartContract
+  mapping ({ address: :address }), :public, :tokenSmartContractToBridgeDumbContract
   
   constructor(trustedSmartContract: :address) {
     require(trustedSmartContract != address(0), "Invalid smart contract")
@@ -48,6 +48,13 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
     s.trustedSmartContract = trustedSmartContract
   }
   
+  function :onlyTrustedSmartContract!, :internal do
+    require(
+      msg.sender == s.trustedSmartContract,
+      "Only the trusted smart contract can call this function"
+    )
+  end
+  
   function :bridgeIn, {
     tokenSmartContract: :address,
     decimals: :uint8,
@@ -56,10 +63,7 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
     to: :address,
     amount: :uint256
   }, :public do
-    require(
-      msg.sender == s.trustedSmartContract,
-      "Only the trusted smart contract can bridge in tokens"
-    )
+    onlyTrustedSmartContract!
     
     bridge = findOrCreateBridge(
       tokenSmartContract: tokenSmartContract,
@@ -70,7 +74,7 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
     
     ERC20Bridge(bridge).bridgeIn(to: to, amount: amount)
     
-    emit :BridgedIn,
+    emit :FactoryBridgedIn,
       to: to,
       amount: amount,
       dumbContract: bridge,
@@ -83,7 +87,7 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
     symbol: :string,
     name: :string
   }, :internal, returns: :address do
-    existingBridge = s.bridgeSmartContractToDumbContract[tokenSmartContract]
+    existingBridge = s.tokenSmartContractToBridgeDumbContract[tokenSmartContract]
     
     if existingBridge != address(0)
       return existingBridge
@@ -94,16 +98,16 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
     bridge = new ERC20Bridge(
       tokenSmartContract,
       s.trustedSmartContract,
-      "Wrapped #{name}",
-      "W#{symbol}",
+      "Facet #{name}",
+      "F#{symbol}",
       decimals,
       { salt: salt }
     )
     
-    require(s.bridgeDumbContractToSmartContract[bridge] == address(0), "Bridge already exists")
+    require(s.bridgeDumbContractToTokenSmartContract[bridge] == address(0), "Bridge already exists")
     
-    s.bridgeSmartContractToDumbContract[tokenSmartContract] = bridge
-    s.bridgeDumbContractToSmartContract[bridge] = tokenSmartContract
+    s.tokenSmartContractToBridgeDumbContract[tokenSmartContract] = bridge
+    s.bridgeDumbContractToTokenSmartContract[bridge] = tokenSmartContract
     
     emit :BridgeCreated,
       newBridge: bridge,
@@ -115,13 +119,13 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
   function :bridgeOut, { bridgeDumbContract: :address, amount: :uint256 }, :public do
     whenNotPaused!
     
-    smartContract = s.bridgeDumbContractToSmartContract[bridgeDumbContract]
+    smartContract = s.bridgeDumbContractToTokenSmartContract[bridgeDumbContract]
     
     require(smartContract != address(0), "Bridge not found")
     
     ERC20Bridge(bridgeDumbContract).bridgeOut(from: msg.sender, amount: amount)
     
-    emit :InitiateWithdrawal,
+    emit :FactoryInitiateWithdrawal,
       from: msg.sender,
       amount: amount,
       withdrawalId: tx.current_transaction_hash,
@@ -134,18 +138,15 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
     withdrawalId: :bytes32,
     tokenSmartContract: :address
   }, :public do
-    require(
-      msg.sender == s.trustedSmartContract,
-      "Only the trusted smart contract can mark withdrawals as complete"
-    )
+    onlyTrustedSmartContract!
     
-    dumbContract = s.bridgeSmartContractToDumbContract[tokenSmartContract]
+    dumbContract = s.tokenSmartContractToBridgeDumbContract[tokenSmartContract]
     
     amount = ERC20Bridge(dumbContract).withdrawalIdAmount(withdrawalId)
     
     ERC20Bridge(dumbContract).markWithdrawalComplete(to: to, withdrawalId: withdrawalId)
     
-    emit :WithdrawalComplete,
+    emit :FactoryWithdrawalComplete,
       to: to,
       amount: amount,
       withdrawalId: withdrawalId,
