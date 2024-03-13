@@ -1,8 +1,9 @@
 GIT
   remote: https://github.com/0xfacet/facet_rails_common.git
-  revision: e8ed193eea4398cadb007668c82b3463034b7fbe
+  revision: b2fb5cd855a36b651f8921c63cbedbe0c0b7f1a7
   specs:
     facet_rails_common (0.1.0)
+      order_query (~> 0.5.3)
 
 GEM
   remote: https://rubygems.org/
@@ -318,7 +319,6 @@ DEPENDENCIES
   httpparty (~> 0.2.0)
   kaminari (~> 1.2)
   memoist (~> 0.16.2)
-  order_query (~> 0.5.3)
   pg (~> 1.1)
   pry
   puma (>= 6.4.0)
