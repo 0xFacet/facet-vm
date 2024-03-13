@@ -319,7 +319,6 @@ DEPENDENCIES
   httpparty (~> 0.2.0)
   kaminari (~> 1.2)
   memoist (~> 0.16.2)
-  order_query (~> 0.5.3)
   pg (~> 1.1)
   pry
   puma (>= 6.4.0)
