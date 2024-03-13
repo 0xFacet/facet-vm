@@ -21,8 +21,6 @@ contract :TestOnChange do
   array :uint256, :public, :testArray, initial_length: 3
   array :uint256, :public, :uninitializedArray, initial_length: 1
   
-  bool :public, :boolVar
-  
   constructor() {
     s.name = "testNameVal"
     s.symbol = "testSymbolVal"
@@ -45,11 +43,6 @@ contract :TestOnChange do
     
     s.balanceOf[address(0)]
     s.balanceOf[address(0)] = s.balanceOf[address(0)]
-    nil
-  end
-  
-  function :boolFail, :public, :view do
-    s.boolVar = true
     nil
   end
   
