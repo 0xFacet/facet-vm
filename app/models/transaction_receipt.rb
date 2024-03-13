@@ -1,5 +1,5 @@
 class TransactionReceipt < ApplicationRecord
-  include OrderQuery
+  include FacetRailsCommon::OrderQuery
   
   belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, inverse_of: :transaction_receipts, optional: true, autosave: false
 
