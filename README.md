@@ -32,16 +32,16 @@ You might need to run this if there is an issue with gpg:
 gpg2 --keyserver keyserver.ubuntu.com --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB
 ```
 
-Now install ruby 3.2.2 which the VM uses:
+Now install ruby 3.3.0 which the VM uses:
 
 ```bash
-rvm install 3.2.2
+rvm install 3.3.0
 ```
 
 On a Mac you might run into an issue with openssl. If you do you might need to run something like this:
 
 ```bash
-rvm install 3.2.2 --with-openssl-dir=$(brew --prefix openssl@1.1)
+rvm install 3.3.0 --with-openssl-dir=$(brew --prefix openssl@1.1)
 ```
 
 Install the gems (libraries) the app needs:
