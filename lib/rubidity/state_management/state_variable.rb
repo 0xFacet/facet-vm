@@ -1,7 +1,7 @@
 class StateVariable
   include ContractErrors
   
-  attr_accessor :typed_variable, :name, :visibility, :immutable, :constant
+  attr_accessor :typed_variable, :name, :visibility, :immutable, :constant, :on_change
   
   def initialize(name, typed_variable, args, on_change: nil)
     visibility = :internal
@@ -20,7 +20,7 @@ class StateVariable
     @on_change = on_change
     
     @typed_variable = typed_variable
-    @typed_variable.on_change = on_change
+    @typed_variable.on_change = -> { on_change&.call }
   end
   
   def self.create(name, type, args, on_change: nil)
@@ -114,7 +114,7 @@ class StateVariable
     new_typed_variable = TypedVariable.create_or_validate(
       type,
       new_value,
-      on_change: on_change
+      on_change: -> { on_change&.call }
     )
     
     if new_typed_variable != @typed_variable
