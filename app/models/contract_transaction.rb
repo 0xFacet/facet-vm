@@ -236,6 +236,8 @@ class ContractTransaction < ApplicationRecord
 
     if success?
       TransactionContext.active_contracts.each(&:take_state_snapshot)
+    else
+      TransactionContext.active_contracts.each(&:load_last_snapshot)
     end
   end
   
