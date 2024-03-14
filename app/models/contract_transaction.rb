@@ -162,7 +162,7 @@ class ContractTransaction < ApplicationRecord
       
       {
         transaction_receipt: eth.contract_transaction&.transaction_receipt_for_import,
-        internal_transactions: eth.contract_transaction&.contract_calls&.map(&:as_json),
+        internal_transactions: eth.contract_transaction&.contract_calls&.target&.map(&:as_json),
         ethscription_status: eth.processing_state,
         ethscription_error: eth.processing_error,
         ethscription_content_uri: uri
