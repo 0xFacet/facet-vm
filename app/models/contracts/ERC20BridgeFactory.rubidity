@@ -175,6 +175,12 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
   end
   
   function :predictBridgeAddress, { tokenSmartContract: :address }, :public, :view, returns: :address do
+    existing = s.tokenSmartContractToBridgeDumbContract[tokenSmartContract]
+    
+    if existing != address(0)
+      return existing
+    end
+    
     return create2_address(
       salt: keccak256(abi.encodePacked(tokenSmartContract)),
       deployer: address(this),
