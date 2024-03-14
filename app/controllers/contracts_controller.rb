@@ -76,7 +76,7 @@ class ContractsController < ApplicationController
         function_args: args,
         msgSender: env['msgSender']
       )
-    rescue Contract::StaticCallError => e
+    rescue Contract::StaticCallError, JSON::ParserError => e
       render json: {
         error: e.message
       }
