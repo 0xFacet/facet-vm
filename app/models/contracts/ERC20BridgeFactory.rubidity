@@ -119,7 +119,7 @@ contract :ERC20BridgeFactory, is: [:Ownable, :Pausable, :Upgradeable], upgradeab
       tokenSmartContract,
       s.trustedSmartContract,
       "Facet #{name}",
-      "F#{symbol}",
+      "f#{symbol.upcase}",
       decimals,
       { salt: salt }
     )
