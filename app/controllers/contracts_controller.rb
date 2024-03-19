@@ -66,17 +66,17 @@ class ContractsController < ApplicationController
   end
 
   def static_call
-    args = JSON.parse(params.fetch(:args) { '{}' })
-    env = JSON.parse(params.fetch(:env) { '{}' })
-
     begin
+      args = JSON.parse(params.fetch(:args) { '{}' })
+      env = JSON.parse(params.fetch(:env) { '{}' })
+      
       result = ContractTransaction.make_static_call(
         contract: params[:address], 
         function_name: params[:function], 
         function_args: args,
         msgSender: env['msgSender']
       )
-    rescue Contract::StaticCallError => e
+    rescue Contract::StaticCallError, JSON::ParserError => e
       render json: {
         error: e.message
       }
