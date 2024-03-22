@@ -216,12 +216,14 @@ class ContractsController < ApplicationController
           token0: {
             address: token0_address,
             name: token0.current_state['name'],
-            symbol: token0.current_state['symbol']
+            symbol: token0.current_state['symbol'],
+            decimals: token0.current_state['decimals']
           },
           token1: {
             address: token1_address,
             name: token1.current_state['name'],
-            symbol: token1.current_state['symbol']
+            symbol: token1.current_state['symbol'],
+            decimals: token1.current_state['decimals']
           },
           lp_reserves: {
             token0: pair.current_state['reserve0'],
@@ -303,7 +305,8 @@ class ContractsController < ApplicationController
           token_info = {
             address: token_addr,
             name: contract_implementation.name,
-            symbol: contract_implementation.symbol
+            symbol: contract_implementation.symbol,
+            decimals: contract_implementation.decimals
           }
   
           if user_address.present?
