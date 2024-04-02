@@ -12,7 +12,7 @@ class WalletsController < ApplicationController
 
     if params[:factory]
       factory = TypedVariable.validated_value(:address, params[:factory])
-      scope = scope.where("current_state->'factory' = ?", factory)
+      scope = scope.where("current_state->>'factory' = ?", factory)
     end
 
     tokens = scope.limit(200)
