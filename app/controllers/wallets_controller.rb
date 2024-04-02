@@ -1,7 +1,7 @@
 class WalletsController < ApplicationController
   cache_actions_on_block
 
-  def get_tokens
+  def get_token_balances
     owner = TypedVariable.validated_value(:address, params[:address])
     owner_quoted = ActiveRecord::Base.connection.quote(owner)
 
@@ -38,7 +38,7 @@ class WalletsController < ApplicationController
     render json: { error: e.message }, status: 400
   end
 
-  def get_allowances
+  def get_token_allowances
     owner = TypedVariable.validated_value(:address, params[:address])
     owner_quoted = ActiveRecord::Base.connection.quote(owner)
 
@@ -63,7 +63,7 @@ class WalletsController < ApplicationController
     render json: { error: e.message }, status: 400
   end
 
-  def get_nfts
+  def get_nft_balances
     owner = TypedVariable.validated_value(:address, params[:address])
     owner_quoted = ActiveRecord::Base.connection.quote(owner)
 
@@ -92,7 +92,7 @@ class WalletsController < ApplicationController
     render json: { error: e.message }, status: 400
   end
 
-  def get_approvals
+  def get_nft_approvals
     owner = TypedVariable.validated_value(:address, params[:address])
     owner_quoted = ActiveRecord::Base.connection.quote(owner)
 
