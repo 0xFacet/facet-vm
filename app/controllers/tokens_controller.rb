@@ -1,6 +1,6 @@
 class TokensController < ApplicationController
   cache_actions_on_block
-  
+
   def get_allowance
     address = TypedVariable.validated_value(:address, params[:address])
     owner = TypedVariable.validated_value(:address, params[:owner])
