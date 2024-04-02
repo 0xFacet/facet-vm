@@ -37,6 +37,7 @@ Rails.application.routes.draw do
 
   resources :tokens, only: [] do
     collection do
+      get '/:address', to: 'tokens#tokens_owned_by_address'
       get '/:address/get_allowance', to: 'tokens#get_allowance'
       get '/:address/historical_token_state', to: 'tokens#historical_token_state'
       get '/:address/holders', to: 'tokens#holders'
