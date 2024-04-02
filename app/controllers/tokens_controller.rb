@@ -5,6 +5,7 @@ class TokensController < ApplicationController
     address = TypedVariable.validated_value(:address, params[:address])
 
     tokens = Contract.where("current_state->'balanceOf'->>? > '0'", address)
+      .limit(200)
       .pluck(
         :address,
         Arel.sql("current_state->'name'"),
