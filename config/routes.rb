@@ -37,7 +37,6 @@ Rails.application.routes.draw do
 
   resources :tokens, only: [] do
     collection do
-      get '/:address', to: 'tokens#tokens_owned_by_address'
       get '/:address/get_allowance', to: 'tokens#get_allowance'
       get '/:address/historical_token_state', to: 'tokens#historical_token_state'
       get '/:address/holders', to: 'tokens#holders'
@@ -46,7 +45,16 @@ Rails.application.routes.draw do
       get '/token_prices', to: 'tokens#token_prices'
     end
   end
-  
+
+  resources :wallets, only: [] do
+    collection do
+      get '/:address/tokens', to: 'wallets#get_tokens'
+      get '/:address/allowances', to: 'wallets#get_allowances'
+      get '/:address/nfts', to: 'wallets#get_nfts'
+      get '/:address/approvals', to: 'wallets#get_approvals'
+    end
+  end
+
   resources :contract_calls, only: [:index] do
   end
   
