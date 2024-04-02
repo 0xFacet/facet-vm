@@ -35,56 +35,56 @@ class TokensController < ApplicationController
     address = TypedVariable.validated_value(:address, params[:address])
     owner = TypedVariable.validated_value(:address, params[:owner])
     spender = TypedVariable.validated_value(:address, params[:spender])
-
+    
     owner_address = ActiveRecord::Base.connection.quote(owner)
     spender_address = ActiveRecord::Base.connection.quote(spender)
 
     allowance = Contract.where(address: address)
                 .pluck(Arel.sql("current_state->'allowance'->#{owner_address}->>#{spender_address}"))
                 .first.to_i
-
+                        
     render json: {
       result: allowance.to_s
     }
   rescue ContractErrors::VariableTypeError => e
     render json: { error: e.message }, status: 400
   end
-
+  
   def historical_token_state
     as_of_block = params[:as_of_block].to_i
     contract_address = params[:address].to_s.downcase
-
+    
     contract_state_future = ContractState.where(
       contract_address: contract_address,
     ).where("block_number <= ?", as_of_block).newest_first.limit(1).load_async
-
+    
     function_event_pairs = [
       ['bridgeIn', 'BridgedIn'],
       ['markWithdrawalComplete', 'WithdrawalComplete']
     ]
-
+    
     async_result = calculate_total_amounts_async(
       function_event_pairs: function_event_pairs,
       contract_address: contract_address,
       as_of_block: as_of_block
     )
-
+    
     contract_state = contract_state_future.first
-
+    
     state = contract_state.state
-
+    
     if !state["withdrawalIdAmount"]
       render json: { error: "Invalid contract" }, status: 400
       return
     end
-
+    
     pending_withdraw_amount = state['withdrawalIdAmount'].values.sum
-
+    
     result = async_result.first
-
+    
     total_bridged_in = result.bridgein_sum.to_i
     total_withdraw_complete = result.markwithdrawalcomplete_sum.to_i
-
+    
     result = {
       as_of_block: as_of_block,
       contract_address: contract_address,
@@ -94,12 +94,12 @@ class TokensController < ApplicationController
       total_bridged_in: total_bridged_in,
       total_withdraw_complete: total_withdraw_complete
     }
-
+    
     render json: {
       result: numbers_to_strings(result)
     }
   end
-
+  
   def holders
     contract_address = params[:address]&.downcase
 
@@ -111,7 +111,7 @@ class TokensController < ApplicationController
 
     result = Rails.cache.fetch(cache_key) do
       contract = Contract.find_by(deployed_successfully: true, address: contract_address)
-
+      
       if contract.blank?
         render json: { error: "Contract not found" }, status: 404
         return
@@ -140,21 +140,21 @@ class TokensController < ApplicationController
     to_timestamp = params[:to_timestamp].to_i
     router_address = params[:router_address]&.downcase
     max_processed_block_timestamp = EthBlock.processed.maximum(:timestamp).to_i
-
+  
     if max_processed_block_timestamp < to_timestamp
       to_timestamp = max_processed_block_timestamp
     end
-
+    
     unless router_address.to_s.match?(/\A0x[0-9a-f]{40}\z/)
       render json: { error: "Invalid router address" }, status: 400
       return
     end
-
+    
     if from_timestamp > to_timestamp || to_timestamp - from_timestamp > 1.month
       render json: { error: "Invalid timestamp range" }, status: 400
       return
     end
-
+  
     cache_key = [
       "token_swaps",
       contract_address,
@@ -162,9 +162,9 @@ class TokensController < ApplicationController
       from_timestamp,
       to_timestamp
     ]
-
+  
     cache_key << max_processed_block_timestamp if max_processed_block_timestamp - to_timestamp < 1.hour
-
+  
     result = Rails.cache.fetch(cache_key) do
       transactions = TransactionReceipt.where(
         to_contract_address: router_address,
@@ -183,16 +183,16 @@ class TokensController < ApplicationController
         render json: { error: "Transactions not found" }, status: 404
         return
       end
-
+      
       cooked_transactions = transactions.map do |receipt|
         relevant_transfer_logs = receipt.logs.select do |log|
           log["event"] == "Transfer" && log["data"]["to"] != router_address
         end
-
+        
         token_log = relevant_transfer_logs.detect do |log|
           log['contractAddress'] == contract_address
         end
-
+        
         paired_token_log = (relevant_transfer_logs - [token_log]).first
 
         swap_type = if token_log['data']['to'] == receipt.from_address
@@ -200,7 +200,7 @@ class TokensController < ApplicationController
         else
           'sell'
         end
-
+        
         {
           txn_hash: receipt.transaction_hash,
           swapper_address: receipt.from_address,
@@ -212,10 +212,10 @@ class TokensController < ApplicationController
           block_number: receipt.block_number
         }
       end
-
+      
       numbers_to_strings(cooked_transactions)
     end
-
+  
     render json: {
       result: result
     }
@@ -227,7 +227,7 @@ class TokensController < ApplicationController
     one_day_ago = 24.hours.ago.to_i
 
     cache_key = ["token_volume", contract_address, volume_contract]
-
+    
     set_cache_control_headers(max_age: 12.seconds, s_max_age: 1.hour)
 
     result = Rails.cache.fetch(cache_key, expires_in: 1.hour) do
@@ -277,9 +277,9 @@ class TokensController < ApplicationController
       result: result
     }
   end
-
+  
   private
-
+  
   def get_last_swap_price_for_token(token_address, eth_contract_address, router_address)
     token_address = token_address.downcase
     eth_contract_address = eth_contract_address.downcase
@@ -333,13 +333,13 @@ class TokensController < ApplicationController
     select_query_parts = function_event_pairs.map do |function, event|
       "SUM((CASE WHEN function = '#{function}' AND log->>'event' = '#{event}' THEN (log->'data'->>'amount')::numeric ELSE 0 END)) as #{function}_sum"
     end
-
+  
     TransactionReceipt
       .joins("CROSS JOIN LATERAL jsonb_array_elements(logs) as log")
       .where("status = ? AND to_contract_address = ? AND block_number <= ?", 'success', contract_address, as_of_block)
       .select(Arel.sql(select_query_parts.join(", "))).load_async
   end
-
+  
   def calculate_volume(contract_address:, volume_contract:, start_time: nil)
     query = TransactionReceipt.where(status: "success", function: ["swapExactTokensForTokens", "swapTokensForExactTokens"])
       .where("EXISTS (
