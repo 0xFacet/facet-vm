@@ -4,30 +4,21 @@ class TokensController < ApplicationController
   def tokens_owned_by_address
     address = TypedVariable.validated_value(:address, params[:address])
 
-    cache_key = [
-      "tokens_owned_by_address",
-      address,
-      EthBlock.max_processed_block_number
-    ]
+    tokens = Contract.where("current_state->'balanceOf'->>? > '0'", address)
+      .pluck(
+        :address,
+        Arel.sql("current_state->'name'"),
+        Arel.sql("current_state->'symbol'"),
+        Arel.sql("current_state->'balanceOf'->>#{ActiveRecord::Base.connection.quote(address)}"),
+        Arel.sql("current_state->'decimals'")
+      )
 
-    result = Rails.cache.fetch(cache_key) do
-      tokens = Contract.where("current_state->'balanceOf'->>? > '0'", address)
-        .pluck(
-          :address,
-          Arel.sql("current_state->'name'"),
-          Arel.sql("current_state->'symbol'"),
-          Arel.sql("current_state->'balanceOf'->>#{ActiveRecord::Base.connection.quote(address)}"),
-          Arel.sql("current_state->'decimals'")
-        )
-
-      token_balances = tokens.map do |address, name, symbol, balance, decimals|
-        { address: address, name: name, symbol: symbol, balance: balance, decimals: decimals }
-      end
-      numbers_to_strings(token_balances)
+    token_balances = tokens.map do |address, name, symbol, balance, decimals|
+      { address: address, name: name, symbol: symbol, balance: balance, decimals: decimals }
     end
 
     render json: {
-      result: result
+      result: numbers_to_strings(token_balances)
     }
   end
 
