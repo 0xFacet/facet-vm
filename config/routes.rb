@@ -48,7 +48,7 @@ Rails.application.routes.draw do
 
   resources :wallets, only: [] do
     collection do
-      get '/:address/token_balances', to: 'wallets#get_token_balances'
+      get '/:address/tokens', to: 'wallets#get_tokens'
       get '/:address/token_allowances', to: 'wallets#get_token_allowances'
       get '/:address/nft_balances', to: 'wallets#get_nft_balances'
       get '/:address/nft_approvals', to: 'wallets#get_nft_approvals'

@@ -1,7 +1,7 @@
 class WalletsController < ApplicationController
   cache_actions_on_block
 
-  def get_token_balances
+  def get_tokens
     owner = TypedVariable.validated_value(:address, params[:address])
     owner_quoted = ActiveRecord::Base.connection.quote(owner)
 
