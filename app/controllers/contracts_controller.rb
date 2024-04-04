@@ -1,5 +1,5 @@
 class ContractsController < ApplicationController
-  cache_actions_on_block
+  cache_actions_on_block except: [:show, :storage_get]
   
   def index
     scope = Contract.where.not(current_init_code_hash: nil).
