@@ -3,12 +3,7 @@ class BlocksController < ApplicationController
   before_action :set_eth_block_scope
 
   def index
-    results, pagination_response = paginate(@eth_block_scope)
-    
-    render json: {
-      result: numbers_to_strings(results),
-      pagination: pagination_response
-    }
+    render_paginated_json(@eth_block_scope)
   end
 
   def show
