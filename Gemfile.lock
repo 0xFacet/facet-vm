@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/0xfacet/facet_rails_common.git
-  revision: 8cb74bffc4d12470bbce92d63cbe063ee0a3a9dc
+  revision: dd72807b5e51dc6fd7969f320cbb9bedfa92c4a5
   specs:
     facet_rails_common (0.1.0)
       order_query (~> 0.5.3)
