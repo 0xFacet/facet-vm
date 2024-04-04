@@ -5,6 +5,7 @@ class ContractArtifact < ApplicationRecord
   extend Memoist
   
   belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, optional: true
+  has_many :contracts, foreign_key: :current_init_code_hash, primary_key: :init_code_hash
   
   scope :newest_first, -> {
     order(
