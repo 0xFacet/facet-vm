@@ -131,7 +131,8 @@ class TokensController < ApplicationController
       contract_address,
       router_address,
       from_timestamp,
-      to_timestamp
+      to_timestamp,
+      from_address
     ]
   
     cache_key << max_processed_block_timestamp if max_processed_block_timestamp - to_timestamp < 1.hour
