@@ -107,21 +107,20 @@ class TokensController < ApplicationController
   def swaps
     contract_address = params[:address]&.downcase
     from_address = params[:from_address]&.downcase
-    from_timestamp = params[:from_timestamp].to_i
-    to_timestamp = params[:to_timestamp].to_i
+    from_timestamp = params[:from_timestamp]&.to_i
+    to_timestamp = params[:to_timestamp]&.to_i
     router_address = params[:router_address]&.downcase
     max_processed_block_timestamp = EthBlock.processed.maximum(:timestamp).to_i
-  
-    if max_processed_block_timestamp < to_timestamp
-      to_timestamp = max_processed_block_timestamp
-    end
-    
+
+    from_timestamp = 0 if from_timestamp.nil?
+    to_timestamp = to_timestamp.present? ? [to_timestamp, max_processed_block_timestamp].min : max_processed_block_timestamp
+
     unless router_address.to_s.match?(/\A0x[0-9a-f]{40}\z/)
       render json: { error: "Invalid router address" }, status: 400
       return
     end
-    
-    if from_timestamp > to_timestamp || to_timestamp - from_timestamp > 1.month
+
+    if from_timestamp > to_timestamp || from_address.nil? && to_timestamp - from_timestamp > 1.month
       render json: { error: "Invalid timestamp range" }, status: 400
       return
     end
