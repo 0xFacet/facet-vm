@@ -7,7 +7,7 @@ class BlocksController < ApplicationController
   end
 
   def show
-    eth_block = @eth_block_scope.where(block_number: params[:id]).first
+    eth_block = @eth_block_scope.find_by(block_number: params[:id])
 
     raise RequestedRecordNotFound unless eth_block
 

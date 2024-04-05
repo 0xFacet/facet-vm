@@ -1,0 +1,166 @@
+---
+openapi: 3.0.1
+info:
+  title: Facet API V1
+  version: v1
+  description: "## Overview\nThis API allows for managing and retrieving information
+    on blocks and transactions in a blockchain system. \n\nUse this API to:\n- Retrieve
+    lists of blocks and transactions\n- Fetch detailed information about specific
+    blocks or transactions\n- Submit new transactions to the blockchain\n\n## Authentication\nMost
+    endpoints require authentication. Please refer to the authentication section for
+    details on how to authenticate your requests.\n"
+tags:
+- name: Blocks
+  description: Operations related to blockchain blocks.
+- name: Transactions
+  description: Endpoints for transaction processing and retrieval.
+paths:
+  "/blocks":
+    get:
+      summary: List Blocks
+      tags:
+      - Blocks
+      operationId: getBlocks
+      description: List all Ethereum Blocks known by the VM.
+      parameters:
+      - name: sort_by
+        in: query
+        description: Defines the order of the blocks to be returned. Can be either
+          "newest_first" (default) or "oldest_first".
+        enum:
+        - newest_first
+        - oldest_first
+        required: false
+        default: newest_first
+        schema:
+          type: string
+      - name: reverse
+        in: query
+        description: When set to true, reverses the sort order specified by the sort_by
+          parameter.
+        required: false
+        schema:
+          type: boolean
+      - name: max_results
+        in: query
+        description: Limits the number of results returned. Maximum and default value
+          is 50.
+        required: false
+        maximum: 50
+        default: 25
+        schema:
+          type: integer
+      - name: page_key
+        in: query
+        description: Pagination key from the previous response. Used for fetching
+          the next set of results.
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Blocks retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/BlockObject"
+                  pagination:
+                    "$ref": "#/components/schemas/PaginationObject"
+                description: Response body for a successful retrieval of blocks. Includes
+                  an array of blocks and pagination details.
+  "/blocks/{id}":
+    get:
+      summary: Get Block
+      tags:
+      - Blocks
+      operationId: getBlock
+      description: Retrieves a single Ethereum Block by its block number.
+      parameters:
+      - name: block_number
+        in: path
+        description: The block number of the Ethereum Block to retrieve.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Block retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    "$ref": "#/components/schemas/BlockObject"
+                description: Response body for a successful retrieval of a single
+                  block. Includes the details of the block.
+        '404':
+          description: Block not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Requested record not found
+                description: Response body returned when no block with the specified
+                  block number exists.
+components:
+  schemas:
+    BlockObject:
+      type: object
+      properties:
+        block_number:
+          type: integer
+          example: 18680069
+          description: Unique number identifying the block.
+        timestamp:
+          type: integer
+          example: 1701294755
+          description: Timestamp for when the block was created.
+        blockhash:
+          type: string
+          example: '0x0d4f54a2eccaff738585457aa55e281a1732519d9c884f9ca1e606b64315048b'
+          description: Hash of the block.
+        parent_blockhash:
+          type: string
+          example: '0x0c65bd77b118e87b42ab3472368a5bfb48a40167befc6c2e3c02925bfc161f26'
+          description: Hash of the parent block.
+        imported_at:
+          type: string
+          format: date-time
+          example: '2024-02-12T22:04:00.404Z'
+          description: The timestamp when the block was imported into the system.
+        processing_state:
+          type: string
+          example: complete
+          description: Current processing state of the block.
+        transaction_count:
+          type: integer
+          example: 1
+          description: Number of transactions in the block.
+        runtime_ms:
+          type: integer
+          example: 17
+          description: Time taken to process the block, in milliseconds.
+    PaginationObject:
+      type: object
+      properties:
+        page_key:
+          type: string
+          example: 18680069-4-1
+          description: Key for the next page of results. Supply this in the page_key
+            query parameter to retrieve the next set of items.
+        has_more:
+          type: boolean
+          example: true
+          description: Indicates if more items are available beyond the current page.
+      description: Contains pagination details to navigate through the list of blocks.
+servers:
+- url: https://api.facet.org

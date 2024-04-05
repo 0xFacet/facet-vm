@@ -157,6 +157,8 @@ class EthBlock < ApplicationRecord
       if association(:transaction_receipts).loaded?
         json[:transaction_receipts] = transaction_receipts.map(&:as_json)
       end
+      
+      json['transaction_count'] = json['transaction_count'].to_i
     end.with_indifferent_access
   end
   

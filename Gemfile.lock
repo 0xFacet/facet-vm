@@ -86,6 +86,8 @@ GEM
       minitest (>= 5.1)
       mutex_m
       tzinfo (~> 2.0)
+    addressable (2.8.6)
+      public_suffix (>= 2.0.2, < 6.0)
     airbrake (13.0.3)
       airbrake-ruby (~> 6.0)
     airbrake-ruby (6.2.1)
@@ -146,6 +148,8 @@ GEM
     irb (1.8.3)
       rdoc
       reline (>= 0.3.8)
+    json-schema (4.3.0)
+      addressable (>= 2.8)
     kaminari (1.2.2)
       activesupport (>= 4.1.0)
       kaminari-actionview (= 1.2.2)
@@ -204,6 +208,7 @@ GEM
       method_source (~> 1.0)
     psych (5.1.1.1)
       stringio
+    public_suffix (5.0.5)
     puma (6.4.0)
       nio4r (~> 2.0)
     racc (1.7.3)
@@ -273,6 +278,17 @@ GEM
       rspec-mocks (~> 3.12)
       rspec-support (~> 3.12)
     rspec-support (3.12.1)
+    rswag-api (2.13.0)
+      activesupport (>= 3.1, < 7.2)
+      railties (>= 3.1, < 7.2)
+    rswag-specs (2.13.0)
+      activesupport (>= 3.1, < 7.2)
+      json-schema (>= 2.2, < 5.0)
+      railties (>= 3.1, < 7.2)
+      rspec-core (>= 2.14)
+    rswag-ui (2.13.0)
+      actionpack (>= 3.1, < 7.2)
+      railties (>= 3.1, < 7.2)
     ruby2_keywords (0.0.5)
     rubyzip (2.3.2)
     scout_apm (5.3.5)
@@ -325,6 +341,9 @@ DEPENDENCIES
   rack-cors (~> 2.0)
   rails (~> 7.1.2)
   rspec-rails
+  rswag-api
+  rswag-specs
+  rswag-ui
   scout_apm (~> 5.3)
   stackprof
   tzinfo-data
