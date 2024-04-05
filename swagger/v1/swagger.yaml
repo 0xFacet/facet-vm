@@ -10,10 +10,39 @@ info:
     endpoints require authentication. Please refer to the authentication section for
     details on how to authenticate your requests.\n"
 tags:
-- name: Blocks
-  description: Operations related to blockchain blocks.
+- name: Contracts
+  description: Endpoints for querying contracts.
 - name: Transactions
   description: Endpoints for transaction processing and retrieval.
+- name: Contract Calls
+  description: Endpoints for querying internal and external calls.
+- name: Blocks
+  description: Operations related to blockchain blocks.
+- name: Status
+  description: Endpoints for querying the status of the VM.
+- name: Tokens
+  description: Endpoints for querying token balances, token transfers, and token metadata.
+    Useful for understanding the token-related activities of a user.
+- name: Wallets
+  description: Endpoints for managing and querying wallet information. Includes functionalities
+    like retrieving a user’s wallet balance across different tokens.
+- name: Name Registries
+  description: Endpoints for interacting with name registry services, such as Facet
+    Cards. Allows for querying and registering human-readable names linked to blockchain
+    addresses.
+x-tagGroups:
+- name: Core API
+  tags:
+  - Contracts
+  - Transactions
+  - Contract Calls
+  - Blocks
+  - Status
+- name: Extensions
+  tags:
+  - Tokens
+  - Wallets
+  - Name Registries
 paths:
   "/blocks":
     get:
@@ -25,7 +54,7 @@ paths:
       parameters:
       - name: sort_by
         in: query
-        description: Defines the order of the blocks to be returned. Can be either
+        description: Defines the order of the records to be returned. Can be either
           "newest_first" (default) or "oldest_first".
         enum:
         - newest_first
@@ -43,8 +72,8 @@ paths:
           type: boolean
       - name: max_results
         in: query
-        description: Limits the number of results returned. Maximum and default value
-          is 50.
+        description: Limits the number of results returned. Default value is 25, maximum
+          value is 50.
         required: false
         maximum: 50
         default: 25
@@ -111,6 +140,543 @@ paths:
                     example: Requested record not found
                 description: Response body returned when no block with the specified
                   block number exists.
+  "/contract_calls":
+    get:
+      summary: List Contract Calls
+      tags:
+      - Contract Calls
+      operationId: listContractCalls
+      description: List all contract calls, with optional filters for transaction
+        hash, effective contract address, or to/from address.
+      parameters:
+      - name: transaction_hash
+        in: query
+        description: Filter by the transaction hash.
+        required: false
+        schema:
+          type: string
+      - name: effective_contract_address
+        in: query
+        description: Filter by the effective contract address.
+        required: false
+        schema:
+          type: string
+      - name: to_or_from
+        in: query
+        description: Filter by addresses that are either the sender or the effective
+          contract address.
+        required: false
+        schema:
+          type: string
+      - name: sort_by
+        in: query
+        description: Defines the order of the records to be returned. Can be either
+          "newest_first" (default) or "oldest_first".
+        enum:
+        - newest_first
+        - oldest_first
+        required: false
+        default: newest_first
+        schema:
+          type: string
+      - name: reverse
+        in: query
+        description: When set to true, reverses the sort order specified by the sort_by
+          parameter.
+        required: false
+        schema:
+          type: boolean
+      - name: max_results
+        in: query
+        description: Limits the number of results returned. Default value is 25, maximum
+          value is 50.
+        required: false
+        maximum: 50
+        default: 25
+        schema:
+          type: integer
+      - name: page_key
+        in: query
+        description: Pagination key from the previous response. Used for fetching
+          the next set of results.
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Contract Calls retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/ContractCallObject"
+                  pagination:
+                    "$ref": "#/components/schemas/PaginationObject"
+                description: Response body for a successful retrieval of contract
+                  calls. Includes an array of contract calls and pagination details.
+  "/contracts":
+    get:
+      summary: List Contracts
+      tags:
+      - Contracts
+      operationId: listContracts
+      description: List all contracts, optionally filtered by init code hash.
+      parameters:
+      - name: init_code_hash
+        in: query
+        description: Filter contracts by their init code hash.
+        required: false
+        schema:
+          type: string
+      - name: sort_by
+        in: query
+        description: Defines the order of the records to be returned. Can be either
+          "newest_first" (default) or "oldest_first".
+        enum:
+        - newest_first
+        - oldest_first
+        required: false
+        default: newest_first
+        schema:
+          type: string
+      - name: reverse
+        in: query
+        description: When set to true, reverses the sort order specified by the sort_by
+          parameter.
+        required: false
+        schema:
+          type: boolean
+      - name: max_results
+        in: query
+        description: Limits the number of results returned. Default value is 25, maximum
+          value is 50.
+        required: false
+        maximum: 50
+        default: 25
+        schema:
+          type: integer
+      - name: page_key
+        in: query
+        description: Pagination key from the previous response. Used for fetching
+          the next set of results.
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Contracts retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/ContractObject"
+                  pagination:
+                    "$ref": "#/components/schemas/PaginationObject"
+                description: Response body for a successful retrieval of contracts.
+                  `current_state` is not populated for this action.
+  "/contracts/{id}":
+    get:
+      summary: Show Contract
+      tags:
+      - Contracts
+      operationId: showContract
+      description: Retrieves a single contract by its address, including the current
+        state.
+      parameters:
+      - name: address
+        in: path
+        description: The address of the contract to retrieve.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Contract retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    "$ref": "#/components/schemas/ContractObjectWithState"
+                description: Response body for a successful retrieval of a contract,
+                  including its current state.
+        '404':
+          description: Contract not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Requested record not found
+                description: Response body returned when no contract with the specified
+                  address exists.
+  "/contracts/{address}/static-call/{function}":
+    get:
+      summary: Static Call
+      tags:
+      - Contracts
+      operationId: staticCall
+      description: "Executes a read-only (static) call to a specified contract function.
+        \nThis endpoint allows you to simulate contract function execution without
+        \nmaking any state changes to the blockchain.\n\nProvide function arguments
+        as named arguments in the `args` parameter \n(e.g., `{ \"decimals\": 18, \"name\":
+        \"Facet\" }`), and any environmental settings \nsuch as `msgSender` in the
+        `env` parameter.\n"
+      parameters:
+      - name: address
+        in: path
+        description: The contract address.
+        required: true
+        schema:
+          type: string
+      - name: function
+        in: path
+        description: The function name to call.
+        required: true
+        schema:
+          type: string
+      - name: args
+        in: query
+        description: 'JSON string of named arguments for the function call. Example:
+          `{"decimals":18, "name": "Facet"}`'
+        required: false
+        schema:
+          type: string
+      - name: env
+        in: query
+        description: 'JSON string of environmental settings such as `msgSender`. Example:
+          `{"msgSender":"0x123..."}`'
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Function executed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    example: '29348'
+                    description: The result of the function call.
+                description: The result of the static call to the contract function.
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Invalid arguments
+                    description: Error message describing what went wrong.
+                description: Response returned when the request is malformed or the
+                  arguments/env are invalid.
+  "/contracts/{address}/storage-get/{storage_key}":
+    get:
+      summary: Get Storage Value
+      tags:
+      - Contracts
+      operationId: getStorageValue
+      description: |
+        Retrieves storage values directly from a specified contract. This endpoint allows you to query specific storage slots or mappings within a contract. Note:
+
+        1. Return values are untyped; if a queried value does not exist, the result will be `null` rather than a type-specific default (e.g., `0` for `uint256`).
+
+        2. Only direct contract storage values can be queried; interactions involving multiple contracts are not supported.
+
+        Provide the storage key(s) as arguments in the request.
+      parameters:
+      - name: address
+        in: path
+        description: The contract address to query.
+        required: true
+        schema:
+          type: string
+      - name: storage_key
+        in: path
+        description: The primary key for the storage value.
+        required: true
+        schema:
+          type: string
+      - name: args
+        in: query
+        description: 'Additional keys for nested mappings or arrays, provided as a
+          JSON array string. Example: `["0x123...", "0x456..."]`'
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Storage value retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+                    nullable: true
+                    example: 29348 or null
+                    description: The result of the storage query. Untyped and may
+                      be `null` if the value does not exist.
+                description: The result of querying a storage value from the contract.
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Invalid args
+                    description: Error message describing what went wrong, such as
+                      invalid arguments.
+                description: Response returned when the request is malformed or the
+                  provided arguments are invalid.
+  "/contracts/simulate":
+    get:
+      summary: Simulate Transaction
+      tags:
+      - Contracts
+      operationId: simulateTransaction
+      description: "Simulates a contract transaction to predict its outcome, including
+        any errors, state changes, or effects on other contracts, without committing
+        the transaction to the blockchain. \n\nThe transaction payload (`tx_payload`)
+        should be JSON-encoded and included in the query string. It includes the operation
+        type (`op`), data about the transaction such as the recipient address (`to`),
+        function to call, and arguments for the function (`args`).\n"
+      parameters:
+      - name: from
+        in: query
+        description: The Ethereum address initiating the transaction.
+        required: true
+        schema:
+          type: string
+      - name: tx_payload
+        in: query
+        description: JSON-encoded payload of the transaction to simulate, including
+          operation, target contract, function, and arguments.
+        required: true
+        example: '{"op":"call","data":{"to":"0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e","function":"swapExactTokensForTokens","args":{"path":["0x1673540243e793b0e77c038d4a88448eff524dce","0x55ab0390a89fed8992e3affbf61d102490735e24"],"deadline":"1000000000000000000","to":"0xC2172a6315c1D7f6855768F843c420EbB36eDa97","amountIn":"1000000000000000000","amountOutMin":0}}}'
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Transaction simulated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    "$ref": "#/components/schemas/SimulateTransactionResponse"
+                description: The result of the simulated transaction, including any
+                  outcomes, errors, or state changes.
+        '500':
+          description: Simulation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Simulation failed due to an internal error.
+                description: Error response when the simulation cannot be completed
+                  due to an error.
+  "/vm_status":
+    get:
+      summary: VM Status
+      tags:
+      - Status
+      operationId: getVmStatus
+      description: |
+        Retrieves the current status of the Virtual Machine (VM), including:
+        - The number of ethscriptions behind the current block
+        - The current block number being processed
+        - The maximum block number processed
+        - The number of blocks behind
+        - The count of pending blocks
+        - Overall core indexer status
+      responses:
+        '200':
+          description: VM status retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ethscriptions_behind:
+                    type: integer
+                    example: 10
+                    description: Total newer ethscriptions behind the current block.
+                  current_block_number:
+                    type: integer
+                    example: 100
+                    description: Current block number being processed.
+                  max_processed_block_number:
+                    type: integer
+                    example: 95
+                    description: Maximum block number that has been processed.
+                  blocks_behind:
+                    type: integer
+                    example: 5
+                    description: Number of blocks the system is behind the current
+                      block number.
+                  pending_block_count:
+                    type: integer
+                    example: 3
+                    description: Count of blocks that are pending processing.
+                  core_indexer_status:
+                    type: object
+                    additionalProperties: true
+                    description: Detailed status of the core indexer, structure varies
+                      depending on the indexer status.
+                description: Provides various status indicators of the VM or indexer.
+  "/transactions":
+    get:
+      summary: List Transactions
+      tags:
+      - Transactions
+      operationId: listTransactions
+      description: Lists transactions (transaction receipts) with optional filtering
+        parameters.
+      parameters:
+      - name: block_number
+        in: query
+        description: Filter transactions by block number.
+        required: false
+        schema:
+          type: integer
+      - name: from
+        in: query
+        description: Filter transactions by the sender address.
+        required: false
+        schema:
+          type: string
+      - name: to
+        in: query
+        description: Filter transactions by the effective contract address (recipient).
+        required: false
+        schema:
+          type: string
+      - name: to_or_from
+        in: query
+        description: Filter transactions involving the specified address either as
+          sender or recipient.
+        required: false
+        schema:
+          type: string
+      - name: after_block
+        in: query
+        description: Filter transactions occurring after the specified block number.
+        required: false
+        schema:
+          type: integer
+      - name: sort_by
+        in: query
+        description: Defines the order of the records to be returned. Can be either
+          "newest_first" (default) or "oldest_first".
+        enum:
+        - newest_first
+        - oldest_first
+        required: false
+        default: newest_first
+        schema:
+          type: string
+      - name: reverse
+        in: query
+        description: When set to true, reverses the sort order specified by the sort_by
+          parameter.
+        required: false
+        schema:
+          type: boolean
+      - name: max_results
+        in: query
+        description: Limits the number of results returned. Default value is 25, maximum
+          value is 50.
+        required: false
+        maximum: 50
+        default: 25
+        schema:
+          type: integer
+      - name: page_key
+        in: query
+        description: Pagination key from the previous response. Used for fetching
+          the next set of results.
+        required: false
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Transactions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: array
+                    items:
+                      "$ref": "#/components/schemas/TransactionObject"
+                  pagination:
+                    "$ref": "#/components/schemas/PaginationObject"
+                description: A list of transactions (transaction receipts) matching
+                  the filter criteria, if any, along with pagination details.
+  "/transactions/{transaction_hash}":
+    get:
+      summary: Show Transaction
+      tags:
+      - Transactions
+      operationId: showTransaction
+      description: Retrieves details of a single transaction by its hash.
+      parameters:
+      - name: transaction_hash
+        in: path
+        description: The hash of the transaction to retrieve.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Transaction retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    "$ref": "#/components/schemas/TransactionObject"
+                description: The details of the transaction, represented as a transaction
+                  receipt.
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Transaction not found
+                description: Response returned when no transaction with the specified
+                  hash exists.
 components:
   schemas:
     BlockObject:
@@ -149,6 +715,248 @@ components:
           type: integer
           example: 17
           description: Time taken to process the block, in milliseconds.
+    ContractCallObject:
+      type: object
+      properties:
+        transaction_hash:
+          type: string
+          example: '0x110f94fddfba0252a01ecd6a08ccc3cd764980980689477c94021c14ecbf9be2'
+        internal_transaction_index:
+          type: integer
+          example: 13
+        effective_contract_address:
+          type: string
+          example: '0x55ab0390a89fed8992e3affbf61d102490735e24'
+        function:
+          type: string
+          example: transfer
+        args:
+          type: array
+          items:
+            type: string
+            example:
+            - '0x0ab758cccd54ed559083b6156e714d5ccd7b0696'
+            - '756581274600157393209'
+        call_type:
+          type: string
+          example: call
+        return_value:
+          type: boolean
+          example: true
+        logs:
+          type: array
+          items:
+            type: object
+            properties:
+              data:
+                type: object
+                description: The structure of this object varies depending on the
+                  event emitted. It contains the values associated with the emitted
+                  event.
+                additionalProperties:
+                  type: string or number
+              event:
+                type: string
+                example: Transfer
+                description: Name of the emitted event.
+              index:
+                type: integer
+                example: 6
+                description: Index of the log entry.
+              contractType:
+                type: string
+                example: EthscriptionERC20Bridge03
+                description: Type of the emitting contract.
+              contractAddress:
+                type: string
+                example: '0x55ab0390a89fed8992e3affbf61d102490735e24'
+                description: Address of the emitting contract.
+            description: Log entry for an event emitted by a contract. The 'data'
+              field's structure varies based on the event.
+        error:
+          type: string
+          nullable: true
+        status:
+          type: string
+        block_number:
+          type: integer
+        block_timestamp:
+          type: integer
+        block_blockhash:
+          type: string
+        transaction_index:
+          type: integer
+        runtime_ms:
+          type: integer
+        to:
+          type: string
+        from:
+          type: string
+        contract_address:
+          type: string
+          nullable: true
+        to_or_contract_address:
+          type: string
+    ContractObject:
+      type: object
+      properties:
+        transaction_hash:
+          type: string
+          example: '0x93ea51222f41418dad2159517b4f82dd02e52c766a3a528f587acf1035b8d94d'
+        current_type:
+          type: string
+          example: PublicMintERC20
+        current_init_code_hash:
+          type: string
+          example: '0xb1b0ed1e4a8c9c9b0210f267137e368f782453e41f622fa8cf68296d04c84c88'
+        address:
+          type: string
+          example: '0xd5d49b065b6c187b799073ffbb52f93a6dfdc758'
+        deployment_transaction:
+          "$ref": "#/components/schemas/TransactionObject"
+        abi:
+          type: array
+          items:
+            type: object
+            description: An array of objects, each representing a contract's ABI element.
+              The structure can vary significantly, including fields like 'inputs',
+              'name', 'type', 'outputs', and so on, reflecting the contract's functions
+              and events.
+            additionalProperties:
+              type: string or array or object
+              description: Fields within an ABI element can vary in type, including
+                strings, arrays, or other objects.
+          description: The contract's ABI, detailing its functions, events, and constructors.
+            The exact structure of each element in the ABI array depends on the contract's
+            design.
+        source_code:
+          type: array
+          items:
+            type: object
+            properties:
+              language:
+                type: string
+              code:
+                type: string
+    ContractObjectWithState:
+      allOf:
+      - "$ref": "#/components/schemas/ContractObject"
+      - type: object
+        properties:
+          current_state:
+            type: object
+            additionalProperties: true
+            description: Current state of the contract. Includes variable values and
+              other state-related information, present only in detailed contract information
+              (show action).
+    TransactionObject:
+      type: object
+      properties:
+        transaction_hash:
+          type: string
+          example: '0x22c0b2b290cf90e95544be81ad93fe0a304af3d01652f45e3610f40ae2068185'
+        status:
+          type: string
+          example: success
+        function:
+          type: string
+          example: swapExactTokensForTokens
+        args:
+          type: object
+          additionalProperties: true
+          description: Arguments to the transaction function. Structure varies by
+            function.
+        logs:
+          type: array
+          items:
+            type: object
+            properties:
+              data:
+                type: object
+                additionalProperties: true
+                description: Data emitted by the event. Structure varies by event
+                  type.
+              event:
+                type: string
+                example: Transfer
+              contractType:
+                type: string
+                example: EtherBridge03
+              contractAddress:
+                type: string
+                example: '0x1673540243e793b0e77c038d4a88448eff524dce'
+          description: An array of log entries generated by the transaction.
+        block_timestamp:
+          type: integer
+          example: 1712329319
+        error:
+          type: string
+          nullable: true
+          example:
+        effective_contract_address:
+          type: string
+          example: '0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e'
+        block_number:
+          type: integer
+          example: 19590300
+        transaction_index:
+          type: integer
+          example: 131
+        block_blockhash:
+          type: string
+          example: '0x13c0159d7e238f7f562dc11cbbff0d762c4d1d0feceabe70f29ff560eb78e465'
+        return_value:
+          type: array
+          items:
+            type: integer or string
+            description: Return values of the transaction. Type and structure vary
+              by function.
+        runtime_ms:
+          type: integer
+          example: 292
+        call_type:
+          type: string
+          example: call
+        gas_price:
+          type: integer
+          example: 34801480344
+        gas_used:
+          type: integer
+          example: 25896
+        transaction_fee:
+          type: integer
+          example: 901219134988224
+        to:
+          type: string
+          example: '0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e'
+        from:
+          type: string
+          example: '0xe4fad47541c224bc9af3f06863d9fcc2ef47e65e'
+        contract_address:
+          type: string
+          nullable: true
+          example:
+        to_or_contract_address:
+          type: string
+          example: '0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e'
+    SimulateTransactionResponse:
+      type: object
+      properties:
+        transaction_receipt:
+          "$ref": "#/components/schemas/TransactionObject"
+        internal_transactions:
+          type: array
+          items:
+            "$ref": "#/components/schemas/ContractCallObject"
+        ethscription_status:
+          type: string
+          example: success
+        ethscription_error:
+          type: string
+          nullable: true
+        ethscription_content_uri:
+          type: string
+          example: data:application/vnd.facet.tx+json;rule=esip6,{}
     PaginationObject:
       type: object
       properties:

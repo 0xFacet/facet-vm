@@ -172,8 +172,6 @@ class Contract < ApplicationRecord
         {}
       end
       
-      json['current_state']['contract_type'] = current_type
-      
       if association(:contract_artifact).loaded?
         json['abi'] = contract_artifact&.build_class&.abi.as_json
         

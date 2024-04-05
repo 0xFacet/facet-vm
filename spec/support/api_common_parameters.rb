@@ -14,7 +14,7 @@ module ApiCommonParameters
       name: :max_results,
       in: :query,
       type: :integer,
-      description: 'Limits the number of results returned. Maximum and default value is 50.',
+      description: 'Limits the number of results returned. Default value is 25, maximum value is 50.',
       required: false,
       maximum: 50,
       default: 25

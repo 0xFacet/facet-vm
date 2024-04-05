@@ -2,7 +2,6 @@
 require 'swagger_helper'
 
 describe 'Blocks API' do
-
   path '/blocks' do
     get 'List Blocks' do
       tags 'Blocks'
@@ -10,13 +9,7 @@ describe 'Blocks API' do
       produces 'application/json'
       description 'List all Ethereum Blocks known by the VM.'
       
-      parameter name: :sort_by, 
-                in: :query, 
-                type: :string, 
-                description: 'Defines the order of the blocks to be returned. Can be either "newest_first" (default) or "oldest_first".',
-                enum: ['newest_first', 'oldest_first'],
-                required: false,
-                default: 'newest_first'
+      parameter ApiCommonParameters.sort_by_parameter
       parameter ApiCommonParameters.reverse_parameter
       parameter ApiCommonParameters.max_results_parameter
       parameter ApiCommonParameters.page_key_parameter
@@ -38,7 +31,6 @@ describe 'Blocks API' do
   end
   
   path '/blocks/{id}' do
-
     get 'Get Block' do
       tags 'Blocks'
       operationId 'getBlock'
@@ -71,6 +63,5 @@ describe 'Blocks API' do
         run_test!
       end
     end
-  
   end
 end
