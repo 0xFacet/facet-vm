@@ -1,4 +1,16 @@
 module ApiCommonParameters
+  def self.sort_by_parameter
+    {
+      name: :sort_by, 
+      in: :query, 
+      type: :string, 
+      description: 'Defines the order of the records to be returned. Can be either "newest_first" (default) or "oldest_first".',
+      enum: ['newest_first', 'oldest_first'],
+      required: false,
+      default: 'newest_first'
+    }
+  end
+  
   def self.reverse_parameter
     {
       name: :reverse,
