@@ -106,6 +106,7 @@ class TokensController < ApplicationController
 
   def swaps
     contract_address = params[:address]&.downcase
+    from_address = params[:from_address]&.downcase
     from_timestamp = params[:from_timestamp].to_i
     to_timestamp = params[:to_timestamp].to_i
     router_address = params[:router_address]&.downcase
@@ -148,6 +149,8 @@ class TokensController < ApplicationController
           WHERE (log ->> 'contractAddress') = ?
           AND (log ->> 'event') = 'Transfer'
         )", contract_address)
+
+      transactions = transactions.where(from_address: from_address) if from_address.present?
 
       if transactions.blank?
         render json: { error: "Transactions not found" }, status: 404
