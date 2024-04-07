@@ -147,63 +147,65 @@ class TokensController < ApplicationController
     ]
   
     cache_key << max_processed_block_timestamp if max_processed_block_timestamp - to_timestamp < 1.hour
-  
-    result = Rails.cache.fetch(cache_key) do
-      transactions = TransactionReceipt.where(
-        to_contract_address: router_addresses,
-        status: "success",
-        function: ["swapExactTokensForTokens", "swapTokensForExactTokens"]
-      )
-        .where("block_timestamp >= ? AND block_timestamp <= ?", from_timestamp, to_timestamp)
-        .where("EXISTS (
-          SELECT 1
-          FROM jsonb_array_elements(logs) AS log
-          WHERE (log ->> 'contractAddress') = ?
-          AND (log ->> 'event') = 'Transfer'
-        )", contract_address)
 
-      transactions = transactions.where(from_address: from_address) if from_address.present?
+    set_cache_control_headers(etag: cache_key, max_age: 12.seconds) do
+      result = Rails.cache.fetch(cache_key) do
+        transactions = TransactionReceipt.where(
+          to_contract_address: router_addresses,
+          status: "success",
+          function: ["swapExactTokensForTokens", "swapTokensForExactTokens"]
+        )
+          .where("block_timestamp >= ? AND block_timestamp <= ?", from_timestamp, to_timestamp)
+          .where("EXISTS (
+            SELECT 1
+            FROM jsonb_array_elements(logs) AS log
+            WHERE (log ->> 'contractAddress') = ?
+            AND (log ->> 'event') = 'Transfer'
+          )", contract_address)
 
-      if transactions.blank?
-        render json: { error: "Transactions not found" }, status: 404
-        return
+        transactions = transactions.where(from_address: from_address) if from_address.present?
+
+        if transactions.blank?
+          render json: { error: "Transactions not found" }, status: 404
+          return
+        end
+
+        cooked_transactions = transactions.map do |receipt|
+          relevant_transfer_logs = receipt.logs.select do |log|
+            log["event"] == "Transfer" && log["data"]["to"] != router_address
+          end
+
+          token_log = relevant_transfer_logs.detect do |log|
+            log['contractAddress'] == contract_address
+          end
+
+          paired_token_log = (relevant_transfer_logs - [token_log]).first
+
+          swap_type = if token_log['data']['to'] == receipt.from_address
+            'buy'
+          else
+            'sell'
+          end
+
+          {
+            txn_hash: receipt.transaction_hash,
+            swapper_address: receipt.from_address,
+            timestamp: receipt.block_timestamp,
+            token_amount: token_log['data']['amount'],
+            paired_token_amount: paired_token_log['data']['amount'],
+            swap_type: swap_type,
+            transaction_index: receipt.transaction_index,
+            block_number: receipt.block_number
+          }
+        end
+
+        numbers_to_strings(cooked_transactions)
       end
-      
-      cooked_transactions = transactions.map do |receipt|
-        relevant_transfer_logs = receipt.logs.select do |log|
-          log["event"] == "Transfer" && log["data"]["to"] != router_address
-        end
-        
-        token_log = relevant_transfer_logs.detect do |log|
-          log['contractAddress'] == contract_address
-        end
-        
-        paired_token_log = (relevant_transfer_logs - [token_log]).first
 
-        swap_type = if token_log['data']['to'] == receipt.from_address
-          'buy'
-        else
-          'sell'
-        end
-        
-        {
-          txn_hash: receipt.transaction_hash,
-          swapper_address: receipt.from_address,
-          timestamp: receipt.block_timestamp,
-          token_amount: token_log['data']['amount'],
-          paired_token_amount: paired_token_log['data']['amount'],
-          swap_type: swap_type,
-          transaction_index: receipt.transaction_index,
-          block_number: receipt.block_number
-        }
-      end
-      
-      numbers_to_strings(cooked_transactions)
+      render json: {
+        result: result
+      }
     end
-  
-    render json: {
-      result: result
-    }
   end
 
   def volume
