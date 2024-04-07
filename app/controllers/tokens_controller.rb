@@ -107,12 +107,11 @@ class TokensController < ApplicationController
   def swaps
     contract_address = params[:address]&.downcase
     from_address = params[:from_address]&.downcase
-    from_timestamp = params[:from_timestamp]&.to_i
+    from_timestamp = params[:from_timestamp].to_i
     to_timestamp = params[:to_timestamp]&.to_i
     router_address = params[:router_address]&.downcase
     max_processed_block_timestamp = EthBlock.processed.maximum(:timestamp).to_i
 
-    from_timestamp = 0 if from_timestamp.nil?
     to_timestamp = to_timestamp.present? ? [to_timestamp, max_processed_block_timestamp].min : max_processed_block_timestamp
 
     unless router_address.to_s.match?(/\A0x[0-9a-f]{40}\z/)
@@ -120,7 +119,20 @@ class TokensController < ApplicationController
       return
     end
 
-    if from_timestamp > to_timestamp || from_address.nil? && to_timestamp - from_timestamp > 1.month
+    factory_address = Contract.where(address: router_address)
+      .pluck(Arel.sql("current_state->'factory'"))
+      .first
+
+    unless factory_address.to_s.match?(/\A0x[0-9a-f]{40}\z/)
+      render json: { error: "Invalid factory address" }, status: 400
+      return
+    end
+
+    router_addresses = Contract.where("current_type LIKE ?", "FacetSwapV1Router%")
+      .where("current_state->>'factory' = ?", factory_address)
+      .pluck(:address)
+
+    if from_timestamp > to_timestamp || from_address.blank? && to_timestamp - from_timestamp > 1.month
       render json: { error: "Invalid timestamp range" }, status: 400
       return
     end
@@ -138,7 +150,7 @@ class TokensController < ApplicationController
   
     result = Rails.cache.fetch(cache_key) do
       transactions = TransactionReceipt.where(
-        to_contract_address: router_address,
+        to_contract_address: router_addresses,
         status: "success",
         function: ["swapExactTokensForTokens", "swapTokensForExactTokens"]
       )
@@ -258,10 +270,18 @@ class TokensController < ApplicationController
     eth_contract_address = eth_contract_address.downcase
     router_address = router_address.downcase
 
+    factory_address = Contract.where(address: router_address)
+      .pluck(Arel.sql("current_state->'factory'"))
+      .first
+
+    router_addresses = Contract.where("current_type LIKE ?", "FacetSwapV1Router%")
+      .where("current_state->>'factory' = ?", factory_address)
+      .pluck(:address)
+
     recent_transaction = TransactionReceipt.where(
       status: "success",
       function: ["swapExactTokensForTokens", "swapTokensForExactTokens"],
-      to_contract_address: router_address
+      to_contract_address: router_addresses
     )
     .where("EXISTS (
       SELECT 1
@@ -280,12 +300,12 @@ class TokensController < ApplicationController
 
     return nil if recent_transaction.blank?
 
-    process_transaction_for_swap_price(recent_transaction, token_address, eth_contract_address, router_address)
+    process_transaction_for_swap_price(recent_transaction, token_address, eth_contract_address, router_addresses)
   end
 
-  def process_transaction_for_swap_price(transaction, token_address, eth_contract_address, router_address)
+  def process_transaction_for_swap_price(transaction, token_address, eth_contract_address, router_addresses)
     relevant_transfer_logs = transaction.logs.select do |log|
-      log["event"] == "Transfer" && log["data"]["to"] != router_address
+      log["event"] == "Transfer" && !router_addresses.include?(log["data"]["to"])
     end
 
     return nil if relevant_transfer_logs.empty?
