@@ -172,16 +172,18 @@ class Contract < ApplicationRecord
         {}
       end
       
-      if association(:contract_artifact).loaded?
-        json['abi'] = contract_artifact&.build_class&.abi.as_json
-        
-        json['source_code'] = [
-          {
-            language: 'ruby',
-            code: contract_artifact&.source_code
-          }
-        ]
+      if options[:legacy_contract_type_in_state]
+        json['current_state']['contract_type'] = current_type
       end
+      
+      json['abi'] = contract_artifact&.build_class&.abi.as_json
+        
+      json['source_code'] = [
+        {
+          language: 'ruby',
+          code: contract_artifact&.source_code
+        }
+      ]
     end
   end
   

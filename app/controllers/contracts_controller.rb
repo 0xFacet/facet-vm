@@ -23,7 +23,11 @@ class ContractsController < ApplicationController
       cache_key = ["contracts_index", scope, page, per_page]
 
       result = Rails.cache.fetch(cache_key) do
-        contracts = scope.page(page).per(per_page).to_a
+        contracts = scope.page(page).per(per_page).to_a.map do |c|
+          c.as_json(
+            legacy_contract_type_in_state: api_version == '1'
+          )
+        end
         numbers_to_strings(contracts)
       end
   
@@ -61,7 +65,12 @@ class ContractsController < ApplicationController
       contract = Contract.find_by_address(params[:id])
 
       render json: {
-        result: numbers_to_strings(contract.as_json(include_current_state: true))
+        result: numbers_to_strings(
+          contract.as_json(
+            include_current_state: true,
+            legacy_contract_type_in_state: api_version == '1'
+          )
+        )
       }
     end
   end
