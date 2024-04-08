@@ -41,8 +41,6 @@ group :development, :test do
   gem "pry"
   gem "rspec-rails"
   gem 'rswag-specs'
-  gem 'rswag-api'
-  gem 'rswag-ui'
 end
 
 group :development do
@@ -87,3 +85,6 @@ gem "clipboard"
 gem "descriptive_statistics", "~> 2.5"
 
 gem 'facet_rails_common', git: 'https://github.com/0xfacet/facet_rails_common.git'
+
+gem 'rswag-api'
+gem 'rswag-ui'
