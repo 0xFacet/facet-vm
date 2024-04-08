@@ -355,7 +355,7 @@ RSpec.configure do |config|
       },
       servers: [
         {
-          url: 'https://api.facet.org'
+          url: 'https://api.facet.org/v2'
         }
       ]
     }
