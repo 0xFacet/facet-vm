@@ -5,11 +5,13 @@ class BlocksController < ApplicationController
   def index
     if page_mode?
       page, per_page = v1_page_params
+      
+      scope = @eth_block_scope.order(block_number: :desc)
 
-      cache_key = ["blocks_index", @eth_block_scope, page, per_page]
+      cache_key = ["blocks_index", scope, page, per_page]
 
       result = Rails.cache.fetch(cache_key) do
-        res = @eth_block_scope.page(page).per(per_page).to_a
+        res = scope.page(page).per(per_page).to_a
         numbers_to_strings(res)
       end
 
