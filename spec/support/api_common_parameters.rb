@@ -16,8 +16,9 @@ module ApiCommonParameters
       name: :reverse,
       in: :query,
       type: :boolean,
-      description: 'When set to true, reverses the sort order specified by the sort_by parameter.',
-      required: false
+      description: 'When set to true, reverses the sort order specified by the `sort_by` parameter.',
+      required: false,
+      example: "false"
     }
   end
 
@@ -29,7 +30,8 @@ module ApiCommonParameters
       description: 'Limits the number of results returned. Default value is 25, maximum value is 50.',
       required: false,
       maximum: 50,
-      default: 25
+      default: 25,
+      example: 25
     }
   end
 

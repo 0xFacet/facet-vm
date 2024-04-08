@@ -23,29 +23,57 @@ RSpec.configure do |config|
         version: 'v1',
         description: <<~DESC
         ## Overview
-        This API allows for managing and retrieving information on blocks and transactions in a blockchain system. 
-  
-        Use this API to:
-        - Retrieve lists of blocks and transactions
-        - Fetch detailed information about specific blocks or transactions
-        - Submit new transactions to the blockchain
-  
-        ## Authentication
-        Most endpoints require authentication. Please refer to the authentication section for details on how to authenticate your requests.
+
+        Welcome to the Facet API Docs!
+        
+        The Facet API enables you to query the [Facet Virtual Machine](https://github.com/0xFacet/facet-vm) for the state of the Facet protocol.
+        
+        The Facet VM's state is determined by special Ethereum transactions sent to `0x00000000000000000000000000000000000face7`. These transactions have payloads like:
+        
+        ```json
+        data:application/vnd.facet.tx+json;rule=esip6, {
+            "op": "call",
+            "data": {
+                "to": "0xa848fe8a6658b45a63855868cb2fab62a03a6f49",
+                "function": "mint",
+                "args": {
+                    "amount": "1000000000000000000000"
+                }
+            }
+        }
+        ```
+        
+        When interpreted according to the Facet protocol they represent user intents to, for example, mint a token. Using protocol rules the Facet VM determines whether an intent should be satisfied and if so updates internal state.
+        
+        Here's how you can use this API to learn about Facet state.
+        
+        ## Core Concepts
+        
+        The entities below are familiar Ethereum concepts, but they have a different meaning in this context.
+        
+        - **Transactions:** Every Facet transaction is an Ethereum transaction, so you can look up Facet transactions on Etherscan as well as using the Facet API. However the Facet API provides the Facet interpretation of the transaction, including the "Dumb Contract" that was called, the arguments to the call, and the result.
+        
+        - **Contracts:** The term "contracts" in Facet refers to "Dumb Contracts." These contracts perform all the same contracts as Smart Contracts but their logic is executed off-chain. In these endpoints you can query contract ABIs, states, and other familiar fields.
+        
+        - **Simulated Transactions:** Before committing to the blockchain, simulate your transactions to forecast outcomes, catch errors early, and ensure your interactions proceed as expected. This feature allows for a safer and more predictable development experience.
+        
+        ## Community and Support
+        
+        Join our community on [GitHub](https://github.com/0xFacet/facet-vm) and [Discord](https://discord.gg/facet) to contribute, get support, and share your experiences with the Facet VM.
         DESC
       },
       tags: [
         {
-          name: 'Contracts',
-          description: 'Endpoints for querying contracts.'
+          name: 'Transactions',
+          description: 'Endpoints for querying Facet transactions.'
         },
         {
-          name: 'Transactions',
-          description: 'Endpoints for transaction processing and retrieval.'
+          name: 'Contracts',
+          description: 'Endpoints for querying contracts and simulating transactions.'
         },
         {
           name: 'Contract Calls',
-          description: 'Endpoints for querying internal and external calls.'
+          description: 'Endpoints for querying internal and external contract calls. A Transaction consists of multiple Contract Calls.'
         },
         {
           name: 'Blocks',
@@ -55,39 +83,39 @@ RSpec.configure do |config|
           name: 'Status',
           description: 'Endpoints for querying the status of the VM.'
         },
-        {
-          name: 'Tokens',
-          description: 'Endpoints for querying token balances, token transfers, and token metadata. Useful for understanding the token-related activities of a user.'
-        },
-        {
-          name: 'Wallets',
-          description: 'Endpoints for managing and querying wallet information. Includes functionalities like retrieving a user’s wallet balance across different tokens.'
-        },
-        {
-          name: 'Name Registries',
-          description: 'Endpoints for interacting with name registry services, such as Facet Cards. Allows for querying and registering human-readable names linked to blockchain addresses.'
-        },
+        # {
+        #   name: 'Tokens',
+        #   description: 'Endpoints for querying token balances, token transfers, and token metadata. Useful for understanding the token-related activities of a user.'
+        # },
+        # {
+        #   name: 'Wallets',
+        #   description: 'Endpoints for managing and querying wallet information. Includes functionalities like retrieving a user’s wallet balance across different tokens.'
+        # },
+        # {
+        #   name: 'Name Registries',
+        #   description: 'Endpoints for interacting with name registry services, such as Facet Cards. Allows for querying and registering human-readable names linked to blockchain addresses.'
+        # },
       ],
-      "x-tagGroups": [
-        {
-          name: "Core API",
-          tags: [
-            "Contracts",
-            "Transactions",
-            "Contract Calls",
-            "Blocks",
-            "Status"
-          ]
-        },
-        {
-          name: "Extensions",
-          tags: [
-            "Tokens",
-            "Wallets",
-            "Name Registries"
-          ]
-        }
-      ],
+      # "x-tagGroups": [
+      #   {
+      #     name: "Core API",
+      #     tags: [
+      #       "Contracts",
+      #       "Transactions",
+      #       "Contract Calls",
+      #       "Blocks",
+      #       "Status"
+      #     ]
+      #   },
+      #   {
+      #     name: "Extensions",
+      #     tags: [
+      #       "Tokens",
+      #       "Wallets",
+      #       "Name Registries"
+      #     ]
+      #   }
+      # ],
       paths: {},
       components: {
         schemas: {
@@ -111,34 +139,14 @@ RSpec.configure do |config|
               internal_transaction_index: { type: :integer, example: 13 },
               effective_contract_address: { type: :string, example: '0x55ab0390a89fed8992e3affbf61d102490735e24' },
               function: { type: :string, example: 'transfer' },
-              args: { 
-                type: :array,
-                items: {
-                  type: :string,
-                  example: ['0x0ab758cccd54ed559083b6156e714d5ccd7b0696', '756581274600157393209']
-                }
+              args: {
+                '$ref' => '#/components/schemas/ContractFunctionArgs'
               },
               call_type: { type: :string, example: 'call' },
               return_value: { type: :boolean, example: true },
-              logs: { 
+              logs: {
                 type: :array,
-                items: {
-                  type: :object,
-                  properties: {
-                    data: {
-                      type: :object,
-                      description: "The structure of this object varies depending on the event emitted. It contains the values associated with the emitted event.",
-                      additionalProperties: {
-                        type: 'string or number' # Indicative type; OpenAPI does not directly support 'or' types like this
-                      }
-                    },
-                    event: { type: :string, example: 'Transfer', description: 'Name of the emitted event.' },
-                    index: { type: :integer, example: 6, description: 'Index of the log entry.' },
-                    contractType: { type: :string, example: 'EthscriptionERC20Bridge03', description: 'Type of the emitting contract.' },
-                    contractAddress: { type: :string, example: '0x55ab0390a89fed8992e3affbf61d102490735e24', description: 'Address of the emitting contract.' }
-                  },
-                  description: "Log entry for an event emitted by a contract. The 'data' field's structure varies based on the event."
-                }
+                items: { '$ref' => '#/components/schemas/LogEntryObject' }
               },
               error: { type: :string, nullable: true },
               status: { type: :string },
@@ -156,7 +164,11 @@ RSpec.configure do |config|
           ContractObject: {
             type: :object,
             properties: {
-              transaction_hash: { type: :string, example: '0x93ea51222f41418dad2159517b4f82dd02e52c766a3a528f587acf1035b8d94d' },
+              transaction_hash: {
+                type: :string,
+                example: '0x93ea51222f41418dad2159517b4f82dd02e52c766a3a528f587acf1035b8d94d',
+                description: 'Hash of the transaction that deployed the contract.'
+              },
               current_type: { type: :string, example: 'PublicMintERC20' },
               current_init_code_hash: { type: :string, example: '0xb1b0ed1e4a8c9c9b0210f267137e368f782453e41f622fa8cf68296d04c84c88' },
               address: { type: :string, example: '0xd5d49b065b6c187b799073ffbb52f93a6dfdc758' },
@@ -166,12 +178,38 @@ RSpec.configure do |config|
                 items: {
                   type: :object,
                   description: "An array of objects, each representing a contract's ABI element. The structure can vary significantly, including fields like 'inputs', 'name', 'type', 'outputs', and so on, reflecting the contract's functions and events.",
-                  additionalProperties: {
-                    type: 'string or array or object',
-                    description: 'Fields within an ABI element can vary in type, including strings, arrays, or other objects.'
-                  }
+                  additionalProperties: true
                 },
-                description: "The contract's ABI, detailing its functions, events, and constructors. The exact structure of each element in the ABI array depends on the contract's design."
+                description: "The contract's ABI, detailing its functions, events, and constructors. The exact structure of each element in the ABI array depends on the contract's design.",
+                example: [
+                  {
+                    "inputs": [
+                      {
+                        "name": "_factory",
+                        "type": "address"
+                      },
+                      {
+                        "name": "_WETH",
+                        "type": "address"
+                      },
+                      {
+                        "name": "protocolFeeBPS",
+                        "type": "uint256"
+                      },
+                      {
+                        "name": "initialPauseState",
+                        "type": "bool"
+                      }
+                    ],
+                    "overrideModifiers": [],
+                    "outputs": [],
+                    "stateMutability": "non_payable",
+                    "type": "constructor",
+                    "visibility": nil,
+                    "fromParent": false,
+                    "name": "constructor"
+                  }
+                ]
               },
               source_code: {
                 type: :array,
@@ -183,7 +221,6 @@ RSpec.configure do |config|
                   }
                 }
               },
-              # Add other properties as needed...
             }
           },
           ContractObjectWithState: {
@@ -207,27 +244,12 @@ RSpec.configure do |config|
               transaction_hash: { type: :string, example: '0x22c0b2b290cf90e95544be81ad93fe0a304af3d01652f45e3610f40ae2068185' },
               status: { type: :string, example: 'success' },
               function: { type: :string, example: 'swapExactTokensForTokens' },
-              args: { 
-                type: :object,
-                additionalProperties: true,
-                description: 'Arguments to the transaction function. Structure varies by function.'
+              args: {
+                '$ref' => '#/components/schemas/ContractFunctionArgs'
               },
               logs: {
                 type: :array,
-                items: {
-                  type: :object,
-                  properties: {
-                    data: {
-                      type: :object,
-                      additionalProperties: true,
-                      description: 'Data emitted by the event. Structure varies by event type.'
-                    },
-                    event: { type: :string, example: 'Transfer' },
-                    contractType: { type: :string, example: 'EtherBridge03' },
-                    contractAddress: { type: :string, example: '0x1673540243e793b0e77c038d4a88448eff524dce' }
-                  }
-                },
-                description: 'An array of log entries generated by the transaction.'
+                items: { '$ref' => '#/components/schemas/LogEntryObject' },
               },
               block_timestamp: { type: :integer, example: 1712329319 },
               error: { type: :string, nullable: true, example: nil },
@@ -264,6 +286,61 @@ RSpec.configure do |config|
               ethscription_status: { type: :string, example: 'success' },
               ethscription_error: { type: :string, nullable: true },
               ethscription_content_uri: { type: :string, example: 'data:application/vnd.facet.tx+json;rule=esip6,{}' }
+            }
+          },
+          ContractFunctionArgs: {
+            oneOf: [
+              {
+                type: :array,
+                items: { type: :string },
+                example: ["MyToken", "MTK", "18"],
+                description: 'Arguments passed to the function in order.'
+              },
+              {
+                type: :object,
+                additionalProperties: {
+                  type: :string,
+                },
+                example: { name: "MyToken", symbol: "MTK", decimals: "18" },
+                description: 'Arguments passed to the function as key-value pairs.'
+              }
+            ]
+          },
+          LogEntryObject: {
+            type: :object,
+            properties: {
+              data: {
+                type: :object,
+                additionalProperties: {
+                  type: :object
+                },
+                description: 'Data emitted by the event. Structure varies by event type.',
+                example: {
+                  owner: '0x1673540243e793b0e77c038d4a88448eff524dce',
+                  amount: 100,
+                  spender: '0x55ab0390a89fed8992e3affbf61d102490735e24'
+                }
+              },
+              event: {
+                type: :string,
+                example: 'Transfer',
+                description: 'Name of the emitted event.'
+              },
+              index: {
+                type: :integer,
+                example: 6,
+                description: 'Index of the log entry.'
+              },
+              contractType: {
+                type: :string,
+                example: 'EtherBridge03',
+                description: 'Type of the emitting contract.'
+              },
+              contractAddress: {
+                type: :string,
+                example: '0x1673540243e793b0e77c038d4a88448eff524dce',
+                description: 'Address of the emitting contract.'
+              }
             }
           },
           PaginationObject: {

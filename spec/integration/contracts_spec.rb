@@ -35,7 +35,7 @@ describe 'Contracts API' do
     end
   end
   
-  path '/contracts/{id}' do
+  path '/contracts/{address}' do
     get 'Show Contract' do
       tags 'Contracts'
       operationId 'showContract'
