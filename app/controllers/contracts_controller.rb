@@ -1,37 +1,41 @@
 class ContractsController < ApplicationController
-  cache_actions_on_block except: :storage_get
+  cache_actions_on_block except: [:show, :storage_get]
   
   def index
-    page = (params[:page] || 1).to_i
-    per_page = (params[:per_page] || 50).to_i
-    per_page = 50 if per_page > 50
-    
-    scope = Contract.
-      order(created_at: :desc).
+    scope = if page_mode?
+      Contract.order(created_at: :desc).
       where.not(current_init_code_hash: nil).
       includes(:transaction_receipt)
-    
-    if params[:base_type]
-      scope = scope.where(
-        current_type: Contract.types_that_implement(params[:base_type]).map(&:name)
-      )
+    else
+      Contract.where.not(current_init_code_hash: nil).
+      includes(:transaction_receipt, :contract_artifact)
     end
     
     if params[:init_code_hash]
       scope = scope.where(current_init_code_hash: params[:init_code_hash])
     end
     
-    cache_key = ["contracts_index", scope, page, per_page]
+    if cursor_mode?
+      render_paginated_json(scope)
+    else
+      page, per_page = v1_page_params
+      
+      cache_key = ["contracts_index", scope, page, per_page]
+
+      result = Rails.cache.fetch(cache_key) do
+        contracts = scope.page(page).per(per_page).to_a.map do |c|
+          c.as_json(
+            legacy_contract_type_in_state: api_version == '1'
+          )
+        end
+        numbers_to_strings(contracts)
+      end
   
-    result = Rails.cache.fetch(cache_key) do
-      contracts = scope.page(page).per(per_page).to_a
-      numbers_to_strings(contracts)
+      render json: {
+        result: result,
+        count: scope.count
+      }
     end
-  
-    render json: {
-      result: result,
-      count: scope.count
-    }
   end
 
   def supported_contract_artifacts
@@ -53,38 +57,41 @@ class ContractsController < ApplicationController
   end
 
   def show
-    contract = Contract.find_by_address(params[:id])
+    updated_at = Contract.where(address: params[:id]).pick(:updated_at)
 
-    if contract.blank?
-      render json: { error: "Contract not found" }, status: 404
-      return
+    raise RequestedRecordNotFound unless updated_at.present?
+    
+    set_cache_control_headers(etag: updated_at, max_age: 6.seconds) do
+      contract = Contract.find_by_address(params[:id])
+
+      render json: {
+        result: numbers_to_strings(
+          contract.as_json(
+            include_current_state: true,
+            legacy_contract_type_in_state: api_version == '1'
+          )
+        )
+      }
     end
-
-    render json: {
-      result: numbers_to_strings(contract.as_json(include_current_state: true))
-    }
   end
 
   def static_call
-    begin
-      args = JSON.parse(params.fetch(:args) { '{}' })
-      env = JSON.parse(params.fetch(:env) { '{}' })
-      
-      result = ContractTransaction.make_static_call(
-        contract: params[:address], 
-        function_name: params[:function], 
-        function_args: args,
-        msgSender: env['msgSender']
-      )
-    rescue Contract::StaticCallError, JSON::ParserError => e
-      render json: {
-        error: e.message
-      }
-      return
-    end
-
+    args = JSON.parse(params.fetch(:args) { '{}' })
+    env = JSON.parse(params.fetch(:env) { '{}' })
+    
+    result = ContractTransaction.make_static_call(
+      contract: params[:address], 
+      function_name: params[:function], 
+      function_args: args,
+      msgSender: env['msgSender']
+    )
+    
     render json: {
       result: numbers_to_strings(result)
+    }
+  rescue Contract::StaticCallError, JSON::ParserError => e
+    render json: {
+      error: e.message
     }
   end
   
@@ -113,10 +120,7 @@ class ContractsController < ApplicationController
   
     updated_at = Contract.where(address: address).pick(:updated_at)
     
-    if updated_at.blank?
-      render json: { error: "Contract not found" }, status: :not_found
-      return
-    end
+    raise RequestedRecordNotFound if updated_at.blank?
     
     args_hash = Digest::SHA1.hexdigest(args.to_json)
     
@@ -138,20 +142,6 @@ class ContractsController < ApplicationController
     raise unless e.message.starts_with?("PG::InvalidTextRepresentation")
     
     render json: { error: "Invalid args: #{e.message}" }, status: :bad_request
-  end
-
-  def show_call_receipt
-    receipt = TransactionReceipt.includes(:contract_transaction).find_by_transaction_hash(params[:transaction_hash])
-
-    if receipt.blank?
-      render json: {
-        error: "Call receipt not found"
-      }
-    else
-      render json: {
-        result: numbers_to_strings(receipt)
-      }
-    end
   end
 
   def simulate_transaction
@@ -184,7 +174,7 @@ class ContractsController < ApplicationController
       "pairs_for_router",
       router_address,
       user_address,
-      EthBlock.max_processed_block_number
+      EthBlock.most_recently_imported_blockhash
     ]
     
     result = Rails.cache.fetch(cache_key) do
@@ -267,7 +257,7 @@ class ContractsController < ApplicationController
   
     cache_key = [
       :pairs_with_tokens,
-      EthBlock.max_processed_block_number,
+      EthBlock.most_recently_imported_blockhash,
       router,
       token_address,
       user_address
