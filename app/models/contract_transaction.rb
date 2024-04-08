@@ -115,9 +115,10 @@ class ContractTransaction < ApplicationRecord
   
   def self.simulate_transaction(from:, tx_payload:)
     max_block_number = EthBlock.max_processed_block_number
+    config_version = SystemConfigVersion.current
     
     cache_key = [
-      SystemConfigVersion.latest_tx_hash,
+      config_version,
       max_block_number,
       from,
       tx_payload
@@ -151,7 +152,7 @@ class ContractTransaction < ApplicationRecord
       eth = Ethscription.new(ethscription_attrs)
       
       BlockContext.set(
-        system_config: SystemConfigVersion.current,
+        system_config: config_version,
         current_block: current_block,
         contracts: [],
         contract_artifacts: [],

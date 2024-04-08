@@ -40,6 +40,7 @@ group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem "pry"
   gem "rspec-rails"
+  gem 'rswag-specs'
 end
 
 group :development do
@@ -84,3 +85,6 @@ gem "clipboard"
 gem "descriptive_statistics", "~> 2.5"
 
 gem 'facet_rails_common', git: 'https://github.com/0xfacet/facet_rails_common.git'
+
+gem 'rswag-api'
+gem 'rswag-ui'

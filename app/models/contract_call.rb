@@ -1,5 +1,19 @@
 class ContractCall < ApplicationRecord
+  include FacetRailsCommon::OrderQuery
   include ContractErrors
+  
+  initialize_order_query({
+    newest_first: [
+      [:block_number, :desc],
+      [:transaction_index, :desc],
+      [:internal_transaction_index, :desc, unique: true]
+    ],
+    oldest_first: [
+      [:block_number, :asc],
+      [:transaction_index, :asc],
+      [:internal_transaction_index, :asc, unique: true]
+    ]
+  }, page_key_attributes: [:block_number, :transaction_index, :internal_transaction_index])
   
   before_validation :ensure_runtime_ms
   
@@ -14,12 +28,6 @@ class ContractCall < ApplicationRecord
   
   belongs_to :contract_transaction, foreign_key: :transaction_hash,
     primary_key: :transaction_hash, optional: true, inverse_of: :contract_calls, autosave: false
-  
-  scope :newest_first, -> { order(
-    block_number: :desc,
-    transaction_index: :desc,
-    internal_transaction_index: :desc
-  ) }
 
   def execute!
     self.pending_logs = []

@@ -2,23 +2,12 @@ class ContractCallsController < ApplicationController
   cache_actions_on_block
   
   def index
-    page = (params[:page] || 1).to_i
-    per_page = (params[:per_page] || 50).to_i
-    per_page = 50 if per_page > 50
+    scope = cursor_mode? ? ContractCall.all : ContractCall.newest_first
     
-    scope = ContractCall.newest_first
-    
-    if params[:transaction_hash]
-      scope = scope.where(
-        transaction_hash: params[:transaction_hash]
-      )
-    end
-    
-    if params[:effective_contract_address]
-      scope = scope.where(
-        effective_contract_address: params[:effective_contract_address]
-      )
-    end
+    scope = filter_by_params(scope,
+      :transaction_hash,
+      :effective_contract_address
+    )
     
     if params[:to_or_from].present?
       to_or_from = params[:to_or_from].downcase
@@ -28,16 +17,22 @@ class ContractCallsController < ApplicationController
       )
     end
     
-    cache_key = ["contract_calls_index", scope, page, per_page]
+    if cursor_mode?
+      render_paginated_json(scope)
+    else
+      page, per_page = v1_page_params
+      
+      cache_key = ["contract_calls_index", scope, page, per_page]
+
+      result = Rails.cache.fetch(cache_key) do
+        contract_calls = scope.page(page).per(per_page).to_a
+        numbers_to_strings(contract_calls)
+      end
   
-    result = Rails.cache.fetch(cache_key) do
-      contract_calls = scope.page(page).per(per_page).to_a
-      numbers_to_strings(contract_calls)
+      render json: {
+        result: result,
+        count: scope.count
+      }
     end
-  
-    render json: {
-      result: result,
-      count: scope.count
-    }
   end
 end

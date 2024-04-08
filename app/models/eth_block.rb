@@ -1,5 +1,11 @@
 class EthBlock < ApplicationRecord
+  include FacetRailsCommon::OrderQuery
   extend StateTestingUtils
+  
+  initialize_order_query({
+    newest_first: [[:block_number, :desc, unique: true]],
+    oldest_first: [[:block_number, :asc, unique: true]],
+  }, page_key_attributes: [:block_number])
   
   has_many :contract_states, foreign_key: :block_number, primary_key: :block_number, inverse_of: :eth_block, autosave: false
   has_many :ethscriptions, foreign_key: :block_number, primary_key: :block_number, inverse_of: :eth_block, autosave: false
@@ -151,6 +157,8 @@ class EthBlock < ApplicationRecord
       if association(:transaction_receipts).loaded?
         json[:transaction_receipts] = transaction_receipts.map(&:as_json)
       end
+      
+      json['transaction_count'] = json['transaction_count'].to_i
     end.with_indifferent_access
   end
   
