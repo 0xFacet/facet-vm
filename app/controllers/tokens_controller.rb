@@ -203,7 +203,7 @@ class TokensController < ApplicationController
           }
         end
 
-        numbers_to_strings(cooked_transactions)
+        numbers_to_strings(cooked_transactions.compact)
       end
 
       render json: {
