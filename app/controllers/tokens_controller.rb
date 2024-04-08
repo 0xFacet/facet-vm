@@ -106,31 +106,31 @@ class TokensController < ApplicationController
 
   def swaps
     contract_address = params[:address]&.downcase
+    paired_token_address = params[:paired_token_address]&.downcase
+    router_address = params[:router_address]&.downcase
+    factory_address = params[:factory_address]&.downcase
     from_address = params[:from_address]&.downcase
     from_timestamp = params[:from_timestamp].to_i
     to_timestamp = params[:to_timestamp]&.to_i
-    router_address = params[:router_address]&.downcase
     max_processed_block_timestamp = EthBlock.processed.maximum(:timestamp).to_i
 
     to_timestamp = to_timestamp.present? ? [to_timestamp, max_processed_block_timestamp].min : max_processed_block_timestamp
 
-    unless router_address.to_s.match?(/\A0x[0-9a-f]{40}\z/)
-      render json: { error: "Invalid router address" }, status: 400
+    if router_address&.match?(/\A0x[0-9a-f]{40}\z/)
+      router_addresses = [router_address]
+    elsif factory_address&.match?(/\A0x[0-9a-f]{40}\z/)
+      router_addresses = Contract.where("current_type LIKE ?", "FacetSwapV1Router%")
+        .where("current_state->>'factory' = ?", factory_address)
+        .pluck(:address)
+    else
+      render json: { error: "Invalid or missing router/factory address" }, status: 400
       return
     end
 
-    factory_address = Contract.where(address: router_address)
-      .pluck(Arel.sql("current_state->'factory'"))
-      .first
-
-    unless factory_address.to_s.match?(/\A0x[0-9a-f]{40}\z/)
-      render json: { error: "Invalid factory address" }, status: 400
+    if router_addresses.blank?
+      render json: { error: "No routers found for given factory" }, status: 404
       return
     end
-
-    router_addresses = Contract.where("current_type LIKE ?", "FacetSwapV1Router%")
-      .where("current_state->>'factory' = ?", factory_address)
-      .pluck(:address)
 
     if from_timestamp > to_timestamp || from_address.blank? && to_timestamp - from_timestamp > 1.month
       render json: { error: "Invalid timestamp range" }, status: 400
@@ -140,7 +140,7 @@ class TokensController < ApplicationController
     cache_key = [
       "token_swaps",
       contract_address,
-      router_address,
+      router_addresses,
       from_timestamp,
       to_timestamp,
       from_address
@@ -172,7 +172,7 @@ class TokensController < ApplicationController
 
         cooked_transactions = transactions.map do |receipt|
           relevant_transfer_logs = receipt.logs.select do |log|
-            log["event"] == "Transfer" && log["data"]["to"] != router_address
+            log["event"] == "Transfer" && !router_addresses.include?(log["data"]["to"])
           end
 
           token_log = relevant_transfer_logs.detect do |log|
@@ -180,6 +180,8 @@ class TokensController < ApplicationController
           end
 
           paired_token_log = (relevant_transfer_logs - [token_log]).first
+
+          next if paired_token_address.present? && paired_token_log['contractAddress'] != paired_token_address
 
           swap_type = if token_log['data']['to'] == receipt.from_address
             'buy'
@@ -193,9 +195,11 @@ class TokensController < ApplicationController
             timestamp: receipt.block_timestamp,
             token_amount: token_log['data']['amount'],
             paired_token_amount: paired_token_log['data']['amount'],
+            paired_token_address: paired_token_log['contractAddress'],
             swap_type: swap_type,
             transaction_index: receipt.transaction_index,
-            block_number: receipt.block_number
+            block_number: receipt.block_number,
+            router_address: router_address
           }
         end
 
