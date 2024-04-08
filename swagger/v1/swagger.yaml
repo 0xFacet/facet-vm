@@ -44,14 +44,14 @@ info:
     Join our community on [GitHub](https://github.com/0xFacet/facet-vm) and [Discord](https://discord.gg/facet) to contribute, get support, and share your experiences with the Facet VM.
 tags:
 - name: Transactions
-  description: Endpoints for getting Facet transactions.
+  description: Endpoints for querying Facet transactions.
 - name: Contracts
   description: Endpoints for querying contracts and simulating transactions.
-- name: Blocks
-  description: Operations related to blockchain blocks.
 - name: Contract Calls
   description: Endpoints for querying internal and external contract calls. A Transaction
     consists of multiple Contract Calls.
+- name: Blocks
+  description: Operations related to blockchain blocks.
 - name: Status
   description: Endpoints for querying the status of the VM.
 paths:
@@ -1001,4 +1001,4 @@ components:
           description: Indicates if more items are available beyond the current page.
       description: Contains pagination details to navigate through the list of blocks.
 servers:
-- url: https://api.facet.org
+- url: https://api.facet.org/v2
