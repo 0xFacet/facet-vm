@@ -3,7 +3,22 @@ class BlocksController < ApplicationController
   before_action :set_eth_block_scope
 
   def index
-    render_paginated_json(@eth_block_scope)
+    if page_mode?
+      page, per_page = v1_page_params
+
+      cache_key = ["blocks_index", @eth_block_scope, page, per_page]
+
+      result = Rails.cache.fetch(cache_key) do
+        res = @eth_block_scope.page(page).per(per_page).to_a
+        numbers_to_strings(res)
+      end
+
+      render json: {
+        result: result
+      }
+    else
+      render_paginated_json(@eth_block_scope)
+    end
   end
 
   def show

@@ -2,14 +2,36 @@ class ContractsController < ApplicationController
   cache_actions_on_block except: [:show, :storage_get]
   
   def index
-    scope = Contract.where.not(current_init_code_hash: nil).
+    scope = if page_mode?
+      Contract.order(created_at: :desc).
+      where.not(current_init_code_hash: nil).
+      includes(:transaction_receipt)
+    else
+      Contract.where.not(current_init_code_hash: nil).
       includes(:transaction_receipt, :contract_artifact)
+    end
     
     if params[:init_code_hash]
       scope = scope.where(current_init_code_hash: params[:init_code_hash])
     end
     
-    render_paginated_json(scope)
+    if cursor_mode?
+      render_paginated_json(scope)
+    else
+      page, per_page = v1_page_params
+      
+      cache_key = ["contracts_index", scope, page, per_page]
+
+      result = Rails.cache.fetch(cache_key) do
+        contracts = scope.page(page).per(per_page).to_a
+        numbers_to_strings(contracts)
+      end
+  
+      render json: {
+        result: result,
+        count: scope.count
+      }
+    end
   end
 
   def supported_contract_artifacts
