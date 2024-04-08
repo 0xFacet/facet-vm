@@ -17,7 +17,7 @@ describe 'Contract Calls API' do
       parameter name: :effective_contract_address,
                 in: :query,
                 type: :string,
-                description: 'Filter by the effective contract address.',
+                description: 'Filter by the effective contract address. The effective contract address is the "to" or created contract',
                 required: false
                 
       parameter name: :to_or_from,

@@ -115,7 +115,7 @@ paths:
                     "$ref": "#/components/schemas/PaginationObject"
                 description: Response body for a successful retrieval of blocks. Includes
                   an array of blocks and pagination details.
-  "/blocks/{id}":
+  "/blocks/{block_number}":
     get:
       summary: Get Block
       tags:
@@ -170,7 +170,8 @@ paths:
           type: string
       - name: effective_contract_address
         in: query
-        description: Filter by the effective contract address.
+        description: Filter by the effective contract address. The effective contract
+          address is the "to" or created contract
         required: false
         schema:
           type: string
@@ -487,8 +488,8 @@ paths:
           type: string
       - name: tx_payload
         in: query
-        description: JSON-encoded payload of the transaction to simulate, including
-          operation, target contract, function, and arguments.
+        description: 'JSON-encoded payload of the transaction to simulate, including
+          operation, target contract, function, and arguments. Example: `{"op":"call","data":{"to":"0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e","function":"swapExactTokensForTokens","args":{"path":["0x1673540243e793b0e77c038d4a88448eff524dce","0x55ab0390a89fed8992e3affbf61d102490735e24"],"deadline":"1000000000000000000","to":"0xC2172a6315c1D7f6855768F843c420EbB36eDa97","amountIn":"1000000000000000000","amountOutMin":0}}}`'
         required: true
         example: '{"op":"call","data":{"to":"0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e","function":"swapExactTokensForTokens","args":{"path":["0x1673540243e793b0e77c038d4a88448eff524dce","0x55ab0390a89fed8992e3affbf61d102490735e24"],"deadline":"1000000000000000000","to":"0xC2172a6315c1D7f6855768F843c420EbB36eDa97","amountIn":"1000000000000000000","amountOutMin":0}}}'
         schema:

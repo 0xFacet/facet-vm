@@ -30,7 +30,7 @@ describe 'Blocks API' do
     end
   end
   
-  path '/blocks/{id}' do
+  path '/blocks/{block_number}' do
     get 'Get Block' do
       tags 'Blocks'
       operationId 'getBlock'
