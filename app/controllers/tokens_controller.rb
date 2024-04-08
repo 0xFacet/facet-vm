@@ -215,20 +215,22 @@ class TokensController < ApplicationController
   def volume
     volume_contract = params[:volume_contract]&.downcase
     contract_address = params[:address]&.downcase
-    one_day_ago = 24.hours.ago.to_i
 
     cache_key = ["token_volume", contract_address, volume_contract]
-    
-    set_cache_control_headers(max_age: 12.seconds, s_max_age: 1.hour)
 
-    result = Rails.cache.fetch(cache_key, expires_in: 1.hour) do
-      total_volume = calculate_volume(contract_address: contract_address, volume_contract: volume_contract)
-      last_24_hours_volume = calculate_volume(contract_address: contract_address, volume_contract: volume_contract, start_time: one_day_ago)
+    set_cache_control_headers(max_age: 12.seconds, s_max_age: 5.minutes)
 
-      numbers_to_strings({
-        total_volume: total_volume,
-        last_24_hours_volume: last_24_hours_volume
-      })
+    result = Rails.cache.fetch(cache_key, expires_in: 5.minute) do
+      time_ranges = {
+        total_volume: nil,
+        last_7_days_volume: 7.days.ago,
+        last_24_hours_volume: 24.hours.ago,
+        last_6_hours_volume: 6.hours.ago,
+        last_1_hour_volume: 1.hour.ago,
+        last_5_minutes_volume: 5.minutes.ago
+      }
+
+      calculate_volumes(contract_address: contract_address, volume_contract: volume_contract, time_ranges: time_ranges)
     end
 
     render json: {
@@ -338,22 +340,43 @@ class TokensController < ApplicationController
       .where("status = ? AND to_contract_address = ? AND block_number <= ?", 'success', contract_address, as_of_block)
       .select(Arel.sql(select_query_parts.join(", "))).load_async
   end
-  
-  def calculate_volume(contract_address:, volume_contract:, start_time: nil)
-    query = TransactionReceipt.where(status: "success", function: ["swapExactTokensForTokens", "swapTokensForExactTokens"])
-      .where("EXISTS (
-        SELECT 1
-        FROM jsonb_array_elements(logs) AS log
-        WHERE (log ->> 'contractAddress') = ?
-        AND (log ->> 'event') = 'Transfer'
-      )", contract_address)
-    query = query.where("block_timestamp >= ?", start_time.to_i) if start_time
 
-    query.pluck(:logs)
-      .flatten
-      .sum do |log|
-        next 0 unless log["contractAddress"] == volume_contract && log["event"] == "Transfer"
-        log["data"]["amount"].to_i
+  def calculate_volumes(contract_address:, volume_contract:, time_ranges:)
+    # Build conditional SUM expressions for each time range
+    conditional_sums = time_ranges.map do |label, start_time|
+      if start_time
+        "SUM(CASE WHEN block_timestamp >= #{start_time.to_i} THEN (log -> 'data' ->> 'amount')::numeric ELSE 0 END) AS \"#{label}\""
+      else
+        "SUM((log -> 'data' ->> 'amount')::numeric) AS \"#{label}\""
       end
+    end.join(", ")
+
+    query = <<-SQL
+      SELECT #{conditional_sums}
+      FROM transaction_receipts,
+           jsonb_array_elements(logs) AS log
+      WHERE status = 'success'
+        AND function IN ('swapExactTokensForTokens', 'swapTokensForExactTokens')
+        AND (log ->> 'contractAddress') = :volume_contract
+        AND (log ->> 'event') = 'Transfer'
+        AND EXISTS (
+          SELECT 1
+          FROM jsonb_array_elements(logs) AS inner_log
+          WHERE (inner_log ->> 'contractAddress') = :contract_address
+            AND (inner_log ->> 'event') = 'Transfer'
+        )
+    SQL
+
+    query_params = { contract_address: contract_address, volume_contract: volume_contract }
+
+    result = TransactionReceipt.find_by_sql([query, query_params])
+
+    result.first.attributes.symbolize_keys.except(:id)
+
+    formatted_result = result.first.attributes.symbolize_keys.except(:id).transform_values do |value|
+      value.to_i.to_s
+    end
+
+    formatted_result
   end
 end
