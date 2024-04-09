@@ -1,7 +1,7 @@
 # spec/integration/transactions_spec.rb
 require 'swagger_helper'
 
-describe 'Transactions API' do
+describe 'Transactions API', doc: true do
   path '/transactions' do
     get 'List Transactions' do
       tags 'Transactions'

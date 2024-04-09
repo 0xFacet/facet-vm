@@ -1,6 +1,6 @@
 require 'swagger_helper'
 
-describe 'Contract Calls API' do
+describe 'Contract Calls API', doc: true do
   path '/contract_calls' do
     get 'List Contract Calls' do
       tags 'Contract Calls'

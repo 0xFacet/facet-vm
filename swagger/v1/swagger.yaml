@@ -524,14 +524,9 @@ paths:
       tags:
       - Status
       operationId: getVmStatus
-      description: |
-        Retrieves the current status of the Virtual Machine (VM), including:
-        - The number of ethscriptions behind the current block
-        - The current block number being processed
-        - The maximum block number processed
-        - The number of blocks behind
-        - The count of pending blocks
-        - Overall core indexer status
+      description: 'Retrieves the current status of the Virtual Machine (VM)
+
+        '
       responses:
         '200':
           description: VM status retrieved successfully
@@ -541,31 +536,32 @@ paths:
                 type: object
                 properties:
                   ethscriptions_behind:
-                    type: integer
-                    example: 10
-                    description: Total newer ethscriptions behind the current block.
+                    type: string
+                    example: '10'
+                    description: Number of ethscriptions remaining to be processed.
                   current_block_number:
-                    type: integer
-                    example: 100
-                    description: Current block number being processed.
+                    type: string
+                    example: '100'
+                    description: Current Ethereum block number.
                   max_processed_block_number:
-                    type: integer
-                    example: 95
+                    type: string
+                    example: '95'
                     description: Maximum block number that has been processed.
                   blocks_behind:
-                    type: integer
-                    example: 5
-                    description: Number of blocks the system is behind the current
-                      block number.
+                    type: string
+                    example: '5'
+                    description: Number of blocks the VM is behind.
                   pending_block_count:
-                    type: integer
-                    example: 3
+                    type: string
+                    example: '3'
                     description: Count of blocks that are pending processing.
                   core_indexer_status:
                     type: object
-                    additionalProperties: true
                     description: Detailed status of the core indexer, structure varies
                       depending on the indexer status.
+                    example:
+                      last_imported_block: '19618604'
+                      blocks_behind: '0'
                 description: Provides various status indicators of the VM or indexer.
   "/transactions":
     get:
@@ -756,8 +752,7 @@ components:
           type: string
           example: call
         return_value:
-          type: boolean
-          example: true
+          "$ref": "#/components/schemas/ContractFunctionReturnValue"
         logs:
           type: array
           items:
@@ -802,8 +797,6 @@ components:
         address:
           type: string
           example: '0xd5d49b065b6c187b799073ffbb52f93a6dfdc758'
-        deployment_transaction:
-          "$ref": "#/components/schemas/TransactionObject"
         abi:
           type: array
           items:
@@ -842,26 +835,33 @@ components:
                 type: string
               code:
                 type: string
-    ContractObjectWithState:
-      allOf:
-      - "$ref": "#/components/schemas/ContractObject"
-      - type: object
-        properties:
-          current_state:
-            type: object
-            additionalProperties: true
-            description: Current state of the contract. Includes variable values and
-              other state-related information, present only in detailed contract information
-              (show action).
+        deployment_transaction:
+          "$ref": "#/components/schemas/TransactionObject"
     TransactionObject:
       type: object
       properties:
         transaction_hash:
           type: string
           example: '0x22c0b2b290cf90e95544be81ad93fe0a304af3d01652f45e3610f40ae2068185'
-        status:
+        from:
           type: string
-          example: success
+          example: '0xe4fad47541c224bc9af3f06863d9fcc2ef47e65e'
+        to:
+          type: string
+          example: '0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e'
+          description: The contract the transaction was sent to. Blank if the transaction
+            created a contract
+        effective_contract_address:
+          type: string
+          example: '0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e'
+          description: Address of the contract that the transaction interacts with.
+            Ether the contract the transaction was sent to or the contract the transaction
+            created.
+        created_contract_address:
+          type: string
+          example: '0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e'
+          description: Address of the contract created by the transaction. Present
+            only if the transaction created a contract.
         function:
           type: string
           example: swapExactTokensForTokens
@@ -871,34 +871,15 @@ components:
           type: array
           items:
             "$ref": "#/components/schemas/LogEntryObject"
-        block_timestamp:
-          type: integer
-          example: 1712329319
+        status:
+          type: string
+          example: success
         error:
           type: string
           nullable: true
           example:
-        effective_contract_address:
-          type: string
-          example: '0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e'
-        block_number:
-          type: integer
-          example: 19590300
-        transaction_index:
-          type: integer
-          example: 131
-        block_blockhash:
-          type: string
-          example: '0x13c0159d7e238f7f562dc11cbbff0d762c4d1d0feceabe70f29ff560eb78e465'
         return_value:
-          type: array
-          items:
-            type: integer or string
-            description: Return values of the transaction. Type and structure vary
-              by function.
-        runtime_ms:
-          type: integer
-          example: 292
+          "$ref": "#/components/schemas/ContractFunctionReturnValue"
         call_type:
           type: string
           example: call
@@ -911,19 +892,21 @@ components:
         transaction_fee:
           type: integer
           example: 901219134988224
-        to:
+        block_timestamp:
+          type: integer
+          example: 1712329319
+        block_number:
+          type: integer
+          example: 19590300
+        transaction_index:
+          type: integer
+          example: 131
+        block_blockhash:
           type: string
-          example: '0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e'
-        from:
-          type: string
-          example: '0xe4fad47541c224bc9af3f06863d9fcc2ef47e65e'
-        contract_address:
-          type: string
-          nullable: true
-          example:
-        to_or_contract_address:
-          type: string
-          example: '0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e'
+          example: '0x13c0159d7e238f7f562dc11cbbff0d762c4d1d0feceabe70f29ff560eb78e465'
+        runtime_ms:
+          type: integer
+          example: 292
     SimulateTransactionResponse:
       type: object
       properties:
@@ -960,6 +943,19 @@ components:
           symbol: MTK
           decimals: '18'
         description: Arguments passed to the function as key-value pairs.
+    ContractFunctionReturnValue:
+      oneOf:
+      - type: string
+        description: Return value as a string.
+        example: '123'
+      - type: object
+        additionalProperties:
+          type: string
+        example:
+          name: MyToken
+          symbol: MTK
+          decimals: '18'
+        description: Named return values as an object.
     LogEntryObject:
       type: object
       properties:
@@ -1001,5 +997,72 @@ components:
           example: true
           description: Indicates if more items are available beyond the current page.
       description: Contains pagination details to navigate through the list of blocks.
+    ContractObjectWithState:
+      type: object
+      properties:
+        transaction_hash:
+          type: string
+          example: '0x93ea51222f41418dad2159517b4f82dd02e52c766a3a528f587acf1035b8d94d'
+          description: Hash of the transaction that deployed the contract.
+        current_type:
+          type: string
+          example: PublicMintERC20
+        current_init_code_hash:
+          type: string
+          example: '0xb1b0ed1e4a8c9c9b0210f267137e368f782453e41f622fa8cf68296d04c84c88'
+        address:
+          type: string
+          example: '0xd5d49b065b6c187b799073ffbb52f93a6dfdc758'
+        abi:
+          type: array
+          items:
+            type: object
+            description: An array of objects, each representing a contract's ABI element.
+              The structure can vary significantly, including fields like 'inputs',
+              'name', 'type', 'outputs', and so on, reflecting the contract's functions
+              and events.
+            additionalProperties: true
+          description: The contract's ABI, detailing its functions, events, and constructors.
+            The exact structure of each element in the ABI array depends on the contract's
+            design.
+          example:
+          - inputs:
+            - name: _factory
+              type: address
+            - name: _WETH
+              type: address
+            - name: protocolFeeBPS
+              type: uint256
+            - name: initialPauseState
+              type: bool
+            overrideModifiers: []
+            outputs: []
+            stateMutability: non_payable
+            type: constructor
+            visibility:
+            fromParent: false
+            name: constructor
+        source_code:
+          type: array
+          items:
+            type: object
+            properties:
+              language:
+                type: string
+              code:
+                type: string
+        deployment_transaction:
+          "$ref": "#/components/schemas/TransactionObject"
+        current_state:
+          type: object
+          additionalProperties: true
+          description: Current state of the contract. Includes variable values and
+            other state-related information, present only in detailed contract information
+            (show action).
+          example:
+            name: MyToken
+            symbol: MTK
+            decimals: 18
+            totalSupply: 1000000
 servers:
 - url: https://api.facet.org/v2
