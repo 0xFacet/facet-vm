@@ -151,7 +151,7 @@ class TokensController < ApplicationController
 
     set_cache_control_headers(etag: cache_key, max_age: 12.seconds) do
       result = Rails.cache.fetch(cache_key) do
-        swap_transactions = self.class.process_swaps(
+        swap_transactions = process_swaps(
           contract_address: contract_address,
           paired_token_address: paired_token_address,
           router_addresses: router_addresses,
@@ -198,6 +198,13 @@ class TokensController < ApplicationController
     token_addresses = params[:token_addresses].to_s.split(',')
     eth_contract_address = params[:eth_contract_address]
     router_address = params[:router_address]
+    factory_address = params[:factory_address]
+
+    if router_address
+      factory_address = Contract.where(address: router_address)
+        .pluck(Arel.sql("current_state->'factory'"))
+        .first
+    end
 
     if token_addresses.length > 50
       render json: { error: "Too many token addresses, limit is 50" }, status: 400
@@ -208,15 +215,18 @@ class TokensController < ApplicationController
       "token_prices",
       token_addresses.join(','),
       eth_contract_address,
-      router_address,
+      factory_address,
       EthBlock.max_processed_block_number
     ]
 
     result = Rails.cache.fetch(cache_key) do
       prices = token_addresses.map do |address|
-        last_swap_price_in_eth = get_last_swap_price_for_token(address, eth_contract_address, router_address)
-        last_swap_price_in_wei = (last_swap_price_in_eth * 1e18).to_i
-        { token_address: address, last_swap_price: last_swap_price_in_wei.to_s }
+        price = get_price_for_token(
+          token_address: address,
+          paired_token_address: eth_contract_address,
+          factory_address: factory_address
+        )
+        { token_address: address, price: price }
       end
 
       numbers_to_strings(prices)
@@ -226,65 +236,8 @@ class TokensController < ApplicationController
       result: result
     }
   end
-  
+
   private
-  
-  def get_last_swap_price_for_token(token_address, eth_contract_address, router_address)
-    token_address = token_address.downcase
-    eth_contract_address = eth_contract_address.downcase
-    router_address = router_address.downcase
-
-    factory_address = Contract.where(address: router_address)
-      .pluck(Arel.sql("current_state->'factory'"))
-      .first
-
-    router_addresses = Contract.where("current_type LIKE ?", "FacetSwapV1Router%")
-      .where("current_state->>'factory' = ?", factory_address)
-      .pluck(:address)
-
-    recent_transaction = TransactionReceipt.where(
-      status: "success",
-      function: ["swapExactTokensForTokens", "swapTokensForExactTokens"],
-      to_contract_address: router_addresses
-    )
-    .where("EXISTS (
-      SELECT 1
-      FROM jsonb_array_elements(logs) AS log
-      WHERE (log ->> 'contractAddress') = ?
-      AND (log ->> 'event') = 'Transfer'
-    )", token_address)
-    .where("EXISTS (
-      SELECT 1
-      FROM jsonb_array_elements(logs) AS log
-      WHERE (log ->> 'contractAddress') = ?
-      AND (log ->> 'event') = 'Transfer'
-    )", eth_contract_address)
-    .newest_first
-    .first
-
-    return nil if recent_transaction.blank?
-
-    process_transaction_for_swap_price(recent_transaction, token_address, eth_contract_address, router_addresses)
-  end
-
-  def process_transaction_for_swap_price(transaction, token_address, eth_contract_address, router_addresses)
-    relevant_transfer_logs = transaction.logs.select do |log|
-      log["event"] == "Transfer" && !router_addresses.include?(log["data"]["to"])
-    end
-
-    return nil if relevant_transfer_logs.empty?
-
-    token_log = relevant_transfer_logs.find { |log| log['contractAddress'] == token_address }
-    eth_log = relevant_transfer_logs.find { |log| log['contractAddress'] == eth_contract_address }
-
-    return nil if token_log.nil? || eth_log.nil?
-
-    token_amount = token_log['data']['amount'].to_i
-    eth_amount = eth_log['data']['amount'].to_i
-
-    swap_price = eth_amount.to_f / token_amount
-    swap_price
-  end
 
   def calculate_total_amounts_async(function_event_pairs:, contract_address:, as_of_block:)
     select_query_parts = function_event_pairs.map do |function, event|
@@ -326,9 +279,7 @@ class TokensController < ApplicationController
 
     result = TransactionReceipt.find_by_sql([query, query_params])
 
-    result.first.attributes.symbolize_keys.except(:id)
-
-    formatted_result = result.first.attributes.symbolize_keys.except(:id).transform_values do |value|
+    formatted_result = result.first.as_json.transform_values do |value|
       value.to_i.to_s
     end
 
