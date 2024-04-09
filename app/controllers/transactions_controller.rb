@@ -2,9 +2,7 @@ class TransactionsController < ApplicationController
   cache_actions_on_block
   
   def index
-    in_cursor_mode = !!(params[:user_cursor_pagination] || params[:page_key])
-    
-    if in_cursor_mode
+    if cursor_mode?
       scope = TransactionReceipt.all
     else
       scope = TransactionReceipt.newest_first
@@ -43,7 +41,7 @@ class TransactionsController < ApplicationController
       scope = scope.where("block_number > ?", params[:after_block])
     end
 
-    if in_cursor_mode
+    if cursor_mode?
       results, pagination_response = paginate(scope)
     
       render json: {

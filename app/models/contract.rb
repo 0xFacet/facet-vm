@@ -1,11 +1,27 @@
 class Contract < ApplicationRecord
+  include FacetRailsCommon::OrderQuery
   include ContractErrors
+  
+  initialize_order_query({
+    newest_first: [
+      [:block_number, :desc],
+      [:transaction_index, :desc],
+      [:created_at, :desc, unique: true]
+    ],
+    oldest_first: [
+      [:block_number, :asc],
+      [:transaction_index, :asc],
+      [:created_at, :asc, unique: true]
+    ]
+  }, page_key_attributes: [:address])
   
   belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, optional: true
   has_many :states, primary_key: 'address', foreign_key: 'contract_address', class_name: "ContractState"
   belongs_to :contract_transaction, foreign_key: :transaction_hash, primary_key: :transaction_hash, optional: true
 
   belongs_to :ethscription, primary_key: 'transaction_hash', foreign_key: 'transaction_hash', optional: true
+  
+  belongs_to :contract_artifact, foreign_key: :current_init_code_hash, primary_key: :init_code_hash, optional: true
   
   has_many :contract_calls, foreign_key: :effective_contract_address, primary_key: :address
   has_one :transaction_receipt, through: :contract_transaction
@@ -146,10 +162,6 @@ class Contract < ApplicationRecord
         ]
       )
     ).tap do |json|
-      if implementation_class
-        json['abi'] = implementation_class.abi.as_json
-      end
-      
       if association(:transaction_receipt).loaded?
         json['deployment_transaction'] = transaction_receipt
       end
@@ -160,12 +172,16 @@ class Contract < ApplicationRecord
         {}
       end
       
-      json['current_state']['contract_type'] = current_type
+      if ApiResponseContext.use_v1_api?
+        json['current_state']['contract_type'] = current_type
+      end
       
+      json['abi'] = contract_artifact&.build_class&.abi.as_json
+        
       json['source_code'] = [
         {
           language: 'ruby',
-          code: implementation_class&.source_code
+          code: contract_artifact&.source_code
         }
       ]
     end

@@ -50,6 +50,17 @@ class TransactionReceipt < ApplicationRecord
   end
   
   def as_json(options = {})
+    methods = [
+      :to,
+      :from
+    ]
+    
+    if ApiResponseContext.use_v1_api?
+      methods += [:to_or_contract_address, :contract_address]
+    else
+      methods << :created_contract_address
+    end
+    
     super(
       options.merge(
         only: [
@@ -71,7 +82,7 @@ class TransactionReceipt < ApplicationRecord
           :return_value,
           :effective_contract_address
         ],
-        methods: [:to, :from, :contract_address, :to_or_contract_address]
+        methods: methods
       )
     ).with_indifferent_access
   end

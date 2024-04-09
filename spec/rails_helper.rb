@@ -45,6 +45,8 @@ RSpec.configure do |config|
     ContractTestHelper.set_initial_start_block
   end
   
+  config.filter_run_excluding doc: true
+
   # You can uncomment this line to turn off ActiveRecord support entirely.
   # config.use_active_record = false
 
