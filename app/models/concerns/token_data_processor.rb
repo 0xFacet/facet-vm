@@ -85,8 +85,6 @@ module TokenDataProcessor
       )
       .first
 
-    print pair
-
     token_reserve = pair[0] == token_address ? pair[1] : pair[2]
     paired_token_reserve = pair[0] == paired_token_address ? pair[1] : pair[2]
 
