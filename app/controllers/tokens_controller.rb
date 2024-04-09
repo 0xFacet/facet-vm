@@ -1,4 +1,5 @@
 class TokensController < ApplicationController
+  include TokenDataProcessor
   cache_actions_on_block
 
   def get_allowance
@@ -106,31 +107,31 @@ class TokensController < ApplicationController
 
   def swaps
     contract_address = params[:address]&.downcase
+    paired_token_address = params[:paired_token_address]&.downcase
+    router_address = params[:router_address]&.downcase
+    factory_address = params[:factory_address]&.downcase
     from_address = params[:from_address]&.downcase
     from_timestamp = params[:from_timestamp].to_i
     to_timestamp = params[:to_timestamp]&.to_i
-    router_address = params[:router_address]&.downcase
     max_processed_block_timestamp = EthBlock.processed.maximum(:timestamp).to_i
 
     to_timestamp = to_timestamp.present? ? [to_timestamp, max_processed_block_timestamp].min : max_processed_block_timestamp
 
-    unless router_address.to_s.match?(/\A0x[0-9a-f]{40}\z/)
-      render json: { error: "Invalid router address" }, status: 400
+    if router_address&.match?(/\A0x[0-9a-f]{40}\z/)
+      router_addresses = [router_address]
+    elsif factory_address&.match?(/\A0x[0-9a-f]{40}\z/)
+      router_addresses = Contract.where("current_type LIKE ?", "FacetSwapV1Router%")
+        .where("current_state->>'factory' = ?", factory_address)
+        .pluck(:address)
+    else
+      render json: { error: "Invalid or missing router/factory address" }, status: 400
       return
     end
 
-    factory_address = Contract.where(address: router_address)
-      .pluck(Arel.sql("current_state->'factory'"))
-      .first
-
-    unless factory_address.to_s.match?(/\A0x[0-9a-f]{40}\z/)
-      render json: { error: "Invalid factory address" }, status: 400
+    if router_addresses.blank?
+      render json: { error: "No routers found for given factory" }, status: 404
       return
     end
-
-    router_addresses = Contract.where("current_type LIKE ?", "FacetSwapV1Router%")
-      .where("current_state->>'factory' = ?", factory_address)
-      .pluck(:address)
 
     if from_timestamp > to_timestamp || from_address.blank? && to_timestamp - from_timestamp > 1.month
       render json: { error: "Invalid timestamp range" }, status: 400
@@ -140,7 +141,7 @@ class TokensController < ApplicationController
     cache_key = [
       "token_swaps",
       contract_address,
-      router_address,
+      router_addresses,
       from_timestamp,
       to_timestamp,
       from_address
@@ -150,56 +151,15 @@ class TokensController < ApplicationController
 
     set_cache_control_headers(etag: cache_key, max_age: 12.seconds) do
       result = Rails.cache.fetch(cache_key) do
-        transactions = TransactionReceipt.where(
-          to_contract_address: router_addresses,
-          status: "success",
-          function: ["swapExactTokensForTokens", "swapTokensForExactTokens"]
+        swap_transactions = process_swaps(
+          contract_address: contract_address,
+          paired_token_address: paired_token_address,
+          router_addresses: router_addresses,
+          from_address: from_address,
+          from_timestamp: from_timestamp,
+          to_timestamp: to_timestamp
         )
-          .where("block_timestamp >= ? AND block_timestamp <= ?", from_timestamp, to_timestamp)
-          .where("EXISTS (
-            SELECT 1
-            FROM jsonb_array_elements(logs) AS log
-            WHERE (log ->> 'contractAddress') = ?
-            AND (log ->> 'event') = 'Transfer'
-          )", contract_address)
-
-        transactions = transactions.where(from_address: from_address) if from_address.present?
-
-        if transactions.blank?
-          render json: { error: "Transactions not found" }, status: 404
-          return
-        end
-
-        cooked_transactions = transactions.map do |receipt|
-          relevant_transfer_logs = receipt.logs.select do |log|
-            log["event"] == "Transfer" && log["data"]["to"] != router_address
-          end
-
-          token_log = relevant_transfer_logs.detect do |log|
-            log['contractAddress'] == contract_address
-          end
-
-          paired_token_log = (relevant_transfer_logs - [token_log]).first
-
-          swap_type = if token_log['data']['to'] == receipt.from_address
-            'buy'
-          else
-            'sell'
-          end
-
-          {
-            txn_hash: receipt.transaction_hash,
-            swapper_address: receipt.from_address,
-            timestamp: receipt.block_timestamp,
-            token_amount: token_log['data']['amount'],
-            paired_token_amount: paired_token_log['data']['amount'],
-            swap_type: swap_type,
-            transaction_index: receipt.transaction_index,
-            block_number: receipt.block_number
-          }
-        end
-
-        numbers_to_strings(cooked_transactions)
+        numbers_to_strings(swap_transactions)
       end
 
       render json: {
@@ -211,20 +171,22 @@ class TokensController < ApplicationController
   def volume
     volume_contract = params[:volume_contract]&.downcase
     contract_address = params[:address]&.downcase
-    one_day_ago = 24.hours.ago.to_i
 
     cache_key = ["token_volume", contract_address, volume_contract]
-    
-    set_cache_control_headers(max_age: 12.seconds, s_max_age: 1.hour)
 
-    result = Rails.cache.fetch(cache_key, expires_in: 1.hour) do
-      total_volume = calculate_volume(contract_address: contract_address, volume_contract: volume_contract)
-      last_24_hours_volume = calculate_volume(contract_address: contract_address, volume_contract: volume_contract, start_time: one_day_ago)
+    set_cache_control_headers(max_age: 12.seconds, s_max_age: 5.minutes)
 
-      numbers_to_strings({
-        total_volume: total_volume,
-        last_24_hours_volume: last_24_hours_volume
-      })
+    result = Rails.cache.fetch(cache_key, expires_in: 5.minute) do
+      time_ranges = {
+        total_volume: nil,
+        last_7_days_volume: 7.days.ago,
+        last_24_hours_volume: 24.hours.ago,
+        last_6_hours_volume: 6.hours.ago,
+        last_1_hour_volume: 1.hour.ago,
+        last_5_minutes_volume: 5.minutes.ago
+      }
+
+      calculate_volumes(contract_address: contract_address, volume_contract: volume_contract, time_ranges: time_ranges)
     end
 
     render json: {
@@ -236,6 +198,13 @@ class TokensController < ApplicationController
     token_addresses = params[:token_addresses].to_s.split(',')
     eth_contract_address = params[:eth_contract_address]
     router_address = params[:router_address]
+    factory_address = params[:factory_address]
+
+    if router_address
+      factory_address = Contract.where(address: router_address)
+        .pluck(Arel.sql("current_state->'factory'"))
+        .first
+    end
 
     if token_addresses.length > 50
       render json: { error: "Too many token addresses, limit is 50" }, status: 400
@@ -246,15 +215,18 @@ class TokensController < ApplicationController
       "token_prices",
       token_addresses.join(','),
       eth_contract_address,
-      router_address,
+      factory_address,
       EthBlock.max_processed_block_number
     ]
 
     result = Rails.cache.fetch(cache_key) do
       prices = token_addresses.map do |address|
-        last_swap_price_in_eth = get_last_swap_price_for_token(address, eth_contract_address, router_address)
-        last_swap_price_in_wei = (last_swap_price_in_eth * 1e18).to_i
-        { token_address: address, last_swap_price: last_swap_price_in_wei.to_s }
+        price = get_price_for_token(
+          token_address: address,
+          paired_token_address: eth_contract_address,
+          factory_address: factory_address
+        )
+        { token_address: address, price: price }
       end
 
       numbers_to_strings(prices)
@@ -264,65 +236,8 @@ class TokensController < ApplicationController
       result: result
     }
   end
-  
+
   private
-  
-  def get_last_swap_price_for_token(token_address, eth_contract_address, router_address)
-    token_address = token_address.downcase
-    eth_contract_address = eth_contract_address.downcase
-    router_address = router_address.downcase
-
-    factory_address = Contract.where(address: router_address)
-      .pluck(Arel.sql("current_state->'factory'"))
-      .first
-
-    router_addresses = Contract.where("current_type LIKE ?", "FacetSwapV1Router%")
-      .where("current_state->>'factory' = ?", factory_address)
-      .pluck(:address)
-
-    recent_transaction = TransactionReceipt.where(
-      status: "success",
-      function: ["swapExactTokensForTokens", "swapTokensForExactTokens"],
-      to_contract_address: router_addresses
-    )
-    .where("EXISTS (
-      SELECT 1
-      FROM jsonb_array_elements(logs) AS log
-      WHERE (log ->> 'contractAddress') = ?
-      AND (log ->> 'event') = 'Transfer'
-    )", token_address)
-    .where("EXISTS (
-      SELECT 1
-      FROM jsonb_array_elements(logs) AS log
-      WHERE (log ->> 'contractAddress') = ?
-      AND (log ->> 'event') = 'Transfer'
-    )", eth_contract_address)
-    .newest_first
-    .first
-
-    return nil if recent_transaction.blank?
-
-    process_transaction_for_swap_price(recent_transaction, token_address, eth_contract_address, router_addresses)
-  end
-
-  def process_transaction_for_swap_price(transaction, token_address, eth_contract_address, router_addresses)
-    relevant_transfer_logs = transaction.logs.select do |log|
-      log["event"] == "Transfer" && !router_addresses.include?(log["data"]["to"])
-    end
-
-    return nil if relevant_transfer_logs.empty?
-
-    token_log = relevant_transfer_logs.find { |log| log['contractAddress'] == token_address }
-    eth_log = relevant_transfer_logs.find { |log| log['contractAddress'] == eth_contract_address }
-
-    return nil if token_log.nil? || eth_log.nil?
-
-    token_amount = token_log['data']['amount'].to_i
-    eth_amount = eth_log['data']['amount'].to_i
-
-    swap_price = eth_amount.to_f / token_amount
-    swap_price
-  end
 
   def calculate_total_amounts_async(function_event_pairs:, contract_address:, as_of_block:)
     select_query_parts = function_event_pairs.map do |function, event|
@@ -334,22 +249,40 @@ class TokensController < ApplicationController
       .where("status = ? AND to_contract_address = ? AND block_number <= ?", 'success', contract_address, as_of_block)
       .select(Arel.sql(select_query_parts.join(", "))).load_async
   end
-  
-  def calculate_volume(contract_address:, volume_contract:, start_time: nil)
-    query = TransactionReceipt.where(status: "success", function: ["swapExactTokensForTokens", "swapTokensForExactTokens"])
-      .where("EXISTS (
-        SELECT 1
-        FROM jsonb_array_elements(logs) AS log
-        WHERE (log ->> 'contractAddress') = ?
-        AND (log ->> 'event') = 'Transfer'
-      )", contract_address)
-    query = query.where("block_timestamp >= ?", start_time.to_i) if start_time
 
-    query.pluck(:logs)
-      .flatten
-      .sum do |log|
-        next 0 unless log["contractAddress"] == volume_contract && log["event"] == "Transfer"
-        log["data"]["amount"].to_i
+  def calculate_volumes(contract_address:, volume_contract:, time_ranges:)
+    conditional_sums = time_ranges.map do |label, start_time|
+      if start_time
+        "SUM(CASE WHEN block_timestamp >= #{start_time.to_i} THEN (log -> 'data' ->> 'amount')::numeric ELSE 0 END) AS \"#{label}\""
+      else
+        "SUM((log -> 'data' ->> 'amount')::numeric) AS \"#{label}\""
       end
+    end.join(", ")
+
+    query = <<-SQL
+      SELECT #{conditional_sums}
+      FROM transaction_receipts,
+           jsonb_array_elements(logs) AS log
+      WHERE status = 'success'
+        AND function IN ('swapExactTokensForTokens', 'swapTokensForExactTokens')
+        AND (log ->> 'contractAddress') = :volume_contract
+        AND (log ->> 'event') = 'Transfer'
+        AND EXISTS (
+          SELECT 1
+          FROM jsonb_array_elements(logs) AS inner_log
+          WHERE (inner_log ->> 'contractAddress') = :contract_address
+            AND (inner_log ->> 'event') = 'Transfer'
+        )
+    SQL
+
+    query_params = { contract_address: contract_address, volume_contract: volume_contract }
+
+    result = TransactionReceipt.find_by_sql([query, query_params])
+
+    formatted_result = result.first.as_json.transform_values do |value|
+      value.to_i.to_s
+    end
+
+    formatted_result
   end
 end

@@ -53,6 +53,7 @@ Rails.application.routes.draw do
         get '/:address/token_allowances', to: 'wallets#get_token_allowances'
         get '/:address/nft_balances', to: 'wallets#get_nft_balances'
         get '/:address/nft_approvals', to: 'wallets#get_nft_approvals'
+        get '/:address/pnl', to: 'wallets#pnl'
       end
     end
 
