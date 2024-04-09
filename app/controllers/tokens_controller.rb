@@ -279,10 +279,6 @@ class TokensController < ApplicationController
 
     result = TransactionReceipt.find_by_sql([query, query_params])
 
-    formatted_result = result.first.as_json.transform_values do |value|
-      value.to_i.to_s
-    end
-
-    formatted_result
+    numbers_to_strings(result.first.attributes.except("id"))
   end
 end
