@@ -1,13 +1,14 @@
 class ApplicationController < ActionController::API
   include FacetRailsCommon::ApplicationControllerMethods
-  
-  def api_version
-    params.fetch(:api_version, '1')
+  before_action :set_api_version
+
+  def set_api_version
+    ApiResponseContext.api_version = params.fetch(:api_version, '1')
   end
   
   def cursor_mode?
     !!(
-      api_version.to_i >= 2 ||
+      ApiResponseContext.api_version.to_i >= 2 ||
       params[:user_cursor_pagination] ||
       params[:use_cursor_pagination] ||
       params[:page_key]

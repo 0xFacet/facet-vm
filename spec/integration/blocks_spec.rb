@@ -1,7 +1,7 @@
 # spec/integration/blocks_spec.rb
 require 'swagger_helper'
 
-describe 'Blocks API' do
+describe 'Blocks API', doc: true do
   path '/blocks' do
     get 'List Blocks' do
       tags 'Blocks'

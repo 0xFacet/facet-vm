@@ -172,7 +172,7 @@ class Contract < ApplicationRecord
         {}
       end
       
-      if options[:legacy_contract_type_in_state]
+      if ApiResponseContext.use_v1_api?
         json['current_state']['contract_type'] = current_type
       end
       

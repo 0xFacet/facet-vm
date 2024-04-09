@@ -143,7 +143,7 @@ RSpec.configure do |config|
                 '$ref' => '#/components/schemas/ContractFunctionArgs'
               },
               call_type: { type: :string, example: 'call' },
-              return_value: { type: :boolean, example: true },
+              return_value: { '$ref' => '#/components/schemas/ContractFunctionReturnValue' },
               logs: {
                 type: :array,
                 items: { '$ref' => '#/components/schemas/LogEntryObject' }
@@ -172,7 +172,6 @@ RSpec.configure do |config|
               current_type: { type: :string, example: 'PublicMintERC20' },
               current_init_code_hash: { type: :string, example: '0xb1b0ed1e4a8c9c9b0210f267137e368f782453e41f622fa8cf68296d04c84c88' },
               address: { type: :string, example: '0xd5d49b065b6c187b799073ffbb52f93a6dfdc758' },
-              deployment_transaction: { '$ref' => '#/components/schemas/TransactionObject' },
               abi: {
                 type: :array,
                 items: {
@@ -221,28 +220,29 @@ RSpec.configure do |config|
                   }
                 }
               },
+              deployment_transaction: { '$ref' => '#/components/schemas/TransactionObject' },
             }
-          },
-          ContractObjectWithState: {
-            allOf: [
-              { '$ref' => '#/components/schemas/ContractObject' },
-              {
-                type: :object,
-                properties: {
-                  current_state: {
-                    type: :object,
-                    additionalProperties: true,
-                    description: 'Current state of the contract. Includes variable values and other state-related information, present only in detailed contract information (show action).'
-                  }
-                }
-              }
-            ]
-          },          
+          },      
           TransactionObject: {
             type: :object,
             properties: {
               transaction_hash: { type: :string, example: '0x22c0b2b290cf90e95544be81ad93fe0a304af3d01652f45e3610f40ae2068185' },
-              status: { type: :string, example: 'success' },
+              from: { type: :string, example: '0xe4fad47541c224bc9af3f06863d9fcc2ef47e65e' },
+              to: {
+                type: :string,
+                example: '0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e',
+                description: 'The contract the transaction was sent to. Blank if the transaction created a contract'
+              },
+              effective_contract_address: {
+                type: :string,
+                example: '0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e',
+                description: 'Address of the contract that the transaction interacts with. Ether the contract the transaction was sent to or the contract the transaction created.'
+              },
+              created_contract_address: {
+                type: :string,
+                example: '0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e',
+                description: 'Address of the contract created by the transaction. Present only if the transaction created a contract.'
+              },
               function: { type: :string, example: 'swapExactTokensForTokens' },
               args: {
                 '$ref' => '#/components/schemas/ContractFunctionArgs'
@@ -251,28 +251,18 @@ RSpec.configure do |config|
                 type: :array,
                 items: { '$ref' => '#/components/schemas/LogEntryObject' },
               },
-              block_timestamp: { type: :integer, example: 1712329319 },
+              status: { type: :string, example: 'success' },
               error: { type: :string, nullable: true, example: nil },
-              effective_contract_address: { type: :string, example: '0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e' },
-              block_number: { type: :integer, example: 19590300 },
-              transaction_index: { type: :integer, example: 131 },
-              block_blockhash: { type: :string, example: '0x13c0159d7e238f7f562dc11cbbff0d762c4d1d0feceabe70f29ff560eb78e465' },
-              return_value: {
-                type: :array,
-                items: {
-                  type: 'integer or string',
-                  description: 'Return values of the transaction. Type and structure vary by function.'
-                }
-              },
-              runtime_ms: { type: :integer, example: 292 },
+              return_value: { '$ref' => '#/components/schemas/ContractFunctionReturnValue' },
               call_type: { type: :string, example: 'call' },
               gas_price: { type: :integer, example: 34801480344 },
               gas_used: { type: :integer, example: 25896 },
               transaction_fee: { type: :integer, example: 901219134988224 },
-              to: { type: :string, example: '0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e' },
-              from: { type: :string, example: '0xe4fad47541c224bc9af3f06863d9fcc2ef47e65e' },
-              contract_address: { type: :string, nullable: true, example: nil },
-              to_or_contract_address: { type: :string, example: '0xf29e6e319ac4ce8c100cfc02b1702eb3d275029e' }
+              block_timestamp: { type: :integer, example: 1712329319 },
+              block_number: { type: :integer, example: 19590300 },
+              transaction_index: { type: :integer, example: 131 },
+              block_blockhash: { type: :string, example: '0x13c0159d7e238f7f562dc11cbbff0d762c4d1d0feceabe70f29ff560eb78e465' },
+              runtime_ms: { type: :integer, example: 292 },
             }
           },
           SimulateTransactionResponse: {
@@ -305,6 +295,23 @@ RSpec.configure do |config|
                 description: 'Arguments passed to the function as key-value pairs.'
               }
             ]
+          },
+          ContractFunctionReturnValue: {
+            oneOf: [
+              {
+                type: :string,
+                description: 'Return value as a string.',
+                example: "123"
+              },
+              {
+                type: :object,
+                additionalProperties: {
+                  type: :string,
+                },
+                example: { name: "MyToken", symbol: "MTK", decimals: "18" },
+                description: 'Named return values as an object.'
+              }
+            ] 
           },
           LogEntryObject: {
             type: :object,
@@ -360,6 +367,29 @@ RSpec.configure do |config|
       ]
     }
   }
+  
+  contract_object = config.openapi_specs['v1/swagger.yaml'][:components][:schemas][:ContractObject]
+  
+  contract_properties = contract_object[:properties]
+  
+  state_addition = {
+    current_state: {
+      type: :object,
+      additionalProperties: true,
+      description: 'Current state of the contract. Includes variable values and other state-related information, present only in detailed contract information (show action).',
+      example: { name: 'MyToken', symbol: 'MTK', decimals: 18, totalSupply: 1000000 }
+    }
+  }
+  
+  updated_properties = contract_properties.merge(state_addition)
+
+  # Create a new component schema that includes the updated properties
+  contract_with_state_component = contract_object.merge({
+    type: contract_object[:type],
+    properties: updated_properties
+  })
+  
+  config.openapi_specs['v1/swagger.yaml'][:components][:schemas][:ContractObjectWithState] = contract_with_state_component
 
   # Specify the format of the output Swagger file when running 'rswag:specs:swaggerize'.
   # The openapi_specs configuration option has the filename including format in
