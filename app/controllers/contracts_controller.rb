@@ -62,10 +62,7 @@ class ContractsController < ApplicationController
 
       render json: {
         result: numbers_to_strings(
-          contract.as_json(
-            include_current_state: true,
-            legacy_contract_type_in_state: api_version == '1'
-          )
+          contract.as_json(include_current_state: true)
         )
       }
     end
