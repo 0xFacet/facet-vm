@@ -7,12 +7,12 @@ Rails.application.routes.draw do
         get "/transactions/:id", to: "transactions#show", constraints: { id: /(0x)?[a-zA-Z0-9]{64}/ }
         get "/simulate", to: "contracts#simulate_transaction"
         post "/simulate", to: "contracts#simulate_transaction"
-
+        
         get "/all-abis", to: "contracts#all_abis"
         get "/supported-contract-artifacts", to: "contracts#supported_contract_artifacts"
         get "/deployable-contracts", to: "contracts#deployable_contracts"
-
-
+        
+        
         get "/pairs_with_tokens/:router", to: "contracts#pairs_with_tokens"
         get "/pairs_for_router/", to: "contracts#pairs_for_router"
       end
@@ -23,7 +23,7 @@ Rails.application.routes.draw do
         get '/owned-by-address', to: 'name_registries#owned_by_address'
       end
     end
-
+    
     resources :blocks, only: [:index, :show] do
       collection do
         get '/total', to: 'blocks#total'
@@ -59,10 +59,10 @@ Rails.application.routes.draw do
 
     resources :contract_calls, only: [:index] do
     end
-
+    
     get "/status", to: "status#vm_status"
   end
-
+  
   draw_routes
 
   scope '/v2', defaults: { api_version: '2' } do
