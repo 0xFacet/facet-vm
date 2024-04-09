@@ -1,4 +1,5 @@
 class TokensController < ApplicationController
+  include TokenDataProcessor
   cache_actions_on_block
 
   def get_allowance
@@ -150,60 +151,15 @@ class TokensController < ApplicationController
 
     set_cache_control_headers(etag: cache_key, max_age: 12.seconds) do
       result = Rails.cache.fetch(cache_key) do
-        transactions = TransactionReceipt.where(
-          to_contract_address: router_addresses,
-          status: "success",
-          function: ["swapExactTokensForTokens", "swapTokensForExactTokens"]
+        swap_transactions = self.class.process_swaps(
+          contract_address: contract_address,
+          paired_token_address: paired_token_address,
+          router_addresses: router_addresses,
+          from_address: from_address,
+          from_timestamp: from_timestamp,
+          to_timestamp: to_timestamp
         )
-          .where("block_timestamp >= ? AND block_timestamp <= ?", from_timestamp, to_timestamp)
-          .where("EXISTS (
-            SELECT 1
-            FROM jsonb_array_elements(logs) AS log
-            WHERE (log ->> 'contractAddress') = ?
-            AND (log ->> 'event') = 'Transfer'
-          )", contract_address)
-
-        transactions = transactions.where(from_address: from_address) if from_address.present?
-
-        if transactions.blank?
-          render json: { error: "Transactions not found" }, status: 404
-          return
-        end
-
-        cooked_transactions = transactions.map do |receipt|
-          relevant_transfer_logs = receipt.logs.select do |log|
-            log["event"] == "Transfer" && !router_addresses.include?(log["data"]["to"])
-          end
-
-          token_log = relevant_transfer_logs.detect do |log|
-            log['contractAddress'] == contract_address
-          end
-
-          paired_token_log = (relevant_transfer_logs - [token_log]).first
-
-          next if paired_token_address.present? && paired_token_log['contractAddress'] != paired_token_address
-
-          swap_type = if token_log['data']['to'] == receipt.from_address
-            'buy'
-          else
-            'sell'
-          end
-
-          {
-            txn_hash: receipt.transaction_hash,
-            swapper_address: receipt.from_address,
-            timestamp: receipt.block_timestamp,
-            token_amount: token_log['data']['amount'],
-            paired_token_amount: paired_token_log['data']['amount'],
-            paired_token_address: paired_token_log['contractAddress'],
-            swap_type: swap_type,
-            transaction_index: receipt.transaction_index,
-            block_number: receipt.block_number,
-            router_address: router_address
-          }
-        end
-
-        numbers_to_strings(cooked_transactions.compact)
+        numbers_to_strings(swap_transactions)
       end
 
       render json: {
@@ -342,7 +298,6 @@ class TokensController < ApplicationController
   end
 
   def calculate_volumes(contract_address:, volume_contract:, time_ranges:)
-    # Build conditional SUM expressions for each time range
     conditional_sums = time_ranges.map do |label, start_time|
       if start_time
         "SUM(CASE WHEN block_timestamp >= #{start_time.to_i} THEN (log -> 'data' ->> 'amount')::numeric ELSE 0 END) AS \"#{label}\""
