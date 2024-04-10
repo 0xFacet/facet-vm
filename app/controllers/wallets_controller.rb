@@ -199,7 +199,8 @@ class WalletsController < ApplicationController
     sells = 0
     total_bought = 0
     total_sold = 0
-
+    percent_sold = 0
+    
     current_market_value = ((balance.to_f / (10 ** decimals.to_i)) * price.to_i).to_i
 
     swaps.each do |swap|
