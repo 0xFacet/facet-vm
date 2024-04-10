@@ -19,14 +19,14 @@ RSpec.configure do |config|
     'v1/swagger.yaml' => {
       openapi: '3.0.1',
       info: {
-        title: 'Facet API V1',
-        version: 'v1',
+        title: 'Facet API V2',
+        version: 'v2',
         description: <<~DESC
         ## Overview
 
         Welcome to the Facet API Docs!
         
-        The Facet API enables you to query the [Facet Virtual Machine](https://github.com/0xFacet/facet-vm) for the state of the Facet protocol.
+        The Facet API enables you to query a [Facet Virtual Machine](https://github.com/0xFacet/facet-vm) for the state of the Facet protocol. This API is available on any instance of the Facet VM, but you can use it for free at the official endpoint [https://api.facet.org/v2](https://api.facet.org/v2).
         
         The Facet VM's state is determined by special Ethereum transactions sent to `0x00000000000000000000000000000000000face7`. These transactions have payloads like:
         
@@ -43,19 +43,17 @@ RSpec.configure do |config|
         }
         ```
         
-        When interpreted according to the Facet protocol they represent user intents to, for example, mint a token. Using protocol rules the Facet VM determines whether an intent should be satisfied and if so updates internal state.
+        When interpreted according to the Facet protocol they represent user intents to, for example, mint a token. Using protocol rules the Facet VM determines whether an intent should be satisfied and if so updates its internal state.
         
-        Here's how you can use this API to learn about Facet state.
+        In addition to querying the state of the Facet VM, you can also simulate transactions to forecast outcomes, catch errors early, and ensure your interactions proceed as expected.
         
         ## Core Concepts
-        
-        The entities below are familiar Ethereum concepts, but they have a different meaning in this context.
         
         - **Transactions:** Every Facet transaction is an Ethereum transaction, so you can look up Facet transactions on Etherscan as well as using the Facet API. However the Facet API provides the Facet interpretation of the transaction, including the "Dumb Contract" that was called, the arguments to the call, and the result.
         
         - **Contracts:** The term "contracts" in Facet refers to "Dumb Contracts." These contracts perform all the same contracts as Smart Contracts but their logic is executed off-chain. In these endpoints you can query contract ABIs, states, and other familiar fields.
         
-        - **Simulated Transactions:** Before committing to the blockchain, simulate your transactions to forecast outcomes, catch errors early, and ensure your interactions proceed as expected. This feature allows for a safer and more predictable development experience.
+        - **Simulated Transactions:** Submit your Facet transaction to the API before executing it on chain to make sure it will succeed. The API will return the result of the transaction as if it were executed on chain.
         
         ## Community and Support
         
@@ -356,7 +354,7 @@ RSpec.configure do |config|
               page_key: { type: :string, example: '18680069-4-1', description: 'Key for the next page of results. Supply this in the page_key query parameter to retrieve the next set of items.' },
               has_more: { type: :boolean, example: true, description: 'Indicates if more items are available beyond the current page.' }
             },
-            description: 'Contains pagination details to navigate through the list of blocks.'
+            description: 'Contains pagination details to navigate through the list of records.'
           }
         }
       },
