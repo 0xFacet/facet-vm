@@ -2,7 +2,7 @@
 require 'swagger_helper'
 
 describe 'Status API', doc: true do
-  path '/vm_status' do
+  path '/status' do
     get 'VM Status' do
       tags 'Status'
       operationId 'getVmStatus'
