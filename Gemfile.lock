@@ -295,6 +295,9 @@ GEM
       parser
     scrypt (3.0.7)
       ffi-compiler (>= 1.0, < 2.0)
+    sqlite3 (1.7.3-arm64-darwin)
+    sqlite3 (1.7.3-x86_64-darwin)
+    sqlite3 (1.7.3-x86_64-linux)
     stackprof (0.2.26)
     stringio (3.0.8)
     thor (1.2.2)
@@ -345,6 +348,7 @@ DEPENDENCIES
   rswag-specs
   rswag-ui
   scout_apm (~> 5.3)
+  sqlite3 (~> 1.7)
   stackprof
   tzinfo-data
   unparser

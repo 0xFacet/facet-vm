@@ -95,6 +95,10 @@ class BlockContext < ActiveSupport::CurrentAttributes
     end.compact
     
     ContractState.import!(states_to_save)
+    
+    states_to_save.each do |state|
+      state.run_callbacks(:create)
+    end
   end
   
   def start_block_passed?

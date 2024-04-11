@@ -159,6 +159,25 @@ class ContractsController < ApplicationController
     render json: { result: numbers_to_strings(receipt) }
   end
   
+  def simulate_transaction_with_state
+    # TODO: fix "unsafe" parts
+    
+    result = nil
+    Timeout.timeout(5.seconds) do
+      result = ContractTransaction.simulate_transaction_with_state(
+        from: params.require(:from),
+        tx_payload: params.require(:tx_payload).to_unsafe_h,
+        initial_state: params[:initial_state]&.to_unsafe_h
+      )
+    end
+  
+    render json: { result: numbers_to_strings(result) }
+  rescue Timeout::Error
+    render json: { error: "Execution timeout" }, status: 408
+  rescue Exception => e
+    render json: { error: e.message }, status: 500
+  end
+  
   def pairs_for_router
     user_address = params[:user_address]&.downcase
     router_address = params[:router]&.downcase

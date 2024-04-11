@@ -88,3 +88,5 @@ gem 'facet_rails_common', git: 'https://github.com/0xfacet/facet_rails_common.gi
 
 gem 'rswag-api'
 gem 'rswag-ui'
+
+gem "sqlite3", "~> 1.7"

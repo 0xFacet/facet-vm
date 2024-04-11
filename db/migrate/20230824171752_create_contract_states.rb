@@ -3,21 +3,25 @@ class CreateContractStates < ActiveRecord::Migration[7.1]
     create_table :contract_states, force: :cascade do |t|
       t.string :type, null: false
       t.string :init_code_hash, null: false
-      t.jsonb :state, default: {}, null: false
+      t.column :state, :jsonb, default: {}, null: false
       t.bigint :block_number, null: false
       t.string :contract_address, null: false
     
       t.index :block_number
       t.index :contract_address
     
-      t.check_constraint "contract_address ~ '^0x[a-f0-9]{40}$'"
-      t.check_constraint "init_code_hash ~ '^0x[a-f0-9]{64}$'"
+      if pg_adapter?
+        t.check_constraint "contract_address ~ '^0x[a-f0-9]{40}$'"
+        t.check_constraint "init_code_hash ~ '^0x[a-f0-9]{64}$'"
+      end
     
       t.foreign_key :contracts, column: :contract_address, primary_key: :address, on_delete: :cascade
       t.foreign_key :eth_blocks, column: :block_number, primary_key: :block_number, on_delete: :cascade
       
       t.timestamps
     end
+    
+    return unless pg_adapter?
         
     execute <<-SQL
       CREATE OR REPLACE FUNCTION update_current_state() RETURNS TRIGGER AS $$

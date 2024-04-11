@@ -113,15 +113,65 @@ class ContractTransaction < ApplicationRecord
     TransactionReceipt.new(attrs)
   end
   
-  def self.simulate_transaction(from:, tx_payload:)
+  def self.simulate_transaction_with_state(from:, tx_payload:, initial_state: {})
+    state_defining_model_names = [
+      'EthBlock',
+      'Ethscription',
+      'ContractTransaction',
+      'ContractCall',
+      'ContractArtifact',
+      'Contract',
+    ]
+    
+    with_temporary_database_environment do
+      initial_state.each do |model_name, records|
+        model_class_name = model_name.to_s.classify
+        
+        if state_defining_model_names.exclude?(model_class_name)
+          raise "Invalid model name: #{model_name}"
+        end
+        
+        model_class = model_class_name.constantize
+        instances = records.map { |record_attrs| model_class.new(record_attrs) }
+        model_class.import!(instances)
+      end
+      
+      sim_res = simulate_transaction(
+        from: from,
+        tx_payload: tx_payload,
+        persist: true,
+        no_cache: true,
+        config_version: SystemConfigVersion.new(
+          start_block_number: 0,
+          all_contracts_supported: true
+        )
+      )
+      
+      state = state_defining_model_names.each.with_object({}) do |model_name, hash|
+        model_class = model_name.constantize
+        key = model_name.underscore.pluralize.to_sym
+        hash[key] = model_class.all.map { |instance| instance.attributes.as_json }
+      end.with_indifferent_access
+      
+      sim_res.merge(state: state).with_indifferent_access
+    end
+  end
+  
+  def self.simulate_transaction(
+    from:,
+    tx_payload:,
+    persist: false,
+    no_cache: false,
+    config_version: SystemConfigVersion.current
+  )
     max_block_number = EthBlock.max_processed_block_number
-    config_version = SystemConfigVersion.current
     
     cache_key = [
       config_version,
       max_block_number,
       from,
-      tx_payload
+      tx_payload,
+      (no_cache ? rand : nil)
     ].to_cache_key(:simulate_transaction)
     
     cache_key = Digest::SHA256.hexdigest(cache_key)
@@ -133,8 +183,15 @@ class ContractTransaction < ApplicationRecord
       current_block = EthBlock.new(
         block_number: max_block_number + 1,
         timestamp: Time.zone.now.to_i,
-        blockhash: "0x" + SecureRandom.hex(32)
+        blockhash: "0x" + SecureRandom.hex(32),
+        parent_blockhash: EthBlock.most_recently_imported_blockhash || "0x" + SecureRandom.hex(32),
+        imported_at: Time.zone.now,
+        processing_state: "complete",
+        transaction_count: 1,
+        runtime_ms: 1,
       )
+      
+      current_block.save! if persist
       
       ethscription_attrs = {
         transaction_hash: "0x" + SecureRandom.hex(32),
@@ -151,6 +208,8 @@ class ContractTransaction < ApplicationRecord
       
       eth = Ethscription.new(ethscription_attrs)
       
+      eth.save! if persist
+      
       BlockContext.set(
         system_config: config_version,
         current_block: current_block,
@@ -158,7 +217,7 @@ class ContractTransaction < ApplicationRecord
         contract_artifacts: [],
         ethscriptions: [eth]
       ) do
-        BlockContext.process_contract_transactions(persist: false)
+        BlockContext.process_contract_transactions(persist: persist)
       end
       
       {

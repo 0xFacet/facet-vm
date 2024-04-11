@@ -9,6 +9,8 @@ class SystemConfigVersion < ApplicationRecord
     order(block_number: :desc, transaction_index: :desc) 
   }
   
+  attr_accessor :all_contracts_supported
+  
   def self.latest_tx_hash
     newest_first.limit(1).pluck(:transaction_hash).first
   end
@@ -75,7 +77,7 @@ class SystemConfigVersion < ApplicationRecord
   end
   
   def contract_supported?(init_code_hash)
-    supported_contracts.include?(init_code_hash)
+    all_contracts_supported || supported_contracts.include?(init_code_hash)
   end
   
   def self.current_supported_contract_artifacts
