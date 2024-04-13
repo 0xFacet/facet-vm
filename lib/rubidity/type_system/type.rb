@@ -304,6 +304,6 @@ class Type
   end
   
   def is_value_type?
-    !mapping? && !array? && !struct?
+    !mapping? && !array? && !struct? && !contract?
   end
 end

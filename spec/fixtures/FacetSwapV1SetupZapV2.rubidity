@@ -109,8 +109,8 @@ contract :FacetSwapV1SetupZapV2 do
     
     pair = factory.createPair(tokenA, tokenB)
     
-    tokenA.airdrop(to: msg.sender, amount: 1e6.ether)
-    tokenB.airdrop(to: msg.sender, amount: 1e6.ether)
+    tokenA.airdrop(to: msg.sender, amount: 1000000.ether)
+    tokenB.airdrop(to: msg.sender, amount: 1000000.ether)
     
     s.factories.push(factory)
     s.tokenAs.push(tokenA)

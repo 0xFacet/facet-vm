@@ -1,4 +1,5 @@
 class ContractImplementation < BasicObject
+  extend ::StateVariableDefinitions
   include ::ContractErrors
   include ::ForLoop
   
@@ -37,42 +38,6 @@ class ContractImplementation < BasicObject
   
   def self.abi
     @abi ||= ::AbiProxy.new(self)
-  end
-  
-  ::Type.value_types.each do |type|
-    define_singleton_method(type) do |*args|
-      define_state_variable(type, args)
-    end
-  end
-  
-  def self.mapping(*args)
-    key_type, value_type = args.first.first
-    metadata = {key_type: create_type(key_type), value_type: create_type(value_type)}
-    type = ::Type.create(:mapping, metadata)
-    
-    if args.last.is_a?(::Symbol)
-      define_state_variable(type, args)
-    else
-      type
-    end
-  end
-  
-  def self.array(*args, **kwargs)
-    value_type = args.first
-    metadata = {value_type: create_type(value_type)}.merge(kwargs)
-    
-    if args.length == 2
-      metadata.merge!(initial_length: args.last)
-      args.pop
-    end
-    
-    type = ::Type.create(:array, metadata)
-    
-    if args.length == 1
-      type
-    else
-      define_state_variable(type, args)
-    end
   end
   
   def array(value_type, initial_length = nil)
@@ -166,23 +131,6 @@ class ContractImplementation < BasicObject
     function(:constructor, args, *options, returns: nil, &block)
   end
   
-  def self.struct(name, &block)
-    @structs ||= {}.with_indifferent_access
-    @structs[name] = ::StructDefinition.new(name, &block)
-
-    define_method(name) do |**field_values|
-      struct_definition = self.class.structs[name]
-      type = ::Type.create(:struct, struct_definition: struct_definition)
-      ::StructVariable.new(type, field_values)
-    end
-    
-    define_singleton_method(name) do |*args|
-      struct_definition = structs[name]
-      type = ::Type.create(:struct, struct_definition: struct_definition)
-      define_state_variable(type, args)
-    end
-  end
-  
   def self.structs
     (@structs || {}).with_indifferent_access
   end
@@ -236,20 +184,6 @@ class ContractImplementation < BasicObject
       event: event_name,
       data: args
     })
-  end
-
-  def self.define_state_variable(type, args)
-    name = args.last.to_sym
-    type = ::Type.create(type)
-    
-    if state_variable_definitions[name]
-      raise "No shadowing: #{name} is already defined."
-    end
-    
-    state_variable_definitions[name] = { type: type, args: args }
-    
-    state_var = ::StateVariable.create(name, type, args)
-    state_var.create_public_getter_function(self)
   end
   
   def keccak256(input)
@@ -484,6 +418,7 @@ class ContractImplementation < BasicObject
     "#<#{name}:#{object_id}>"
   end
   
+  # TODO: disallow
   def class
     ::Object.instance_method(:class).bind(self).call
   end
