@@ -5,31 +5,95 @@ class WalletsController < ApplicationController
   def get_tokens
     owner = TypedVariable.validated_value(:address, params[:address])
     owner_quoted = ActiveRecord::Base.connection.quote(owner)
+    paired_token_address = params[:paired_token_address].downcase
+    lp_pairs = {}
+    paired_token_decimals = '0'
+
+    if params[:lp_factory_address]
+      lp_factory_address = params[:lp_factory_address].downcase
+      factory_contract = Contract.find_by_address(lp_factory_address)
+      if factory_contract
+        lp_pairs = factory_contract.current_state['getPair']
+      else
+        return render json: { error: "Invalid lp_factory_address" }, status: 400
+      end
+    end
 
     scope = Contract.where("current_state->'balanceOf'->? IS NOT NULL", owner)
       .where("current_state->'name' IS NOT NULL")
       .where("current_state->'symbol' IS NOT NULL")
       .where("current_state->'decimals' IS NOT NULL")
 
-    if params[:factory]
-      factory = TypedVariable.validated_value(:address, params[:factory])
-      scope = scope.where("current_state->>'factory' = ?", factory)
-    end
+    lp_addresses_sql = lp_pairs.map do |token_address, pairs|
+      if pairs[paired_token_address]
+        "WHEN contracts.address = '#{token_address}' THEN '#{pairs[paired_token_address].downcase}'"
+      end
+    end.compact.join(' ')
 
-    tokens = scope.limit(200)
+    scope = scope.select(Arel.sql("contracts.*, CASE #{lp_addresses_sql} END AS lp_address"))
+
+    tokens_with_lp = Contract.from(Arel.sql("(#{scope.to_sql}) as contracts"))
+      .joins(Arel.sql("LEFT JOIN contracts as lp_contracts ON lp_contracts.address = contracts.lp_address"))
       .pluck(
-        :address,
-        Arel.sql("current_state->'name'"),
-        Arel.sql("current_state->'symbol'"),
-        Arel.sql("current_state->'balanceOf'->#{owner_quoted}"),
-        Arel.sql("current_state->'decimals'"),
-        Arel.sql("current_state->'tokenSmartContract'"),
-        Arel.sql("current_state->'factory'")
+        Arel.sql("contracts.address"),
+        Arel.sql("contracts.current_state->'name'"),
+        Arel.sql("contracts.current_state->'symbol'"),
+        Arel.sql("contracts.current_state->'balanceOf'->#{owner_quoted}"),
+        Arel.sql("contracts.current_state->'decimals'"),
+        Arel.sql("contracts.current_state->'tokenSmartContract'"),
+        Arel.sql("contracts.current_state->'factory'"),
+        Arel.sql("contracts.current_state->'totalSupply'"),
+        Arel.sql("contracts.current_state->'balanceOf'"),
+        Arel.sql("contracts.lp_address"),
+        Arel.sql("lp_contracts.current_state->'token0'"),
+        Arel.sql("lp_contracts.current_state->'token1'"),
+        Arel.sql("lp_contracts.current_state->'reserve0'"),
+        Arel.sql("lp_contracts.current_state->'reserve1'")
       )
 
-    keys = [:contract_address, :name, :symbol, :balance, :decimals, :token_smart_contract, :factory]
-    token_balances = tokens.map do |values|
-      keys.zip(values).to_h
+    if params[:paired_token_address]
+      paired_token_decimals = Contract.get_storage_value_by_path(
+        params[:paired_token_address].downcase,
+        ['decimals']
+      )
+    end
+
+    token_balances = tokens_with_lp.map do |contract_address, name, symbol, balance, decimals, token_smart_contract, factory, total_supply, holders, lp_address, token_0, token_1, reserve_0, reserve_1|
+      token_reserve = token_0 == contract_address ? reserve_0 : reserve_1
+      paired_token_reserve = token_0 == contract_address ? reserve_1 : reserve_0
+
+      puts "token_reserve #{token_reserve}"
+      puts "paired_token_reserve #{paired_token_reserve}"
+
+      if token_reserve.to_i > 0 && paired_token_reserve.to_i > 0
+        token_price = ((paired_token_reserve.to_f / token_reserve.to_f) * 10 ** paired_token_decimals.to_i).to_i
+      else
+        token_price = 0
+      end
+
+      market_cap = ((total_supply.to_f / (10 ** decimals.to_f)) * token_price.to_f).to_i
+      liquidity = paired_token_reserve.to_i * 2
+      token_value = token_price
+
+      {
+        contract_address: contract_address,
+        name: name,
+        symbol: symbol,
+        balance: balance,
+        decimals: decimals,
+        token_smart_contract: token_smart_contract,
+        factory: factory,
+        holders: holders.count,
+        market_cap: market_cap,
+        total_supply: total_supply,
+        liquidity: liquidity,
+        token_value: token_value,
+        lp_address: lp_address,
+        token_0: token_0,
+        token_1: token_1,
+        reserve_0: reserve_0,
+        reserve_1: reserve_1
+      }
     end
 
     render json: {
@@ -200,7 +264,7 @@ class WalletsController < ApplicationController
     total_bought = 0
     total_sold = 0
     percent_sold = 0
-    
+
     current_market_value = ((balance.to_f / (10 ** decimals.to_i)) * price.to_i).to_i
 
     swaps.each do |swap|
