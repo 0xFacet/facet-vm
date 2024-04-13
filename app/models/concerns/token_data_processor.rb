@@ -17,8 +17,7 @@ module TokenDataProcessor
     transactions = transactions.where(from_address: from_address) if from_address.present?
 
     if transactions.blank?
-      render json: { error: "Transactions not found" }, status: 404
-      return
+      return []
     end
 
     cooked_transactions = transactions.map do |receipt|
