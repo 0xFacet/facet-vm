@@ -226,7 +226,7 @@ class TokensController < ApplicationController
           paired_token_address: eth_contract_address,
           factory_address: factory_address
         )
-        { token_address: address, price: price }
+        { token_address: address, last_swap_price: price }
       end
 
       numbers_to_strings(prices)
