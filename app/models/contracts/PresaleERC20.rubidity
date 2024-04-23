@@ -138,7 +138,7 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
     transfer(to: recipient, amount: balance)
   end
 
-  function :startPresale, :public do
+  function :startPresale, :public, returns: :uint256 do
     onlyOwner!
 
     require(s.presaleEndTime == 0, "Already started")

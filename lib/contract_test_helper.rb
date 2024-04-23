@@ -180,6 +180,7 @@ module ContractTestHelper
   
   def self.set_initial_supported_contracts
     new_names = [
+      "PresaleERC20",
       "ERC20Locker",
       "ERC20Bridge",
       "ERC20BridgeFactory",
