@@ -92,7 +92,7 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
     s.shares[msg.sender] = 0
 
     emit :TokensClaimed, user: msg.sender, shareAmount: userShares, tokenAmount: tokenAmount
-  do
+  end
 
   function :calculateDust, :internal, :view, returns: :uint256 do
     tokensPerShare = s.tokensForPresale / s.totalShares
