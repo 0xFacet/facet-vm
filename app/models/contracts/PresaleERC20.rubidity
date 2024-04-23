@@ -84,7 +84,7 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
     userShares = s.shares[msg.sender]
     require(userShares > 0, "User does not own shares")
 
-    if !finalized
+    if !s.finalized
       finalize()
     end
 
@@ -104,7 +104,7 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
 
   function :finalize, :public do
     require(!s.finalized, 'Already finalized')
-    require(block.timestamp >= presaleEndTime, "Presale not finished")
+    require(block.timestamp >= s.presaleEndTime, "Presale not finished")
     s.finalized = true
 
     dust = calculateDust()
