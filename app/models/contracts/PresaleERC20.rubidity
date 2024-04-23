@@ -4,8 +4,8 @@ import "./Ownable.rubidity"
 import "./ERC20.rubidity"
 
 contract :PresaleERC20, is: [:ERC20, :Ownable] do
-  event :PresaleStarted
-  event :PresaleFinalized
+  event :PresaleStarted, {}
+  event :PresaleFinalized, {}
   event :PresaleBuy, { buyer: :address, amount: :uint256 }
   event :PresaleSell, { seller: :address, amount: :uint256 }
   event :TokensClaimed, { user: :address, shareAmount: :uint256, tokenAmount: :uint256 }
