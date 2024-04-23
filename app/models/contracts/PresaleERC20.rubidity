@@ -4,6 +4,8 @@ import "./Ownable.rubidity"
 import "./ERC20.rubidity"
 
 contract :PresaleERC20, is: [:ERC20, :Ownable] do
+  event :PresaleStarted
+  event :PresaleFinalized
   event :PresaleBuy, { buyer: :address, amount: :uint256 }
   event :PresaleSell, { seller: :address, amount: :uint256 }
   event :TokensClaimed, { user: :address, shareAmount: :uint256, tokenAmount: :uint256 }
@@ -122,7 +124,8 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
       to: address(0),
       deadline: block.timestamp
     )
-    return nil
+
+    emit :PresaleFinalized
   end
 
   function :burn, { amount: :uint256 }, :public do
@@ -136,6 +139,8 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
     require(balance > 0, "No token balance")
 
     transfer(to: recipient, amount: balance)
+
+    return nil
   end
 
   function :startPresale, :public do
@@ -144,5 +149,7 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
     require(s.presaleEndTime == 0, "Already started")
 
     s.presaleEndTime = block.timestamp + s.presaleDuration
+
+    emit :PresaleStarted
   end
 end
