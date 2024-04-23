@@ -11,14 +11,13 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
   address :public, :wethAddress
   address :public, :facetSwapRouterAddress
   uint256 :public, :presaleEndTime
+  uint256 :public, :presaleDuration
   mapping ({ address: :uint256 }), :public, :shares
   uint256 :public, :totalShares
-  uint256 :public, :totalWETHCollected
   uint256 :public, :maxSupply
   uint256 :public, :tokensForPresale
 
   bool :finalized
-  bool :locked
 
   constructor(
     name: :string,
@@ -37,22 +36,21 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
 
     ERC20.constructor(name: name, symbol: symbol, decimals: decimals)
     Ownable.constructor(owner: msg.sender)
-    Upgradeable.constructor(upgradeAdmin: msg.sender)
 
     s.wethAddress = _wethAddress
     s.facetSwapRouterAddress = _facetSwapRouterAddress
     s.maxSupply = _maxSupply
     s.tokensForPresale = (_maxSupply * _presaleTokenPercentage) / 100
-    s.presaleEndTime = block.timestamp + _presaleDuration
+    s.presaleDuration = _presaleDuration
   }
 
   function :buyShares, { recipient: :address, amount: :uint256 }, :public do
+    require(s.presaleEndTime > 0, "Presale has not start")
     require(block.timestamp < s.presaleEndTime, "Presale has ended")
     require(amount > 0, "Amount must be greater than 0")
 
     s.shares[recipient] += amount
     s.totalShares += amount
-    s.totalWETHCollected += amount
 
     ERC20(s.WETH).transferFrom(
       msg.sender,
@@ -64,16 +62,15 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
   end
 
   function :sellShares, { amount: :uint256 }, :public do
+    require(s.presaleEndTime > 0, "Presale has not start")
     require(block.timestamp < s.presaleEndTime, "Presale has ended")
     require(amount > 0, "Amount must be greater than 0")
     require(s.shares[msg.sender] >= amount, "Not enough shares")
 
     s.shares[msg.sender] -= amount
     s.totalShares -= amount
-    s.totalWETHCollected -= amount
 
-    ERC20(s.WETH).transferFrom(
-      address(this),
+    ERC20(s.WETH).transfer(
       msg.sender,
       amount
     )
@@ -89,26 +86,23 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
       finalize()
     end
 
-    tokensPerShare = s.tokensForPresale / s.totalWETHCollected
+    tokensPerShare = s.tokensForPresale / s.totalShares
     tokenAmount = userShares * tokensPerShare
     _mint(to: msg.sender, amount: tokenAmount)
     s.shares[msg.sender] = 0
-    s.totalShares -= userShares
 
     emit :TokensClaimed, user: msg.sender, shareAmount: userShares, tokenAmount: tokenAmount
   do
 
   function :calculateDust, :internal, :view, returns: :uint256 do
-    tokensPerShare = s.tokensForPresale / s.totalWETHCollected
-    totalDistributedTokens = tokensPerShare * s.totalWETHCollected
+    tokensPerShare = s.tokensForPresale / s.totalShares
+    totalDistributedTokens = tokensPerShare * s.totalShares
     return s.tokensForPresale - totalDistributedTokens
   end
 
   function :finalize, :public do
-    require(!s.locked, 'No reentrancy allowed')
     require(!s.finalized, 'Already finalized')
     require(block.timestamp >= presaleEndTime, "Presale not finished")
-    s.locked = true
     s.finalized = true
 
     dust = calculateDust()
@@ -116,30 +110,37 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
     _mint(to: address(this), amount: s.tokensForPresale + dust + tokensForTeam)
 
     approve(spender: facetSwapRouterAddress, amount: s.tokensForPresale)
-    ERC20(s.weth).approve(spender: facetSwapRouterAddress, amount: s.totalWETHCollected)
+    ERC20(s.weth).approve(spender: facetSwapRouterAddress, amount: s.totalShares)
 
     FacetSwapV1Router03(facetSwapRouterAddress).addLiquidity(
       tokenA: address(this),
       tokenB: s.weth,
       amountADesired: s.tokensForPresale,
-      amountBDesired: s.totalWETHCollected,
+      amountBDesired: s.totalShares,
       amountAMin: 0,
       amountBMin: 0,
       to: address(0),
       deadline: block.timestamp
     )
-    s.locked = false
     return nil
-  end
-
-  function :withdrawTokens, :public do
-    onlyOwner!
-
-    balance = balanceOf(address(this))
-    transfer(to: owner(), amount: balance)
   end
 
   function :burn, { amount: :uint256 }, :public do
     _burn(from: msg.sender, amount: amount)
+  end
+
+  function :withdrawTokens, { recipient: :address }, :public do
+    onlyOwner!
+
+    balance = balanceOf(address(this))
+    require(balance > 0, "No token balance")
+
+    transfer(to: recipient, amount: balance)
+  end
+
+  function :startPresale, :public do
+    onlyOwner!
+
+    s.presaleEndTime = block.timestamp + s.presaleDuration
   end
 end
