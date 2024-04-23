@@ -32,7 +32,7 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
   ) {
     require(_presaleTokenPercentage <= 50, "Presale token percentage must not exceed 50")
     require(_presaleTokenPercentage > 0, "Presale token percentage must exceed 0")
-    require(_wethAddress != address(0), "WETH not set")
+    require(_wethAddress != address(0), "WETH address not set")
 
     decimals = ERC20(_wethAddress).decimals
 
@@ -54,7 +54,7 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
     s.shares[recipient] += amount
     s.totalShares += amount
 
-    ERC20(s.WETH).transferFrom(
+    ERC20(s.wethAddress).transferFrom(
       msg.sender,
       address(this),
       amount
@@ -72,7 +72,7 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
     s.shares[msg.sender] -= amount
     s.totalShares -= amount
 
-    ERC20(s.WETH).transfer(
+    ERC20(s.wethAddress).transfer(
       msg.sender,
       amount
     )
@@ -111,12 +111,12 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
     tokensForTeam = s.maxSupply - s.tokensForPresale * 2
     _mint(to: address(this), amount: s.tokensForPresale + dust + tokensForTeam)
 
-    approve(spender: facetSwapRouterAddress, amount: s.tokensForPresale)
-    ERC20(s.weth).approve(spender: facetSwapRouterAddress, amount: s.totalShares)
+    approve(spender: s.facetSwapRouterAddress, amount: s.tokensForPresale)
+    ERC20(s.wethAddress).approve(spender: s.facetSwapRouterAddress, amount: s.totalShares)
 
-    FacetSwapV1Router03(facetSwapRouterAddress).addLiquidity(
+    FacetSwapV1Router03(s.facetSwapRouterAddress).addLiquidity(
       tokenA: address(this),
-      tokenB: s.weth,
+      tokenB: s.wethAddress,
       amountADesired: s.tokensForPresale,
       amountBDesired: s.totalShares,
       amountAMin: 0,
