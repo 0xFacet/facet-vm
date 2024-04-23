@@ -45,7 +45,7 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
   }
 
   function :buyShares, { recipient: :address, amount: :uint256 }, :public do
-    require(s.presaleEndTime > 0, "Presale has not start")
+    require(s.presaleEndTime > 0, "Presale has not started")
     require(block.timestamp < s.presaleEndTime, "Presale has ended")
     require(amount > 0, "Amount must be greater than 0")
 
@@ -62,7 +62,7 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
   end
 
   function :sellShares, { amount: :uint256 }, :public do
-    require(s.presaleEndTime > 0, "Presale has not start")
+    require(s.presaleEndTime > 0, "Presale has not started")
     require(block.timestamp < s.presaleEndTime, "Presale has ended")
     require(amount > 0, "Amount must be greater than 0")
     require(s.shares[msg.sender] >= amount, "Not enough shares")
