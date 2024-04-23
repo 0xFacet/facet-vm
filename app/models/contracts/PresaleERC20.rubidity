@@ -140,6 +140,7 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
 
   function :startPresale, :public do
     onlyOwner!
+
     require(s.presaleEndTime == 0, "Already started")
 
     s.presaleEndTime = block.timestamp + s.presaleDuration
