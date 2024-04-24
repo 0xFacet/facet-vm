@@ -3,6 +3,19 @@ pragma :rubidity, "1.0.0"
 import "./Ownable.rubidity"
 import "./ERC20.rubidity"
 
+contract :IFacetSwapV1Router03, abstract: true do
+  function :addLiquidity, {
+    tokenA: :address,
+    tokenB: :address,
+    amountADesired: :uint256,
+    amountBDesired: :uint256,
+    amountAMin: :uint256,
+    amountBMin: :uint256,
+    to: :address,
+    deadline: :uint256
+  }, :public, :virtual, returns: { amountA: :uint256, amountB: :uint256, liquidity: :uint256 }
+end
+
 contract :PresaleERC20, is: [:ERC20, :Ownable] do
   event :PresaleStarted, {}
   event :PresaleFinalized, {}
@@ -114,7 +127,7 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
     approve(spender: s.facetSwapRouterAddress, amount: s.tokensForPresale)
     ERC20(s.wethAddress).approve(spender: s.facetSwapRouterAddress, amount: s.totalShares)
 
-    FacetSwapV1Router03(s.facetSwapRouterAddress).addLiquidity(
+    IFacetSwapV1Router03(s.facetSwapRouterAddress).addLiquidity(
       tokenA: address(this),
       tokenB: s.wethAddress,
       amountADesired: s.tokensForPresale,
