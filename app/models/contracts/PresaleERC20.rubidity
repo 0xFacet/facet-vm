@@ -19,8 +19,8 @@ end
 
 contract :IFacetSwapV1Factory, abstract: true do
   function :getPair, {
-    tokenA: :address,
-    tokenB: :address,
+    arg0: :address,
+    arg1: :address,
   }, :public, returns: :address
 end
 
@@ -146,10 +146,7 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
 
     factoryAddress = IFacetSwapV1Router(s.facetSwapRouterAddress).factory
 
-    s.pairAddress = IFacetSwapV1Factory(factoryAddress).getPair(
-      tokenA: address(this),
-      tokenB: s.wethAddress
-    )
+    s.pairAddress = IFacetSwapV1Factory(factoryAddress).getPair(address(this), s.wethAddress)
 
     emit :PresaleFinalized
   end
