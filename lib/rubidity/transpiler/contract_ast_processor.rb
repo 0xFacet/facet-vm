@@ -57,20 +57,6 @@ class ContractAstProcessor
     return find_matched_contracts(ast, [contract_name]).first
   end
 
-  def on_send(node)
-    receiver, method_name, *args = *node
-    
-    return node unless receiver&.type == :const
-    
-    parent, name = *receiver
-    
-    return node unless parent.nil?
-    
-    s(:send,
-      s(:send,
-        s(:self), name), method_name, *args)
-  end
-  
   def post_process_references(ast)
     @available_contracts.each do |contract_name|
       @contracts_referenced_by[contract_name] = Set.new

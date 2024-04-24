@@ -76,6 +76,7 @@ class RubidityTranspiler
   end
   
   def pragma_lang_and_version
+    # TODO: do statically
     pragma_parser = Class.new(BasicObject) do
       def self.pragma(lang, version)
         [lang, version]
@@ -134,7 +135,7 @@ class RubidityTranspiler
     
     sub_transpiler = self.class.new(desired_artifact.source_code)
     
-    new_artifacts = sub_transpiler.generate_contract_artifacts
+    new_artifacts = sub_transpiler.generate_contract_artifacts(validate: false)
   
     references = new_artifacts.reject { |i| i.name == desired_artifact.name }
     
@@ -142,12 +143,14 @@ class RubidityTranspiler
     desired_artifact
   end
   
-  def generate_contract_artifacts
+  def generate_contract_artifacts(validate: true)
     unless contract_names == contract_names.uniq
       duplicated_names = contract_names.group_by(&:itself).select { |_, v| v.size > 1 }.keys
       raise "Duplicate contract names in #{filename}: #{duplicated_names}"
     end
   
+    validate_rubidity! if validate
+    
     preprocessed_contract_asts.each_with_object([]) do |contract_ast, artifacts|
       contract_ast = ast_with_pragma(contract_ast)
 
@@ -163,5 +166,9 @@ class RubidityTranspiler
         pragma_version: pragma_lang_and_version.last
       )
     end
+  end
+  
+  def validate_rubidity!
+    ParsedContractFile.process(file_ast)
   end
 end

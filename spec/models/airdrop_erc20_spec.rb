@@ -4,6 +4,10 @@ RSpec.describe Contract, type: :model do
   let(:user_address) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
   let(:trusted_address) { "0x019824B229400345510A3a7EFcFB77fD6A78D8d0" }
 
+  before(:all) do
+    update_supported_contracts("AirdropERC20")
+  end
+  
   before do
     @creation_receipt_airdrop_erc20 = trigger_contract_interaction_and_expect_success(
       command: 'deploy',

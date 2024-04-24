@@ -6,9 +6,9 @@ class FunctionContext < BasicObject
 
   def method_missing(name, *args, **kwargs, &block)
     if @args.respond_to?(name)
-      @args.send(name, *args, **kwargs, &block)
+      @args.public_send(name, *args, **kwargs, &block)
     else
-      @contract.send(name, *args, **kwargs, &block)
+      ::Object.instance_method(:public_send).bind(@contract).call(name, *args, **kwargs, &block)
     end
   end
   
@@ -16,16 +16,14 @@ class FunctionContext < BasicObject
     @args.respond_to?(name, include_private) || @contract.respond_to?(name, include_private)
   end
   
-  def require(...)
-    @contract.send(:require, ...)
-  end
-  
   def self.define_and_call_function_method(contract, args, &block)
     context = new(contract, args)
     
-    singleton_class = (class << context; self; end)
-    singleton_class.send(:define_method, :function_implementation, &block)
+    dummy_name = "__#{::SecureRandom.base64(32)}__"
     
-    context.function_implementation
+    singleton_class = (class << context; self; end)
+    singleton_class.send(:define_method, dummy_name, &block)
+    
+    context.__send__(dummy_name)
   end
 end

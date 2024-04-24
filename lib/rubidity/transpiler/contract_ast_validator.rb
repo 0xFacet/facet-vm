@@ -3,10 +3,44 @@ class ContractAstValidator
   class InvalidSendNode < StandardError; end
   
   class FunctionDefinition
+    include AST::Processor::Mixin
+    
     attr_reader :name, :parameters, :visibility,
-    :body_ast, :is_constructor, :valid, :top_level_node
+    :body_ast, :is_constructor, :valid, :top_level_node,
+    :non_param_calls
     
     alias_method :params, :parameters
+    
+    def non_param_calls
+      @non_param_calls ||= []
+    end
+    
+    def handler_missing(node)
+      if node.type == :send
+        receiver, method_name, *args = *node
+        
+        call_to_param = receiver.nil? && params.keys.include?(method_name)
+        call_to_s = receiver == s(:send, nil, :s) || node == s(:send, nil, :s)
+        
+        unless call_to_param || call_to_s || [:this, :tx, :emit, :require, :msg, :block, :json].include?(method_name) ||
+          [:require, :msg, :block, :json, :tx, :this].include?(receiver&.children&.last) || BASIC_METHODS.include?(method_name)
+          non_param_calls << {
+            # method_name: method_name,
+            # receiver: receiver,
+            # node: node,
+            source: Unparser.unparse(node)
+          }
+        end
+      end
+      
+      node.children.each do |child|
+        if child.is_a?(Parser::AST::Node)
+          process(child)
+        end
+      end
+      
+      node
+    end
     
     def self.t
       ruby = <<~RUBY
@@ -53,6 +87,8 @@ class ContractAstValidator
       @is_constructor = method_name == :constructor
       @name, @parameters, @visibility = parse_function_header(send_node)
       @body_ast = body_node
+      
+      process(@body_ast)
       
       return unless @name.present?
       
@@ -148,7 +184,7 @@ class ContractAstValidator
         Rails.root.join('app', 'models', 'contracts', '*.rubidity')
       ]
       
-      files = paths.flat_map { |path| Dir.glob(path) }
+      files = paths.flat_map { |path| Dir.glob(path) }.reverse
     end
        
     
@@ -159,27 +195,31 @@ class ContractAstValidator
       called = []
       state_vars = []
       
-      files.each do |file|
+      val_objs = files.map do |file|
         # asts = RubidityTranspiler.new(file).preprocessed_contract_asts
-        asts = [Unparser.parse(IO.read(file))]
+        ast = Unparser.parse(IO.read(file))
         
-        asts.each do |ast|
-          # ap ast
-          validator = new(ast)
-          validator.validate_allowed_nodes
-          validator.validate_top_level_structure
-          validator.validate_contracts
-          names += validator.function_names
-          called += validator.called_functions
-          state_vars += validator.state_variables
-        end
+        validator = new(ast)
+        validator.validate_allowed_nodes
+        validator.validate_top_level_structure
+        validator.validate_contracts
+        names += validator.function_names
+        called += validator.called_functions
+        state_vars += validator.state_variables
+        
+        validator
       end
       
-      state_vars += state_vars.map{|i| (i.to_s + "=").to_sym}
+      val_objs.map do |val|
+        val.function_definitions.map(&:non_param_calls)
+      end.flatten.tally.sort_by(&:second).reverse.to_h
+      val_objs
       
-      net = called - names - state_vars - ContractAstValidator::BASIC_METHODS.to_a - StateVariableDefinitions.instance_methods
+      # state_vars += state_vars.map{|i| (i.to_s + "=").to_sym}
       
-      net.flatten.tally.sort_by(&:second).reverse.to_h
+      # net = called - names - state_vars - ContractAstValidator::BASIC_METHODS.to_a - StateVariableDefinitions.instance_methods
+      
+      # net.flatten.tally.sort_by(&:second).reverse.to_h
       # nil
     end
     
@@ -202,11 +242,20 @@ class ContractAstValidator
     end
   end
   
-  ALLOWED_NODE_TYPES = [:send, :sym, :pair, :lvar, :str, :begin, :int, :kwargs, :args, :block, :hash, :lvasgn, :index, :indexasgn, :array, :return, :if, :const, :nil, :true, :arg, :masgn, :mlhs, :op_asgn, :and, :procarg0, :lambda, :or, :dstr, :false].to_set.freeze
+  # ALLOWED_NODE_TYPES = [:send, :sym, :pair, :lvar, :str, :begin, :int, :kwargs, :args, :block, :hash, :lvasgn, :index, :indexasgn, :array, :return, :if, :const, :nil, :true, :arg, :masgn, :mlhs, :op_asgn, :and, :procarg0, :lambda, :or, :dstr, :false].to_set.freeze
   
-  BASIC_METHODS = [:+, :*, :-, :<, :>, :/, :%, :>=, :<=, :!, :**, :!=, :==, :<<, :>>, :[], :[]=, :<=>, :&, :|, :^, :~].to_set.freeze
+  ALLOWED_NODE_TYPES = [:begin, :send, :sym, :str, :block, :hash, :pair, :true, :args, :masgn, :mlhs, :lvasgn, :lvar, :int, :const, :if, :false, :arg, :and, :return, :dstr, :array, :or, :nil, :op_asgn].to_set.freeze
   
-  attr_accessor :ast
+  # BASIC_METHODS = [:+, :*, :-, :<, :>, :/, :%, :>=, :<=, :!, :**, :!=, :==, :<<, :>>, :[], :[]=, :<=>, :&, :|, :^, :~].to_set.freeze
+  
+  BASIC_METHODS = [:+, :*, :-, :<, :>, :/, :%, :>=, :<=, :!, :**, :!=, :==, :&, :|, :^, :div].to_set.freeze
+  
+  
+  attr_accessor :ast, :function_definitions
+  
+  def function_definitions
+    @function_definitions ||= []
+  end
   
   def s(type, *children)
     Parser::AST::Node.new(type, children)
@@ -258,7 +307,7 @@ class ContractAstValidator
   
   def valid_contract_ast?(node)
     return true if node.children.last.nil?
-    
+    binding.pry
     begin_node = node.children.detect { |child| child.type == :begin }
     
     children = begin_node.present? ? begin_node.children : [node.children.last]
@@ -391,10 +440,13 @@ class ContractAstValidator
   end
   
   def function_definition?(node)
-    ap node
-    # ap "KLSJDF"
-    ap node.unparse
-    raise unless FunctionDefinition.new(node).valid?
+    func_def = FunctionDefinition.new(node)
+    raise "Invalid function definition: #{node}" unless func_def.valid?
+    
+    function_definitions << func_def
+    
+    # ap func_def.non_param_calls if func_def.non_param_calls.present?
+    
     return true
     
     if node.type == :send
@@ -456,12 +508,7 @@ class ContractAstValidator
     
     return unless basic_checks
   
-    # Execute the block for further custom validation if provided
     block_given? ? yield(send_node, args_node, body_node) : true
-  # rescue Exception => e
-  #   ap e
-  #   ap node
-  #   binding.pry
   end
   delegate :block_method?, to: self
   
@@ -509,6 +556,14 @@ class ContractAstValidator
     unless ALLOWED_NODE_TYPES.include?(node.type)
       ap node
       raise "Node type #{node.type} is not allowed."
+    end
+    
+    if node.type == :const
+      parent, name = *node
+      
+      if parent.present?
+        raise "Invalid constant reference: #{node.inspect}"
+      end
     end
   end
 end

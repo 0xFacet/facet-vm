@@ -60,6 +60,7 @@ class ContractArtifact < ApplicationRecord
     def build_class(artifact_attributes)
       artifact = new(artifact_attributes)
       ContractBuilder.build_contract_class(artifact).tap do |new_class|
+        # TODO: validate the hash is the hash of the code
         if new_class.init_code_hash != artifact.init_code_hash || new_class.source_code != artifact.source_code
           raise CodeIntegrityError.new("Code integrity error")
         end
@@ -90,6 +91,10 @@ class ContractArtifact < ApplicationRecord
         hash[contract_class.name] = contract_class.abi.as_json
       end
     end
+  end
+  
+  def execution_source_code
+    @_execution_source_code ||= ConstsToSends.process(Unparser.parse(source_code))
   end
   
   def set_abi

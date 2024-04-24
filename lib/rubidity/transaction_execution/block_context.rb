@@ -249,12 +249,4 @@ class BlockContext < ActiveSupport::CurrentAttributes
     
     artifact&.build_class
   end
-  
-  private
-  
-  def validate_contract_support(init_code_hash)
-    unless system_config.contract_supported?(init_code_hash)
-      raise ContractError.new("Contract is not supported: #{init_code_hash.inspect}")
-    end
-  end
 end

@@ -3,6 +3,56 @@ class ContractImplementation < BasicObject
   include ::ContractErrors
   include ::ForLoop
   
+  class UltraMinimalProxy < BasicObject
+    (instance_methods + private_instance_methods).each do |method_name|
+      unless [:__send__, :initialize].include?(method_name)
+        undef_method(method_name)
+      end
+    end
+    
+    def initialize(target, valid_call_method)
+      @target = target
+      @valid_call_method = valid_call_method
+    end
+  
+    def method_missing(method_name, *args, **kwargs, &block)
+      if @valid_call_method.call(method_name)
+        @target.public_send(method_name, *args, **kwargs, &block)
+      else
+        super
+      end
+    end
+    
+    def respond_to_missing?(method_name, include_private = false)
+      @valid_call_method.call(method_name) || super
+    end
+  end
+  
+  class UserProxy
+    def initialize(state_proxy)
+      valid_call_method = lambda do |method_name, *args|
+        method_str = method_name.to_s
+        is_setter = method_str.end_with?('=')
+        var_name = is_setter ? method_str[0...-1] : method_str
+
+        # Assuming state_variables is accessible here and returns a hash of valid state variable names
+        state_proxy.state_variables.key?(var_name.to_sym)
+      end
+
+      # Create an UltraMinimalProxy instance, passing the state_proxy as the target
+      # and the valid_call_method lambda as the method validation logic
+      @proxy = UltraMinimalProxy.new(state_proxy, valid_call_method)
+    end
+
+    def method_missing(...)
+      @proxy.__send__(...)
+    end
+
+    def respond_to_missing?(method_name, include_private = false)
+      @proxy.respond_to?(method_name, include_private) || super
+    end
+  end
+  
   class << self
     attr_reader :name, :is_abstract_contract, :source_code,
     :init_code_hash, :parent_contracts, :available_contracts, :source_file,
@@ -29,7 +79,7 @@ class ContractImplementation < BasicObject
   end
   
   def s
-    @state_proxy
+    UserProxy.new(@state_proxy)
   end
   
   def state_proxy
@@ -220,7 +270,8 @@ class ContractImplementation < BasicObject
     ::Object.instance_method(:send).bind(self).call(...)
   end
   
-  private
+  # TODO: put in right place
+  # private
 
   def json
     ::Object.new.tap do |proxy|
@@ -304,6 +355,10 @@ class ContractImplementation < BasicObject
   end
   
   def downcast_integer(integer, target_bits)
+    if integer.is_a?(::TypedVariable) && integer.type.address?
+      integer = integer.value.sub(/\A0x/, '').to_i(16)
+    end
+    
     integer = ::TypedVariable.create_or_validate(:uint256, integer)
     new_val = integer.value % (2 ** target_bits)
     ::TypedVariable.create(:"uint#{target_bits}", new_val)
@@ -390,7 +445,8 @@ class ContractImplementation < BasicObject
         
         potential_parent.abi.data.each do |name, _|
           proxy.define_singleton_method(name) do |*args, **kwargs|
-            contract_instance.send("__#{potential_parent.name}__#{name}", *args, **kwargs)
+            # TODO: add trailing double underscore
+            contract_instance.public_send("__#{potential_parent.name}__#{name}", *args, **kwargs)
           end
         end
       end

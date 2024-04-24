@@ -11,6 +11,7 @@ describe 'NameRegistry contract' do
   
   before(:all) do
     update_supported_contracts("StubERC20")
+    update_supported_contracts("NameRegistry01")
   end
   
   it 'registers names' do

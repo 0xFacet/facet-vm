@@ -90,3 +90,5 @@ gem 'rswag-api'
 gem 'rswag-ui'
 
 gem "sqlite3", "~> 1.7"
+
+gem "rubocop"

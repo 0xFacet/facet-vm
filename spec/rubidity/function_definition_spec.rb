@@ -19,7 +19,7 @@ RSpec.describe ContractAstValidator do
     end
     RUBY
 
-    function_definition = get_def(ruby)
+    function_definition = ContractAstValidator::FunctionDefinition.new(ruby)
     expect(function_definition.valid?).to eq(true)
     expect(function_definition.name).to eq(:transfer)
     expect(function_definition.params).to eq({ to: :address, amount: :uint256 })
@@ -87,7 +87,9 @@ RSpec.describe ContractAstValidator do
     expect(function_definition.params).to eq({})
     
     ruby = <<~RUBY
-      function(:hi, :public, :view, returns: :string) { }
+      function(:hi, {arg: :val}, :public, :view, returns: :string) do
+        1 + 2
+      end
     RUBY
   
     function_definition = get_def(ruby)

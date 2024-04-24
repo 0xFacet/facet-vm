@@ -104,6 +104,7 @@ class Contract < ApplicationRecord
         raise ContractError.new("Cannot call non-read-only function in static call: #{function_name}", self)
       end
       
+      # TODO: check public ABI for function name
       result = if args.is_a?(Hash)
         implementation.public_send(function_name, **args)
       else

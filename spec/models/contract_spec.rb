@@ -11,6 +11,7 @@ RSpec.describe Contract, type: :model do
       "OpenEditionERC721",
       "GenerativeERC721",
       "EtherBridgeV2Test",
+      'EthscriptionERC20Bridge03'
     )
   end
   

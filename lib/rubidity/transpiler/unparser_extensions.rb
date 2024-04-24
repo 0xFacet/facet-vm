@@ -28,3 +28,18 @@ module UnparserExtensions
     end
   end
 end
+
+::RuboCop::AST::Node.class_eval do
+  def matches?(pattern)
+    matcher = ::RuboCop::NodePattern.new(pattern)
+    match_data = matcher.match(self)
+    
+    return unless match_data
+  
+    block_given? ? yield(*match_data) : match_data
+  end
+  
+  def unparse
+    Unparser.unparse(self)
+  end
+end

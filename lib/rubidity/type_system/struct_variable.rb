@@ -38,7 +38,7 @@ class StructVariable < TypedVariable
   end
   
   def method_missing(...)
-    value.send(...)
+    value.public_send(...)
   end
   
   def respond_to_missing?(name, include_private = false)
@@ -84,7 +84,7 @@ class StructVariable < TypedVariable
       
       begin
         state_proxy.detecting_changes(revert_on_change: true) do
-          ret_val = state_proxy.send(...)
+          ret_val = state_proxy.public_send(...)
         end
       rescue InvalidStateVariableChange
         on_change&.call

@@ -76,4 +76,14 @@ class StateProxy
     end
   end
   alias_method :load, :deserialize
+  
+  private
+
+  def mark_dirty
+    self.state_changed = true
+    
+    return if @dirty_stack.empty?
+    
+    @dirty_stack[-1] = true
+  end
 end

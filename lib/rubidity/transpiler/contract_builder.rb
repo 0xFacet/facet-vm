@@ -3,7 +3,8 @@ class ContractBuilder < BasicObject
     registry = {}.with_indifferent_access
     
     artifact.dependencies_and_self.each do |dep|
-      builder = new(registry, dep.source_code, dep.name, 1)
+      builder = new(registry, dep.execution_source_code, dep.name, 1)
+      
       contract_class = builder.instance_eval_with_isolation
       
       contract_class.instance_variable_set(:@source_code, dep.source_code)
@@ -20,11 +21,8 @@ class ContractBuilder < BasicObject
   end
 
   def instance_eval_with_isolation
-    instance_eval(@source, @filename, @line_number).tap do
-      remove_instance_variable(:@source)
-      remove_instance_variable(:@filename)
-      remove_instance_variable(:@line_number)
-    end
+    # TODO: this method is itself in scope. Need a dynamic singleton method
+    instance_eval(@source, @filename, @line_number)
   end
   
   def initialize(available_contracts, source, filename, line_number)
@@ -59,11 +57,5 @@ class ContractBuilder < BasicObject
       evaluate_block
       singleton_class.remove_method(:evaluate_block)
     end
-  end
-  
-  private
-  
-  def remove_instance_variable(var)
-    ::Object.instance_method(:remove_instance_variable).bind(self).call(var)
   end
 end
