@@ -3,7 +3,7 @@ pragma :rubidity, "1.0.0"
 import "./Ownable.rubidity"
 import "./ERC20.rubidity"
 
-contract :IFacetSwapV1Router03, abstract: true do
+contract :IFacetSwapV1Router, abstract: true do
   function :addLiquidity, {
     tokenA: :address,
     tokenB: :address,
@@ -13,7 +13,15 @@ contract :IFacetSwapV1Router03, abstract: true do
     amountBMin: :uint256,
     to: :address,
     deadline: :uint256
-  }, :public, :virtual, returns: { amountA: :uint256, amountB: :uint256, liquidity: :uint256 }
+  }, :public, returns: { amountA: :uint256, amountB: :uint256, liquidity: :uint256 }
+  function :factory, :public, returns: :address
+end
+
+contract :IFacetSwapV1Factory, abstract: true do
+  function :getPair, {
+    tokenA: :address,
+    tokenB: :address,
+  }, :public, returns: :address
 end
 
 contract :PresaleERC20, is: [:ERC20, :Ownable] do
@@ -25,14 +33,13 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
 
   address :public, :wethAddress
   address :public, :facetSwapRouterAddress
+  address :public, :pairAddress
   uint256 :public, :presaleEndTime
   uint256 :public, :presaleDuration
   mapping ({ address: :uint256 }), :public, :shares
   uint256 :public, :totalShares
   uint256 :public, :maxSupply
   uint256 :public, :tokensForPresale
-
-  bool :finalized
 
   constructor(
     name: :string,
@@ -97,7 +104,7 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
     userShares = s.shares[msg.sender]
     require(userShares > 0, "User does not own shares")
 
-    if !s.finalized
+    if s.pairAddress == address(0)
       finalize()
     end
 
@@ -116,18 +123,17 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
   end
 
   function :finalize, :public do
-    require(!s.finalized, 'Already finalized')
+    require(s.pairAddress == address(0), 'Already finalized')
     require(block.timestamp >= s.presaleEndTime, "Presale not finished")
-    s.finalized = true
 
     dust = calculateDust()
     tokensForTeam = s.maxSupply - s.tokensForPresale * 2
     _mint(to: address(this), amount: s.tokensForPresale + dust + tokensForTeam)
 
-    approve(spender: s.facetSwapRouterAddress, amount: s.tokensForPresale)
+    s.allowance[address(this)][s.facetSwapRouterAddress] = s.tokensForPresale
     ERC20(s.wethAddress).approve(spender: s.facetSwapRouterAddress, amount: s.totalShares)
 
-    IFacetSwapV1Router03(s.facetSwapRouterAddress).addLiquidity(
+    IFacetSwapV1Router(s.facetSwapRouterAddress).addLiquidity(
       tokenA: address(this),
       tokenB: s.wethAddress,
       amountADesired: s.tokensForPresale,
@@ -136,6 +142,13 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
       amountBMin: 0,
       to: address(0),
       deadline: block.timestamp
+    )
+
+    factoryAddress = IFacetSwapV1Router(s.facetSwapRouterAddress).factory
+
+    s.pairAddress = IFacetSwapV1Factory(factoryAddress).getPair(
+      tokenA: address(this),
+      tokenB: s.wethAddress
     )
 
     emit :PresaleFinalized
