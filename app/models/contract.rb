@@ -104,11 +104,16 @@ class Contract < ApplicationRecord
         raise ContractError.new("Cannot call non-read-only function in static call: #{function_name}", self)
       end
       
-      # TODO: check public ABI for function name
+      public_functions = implementation.public_abi.keys
+      public_functions << :constructor if new_record?
+      
+      proxy = UltraMinimalProxy.new(implementation, public_functions.map(&:to_sym))
+      function_name = function_name.to_sym
+      
       result = if args.is_a?(Hash)
-        implementation.public_send(function_name, **args)
+        proxy.__send__(function_name, **args)
       else
-        implementation.public_send(function_name, *Array.wrap(args))
+        proxy.__send__(function_name, *Array.wrap(args))
       end
       
       result
