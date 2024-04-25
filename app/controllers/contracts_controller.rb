@@ -159,6 +159,21 @@ class ContractsController < ApplicationController
     render json: { result: numbers_to_strings(receipt) }
   end
   
+  def source_code_to_abi
+    code = params[:source_code]
+    contract = params[:contract_name]
+    
+    Timeout.timeout(5.seconds) do
+      abi = RubidityTranspiler.new(code.to_s).
+        get_desired_artifact(contract.to_s).
+        build_class.abi.as_json
+      
+      render json: { result: abi }
+    end
+  rescue => e
+    render json: { error: e.message }, status: 500
+  end
+  
   def simulate_transaction_with_state
     # TODO: fix "unsafe" parts
     

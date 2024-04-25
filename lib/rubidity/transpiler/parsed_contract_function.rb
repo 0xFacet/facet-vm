@@ -200,7 +200,7 @@ class ParsedContractFunction
   
   def validate!
     if unknown_sends.present?
-      raise InvalidFunctionBody, "Unknown sends: #{contract.name}: #{unknown_sends.map(&:unparse).join(', ')}"
+      raise InvalidFunctionBody, "Unknown function call(s): #{contract.name}: #{unknown_sends.map(&:unparse).join(', ')}"
     end
     
     body.each_node(:const) do |const_node|
