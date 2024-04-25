@@ -76,7 +76,7 @@ class AbiProxy
           
           ret_val = nil
           
-          state_proxy.detecting_changes(revert_on_change: func_proxy.read_only?) do
+          state_manager.detecting_changes(revert_on_change: func_proxy.read_only?) do
             ret_val = FunctionContext.define_and_call_function_method(
               self, cooked_args, &func_proxy.implementation
             )

@@ -151,8 +151,11 @@ RSpec.describe "NFTCollection01", type: :model do
   end
 
   before do
-    update_supported_contracts("NFTCollection01")
-    update_supported_contracts("EditionMetadataRenderer01")
+    update_supported_contracts(
+      "NFTCollection01",
+      "EditionMetadataRenderer01",
+      "PublicMintERC20"
+    )
 
     trigger_contract_interaction_and_expect_success(
       from: non_owner_address,

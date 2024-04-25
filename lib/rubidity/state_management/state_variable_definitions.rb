@@ -1,4 +1,6 @@
 module StateVariableDefinitions
+  class InvalidStateVariableDefinition < RuntimeError; end
+  
   ::Type.value_types.each do |type|
     define_method(type) do |*args|
       define_state_variable(type, args)
@@ -58,8 +60,10 @@ module StateVariableDefinitions
     name = args.last.to_sym
     type = ::Type.create(type)
     
+    validate_name_format!(name)
+    
     if state_variable_definitions[name]
-      raise "No shadowing: #{name} is already defined."
+      raise InvalidStateVariableDefinition,"No shadowing: #{name} is already defined."
     end
     
     state_variable_definitions[name] = { type: type, args: args }
@@ -67,4 +71,21 @@ module StateVariableDefinitions
     state_var = ::StateVariable.create(name, type, args)
     state_var.create_public_getter_function(self)
   end
+  
+  def validate_name_format!(name)
+    if name.starts_with?("__") && name.ends_with?("__")
+      raise InvalidStateVariableDefinition,"Invalid name format: #{name}"
+    end
+    
+    unless name.to_s =~ /\A[a-z_][a-z0-9_]*\z/i
+      raise InvalidStateVariableDefinition,"Invalid name format: #{name}"
+    end
+    
+    methods = (StateManager.instance_methods + StateManager.private_instance_methods)
+    
+    if methods.include?(name.to_sym)
+      # raise InvalidStateVariableDefinition, "Invalid name format: #{name}"
+    end
+  end
 end
+

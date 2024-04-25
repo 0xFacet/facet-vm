@@ -46,14 +46,14 @@ class Contract < ApplicationRecord
     state_snapshots.blank? ||
     current_init_code_hash_changed? ||
     current_type_changed? ||
-    implementation.state_proxy.state_changed
+    implementation.state_manager.state_changed
   end
   
   def take_state_snapshot
     return unless should_take_snapshot?
     
     new_snapshot = ContractStateSnapshot.new(
-      state: implementation.state_proxy.serialize,
+      state: implementation.state_manager.serialize,
       type: current_type,
       init_code_hash: current_init_code_hash
     )
@@ -65,7 +65,7 @@ class Contract < ApplicationRecord
     self.current_init_code_hash = state_snapshots.last.init_code_hash
     self.current_type = state_snapshots.last.type
     
-    implementation.state_proxy.load(state_snapshots.last.state.deep_dup)
+    implementation.state_manager.load(state_snapshots.last.state.deep_dup)
   end
   
   def new_state_for_save(block_number:)
@@ -105,6 +105,7 @@ class Contract < ApplicationRecord
       end
       
       public_functions = implementation.public_abi.keys
+      # TODO: This is a bit of a hack
       public_functions << :constructor if new_record?
       
       proxy = UltraMinimalProxy.new(implementation, public_functions.map(&:to_sym))
@@ -131,16 +132,16 @@ class Contract < ApplicationRecord
     
     old_implementation = implementation
     @implementation = implementation_class.new(
-      initial_state: old_implementation.state_proxy.serialize
+      initial_state: old_implementation.state_manager.serialize
     )
     
     result = yield
     
-    post_execution_state = implementation.state_proxy.serialize
+    post_execution_state = implementation.state_manager.serialize
     
     @implementation = old_implementation
     
-    implementation.state_proxy.load(post_execution_state)
+    implementation.state_manager.load(post_execution_state)
     
     result
   end

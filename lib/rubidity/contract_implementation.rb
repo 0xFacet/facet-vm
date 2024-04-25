@@ -20,7 +20,7 @@ class ContractImplementation < BasicObject
     @current_context = current_context || raise("Must provide current context")
     
     if initial_state
-      state_proxy.load(initial_state)
+      state_manager.load(initial_state)
     end
   end
   
@@ -29,17 +29,11 @@ class ContractImplementation < BasicObject
   end
   
   def s
-    valid_state_access = ->(method_name, *args) do
-      var_name = method_name.to_s.chomp("=").to_sym
-      
-      @state_proxy.state_variables.key?(var_name)
-    end
-    
-    ::UltraMinimalProxy.new(@state_proxy, valid_state_access)
+    state_manager.state_proxy
   end
   
-  def state_proxy
-    @state_proxy ||= ::StateProxy.new(self.class.state_variable_definitions)
+  def state_manager
+    @state_manager ||= ::StateManager.new(self.class.state_variable_definitions)
   end
   
   def self.abi

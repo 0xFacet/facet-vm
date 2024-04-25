@@ -17,7 +17,7 @@ class StructVariable < TypedVariable
   end
   
   def serialize
-    value.state_proxy.serialize
+    value.serialize
   end
   
   def deserialize(hash)
@@ -28,17 +28,8 @@ class StructVariable < TypedVariable
     )
   end
   
-  def toPackedBytes
-    res = value.state_proxy.state_variables.values
-    .map do |val|
-      val.toPackedBytes.value.sub(/\A0x/, '')
-    end.join
-    
-    ::TypedVariable.create(:bytes, "0x" + res)
-  end
-  
-  def method_missing(...)
-    value.public_send(...)
+  def method_missing(name, *args, **kwargs, &block)
+    value.public_send(name, *args, **kwargs, &block)
   end
   
   def respond_to_missing?(name, include_private = false)
@@ -51,7 +42,7 @@ class StructVariable < TypedVariable
     extend AttrPublicReadPrivateWrite
     
     attr_accessor :on_change
-    attr_public_read_private_write :struct_definition, :state_proxy
+    attr_public_read_private_write :struct_definition
     
     def initialize(
       struct_definition:,
@@ -62,9 +53,9 @@ class StructVariable < TypedVariable
       
       defined_fields = struct_definition&.fields || {}
       
-      @state_proxy = StateProxy.new(defined_fields)
+      @state_manager = StateManager.new(defined_fields)
       
-      values = values.serialize if values.respond_to?(:serialize)
+      values = values.serialize if values.is_a?(StructVariable::Value)
       
       values = values&.transform_values{|v| v.respond_to?(:serialize) ? v.serialize : v}
       
@@ -74,17 +65,19 @@ class StructVariable < TypedVariable
         end
       end
       
-      @state_proxy.deserialize(values || {})
+      @state_manager.load(values || {})
+      
+      @state_proxy ||= StateProxy.new(@state_manager)
       
       self.on_change = on_change
     end
 
-    def method_missing(...)
+    def method_missing(name, *args, **kwargs, &block)
       ret_val = nil
       
       begin
-        state_proxy.detecting_changes(revert_on_change: true) do
-          ret_val = state_proxy.public_send(...)
+        @state_manager.detecting_changes(revert_on_change: true) do
+          ret_val = @state_proxy.__send__(name, *args, **kwargs, &block)
         end
       rescue InvalidStateVariableChange
         on_change&.call
@@ -94,7 +87,7 @@ class StructVariable < TypedVariable
     end
 
     def respond_to_missing?(method_name, include_private = false)
-      state_proxy.respond_to?(method_name, include_private) || super
+      @state_proxy.respond_to?(method_name, include_private) || super
     end
     
     def ==(other)
@@ -102,6 +95,19 @@ class StructVariable < TypedVariable
       
       other.struct_definition == struct_definition &&
       other.serialize == serialize
+    end
+    
+    def toPackedBytes
+      res = @state_manager.state_variables.values
+      .map do |val|
+        val.toPackedBytes.value.sub(/\A0x/, '')
+      end.join
+      
+      ::TypedVariable.create(:bytes, "0x" + res)
+    end
+    
+    def serialize
+      @state_manager.serialize
     end
   end
 end
