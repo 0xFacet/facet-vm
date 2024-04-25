@@ -402,7 +402,7 @@ class ContractImplementation < BasicObject
         potential_parent.abi.data.each do |name, _|
           proxy.define_singleton_method(name) do |*args, **kwargs|
             # TODO: add trailing double underscore
-            contract_instance.public_send("__#{potential_parent.name}__#{name}", *args, **kwargs)
+            contract_instance.public_send("__#{potential_parent.name}_#{name}__", *args, **kwargs)
           end
         end
       end

@@ -31,7 +31,7 @@ class AbiProxy
   def merge_parent_abis
     contract_class.linearized_parents.each do |parent|
       parent.abi.data.each do |name, func|
-        prefixed_name = "__#{parent.name}__#{name}"
+        prefixed_name = "__#{parent.name}_#{name}__"
         define_function_method(prefixed_name, func, contract_class)
         add_function(name, func, from_parent: true)
       end
