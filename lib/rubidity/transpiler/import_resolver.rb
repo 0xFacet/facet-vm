@@ -13,9 +13,9 @@ class ImportResolver
   class << self
     extend Memoist
 
-    def process(initial_filename)
+    def process(initial_filename, code = nil)
       obj = new(initial_filename)
-      ast = obj.process_file(initial_filename)
+      ast = obj.process_file(initial_filename, code)
       
       return Parser::AST::Node.new(:begin) if ast.blank?
       
@@ -36,6 +36,11 @@ class ImportResolver
     
     if filename.start_with?("./")
       base_dir = File.dirname(@current_filename)
+      
+      unless File.exist?(@current_filename)
+        base_dir = Rails.root.join('app', 'models', 'contracts')
+      end
+      
       filename = File.join(base_dir, filename[2..])
     elsif filename.start_with?("/")
       filename = Rails.root.join(filename[1..]).to_s
@@ -50,9 +55,9 @@ class ImportResolver
     end
   end
 
-  def process_file(filename)
+  def process_file(filename, code = nil)
     filename = compute_path(filename)
-    code = IO.read(filename)
+    code ||= IO.read(filename)
     ast = Unparser.parse(code)
     
     if @import_stack.include?(filename)

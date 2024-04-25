@@ -67,7 +67,11 @@ class RubidityTranspiler
   end
   
   def file_ast
-    @file_ast || ImportResolver.process(filename)
+    if filename
+      ImportResolver.process(filename, @file_ast&.unparse)
+    else
+      @file_ast
+    end
   end
   memoize :file_ast
   

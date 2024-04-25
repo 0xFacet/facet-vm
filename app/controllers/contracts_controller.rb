@@ -163,8 +163,16 @@ class ContractsController < ApplicationController
     code = params[:source_code]
     contract = params[:contract_name]
     
+    unless contract =~ /\A[a-z0-9_]+\z/i
+      raise "Invalid contract name"
+    end
+    
     Timeout.timeout(5.seconds) do
-      abi = RubidityTranspiler.new(code.to_s).
+      
+      transpiler = RubidityTranspiler.new(code.to_s)
+      transpiler.filename = "./#{contract}.rubidity"
+      
+      abi = transpiler.
         get_desired_artifact(contract.to_s).
         build_class.abi.as_json
       
