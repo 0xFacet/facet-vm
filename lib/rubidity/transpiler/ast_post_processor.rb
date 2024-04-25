@@ -25,30 +25,19 @@ class AstPostProcessor
   
   def check_for_reserved_words!
     ast.each_node.each do |node|
-      # ap node.type
       case node.type
       when :send
         check_reserved_word!(node.method_name, node)
-        
-        if node.receiver.respond_to?(:name)
-          check_reserved_word!(node.receiver.name, node)
-        end
-        
-        if node.receiver.respond_to?(:value)
-          check_reserved_word!(node.receiver.value, node)
-        end
-      when :block
-        check_reserved_word!(node.method_name, node)
-      # when :pair
-      #   check_reserved_word!(node.key, node)
-      #   check_reserved_word!(node.value, node)
       when :const
         check_reserved_word!(node.short_name, node)
-      when :lvasgn, :lvar
+        check_reserved_word!(node.namespace, node)
+      when :lvasgn
+        check_reserved_word!(node.name, node)
+      when :lvar
         check_reserved_word!(node.children.first, node)
-      when :sym
-        # ap node
-        # ap node.value
+      when :arg
+        check_reserved_word!(node.name, node)
+      when :str, :sym
         check_reserved_word!(node.value, node)
       end
     end
@@ -58,15 +47,17 @@ class AstPostProcessor
     return if value.nil?
     return if value.is_a?(Integer)
     
-    value = value.to_sym if value.respond_to?(:to_sym)
-    # ap value
+    value = value.to_sym
+    
     if value.starts_with?("__") && value.ends_with?("__")
       raise NodeNotAllowed, "Use of double underscore in #{node.type.inspect} at line #{node.location.line}"
     end
     
+    if value.starts_with?("@") || value.starts_with?("::")
+      raise NodeNotAllowed, "Use of instance variable or top-level constant in #{node.type.inspect} at line #{node.location.line}"
+    end
+    
     if reserved_words.include?(value)
-      puts ast.unparse
-      puts reserved_words
       raise NodeNotAllowed, "Use of reserved word #{value.inspect} in #{node.type.inspect} at line #{node.location.line}"
     end
   end
@@ -132,7 +123,7 @@ class AstPostProcessor
     # reserved += [:ENV, :exit, :abort, :system, :exec, :`, :$!, :$?, :$&, :$1, :$2, :$3, :$4, :$5, :$6, :$7, :$8, :$9, :$0, :$_, :respond_to_missing?, :respond_to?, :method_missing, ]
     
     allowed = [:<, :>, :>=, :<=, :!, :!=, :==, :name,
-      :public, :private, :y,
+      :public, :private, :y, :include?,
       :require, :lambda, :new, :hash].to_set
   
   # :to_i,

@@ -70,7 +70,7 @@ class ParsedContractFile
     
     contracts.reject{|i| i.name.to_s == "ERC20LiquidityPool" || i.name.to_s =='NameRegistryRenderer01'}.each(&:process!)
     
-    AstPostProcessor.new(file_ast)
+    AstPostProcessor.new(file_ast).process!
     true
   end
   
