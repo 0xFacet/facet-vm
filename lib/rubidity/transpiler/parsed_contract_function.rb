@@ -54,7 +54,7 @@ class ParsedContractFunction
 
   # TODO: get real list of events
   def_node_matcher :event_emission?, <<~PATTERN
-    (send nil? :emit (sym $_) $(hash ...))
+    (send nil? :emit (sym $_) $(hash ...)?)
   PATTERN
   
   def_node_matcher :require_call?, <<~PATTERN
