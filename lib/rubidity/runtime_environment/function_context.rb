@@ -19,7 +19,7 @@ class FunctionContext < BasicObject
   def self.define_and_call_function_method(contract, args, &block)
     context = new(contract, args)
     
-    dummy_name = "__#{::SecureRandom.base64(32)}__"
+    dummy_name = "__#{::SecureRandom.hex(32)}__"
     
     singleton_class = (class << context; self; end)
     singleton_class.send(:define_method, dummy_name, &block)

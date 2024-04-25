@@ -3,9 +3,15 @@ class ContractBuilder < BasicObject
     registry = {}.with_indifferent_access
     
     artifact.dependencies_and_self.each do |dep|
-      builder = new(registry, dep.execution_source_code, dep.name, 1)
+      builder = new(registry)
       
-      contract_class = builder.instance_eval_with_isolation
+      contract_class = ::CleanRoom.execute_user_code_on_context(
+        builder,
+        [:contract, :pragma],
+        dep.execution_source_code,
+        dep.name,
+        1
+      )
       
       contract_class.instance_variable_set(:@source_code, dep.source_code)
       contract_class.instance_variable_set(:@init_code_hash, dep.init_code_hash)
@@ -20,16 +26,8 @@ class ContractBuilder < BasicObject
     registry[artifact.name]
   end
 
-  def instance_eval_with_isolation
-    # TODO: this method is itself in scope. Need a dynamic singleton method
-    instance_eval(@source, @filename, @line_number)
-  end
-  
-  def initialize(available_contracts, source, filename, line_number)
+  def initialize(available_contracts)
     @available_contracts = available_contracts
-    @source = source
-    @filename = filename.to_s
-    @line_number = line_number
   end
   
   def pragma(...)
@@ -43,6 +41,7 @@ class ContractBuilder < BasicObject
       
       ::Array.wrap(is).each do |dep|
         unless parent = available_contracts[dep]
+          # TODO: Raise real exception
           raise "Dependency #{dep} is not available."
         end
         
@@ -52,10 +51,17 @@ class ContractBuilder < BasicObject
       @is_upgradeable = upgradeable
       @is_abstract_contract = abstract
       @name = name.to_s
-      
-      define_singleton_method(:evaluate_block, &block)
-      evaluate_block
-      singleton_class.remove_method(:evaluate_block)
+
+      ::CleanRoom.execute_user_code_on_context(
+        self,
+        [
+          :event,
+          :function,
+          :constructor,
+          *::StateVariableDefinitions.public_instance_methods
+        ],
+        block
+      )
     end
   end
 end
