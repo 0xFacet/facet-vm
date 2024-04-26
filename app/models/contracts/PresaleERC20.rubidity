@@ -74,11 +74,7 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
     s.shares[recipient] += amount
     s.totalShares += amount
 
-    ERC20(s.wethAddress).transferFrom(
-      msg.sender,
-      address(this),
-      amount
-    )
+    ERC20(s.wethAddress).transferFrom(msg.sender, address(this), amount)
 
     emit :PresaleBuy, buyer: recipient, amount: amount
   end
@@ -92,10 +88,7 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
     s.shares[msg.sender] -= amount
     s.totalShares -= amount
 
-    ERC20(s.wethAddress).transfer(
-      msg.sender,
-      amount
-    )
+    ERC20(s.wethAddress).transfer(msg.sender, amount)
 
     emit :PresaleSell, seller: msg.sender, amount: amount
   end
@@ -161,7 +154,7 @@ contract :PresaleERC20, is: [:ERC20, :Ownable] do
     balance = balanceOf(address(this))
     require(balance > 0, "No token balance")
 
-    transfer(to: recipient, amount: balance)
+    ERC20(address(this)).transfer(recipient, balance)
 
     return nil
   end
