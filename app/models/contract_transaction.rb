@@ -88,7 +88,7 @@ class ContractTransaction < ApplicationRecord
       block_blockhash: block_blockhash,
       transaction_index: transaction_index,
       block_timestamp: block_timestamp,
-      logs: contract_calls.target.flat_map(&:logs).sort_by { |log| log['index'] }.map { |log| log.except('index') },
+      logs: contract_calls.target.flat_map(&:logs).sort_by { |log| log['log_index'] },
       status: status,
       runtime_ms: initial_call.calculated_runtime_ms,
       gas_price: ethscription.gas_price,
@@ -156,7 +156,8 @@ class ContractTransaction < ApplicationRecord
         current_block: current_block,
         contracts: [],
         contract_artifacts: [],
-        ethscriptions: [eth]
+        ethscriptions: [eth],
+        current_log_index: 0
       ) do
         BlockContext.process_contract_transactions(persist: false)
       end
@@ -203,7 +204,6 @@ class ContractTransaction < ApplicationRecord
       call_stack: CallStack.new(TransactionContext),
       active_contracts: [],
       current_transaction: self,
-      current_event_index: 0,
       tx_origin: tx_origin,
       tx_current_transaction_hash: transaction_hash,
       block_number: block_number,
