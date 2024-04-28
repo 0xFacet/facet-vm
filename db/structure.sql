@@ -1034,6 +1034,13 @@ CREATE UNIQUE INDEX index_system_config_versions_on_transaction_hash ON public.s
 
 
 --
+-- Name: index_transaction_receipts_on_block_blockhash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_transaction_receipts_on_block_blockhash ON public.transaction_receipts USING btree (block_blockhash);
+
+
+--
 -- Name: index_transaction_receipts_on_block_number; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1258,6 +1265,7 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20240428130837'),
 ('20240309162632'),
 ('20231113223006'),
 ('20231110173854'),
