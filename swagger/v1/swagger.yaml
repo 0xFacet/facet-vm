@@ -576,6 +576,12 @@ paths:
         required: false
         schema:
           type: integer
+      - name: block_blockhash
+        in: query
+        description: Filter transactions by block hash.
+        required: false
+        schema:
+          type: string
       - name: from
         in: query
         description: Filter transactions by the sender address.
@@ -970,10 +976,10 @@ components:
           type: string
           example: Transfer
           description: Name of the emitted event.
-        index:
+        log_index:
           type: integer
           example: 6
-          description: Index of the log entry.
+          description: Index of the log entry within the block.
         contractType:
           type: string
           example: EtherBridge03

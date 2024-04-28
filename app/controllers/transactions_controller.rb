@@ -19,7 +19,10 @@ class TransactionsController < ApplicationController
       end
     end
     
-    scope = filter_by_params(scope, :block_number)
+    scope = filter_by_params(scope,
+      :block_number,
+      :block_blockhash
+    )
     
     if params[:from].present?
       scope = scope.where(from_address: Array.wrap(params[:from]).map(&:downcase))
