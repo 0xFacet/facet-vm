@@ -331,10 +331,10 @@ RSpec.configure do |config|
                 example: 'Transfer',
                 description: 'Name of the emitted event.'
               },
-              index: {
+              log_index: {
                 type: :integer,
                 example: 6,
-                description: 'Index of the log entry.'
+                description: 'Index of the log entry within the block.'
               },
               contractType: {
                 type: :string,
