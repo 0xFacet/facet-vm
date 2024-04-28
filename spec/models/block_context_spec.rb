@@ -96,7 +96,7 @@ describe 'BlockContext' do
       }
     )
     
-    in_block do |c|
+    txs = in_block do |c|
       c.trigger_contract_interaction_and_expect_success(
         from: bob,
         payload: {
@@ -134,6 +134,11 @@ describe 'BlockContext' do
       )
     end
     
+    log_indexes = txs.flat_map{|i| i['logs'].map{|j| j['log_index']}}
+    logs_count = txs.flat_map{|i| i['logs']}.count
+    
+    expect(log_indexes).to eq((0...logs_count).to_a)
+    
     ts = ContractTransaction.make_static_call(
       contract: nft.address,
       function_name: "totalSupply",
@@ -141,7 +146,5 @@ describe 'BlockContext' do
     )
     
     expect(ts).to eq(7)
-
-    # binding.pry
   end
 end
