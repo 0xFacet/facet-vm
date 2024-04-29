@@ -114,6 +114,7 @@ class EthBlock < ApplicationRecord
         contracts: [],
         contract_artifacts: [],
         ethscriptions: ethscriptions,
+        current_log_index: 0
       ) do
         BlockContext.process!
       end

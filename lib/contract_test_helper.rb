@@ -47,7 +47,7 @@ module ContractTestHelper
       block_timestamp: block_timestamp
     )
   
-    transactions.each_with_index do |transaction, index|
+    transactions.map.with_index do |transaction, index|
       eth = ethscriptions[index]
       receipt = eth&.contract_transaction&.transaction_receipt
   
@@ -60,6 +60,8 @@ module ContractTestHelper
           raise "Expected error message to include #{transaction[:error_msg_includes]}"
         end
       end
+      
+      receipt
     end
   end
   
@@ -402,7 +404,8 @@ module ContractTestHelper
       current_block: block,
       contracts: [],
       contract_artifacts: [],
-      ethscriptions: ethscriptions
+      ethscriptions: ethscriptions,
+      current_log_index: 0
     ) do
       BlockContext.process!
     end
