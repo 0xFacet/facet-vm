@@ -1,14 +1,16 @@
-class StructVariable < TypedVariable
+class StructVariable < GenericVariable
   attr_accessor :value
   
-  def initialize(type, value, **options)
-    super(type, value, **options)
+  def initialize(type, val, **options)
+    super(type, val, **options)
     
     self.value = Value.new(
       struct_definition: type.struct_definition,
-      values: value,
+      values: val,
       on_change: -> { on_change&.call }
     )
+    
+    value.define_methods_on_var(self)
   end
   
   def deep_dup
@@ -26,14 +28,6 @@ class StructVariable < TypedVariable
       values: hash,
       on_change: -> { on_change&.call }
     )
-  end
-  
-  def method_missing(name, *args, **kwargs, &block)
-    value.public_send(name, *args, **kwargs, &block)
-  end
-  
-  def respond_to_missing?(name, include_private = false)
-    value.respond_to?(name, include_private) || super
   end
   
   class Value
@@ -72,22 +66,28 @@ class StructVariable < TypedVariable
       self.on_change = on_change
     end
 
-    def method_missing(name, *args, **kwargs, &block)
-      ret_val = nil
+    def define_methods_on_var(var)
+      manager = @state_manager
+      proxy = @state_proxy
       
-      begin
-        @state_manager.detecting_changes(revert_on_change: true) do
-          ret_val = @state_proxy.__send__(name, *args, **kwargs, &block)
+      names = manager.state_variables.keys
+      with_setters = names.map{|n| [n, "#{n}="]}.flatten
+      
+      with_setters.each do |name|
+        var.define_singleton_method(name) do |*args, **kwargs|
+          ret_val = nil
+      
+          begin
+            manager.detecting_changes(revert_on_change: true) do
+              ret_val = proxy.__send__(name, *args, **kwargs)
+            end
+          rescue InvalidStateVariableChange
+            on_change&.call
+          end
+          
+          ret_val
         end
-      rescue InvalidStateVariableChange
-        on_change&.call
       end
-      
-      ret_val
-    end
-
-    def respond_to_missing?(method_name, include_private = false)
-      @state_proxy.respond_to?(method_name, include_private) || super
     end
     
     def ==(other)

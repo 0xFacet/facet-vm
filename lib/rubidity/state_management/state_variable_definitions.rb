@@ -57,6 +57,11 @@ module StateVariableDefinitions
   private
   
   def define_state_variable(type, args)
+    # TODO: Fix hack
+    unless args.last.is_a?(::Symbol)
+      return ::TypedVariable.create(type, args.last).to_proxy
+    end
+    
     name = args.last.to_sym
     type = ::Type.create(type)
     
@@ -70,6 +75,9 @@ module StateVariableDefinitions
     
     state_var = ::StateVariable.create(name, type, args)
     state_var.create_public_getter_function(self)
+  rescue => e
+    binding.pry
+    raise
   end
   
   def validate_name_format!(name)

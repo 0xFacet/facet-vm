@@ -37,6 +37,7 @@ RSpec.configure do |config|
   # examples within a transaction, remove the following line or assign false
   # instead of true.
   config.use_transactional_fixtures = true
+  config.fail_fast = true
   
   config.before(:suite) do
     EthBlock.delete_all

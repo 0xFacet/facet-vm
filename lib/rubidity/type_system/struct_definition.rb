@@ -1,4 +1,5 @@
 class StructDefinition
+  # TODO: basic object-ify
   attr_reader :name, :fields
 
   def initialize(name, &block)

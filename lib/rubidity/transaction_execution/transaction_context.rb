@@ -16,7 +16,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
       attribute full_attr_name
 
       define_method("#{full_attr_name}=") do |new_value|
-        new_value = TypedVariable.create_or_validate(type, new_value)
+        new_value = TypedVariable.create_or_validate(type, new_value).to_proxy
         super(new_value)
       end
     end
@@ -65,7 +65,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def msg_sender
-    TypedVariable.create_or_validate(:address, current_call.from_address)
+    TypedVariable.create_or_validate(:address, current_call.from_address).to_proxy
   end
   
   def current_contract
@@ -77,6 +77,9 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def blockhash(input_block_number)
+    input_block_number = TypedVariableProxy.get_typed_variable(input_block_number).value
+    block_number = TypedVariableProxy.get_typed_variable(block.number).value
+    
     unless input_block_number == block_number
       # TODO: implement
       raise "Not implemented"

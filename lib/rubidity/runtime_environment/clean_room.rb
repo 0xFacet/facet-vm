@@ -1,8 +1,12 @@
-class CleanRoom < UltraBasicObject
+class CleanRoom #< UltraBasicObject
   def initialize(context, valid_call_method)
     @context = context
     
     @wrapped_valid_call_method = ->(method_name) do
+      if method_name.starts_with?("__") && method_name.ends_with?("__")
+        next false
+      end
+      
       case valid_call_method
       when ::Enumerable
         valid_call_method.include?(method_name)
@@ -19,18 +23,21 @@ class CleanRoom < UltraBasicObject
     else
       super
     end
+  rescue => e
+    binding.pry
   end
   
   def self.execute_user_code_on_context(
     context,
     valid_call_method,
+    method_name,
     user_code_or_block,
     filename = nil,
     line_number = nil
   )
     room = new(context, valid_call_method)
     
-    dummy_name = "__temp_method_#{::SecureRandom.hex(16)}__"
+    dummy_name = "__#{method_name}__"
     
     singleton_class = (class << room; self; end)
     

@@ -18,6 +18,10 @@ class UltraMinimalProxy < UltraBasicObject
       @valid_call_method.call(method_name)
     end
     
+    if method_name.starts_with?("__") && method_name.ends_with?("__")
+      valid_method = false
+    end
+    
     if valid_method
       @target.public_send(method_name, *args, **kwargs, &block)
     else

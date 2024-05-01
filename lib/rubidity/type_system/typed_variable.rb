@@ -4,28 +4,29 @@ class TypedVariable
   include ContractErrors
   extend AttrPublicReadPrivateWrite
   
+  [:==, :>, :<=, :>=, :<, :!, :!=].each do |method|
+    undef_method(method) if method_defined?(method)
+  end
+  
   attr_accessor :value, :on_change
   attr_public_read_private_write :type
-
+  # TODO: kill
+  def to_proxy
+    TypedVariableProxy.new(self)
+  end
+  
+  def unwrap
+    self
+  end
+  
   def initialize(type, value = nil, on_change: nil, **options)
     self.type = type
     self.value = value.nil? ? type.default_value : value
     self.on_change = on_change
-    
-    if type.bool?
-      raise TypeError.new("Use literals instead of TypedVariable for booleans")
-    end
-    
-    extend_with_type_methods
   end
   
   def self.create(type, value = nil, on_change: nil, **options)
     type = Type.create(type)
-    
-    if type.bool?
-      return value.nil? ? type.default_value :
-        type.check_and_normalize_literal(value)
-    end
     
     options[:on_change] = on_change
     
@@ -37,12 +38,26 @@ class TypedVariable
       ContractVariable.new(type, value, **options)
     elsif type.struct?
       StructVariable.new(type, value, **options)
+    elsif type.string?
+      StringVariable.new(type, value, **options)
+    elsif type.is_int? || type.is_uint?
+      IntegerVariable.new(type, value, **options)
+    elsif type.null?
+      NullVariable.new(type, value, **options)
     else
-      new(type, value, **options)
+      GenericVariable.new(type, value, **options)
     end
   end
   
+  def self.create_as_proxy(...)
+    ::TypedVariableProxy.new(create(...))
+  end
+  
   def self.create_or_validate(type, value = nil, on_change: nil)
+    if CleanRoomAdmin.call_is_a?(value, TypedVariableProxy)
+      value = CleanRoomAdmin.get_instance_variable(value, :@typed_variable)
+    end
+    
     if value.is_a?(TypedObject)
       unless Type.create(type).can_be_assigned_from?(value.type)
         raise VariableTypeError.new("invalid #{type}: #{value.inspect}")
@@ -77,6 +92,10 @@ class TypedVariable
   end
   
   def value=(new_value)
+    if type.bool? && !@value.nil?
+      raise TypeError.new("Cannot change value of #{self.value.inspect}")
+    end
+    
     new_value = type.check_and_normalize_literal(new_value)
     
     if @value != new_value
@@ -90,78 +109,11 @@ class TypedVariable
     end
   end
   
-  def method_missing(name, *args, &block)
-    if value.respond_to?(name)
-      result = value.send(name, *args, &block)
-      
-      if result.class == value.class
-        begin
-          result = type.check_and_normalize_literal(result)
-        rescue ContractErrors::VariableTypeError => e
-          if type.is_uint?
-            result = TypedVariable.create(:uint256, result)
-          else
-            raise
-          end
-        end
-      end
-      
-      result
-    else
-      super
-    end
-  end
-
-  def respond_to_missing?(name, include_private = false)
-    value.respond_to?(name, include_private) || super
-  end
-  
-  def !
-    raise TypeError.new("Cannot negate `TypedVariable's")
-  end
-  
-  def !=(other)
-    !(self == other)
-  end
-  
-  def ==(other)
-    if other.is_a?(TypedObject)
-      return false unless type.values_can_be_compared?(other.type)
-      return value == other.value
-    else
-      return value == TypedVariable.create(type, other).value
-    end
-  end
-  
   def hash
-    [value, type].hash
+    [value.hash, type.hash].hash
   end
 
   def eql?(other)
     hash == other.hash
-  end
-  
-  def toPackedBytes
-    TypedVariable.create(:bytes, value)
-  end
-  
-  private
-  
-  def extend_with_type_methods
-    if type.address?
-      extend RubidityTypeExtensions::AddressMethods
-    end
-    
-    if type.string?
-      extend RubidityTypeExtensions::StringMethods
-    end
-    
-    if type.bytes?
-      extend RubidityTypeExtensions::BytesMethods
-    end
-    
-    if type.is_int? || type.is_uint?
-      extend RubidityTypeExtensions::UintOrIntMethods
-    end
   end
 end

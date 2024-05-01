@@ -1,13 +1,16 @@
-class MappingVariable < TypedVariable
+class MappingVariable < GenericVariable
+  delegate :[], :[]=, to: :value
+  
   def initialize(...)
     super(...)
     value.on_change = -> { on_change&.call }
     
-    if key_type.struct?
+    if value.key_type.struct?
       raise TypeError, "Structs cannot be used as mapping keys"
     end
   end
   
+  # TODO: make private
   def serialize
     value.serialize
   end
@@ -95,7 +98,7 @@ class MappingVariable < TypedVariable
       
       old_value = self[key_var]
       
-      if old_value != val_var
+      if old_value.ne(val_var).value
         on_change&.call
         
         transformed_keys.add(key_var)
@@ -106,6 +109,8 @@ class MappingVariable < TypedVariable
           data[key_var].value = val_var.value
         end
       end
+      
+      self[key_var]
     end
     
     private

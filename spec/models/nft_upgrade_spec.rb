@@ -65,11 +65,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
   let(:allow_list_weth_balance) { "0" }
   
   before(:all) do
-    update_supported_contracts("TokenUpgradeRenderer01")
-    update_supported_contracts("NFTCollection01")
-    update_supported_contracts("EtherBridge03")
-    update_supported_contracts("FacetBuddyFactory")
-    update_supported_contracts("FacetBuddy")
+    update_supported_contracts("TokenUpgradeRenderer01", "NFTCollection01", "EtherBridge03", "FacetBuddyFactory", "FacetBuddy", "PublicMintERC20")
   end
 
   def set_public_mint_settings(

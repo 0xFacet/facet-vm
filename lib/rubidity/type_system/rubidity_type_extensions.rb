@@ -41,8 +41,13 @@ module RubidityTypeExtensions
   module AddressMethods
     include ContractErrors
     
-    def call(json_call_data = '{}', **kwargs)
-      calldata = kwargs.empty? ? JSON.parse(json_call_data) : kwargs
+    def call(json_call_data = nil, **kwargs)
+      
+      calldata = if kwargs.empty?
+        JSON.parse(json_call_data.value)
+      else
+        kwargs.transform_values{|i| i.unwrap.value}
+      end
       
       function, args = if calldata.is_a?(Hash)
         calldata = calldata.with_indifferent_access
@@ -61,19 +66,25 @@ module RubidityTypeExtensions
       ).to_json
       
       DestructureOnly.new( 
-        success: true,
-        data: TypedVariable.create(:string, data)
+        success: TypedVariable.create(:bool, true).to_proxy,
+        data: TypedVariable.create(:string, data).to_proxy
       )
-    rescue ContractError, TransactionError, JSON::ParserError
+    rescue ContractError, TransactionError, JSON::ParserError => e
       return DestructureOnly.new(
-        success: false,
-        data: TypedVariable.create(:string)
+        success: TypedVariable.create(:bool, false).to_proxy,
+        data: TypedVariable.create(:string).to_proxy
       )
     end
   end
   
   module BytesMethods
     include ContractErrors
+    
+    def length
+      val = value.sub(/^0x/, '')
+      
+      TypedVariable.create(:uint256, val.length / 2)
+    end
     
     def verifyTypedDataSignature(
       type,
@@ -87,11 +98,17 @@ module RubidityTypeExtensions
         raise ArgumentError.new("Invalid type")
       end
   
-      message = message.transform_values do |value|
+      message = message.deep_transform_values do |value|
+        value = value.unwrap if value.respond_to?(:unwrap)
+        value.respond_to?(:value) ? value.value : value
+      end
+      
+      type = type.deep_transform_values do |value|
+        value = value.unwrap if value.respond_to?(:unwrap)
         value.respond_to?(:value) ? value.value : value
       end
   
-      chainid = TransactionContext.block_chainid.value
+      chainid = TransactionContext.block_chainid.unwrap.value
       
       typed_data = {
         types: {
@@ -104,18 +121,18 @@ module RubidityTypeExtensions
         }.merge(type),
         primaryType: type.keys.first.to_s,
         domain: {
-          name: domainName.respond_to?(:value) ? domainName.value : domainName,
-          version: domainVersion.respond_to?(:value) ? domainVersion.value : domainVersion,
+          name: domainName.respond_to?(:unwrap) ? domainName.unwrap.value : domainName,
+          version: domainVersion.respond_to?(:unwrap) ? domainVersion.unwrap.value : domainVersion,
           chainId: chainid,
-          verifyingContract: verifyingContract.respond_to?(:value) ? verifyingContract.value : verifyingContract
+          verifyingContract: verifyingContract.respond_to?(:unwrap) ? verifyingContract.unwrap.value : verifyingContract
         },
         message: message
       }
       
-      signer = signer.respond_to?(:value) ? signer.value : signer
+      signer = signer.respond_to?(:unwrap) ? signer.unwrap.value : signer
       signature = value
-  
-      Eth::Signature.verify(typed_data, signature, signer, chainid)
+      
+      TypedVariable.create(:bool, Eth::Signature.verify(typed_data, signature, signer, chainid))
     end
   end
 end

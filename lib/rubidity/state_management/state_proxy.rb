@@ -1,4 +1,4 @@
-class StateProxy < UltraBasicObject
+class StateProxy #< UltraBasicObject
   def initialize(manager)
     @manager = manager
   end
@@ -14,9 +14,14 @@ class StateProxy < UltraBasicObject
     return super if is_setter && args.length != 1
     
     if is_setter
-      var.typed_variable = args.first
+      other_var = ::TypedVariableProxy.get_typed_variable(args.first)
+      
+      ::TypedVariableProxy.new(var.typed_variable = other_var)
     else
-      var.typed_variable
+      ::TypedVariableProxy.new(var.typed_variable)
     end
+  rescue => e
+    binding.pry
+    raise
   end
 end

@@ -155,12 +155,12 @@ class FunctionProxy
     as_typed = if other_args.is_a?(Array)
       args.keys.zip(other_args).map do |key, value|
         type = args[key]
-        [key, TypedVariable.create_or_validate(create_type(type), value)]
+        [key, TypedVariable.create_or_validate(create_type(type), value).to_proxy]
       end.to_h
     else
       other_args.each.with_object({}) do |(key, value), acc|
         type = args[key]
-        acc[key.to_sym] = TypedVariable.create_or_validate(create_type(type), value)
+        acc[key.to_sym] = TypedVariable.create_or_validate(create_type(type), value).to_proxy
       end
     end
     
@@ -169,12 +169,14 @@ class FunctionProxy
   end
   
   def convert_return_to_typed_variable(ret_val)
-    return nil if constructor?
+    return NullVariable.new if constructor?
     
     if returns.nil?
-      return nil if ret_val.nil?
+      if ret_val.eq(NullVariable.new)
+        return NullVariable.new
+      end
       
-      raise ContractError, "Function #{func_location} returned #{ret_val.inspect}, but expected nil"
+      raise ContractError, "Function #{func_location} returned #{ret_val.inspect}, but expected null"
     end
   
     if ret_val.nil?
@@ -183,12 +185,14 @@ class FunctionProxy
     
     if returns.is_a?(Hash)
       ret_val.each.with_object({}) do |(key, value), acc|
-        acc[key.to_sym] = TypedVariable.create_or_validate(create_type(returns[key]), value)
+        acc[key.to_sym] = TypedVariable.create_or_validate(create_type(returns[key]), value).to_proxy
       end
       DestructureOnly.new(ret_val)
     else
-      TypedVariable.create_or_validate(create_type(returns), ret_val)
+      TypedVariable.create_or_validate(create_type(returns), ret_val).to_proxy
     end
+  rescue => e
+    binding.pry
   end
   
   def validate_args!

@@ -10,7 +10,7 @@ RSpec.describe Contract, type: :model do
   let(:daryl) { "0x000000000000000000000000000000000000000d" }
 
   before(:all) do
-    update_supported_contracts("ERC20BatchTransfer")
+    update_supported_contracts("ERC20BatchTransfer", "AirdropERC20")
   end
 
   before do

@@ -7,7 +7,8 @@ class ContractBuilder < BasicObject
       
       contract_class = ::CleanRoom.execute_user_code_on_context(
         builder,
-        [:contract, :pragma],
+        [:contract, :pragma, :bool],
+        "process_contract_file",
         dep.execution_source_code,
         dep.name,
         1
@@ -31,6 +32,10 @@ class ContractBuilder < BasicObject
   end
   
   def pragma(...)
+  end
+  
+  def bool(i)
+    i
   end
   
   def contract(name, is: [], abstract: false, upgradeable: false, &block)
@@ -60,6 +65,7 @@ class ContractBuilder < BasicObject
           :constructor,
           *::StateVariableDefinitions.public_instance_methods
         ],
+        "build_contract_class",
         block
       )
     end

@@ -1,5 +1,7 @@
-class ArrayVariable < TypedVariable
+class ArrayVariable < GenericVariable
   MAX_ARRAY_LENGTH = 100
+  
+  delegate :push, :pop, :length, :last, :[], :[]=, to: :value
   
   def initialize(...)
     super(...)
@@ -29,7 +31,10 @@ class ArrayVariable < TypedVariable
       return false unless other.is_a?(self.class)
       
       other.value_type == value_type &&
-      other.data == data
+      data.length == other.data.length &&
+      data.each.with_index.all? do |item, index|
+        item.eq(other.data[index]).value
+      end
     end
   
     def initialize(
@@ -42,12 +47,14 @@ class ArrayVariable < TypedVariable
         raise VariableTypeError.new("Arrays of mappings or arrays are not supported")
       end
       
+      initial_length_val = initial_length ? ::TypedVariableProxy.get_typed_variable(initial_length).value : nil
+      
       self.value_type = value_type
       self.on_change = on_change
       self.data = initial_value
 
-      if initial_length
-        amount_to_pad = initial_length - data.size
+      if initial_length_val
+        amount_to_pad = initial_length_val - data.size
         
         amount_to_pad.times do
           data << TypedVariable.create(value_type, on_change: -> { on_change&.call })
@@ -58,9 +65,9 @@ class ArrayVariable < TypedVariable
     def [](index)
       index_var = TypedVariable.create_or_validate(:uint256, index, on_change: -> { on_change&.call })
       
-      raise "Index out of bounds" if index_var >= data.size
-
-      value = data[index_var] ||
+      raise "Index out of bounds" if index_var.gte(length).value
+      
+      value = data[index_var.value] ||
         TypedVariable.create_or_validate(value_type, on_change: -> { on_change&.call })
       
       if value_type.is_value_type?
@@ -73,39 +80,41 @@ class ArrayVariable < TypedVariable
   
     def []=(index, value)
       index_var = TypedVariable.create_or_validate(:uint256, index, on_change: -> { on_change&.call })
-      
-      raise "Sparse arrays are not supported" if index_var > data.size
-      raise "Max array length is #{MAX_ARRAY_LENGTH}" if index_var >= MAX_ARRAY_LENGTH
+      raise "Sparse arrays are not supported" if index_var.gt(length).value
+      max_len = TypedVariable.create(:uint256, MAX_ARRAY_LENGTH)
+      raise "Max array length is #{MAX_ARRAY_LENGTH}" if index_var.gte(max_len).value
 
-      old_value = self.data[index_var]
       val_var = TypedVariable.create_or_validate(value_type, value, on_change: -> { on_change&.call })
       
-      if old_value != val_var
+      if index_var.eq(length).value || self[index_var].ne(val_var).value
         on_change&.call
         
-        if data[index_var].nil? || val_var.type.is_value_type?
-          data[index_var] = val_var
+        if data[index_var.value].nil? || val_var.type.is_value_type?
+          data[index_var.value] = val_var
         else
-          data[index_var].value = val_var.value
+          data[index_var.value].value = val_var.value
         end
       end
+      
+      data[index_var.value]
     end
     
     def push(value)
       next_index = data.size
       
       self.[]=(next_index, value)
-      nil
+      NullVariable.new
     end
     
+    # TODO: In Solidity this returns null
     def pop
       on_change&.call
       
-      data.pop
+      TypedVariable.create(value_type, data.pop.value)
     end
     
     def length
-      data.length
+      TypedVariable.create(:uint256, data.length)
     end
     
     def last

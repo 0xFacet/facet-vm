@@ -1,4 +1,6 @@
 class DestructureOnly
+  # TODO: make this minimal
+  
   include ContractErrors
   
   def initialize(hash)
@@ -17,8 +19,6 @@ class DestructureOnly
   def as_json(*)
     @hash.as_json
   end
-
-  private
 
   def method_missing(name, *args, &block)
     raise InvalidDestructuringError, "This object must be destructured immediately and cannot be used as a regular object"

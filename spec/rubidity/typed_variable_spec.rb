@@ -2,10 +2,23 @@
 require 'rails_helper'
 
 RSpec.describe TypedVariable, type: :model do
+  class TypedVariable
+    def ft
+      if self.is_a?(::TypedVariable) && self.type.bool?
+        self.value
+      elsif [true, false].include?(val)
+        val
+      else
+        binding.pry
+        raise "Invalid boolean value"
+      end
+    end
+  end
+  
   describe '.create_or_validate' do
     it 'returns the same TypedVariable if the value is a TypedVariable and its type can be assigned from the specified type' do
       typed_variable = TypedVariable.create(:uint256, 1)
-      expect(TypedVariable.create_or_validate(:uint256, typed_variable)).to eq typed_variable
+      expect(TypedVariable.create_or_validate(:uint256, typed_variable).eq(typed_variable).value).to eq(true)
     end
 
     it 'is fine to go up in bits' do
@@ -31,32 +44,33 @@ RSpec.describe TypedVariable, type: :model do
       mapping_type = Type.create(:mapping, key_type: :uint256, value_type: :bool)
       mapping = TypedVariable.create_or_validate(mapping_type, {})
       
-      expect(false_bool).to be_a(FalseClass)
-      expect(false_bool).to be_a(TypedObject)
+      expect(false_bool).to be_a(TypedVariable)
+      expect(false_bool).to be_a(TypedVariable)
       expect(false_bool.type.name).to eq(:bool)
-      expect(false_bool).not_to be_a(TypedVariable)
       
-      expect(false_bool == int).to eq(false)
-      expect(!false_bool).to eq(true)
-      expect(!false_bool).to eq(true_bool)
-      expect(false_bool == false).to eq(true)
+      expect { false_bool.eq(int) }.to raise_error(/Cannot compare bool with uint256/)
+      
+      expect(false_bool.not.value).to eq(true)
+      expect(false_bool.not.eq(true_bool).value).to eq(true)
+      expect { false_bool == false }.to raise_error(TypeError, "Call eq() instead of ==()")
+      expect(true_bool).to be_a(TypedVariable)
+      
+      expect { true_bool == int }.to raise_error(TypeError, "Call eq() instead of ==()")
+      
+      expect(true_bool.not.value).to eq(false)
+      
+      expect { true_bool == true }.to raise_error(TypeError, "Call eq() instead of ==()")
 
-      expect(true_bool).to be_a(TrueClass)
-      expect(true_bool).to be_a(TypedObject)
-      expect(true_bool).not_to be_a(TypedVariable)
       
-      expect(true_bool == int).to eq(false)
-      expect(!true_bool).to eq(false)
-      expect(true_bool == true).to eq(true)
-      
-      expect(mapping[1]).to eq(false)
-      expect(mapping[1] = true).to eq(true)
-      expect(mapping[1]).to eq(true)
+      expect(mapping[1].eq(false_bool).value).to eq(true)
+      expect(mapping.[]=(1, true).eq(true_bool).value).to eq(true)
+      expect(mapping[1].eq(true_bool).value).to eq(true)
       expect(mapping.serialize).to eq({"1"=>true})
       
-      expect { TypedVariable.new(Type.create(:bool)) }.to raise_error(TypeError)
+      expect { TypedVariable.new(Type.create(:bool)) }.to_not raise_error
       expect { false_bool.value = 4 }.to raise_error(TypeError)
-      expect { !int }.to raise_error(TypeError)
+      expect { !int }.to raise_error("Call not() instead of !")
+      expect { int.not }.to raise_error("Cannot negate #{int.inspect}")
     end
   end
   
@@ -65,18 +79,24 @@ RSpec.describe TypedVariable, type: :model do
     mapping_type2 = Type.create(:mapping, key_type: :uint256, value_type: mapping_type1)
     mapping = TypedVariable.create_or_validate(mapping_type2, {})
     
-    expect(mapping[1]['hi']).to eq(false)
-    expect(mapping[1]['hi'] = true).to eq(true)
-    expect(mapping[1]['hi']).to eq(true)
-    expect(mapping[1]['bye']).to eq(false)
-    expect(mapping[1]['bye'] = true).to eq(true)
-    expect(mapping[1]['bye']).to eq(true)
-    expect(mapping[1]['hi']).to eq(true)
-    expect(mapping[1]['a']).to eq(false)
+    expect(mapping[1]['hi'].ft).to eq(false)
     
-    m_ary_type = ContractImplementation.mapping ({ uint256: ContractImplementation.array(:string, initial_length: 10) })
+    expect(mapping[1].[]=('hi', true).ft).to eq(true)
+    expect(mapping[1]['hi'].ft).to eq(true)
+    expect(mapping[1]['bye'].ft).to eq(false)
+    
+    expect(mapping[1].[]=('bye', true).ft).to eq(true)
+    
+    expect(mapping[1]['bye'].ft).to eq(true)
+    expect(mapping[1]['hi'].ft).to eq(true)
+    expect(mapping[1]['a'].ft).to eq(false)
+    
+    len = TypedVariable.create(:uint256, 10).to_proxy
+    
+    
+    m_ary_type = ContractImplementation.mapping ({ uint256: ContractImplementation.array(:string, initial_length: len) })
     map_array = TypedVariable.create_or_validate(Type.create(:mapping, key_type: :uint256, value_type: m_ary_type))
     
-    expect(map_array[1][1][1]).to eq('')
+    expect(map_array[1][1][1].eq(TypedVariable.create(:string)).value).to eq(true)
   end
 end

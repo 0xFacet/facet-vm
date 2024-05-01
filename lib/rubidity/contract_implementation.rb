@@ -1,4 +1,4 @@
-class ContractImplementation < BasicObject
+class ContractImplementation #< BasicObject
   extend ::StateVariableDefinitions
   include ::ContractErrors
   include ::ForLoop
@@ -49,11 +49,15 @@ class ContractImplementation < BasicObject
   end
   
   def require(condition, message)
-    unless condition == true || condition == false
+    message = message.value
+    
+    unless condition.type.bool?
       raise "Invalid truthy value for require"
     end
     
-    return if condition == true
+    if condition.value == true
+      return NullVariable.new
+    end
     
     c_locs = ::Kernel.instance_method(:caller_locations).bind(self).call
     
@@ -184,6 +188,8 @@ class ContractImplementation < BasicObject
       event: event_name,
       data: args
     })
+    
+    NullVariable.new
   end
   
   def keccak256(input)
@@ -227,7 +233,7 @@ class ContractImplementation < BasicObject
     ::Object.new.tap do |proxy|
       def proxy.stringify(...)
         res = ::ActiveSupport::JSON.encode(...)
-        ::TypedVariable.create(:string, res)
+        ::TypedVariable.create(:string, res).to_proxy
       end
     end
   end
@@ -235,6 +241,15 @@ class ContractImplementation < BasicObject
   def abi
     ::Object.new.tap do |proxy|
       def proxy.encodePacked(*args)
+        args = args.map do |arg|
+          begin
+            ::TypedVariableProxy.get_typed_variable(arg)
+          rescue => e
+            binding.pry
+            raise e
+          end
+        end
+        
         if args.all? {|arg| arg.value == '' }
           raise "Can't encode empty bytes"
         end
@@ -244,29 +259,36 @@ class ContractImplementation < BasicObject
           bytes = bytes.value.sub(/\A0x/, '')
         end.join
         
-        ::TypedVariable.create(:bytes, "0x" + res)
+        ::TypedVariable.create(:bytes, "0x" + res).to_proxy
       end
     end
   end
   
   def string(i)
-    if i.is_a?(::TypedObject) && i.type.is_value_type?
-      return ::TypedVariable.create(:string, i.value.to_s)
+    if i.is_a?(::TypedVariable) && i.type.is_value_type?
+      ::TypedVariable.create(:string, i.value.to_s)
+    elsif i.is_a?(::String)
+      ::TypedVariable.create(:string, i)
     else
+      binding.pry
       raise "Input must be typed"
     end
   end
   
   def address(i)
-    if i.is_a?(::TypedObject) && i.type.contract?
+    unless i.is_a?(::TypedVariable)
+      raise "Input must be typed"
+    end
+    
+    if i.type.contract?
       return ::TypedVariable.create(:address, i.value.address)
     end
     
-    if i.is_a?(::Integer) && i == 0
-      return ::TypedVariable.create(:address) 
+    if i.value == 0
+      return ::TypedVariable.create(:address)
     end
     
-    if i.is_a?(::TypedObject) && i.type.address?
+    if i.type.address?
       return i
     end
     
@@ -274,10 +296,41 @@ class ContractImplementation < BasicObject
   end
   
   def bytes32(i)
-    if i == 0
+    unless i.is_a?(::TypedVariable)
+      raise "Input must be typed"
+    end
+    
+    if i.value == 0
       return ::TypedVariable.create(:bytes32)
     else
       raise "Not implemented"
+    end
+  rescue => e
+    binding.pry
+  end
+  
+  def bool(i)
+    if [true, false].include?(i)
+      return ::TypedVariable.create(:bool, i)
+    else
+      raise "Invalid boolean value"
+    end
+  end
+  
+  def null
+    NullVariable.new
+  end
+  
+  def __facet_true__(val)
+    val = TypedVariableProxy.get_typed_variable(val)
+    
+    if val.is_a?(::TypedVariable) && val.type.bool?
+      val.value
+    elsif [true, false].include?(val)
+      val
+    else
+      binding.pry
+      raise "Invalid boolean value"
     end
   end
   
@@ -299,12 +352,28 @@ class ContractImplementation < BasicObject
   end
   
   def create2_address(salt:, deployer:, contract_type:)
-    to_contract_init_code_hash = self.class.available_contracts[contract_type].init_code_hash
+    salt = ::TypedVariableProxy.get_typed_variable(salt)
+    deployer = ::TypedVariableProxy.get_typed_variable(deployer)
+    contract_type = ::TypedVariableProxy.get_typed_variable(contract_type)
     
-    self.class.calculate_new_contract_address_with_salt(salt, deployer, to_contract_init_code_hash)
+    to_contract_init_code_hash = self.class.available_contracts[contract_type.value].init_code_hash
+    
+    address = self.class.calculate_new_contract_address_with_salt(
+      salt, deployer, to_contract_init_code_hash
+    )
+    
+    ::TypedVariable.create(:address, address)
+  rescue => e
+    binding.pry
   end
   
   def downcast_integer(integer, target_bits)
+    if integer.is_a?(::TypedVariableProxy)
+      integer = integer.unwrap
+    end
+    
+    # ap integer
+    # ap target_bits
     if integer.is_a?(::TypedVariable) && integer.type.address?
       integer = integer.value.sub(/\A0x/, '').to_i(16)
     end
@@ -314,16 +383,32 @@ class ContractImplementation < BasicObject
     ::TypedVariable.create(:"uint#{target_bits}", new_val)
   end
   
+  # TODO: fix
+  def downcast_int(integer, bits)
+    return integer if integer.is_a?(::TypedVariableProxy)
+    
+    type = IntegerVariable.smallest_allowable_type(integer)
+    
+    TypedVariable.create_or_validate(type, integer)
+  rescue => e
+    binding.pry
+  end
+  
   (8..256).step(8).flat_map do |bits|
     define_method("uint#{bits}") do |integer|
       downcast_integer(integer, bits)
+    end
+    
+    define_method("int#{bits}") do |integer|
+      downcast_int(integer, bits)
     end
   end
   
   def sqrt(integer)
     integer = ::TypedVariable.create_or_validate(:uint256, integer)
 
-    ::Math.sqrt(integer.value.to_d).floor
+    root = ::Math.sqrt(integer.value.to_d).floor
+    ::TypedVariable.create_or_validate(:uint256, root)
   end
   
   def new(contract_initializer)

@@ -10,7 +10,7 @@ class Type
    end.map(&:to_sym)
   
   TYPES = [:string, :mapping, :address, :bytes16, :bytes32, :contract,
-           :bool, :array, :bytes, :struct] + INTEGER_TYPES
+           :bool, :array, :bytes, :struct, :null] + INTEGER_TYPES
   
   TYPES.each do |type|
     define_method("#{type}?") do
@@ -152,7 +152,7 @@ class Type
   end
   
   def check_and_normalize_literal(literal)
-    if literal.is_a?(TypedVariable)
+    if literal.is_a?(TypedVariable) || literal.is_a?(TypedVariableProxy)
       raise VariableTypeError, "Only literals and TypedObjects can be passed to check_and_normalize_literal: #{literal.inspect}"
     end
     
@@ -304,6 +304,6 @@ class Type
   end
   
   def is_value_type?
-    !mapping? && !array? && !struct? && !contract?
+    !mapping? && !array? && !struct? && !contract? && !null?
   end
 end

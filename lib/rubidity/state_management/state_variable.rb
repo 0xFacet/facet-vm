@@ -117,7 +117,7 @@ class StateVariable
       on_change: -> { on_change&.call }
     )
     
-    if new_typed_variable != @typed_variable
+    if new_typed_variable.ne(@typed_variable).value
       on_change&.call
       @typed_variable = new_typed_variable
     end
@@ -127,7 +127,11 @@ class StateVariable
   end
   
   def ==(other)
-    other.is_a?(self.class) && typed_variable == other.typed_variable
+    unless other.is_a?(self.class)
+      raise ContractError, "Cannot compare StateVariable with #{other.class}"
+    end
+    
+    typed_variable.eq(other.typed_variable).value
   end
   
   def !=(other)
