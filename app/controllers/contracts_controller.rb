@@ -159,6 +159,21 @@ class ContractsController < ApplicationController
     render json: { result: numbers_to_strings(receipt) }
   end
   
+  def source_code_to_artifact
+    code = params[:source_code].to_s
+    contract = params[:contract_name].to_s
+    
+    transpiler = RubidityTranspiler.new(code)
+    transpiler.filename = "./#{contract}__.rubidity"
+    
+    artifact = transpiler.get_desired_artifact(contract.to_s)
+    artifact.abi = artifact.build_class.abi
+    
+    render json: { result: artifact }
+  rescue => e
+    render json: { error: e.message }, status: 500
+  end
+  
   def source_code_to_abi
     code = params[:source_code]
     contract = params[:contract_name]
@@ -168,7 +183,6 @@ class ContractsController < ApplicationController
     end
     
     Timeout.timeout(5.seconds) do
-      
       transpiler = RubidityTranspiler.new(code.to_s)
       transpiler.filename = "./#{contract}.rubidity"
       
