@@ -150,7 +150,10 @@ class ContractArtifact < ApplicationRecord
           :source_code,
           :init_code_hash
         ],
-        methods: :abi
+        methods: [
+          :abi,
+          :execution_source_code
+        ]
       )
     )
   end

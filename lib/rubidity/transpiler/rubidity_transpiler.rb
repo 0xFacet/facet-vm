@@ -141,7 +141,8 @@ class RubidityTranspiler
     
     new_artifacts = sub_transpiler.generate_contract_artifacts(validate: false)
   
-    references = new_artifacts.reject { |i| i.name == desired_artifact.name }
+    references = new_artifacts.reject { |i| i.name == desired_artifact.name }.
+      map{|i| i.attributes.slice("name", "init_code_hash", "source_code")}
     
     desired_artifact.references = references
     desired_artifact
