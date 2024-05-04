@@ -3,6 +3,8 @@ class TypedVariable
   
   include ContractErrors
   extend AttrPublicReadPrivateWrite
+  extend Memoist
+  class << self; extend Memoist; end
   
   [:==, :>, :<=, :>=, :<, :!, :!=].each do |method|
     undef_method(method) if method_defined?(method)
@@ -43,7 +45,7 @@ class TypedVariable
     elsif type.is_int? || type.is_uint?
       IntegerVariable.new(type, value, **options)
     elsif type.null?
-      NullVariable.new(type, value, **options)
+      NullVariable.instance
     else
       GenericVariable.new(type, value, **options)
     end
@@ -55,7 +57,7 @@ class TypedVariable
   
   def self.create_or_validate(type, value = nil, on_change: nil)
     if CleanRoomAdmin.call_is_a?(value, TypedVariableProxy)
-      value = CleanRoomAdmin.get_instance_variable(value, :@typed_variable)
+      value = CleanRoomAdmin.get_instance_variable(value, :value)
     end
     
     if value.is_a?(TypedObject)

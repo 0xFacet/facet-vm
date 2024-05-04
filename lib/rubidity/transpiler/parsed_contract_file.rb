@@ -92,8 +92,8 @@ class ParsedContractFile
       abstract = false
       upgradeable = false
       
-      unless body.type == :begin
-        body = s(:begin, body)
+      unless body&.type == :begin
+        body = s(:begin, *Array.wrap(body).compact)
       end
       
       options_hash = options_hash.first

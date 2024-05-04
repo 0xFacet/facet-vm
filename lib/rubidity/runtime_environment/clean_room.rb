@@ -15,8 +15,31 @@ class CleanRoom #< UltraBasicObject
       end
     end
   end
-
+  
+  define_method(ConstsToSends.box_function_name) do |value|
+    VM.box(value)
+  end
+  
+  define_method(ConstsToSends.unbox_and_get_bool_function_name) do |value|
+    VM.unbox_and_get_bool(value)
+  end
+  
   def method_missing(method_name, *args, **kwargs, &block)
+    get_values_for = [:contract, :pragma] + [
+      :event,
+      :function,
+      :constructor,
+      *::StateVariableDefinitions.public_instance_methods
+    ]
+    
+    if get_values_for.include?(method_name)
+      args = VM.deep_get_values(args)
+      kwargs = VM.deep_get_values(kwargs)
+    else
+      args = VM.deep_unbox(args)
+      kwargs = VM.deep_unbox(kwargs)
+    end
+    
     if @wrapped_valid_call_method.call(method_name)
       ::Object.instance_method(:public_send).bind(@context).
         call(method_name, *args, **kwargs, &block)

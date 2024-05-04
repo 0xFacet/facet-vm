@@ -4,8 +4,11 @@ class NullVariable < TypedVariable
     @value = nil
   end
   
-  def self.instance
-    @instance ||= new
+  class << self
+    def instance
+      new.freeze
+    end
+    memoize :instance
   end
   
   def !
@@ -16,19 +19,15 @@ class NullVariable < TypedVariable
     raise TypeError.new("Call eq() instead of ==()")
   end
   
+  def value=(value)
+    raise TypeError.new("Cannot set value of NullVariable")
+  end
+  
   def ne(other)
     (self.eq(other)).not
   end
   
   def eq(other)
-    unless other.is_a?(TypedVariable)
-      raise ContractError.new("Cannot compare TypedVariable with #{other.class}")
-    end
-    
-    unless type == other.type
-      raise ContractError.new("Cannot compare #{type.name} with #{other.type.name}")
-    end
-    
-    TypedVariable.create(:bool, value == other.value)
+    TypedVariable.create(:bool, object_id == other.object_id)
   end
 end

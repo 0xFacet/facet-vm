@@ -49,7 +49,7 @@ class ContractVariable < GenericVariable
     def define_methods_on_variable(var)
       contract_class.public_abi.each_key do |method_name|
         var.define_singleton_method(method_name) do |*args, **kwargs|
-          computed_args = args.presence || kwargs
+          computed_args = VM.deep_unbox(args.presence || kwargs)
           
           TransactionContext.call_stack.execute_in_new_frame(
             to_contract_address: address,

@@ -47,14 +47,12 @@ class ArrayVariable < GenericVariable
         raise VariableTypeError.new("Arrays of mappings or arrays are not supported")
       end
       
-      initial_length_val = initial_length ? ::TypedVariableProxy.get_typed_variable(initial_length).value : nil
-      
       self.value_type = value_type
       self.on_change = on_change
       self.data = initial_value
 
-      if initial_length_val
-        amount_to_pad = initial_length_val - data.size
+      if initial_length
+        amount_to_pad = initial_length - data.size
         
         amount_to_pad.times do
           data << TypedVariable.create(value_type, on_change: -> { on_change&.call })
@@ -103,7 +101,7 @@ class ArrayVariable < GenericVariable
       next_index = data.size
       
       self.[]=(next_index, value)
-      NullVariable.new
+      NullVariable.instance
     end
     
     # TODO: In Solidity this returns null

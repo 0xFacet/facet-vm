@@ -11,22 +11,39 @@ class ConstsToSends
     new_ast.unparse
   end
   
+  def self.box_function_name
+    :_b
+  end
+  delegate :box_function_name, to: :class
+  
+  def self.unbox_and_get_bool_function_name
+    :_gb
+  end
+  delegate :unbox_and_get_bool_function_name, to: :class
+  
   def handler_missing(node)
     node.updated(nil, safe_process_all(node.children))
+  end
+  
+  SimpleBoxNodes = [:true, :false, :array, :hash, :int, :str, :sym, :lvasgn, :nil, :lvar]
+
+  SimpleBoxNodes.each do |type|
+    define_method("on_#{type}") do |node|
+      box_expression(node)
+    end
   end
   
   def on_const(node)
     namespace, name = *node
     
-    s(:send,
-      s(:self), name)
+    process(s(:send, s(:self), name))
   end
   
   def on_if(node)
     condition, if_true, if_false = *node
 
     # Process the condition as needed
-    new_condition = s(:send, nil, :__facet_true__, process(condition))
+    new_condition = unbox_and_get_bool(process(condition))
 
     # Recursively process the true and false branches
     new_if_true = process(if_true) if if_true
@@ -40,85 +57,76 @@ class ConstsToSends
   
   def on_and(node)
     left, right = *node.children
-    new_left = process(left)
-    new_right = process(right)
-    
-    # Wrap the logical AND operation in a bool() cast
-    s(:send, nil, :bool,
-      s(:and,
-        s(:send, nil, :__facet_true__, new_left),
-        s(:send, nil, :__facet_true__, new_right)
-      )
-    )
+    process_logical_operation(:and, left, right)
   end
   
   def on_or(node)
     left, right = *node.children
-    new_left = process(left)
-    new_right = process(right)
-    
-    # Wrap the logical OR operation in a bool() cast
-    s(:send, nil, :bool,
-      s(:or,
-        s(:send, nil, :__facet_true__, new_left),
-        s(:send, nil, :__facet_true__, new_right)
+    process_logical_operation(:or, left, right)
+  end
+  
+  def process_logical_operation(operation, left_node, right_node)
+    processed_left = process(left_node)
+    processed_right = process(right_node)
+  
+    # Wrap the logical operation in a bool() cast
+    box_single(
+      s(operation,
+        unbox_and_get_bool(processed_left),
+        unbox_and_get_bool(processed_right)
       )
     )
   end
   
-  def on_true(node)
-    s(:send, nil, :bool,
-      s(:true))
-  end
+  # def on_begin(node)
+  #   if node.children.size == 1
+  #     process(node.children.first)
+  #   else
+  #     node.updated(nil, safe_process_all(node.children))
+  #   end
+  # end
   
-  def on_false(node)
-    s(:send, nil, :bool,
-      s(:false))
-  end
-  
-  def on_int(node)
-    value = node.children.first
+  def on_masgn(node)
+    # TODO: doesn't work with mapping assignments
     
-    bits = value.bit_length + (value < 0 ? 1 : 0)
-    whole_bits = bits / 8
-    if bits % 8 != 0
-      whole_bits += 1
+    left, right = *node.children
+    
+    lvars_to_box = []
+    
+    updated_left_children = left.children.map do |child|
+      if child.type == :lvasgn
+        lvars_to_box << child
+        child
+      else
+        process(child)
+      end
     end
     
-    whole_bits = 1 if whole_bits == 0
+    lvar_box_nodes = lvars_to_box.map do |lvar|
+      var_name = lvar.children[0]
+      var_value = process(s(:lvar, var_name))
+      
+      process(s(:lvasgn, var_name, var_value))
+    end
     
-    # Choose the type based on whether the value is negative or not
-    type_prefix = value < 0 ? "int" : "uint"
-    name = :"#{type_prefix}#{whole_bits * 8}"
+    updated_left = left.updated(nil, updated_left_children)
     
-    s(:send, nil, name, s(:int, value))
-  end
-  
-  def on_str(node)
-    value = node.children.first
+    updated_node = node.updated(nil, [updated_left, process(right)])
     
-    s(:send, nil, :string, s(:str, value))
+    s(:begin, updated_node, *lvar_box_nodes)
   end
   
   def on_dstr(node)
-    # Reduce the children of the `dstr` node into a single concatenated expression
-    concat_expr = node.children.reduce(nil) do |acc, child|
-      processed_child = process(child)  # Utilize the existing `process` method
-  
-      # Initialize the accumulator with the first processed child or concatenate the current one
-      acc.nil? ? processed_child : s(:send, acc, :+, processed_child)
+    concat_expr = safe_process_all(node.children).reduce(nil) do |acc, child|
+      acc.nil? ? child : box_single(s(:send, acc, :+, child))
     end
   
-    concat_expr
-  end
-  
-  def on_nil(node)
-    s(:send, nil, :null)
+    box_single(concat_expr)
   end
   
   def on_return(node)
     if node.children.empty?
-      s(:return, s(:send, nil, :null))
+      s(:return, process(s(:nil)))
     else
       node.updated(nil, safe_process_all(node.children))
     end
@@ -126,46 +134,65 @@ class ConstsToSends
   
   def on_op_asgn(node)
     target, op, value = *node.children
-  # binding.irb
-    # Check if the target is a send node that represents indexing
-    if target.type == :send && target.children[1] == :[]
-      # Decompose the operation into an explicit form
-      process_compound_assignment(target, op, value)
+  
+    if target.type == :lvasgn
+      process(handle_local_variable_assignment(target, op, value))
+    elsif target.type == :send
+      process(handle_method_setter_assignment(target, op, value))
     else
-      # Handle other types of operation assignments normally
-      node.updated(nil, safe_process_all(node.children))
+      raise "Unsupported target type for compound assignment: #{target.type}"
     end
   end
   
-  def process_compound_assignment(target, op, value)
-    base, index = target.children[0], target.children[2]
-    processed_base = process(base)
+  def handle_local_variable_assignment(target, op, value)
+    var_name = target.children.first
+    
+    # Compute the new value based on the operation
+    new_value = s(:send, s(:lvar, var_name), op, process(value))
+    
+    # Update the AST node to represent the local variable assignment
+    s(:lvasgn, var_name, new_value)
+  end
+  
+  def handle_method_setter_assignment(target, op, value)
+    object, method_name, index = *target.children
+    
+    processed_object = process(object)
     processed_index = process(index)
     processed_value = process(value)
-  # ap [base,index,value,op,processed_base,processed_index,processed_value]
-    # Fetch the current value at the index
-    current_value = s(:send, processed_base, :[], processed_index)
-  
-    # Apply the operation to the current value with the new value
-    new_value = s(:send, current_value, op, processed_value)
-  
-    # Assign the result back to the index
-    s(:send, processed_base, :[]=, processed_index, new_value)
+    
+    current_value = if index
+      s(:send, processed_object, method_name, processed_index)
+    else
+      s(:send, processed_object, method_name)
+    end
+    
+    new_value = s(:send, current_value, op, processed_value) 
+    
+    if index
+      s(:send, processed_object, "#{method_name}=".to_sym, processed_index, new_value)
+    else
+      s(:send, processed_object, "#{method_name}=".to_sym, new_value)
+    end
   end
 
   def on_send(node)
+    if is_box_send?(node)
+      return node
+    end
+    
     if node == (s(:send, nil, :pragma,
       s(:sym, :rubidity),
       s(:str, "1.0.0")))
       
-      s(:begin)
+      process(s(:begin))
     elsif node == s(:send,
       s(:send,
         s(:int, 2), :**,
         s(:int, 256)), :-,
       s(:int, 1))
       
-      s(:send, nil, :uint256, s(:int, 2 ** 256 - 1))
+      process(s(:int, 2 ** 256 - 1))
     else
       method_name = node.children[1]
       operator_to_method_name = {
@@ -180,14 +207,61 @@ class ConstsToSends
       
       if operator_to_method_name.keys.include?(method_name)
         new_method_name = operator_to_method_name[method_name]
-        node.updated(nil, safe_process_all([node.children[0], new_method_name]) + safe_process_all(node.children[2..-1]))
+        
+        new_node = node.updated(nil, safe_process_all([node.children[0], new_method_name] + node.children[2..-1]))
+        
+        box_single(new_node)
       else
-        node.updated(nil, safe_process_all(node.children))
+        new_node = node.updated(nil, safe_process_all(node.children))
+        
+        box_single(new_node)
       end
     end
   end
   
+  def on_block(node)
+    send_node, args, body = *node
+    
+    new_send = send_node.updated(nil, safe_process_all(send_node.children))
+    
+    node.updated(nil, [new_send, process(args), process(body)])
+  end
+  
   private
+  
+  def is_box_send?(node)
+    node.type == :send && node.children[1] == box_function_name
+  end
+  
+  def box_single(node)
+    if is_box_send?(node)
+      return node
+    end
+    
+    if node.type == :begin && node.children.size == 1 && is_box_send?(node.children.first)
+      return node.children.first
+    end
+    
+    s(:send, nil, box_function_name, node)
+  end
+  
+  def unbox_and_get_bool(node)
+    if node.type == :send && node.children[1] == unbox_and_get_bool_function_name
+      return node
+    end
+    
+    s(:send, nil, unbox_and_get_bool_function_name, node)
+  end
+  
+  def box_expression(expr)
+    if expr.type == :send && expr.children[1] == box_function_name
+      return expr
+    end
+    
+    processed_expr = expr.updated(nil, safe_process_all(expr.children))
+    
+    box_single(processed_expr)
+  end
   
   def safe_process_all(nodes)
     nodes.to_a.map do |child|

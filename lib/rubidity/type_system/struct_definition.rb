@@ -6,6 +6,11 @@ class StructDefinition
     @name = name
     @fields = {}.with_indifferent_access
     instance_eval(&block)
+    @fields = VM.deep_unbox(@fields)
+  end
+
+  define_method(ConstsToSends.box_function_name) do |value|
+    VM.box(value)
   end
 
   ::Type.value_types.each do |type|

@@ -1,4 +1,4 @@
-class TypedVariableProxy # < UltraBasicObject
+class TypedVariableProxy < BoxedVariable
   [:!, :!=, :+, :==, :>, :<=, :>=, :*, :-, :<, :%, :/, :[], :[]=, :coerce, :length, :to_int, :to_str, :upcase, :cast, :push, :pop, :div, :downcase, :last].each do |method|
     undef_method(method) if method_defined?(method)
   end
@@ -16,8 +16,9 @@ class TypedVariableProxy # < UltraBasicObject
   end
   
   def unwrap
-    @typed_variable
+    @value
   end
+  alias_method :unbox, :unwrap
   
   def self.get_typed_variable(proxy)
     if proxy.is_a?(::TypedVariable)
@@ -28,7 +29,7 @@ class TypedVariableProxy # < UltraBasicObject
       raise "Can only use a proxy: #{proxy.inspect}"
     end
     
-    var = ::CleanRoomAdmin.get_instance_variable(proxy, :typed_variable)
+    var = ::CleanRoomAdmin.get_instance_variable(proxy, :value)
     
     unless var.is_a?(::TypedVariable)
       # binding.pry
@@ -38,13 +39,14 @@ class TypedVariableProxy # < UltraBasicObject
     var
   end
   
+  # TODO: Kill
   def cast(type)
-    @typed_variable.cast(type).to_proxy
+    @value.cast(VM.deep_unbox(type))
   end
   
   def to_ary
-    raise unless @typed_variable.class == ::DestructureOnly
-    @typed_variable.to_ary
+    raise unless @value.class == ::DestructureOnly
+    @value.to_ary
   end
   
   def self.get_type(proxy)
@@ -52,59 +54,46 @@ class TypedVariableProxy # < UltraBasicObject
   end
   
   def initialize(typed_variable)
-    unless typed_variable.nil? || typed_variable.is_a?(::TypedVariable) || typed_variable.is_a?(::DestructureOnly)
+    unless typed_variable.is_a?(::TypedVariable) || typed_variable.is_a?(::DestructureOnly)
       raise "Can only use a TypedVariable: #{typed_variable.inspect}"
     end
     
-    @typed_variable = typed_variable
+    super(typed_variable)
   end
 
   def toPackedBytes
-    @typed_variable.toPackedBytes
+    @value.toPackedBytes
   end
   
   def as_json
     # TODO: remove this and stop ContractCall from coercing args to json. Have working_args or something.
-    @typed_variable.as_json
+    @value.as_json
   end
   
   def method_missing(name, *args, **kwargs, &block)
-    klasses = [@typed_variable.class.ancestors - ::TypedVariable.ancestors]
+    klasses = [@value.class.ancestors - ::TypedVariable.ancestors]
     
     methods = klasses.flatten.flat_map do |klass|
       klass.instance_methods(false)
-    end + @typed_variable.singleton_methods
+    end + @value.singleton_methods
     
     unless methods.include?(name)
-      binding.pry
-      raise "No method #{name} on #{@typed_variable.inspect}"
+      raise "No method #{name} on #{@value.inspect}"
     end
+    
+    args = VM.deep_unbox(args)
+    kwargs = VM.deep_unbox(kwargs)
     
     if name == :verifyTypedDataSignature
-      res = @typed_variable.public_send(name, *args, **kwargs)
+      res = @value.public_send(name, *args, **kwargs)
       return ::TypedVariableProxy.new(res)
     end
-    
-    args = args.map do |arg|
-      begin
-        ::TypedVariableProxy.get_typed_variable(arg)
-      rescue => e
-        binding.pry
-        raise e
-      end
-    end
-    
     res = if args.present? && kwargs.present?
-      binding.pry
-      @typed_variable.public_send(name, *args, **kwargs)
+      @value.public_send(name, *args, **kwargs)
     elsif args.present?
-      @typed_variable.public_send(name, *args)
+      @value.public_send(name, *args)
     else
-      @typed_variable.public_send(name, **kwargs)
-    end
-    
-    if res.is_a?(::TypedVariable)
-      res = ::TypedVariableProxy.new(res)
+      @value.public_send(name, **kwargs)
     end
     
     res

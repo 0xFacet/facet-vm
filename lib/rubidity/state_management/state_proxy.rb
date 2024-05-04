@@ -1,9 +1,11 @@
-class StateProxy #< UltraBasicObject
+class StateProxy < BoxedVariable
   def initialize(manager)
     @manager = manager
   end
   
   def method_missing(name, *args)
+    args = VM.deep_unbox(args)
+    
     is_setter = name.end_with?('=')
     var_name = name.to_s.chomp("=")
     
@@ -14,11 +16,9 @@ class StateProxy #< UltraBasicObject
     return super if is_setter && args.length != 1
     
     if is_setter
-      other_var = ::TypedVariableProxy.get_typed_variable(args.first)
-      
-      ::TypedVariableProxy.new(var.typed_variable = other_var)
+      var.typed_variable = args.first
     else
-      ::TypedVariableProxy.new(var.typed_variable)
+      var.typed_variable
     end
   rescue => e
     binding.pry

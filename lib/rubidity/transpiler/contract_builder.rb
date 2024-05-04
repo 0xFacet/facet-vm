@@ -1,4 +1,4 @@
-class ContractBuilder < BasicObject
+class ContractBuilder #< BasicObject
   def self.build_contract_class(artifact)
     registry = {}.with_indifferent_access
     
@@ -7,7 +7,7 @@ class ContractBuilder < BasicObject
       
       contract_class = ::CleanRoom.execute_user_code_on_context(
         builder,
-        [:contract, :pragma, :bool],
+        [:contract, :pragma],
         "process_contract_file",
         dep.execution_source_code,
         dep.name,
@@ -32,10 +32,6 @@ class ContractBuilder < BasicObject
   end
   
   def pragma(...)
-  end
-  
-  def bool(i)
-    i
   end
   
   def contract(name, is: [], abstract: false, upgradeable: false, &block)

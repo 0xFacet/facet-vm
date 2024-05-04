@@ -141,7 +141,7 @@ class FunctionProxy
   
   def convert_args_to_typed_variables_struct(other_args, other_kwargs)
     if other_kwargs.present?
-      other_args = other_kwargs.deep_symbolize_keys
+      other_args = VM.deep_unbox(other_kwargs)
     end
     
     if other_args.first.is_a?(Hash) && other_args.length == 1
@@ -155,12 +155,12 @@ class FunctionProxy
     as_typed = if other_args.is_a?(Array)
       args.keys.zip(other_args).map do |key, value|
         type = args[key]
-        [key, TypedVariable.create_or_validate(create_type(type), value).to_proxy]
+        [key, TypedVariable.create_or_validate(create_type(type), value)]
       end.to_h
     else
       other_args.each.with_object({}) do |(key, value), acc|
         type = args[key]
-        acc[key.to_sym] = TypedVariable.create_or_validate(create_type(type), value).to_proxy
+        acc[key.to_sym] = TypedVariable.create_or_validate(create_type(type), value)
       end
     end
     
@@ -169,11 +169,13 @@ class FunctionProxy
   end
   
   def convert_return_to_typed_variable(ret_val)
-    return NullVariable.new if constructor?
+    return NullVariable.instance if constructor?
+    
+    ret_val = VM.deep_unbox(ret_val)
     
     if returns.nil?
-      if ret_val.eq(NullVariable.new)
-        return NullVariable.new
+      if ret_val.eq(NullVariable.instance)
+        return NullVariable.instance
       end
       
       raise ContractError, "Function #{func_location} returned #{ret_val.inspect}, but expected null"
@@ -185,11 +187,11 @@ class FunctionProxy
     
     if returns.is_a?(Hash)
       ret_val.each.with_object({}) do |(key, value), acc|
-        acc[key.to_sym] = TypedVariable.create_or_validate(create_type(returns[key]), value).to_proxy
+        acc[key.to_sym] = TypedVariable.create_or_validate(create_type(returns[key]), value)
       end
       DestructureOnly.new(ret_val)
     else
-      TypedVariable.create_or_validate(create_type(returns), ret_val).to_proxy
+      TypedVariable.create_or_validate(create_type(returns), ret_val)
     end
   rescue => e
     binding.pry

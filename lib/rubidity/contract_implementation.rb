@@ -168,7 +168,7 @@ class ContractImplementation #< BasicObject
 
   def emit(event_name, args = {})
     unless self.class.events.key?(event_name)
-      raise ContractDefinitionError.new("Event #{event_name} is not defined in this contract.", self)
+      raise ContractDefinitionError.new("Event #{event_name.inspect} is not defined in this contract.", self)
     end
 
     expected_args = self.class.events[event_name]
@@ -189,7 +189,7 @@ class ContractImplementation #< BasicObject
       data: args
     })
     
-    NullVariable.new
+    NullVariable.instance
   end
   
   def keccak256(input)
@@ -230,25 +230,18 @@ class ContractImplementation #< BasicObject
   # private
 
   def json
-    ::Object.new.tap do |proxy|
+    ::BoxedVariable.new.tap do |proxy|
       def proxy.stringify(...)
-        res = ::ActiveSupport::JSON.encode(...)
-        ::TypedVariable.create(:string, res).to_proxy
+        res = ::ActiveSupport::JSON.encode(VM.deep_get_values(...))
+        ::TypedVariable.create(:string, res)
       end
     end
   end
   
   def abi
-    ::Object.new.tap do |proxy|
+    ::BoxedVariable.new.tap do |proxy|
       def proxy.encodePacked(*args)
-        args = args.map do |arg|
-          begin
-            ::TypedVariableProxy.get_typed_variable(arg)
-          rescue => e
-            binding.pry
-            raise e
-          end
-        end
+        args = VM.deep_unbox(args)
         
         if args.all? {|arg| arg.value == '' }
           raise "Can't encode empty bytes"
@@ -259,7 +252,7 @@ class ContractImplementation #< BasicObject
           bytes = bytes.value.sub(/\A0x/, '')
         end.join
         
-        ::TypedVariable.create(:bytes, "0x" + res).to_proxy
+        ::TypedVariable.create(:bytes, "0x" + res)
       end
     end
   end
@@ -309,30 +302,6 @@ class ContractImplementation #< BasicObject
     binding.pry
   end
   
-  def bool(i)
-    if [true, false].include?(i)
-      return ::TypedVariable.create(:bool, i)
-    else
-      raise "Invalid boolean value"
-    end
-  end
-  
-  def null
-    NullVariable.new
-  end
-  
-  def __facet_true__(val)
-    val = TypedVariableProxy.get_typed_variable(val)
-    
-    if val.is_a?(::TypedVariable) && val.type.bool?
-      val.value
-    elsif [true, false].include?(val)
-      val
-    else
-      binding.pry
-      raise "Invalid boolean value"
-    end
-  end
   
   def self.calculate_new_contract_address_with_salt(salt, from_address, to_contract_init_code_hash)
     from_address = ::TypedVariable.validated_value(:address, from_address).sub(/\A0x/, '')
@@ -352,9 +321,6 @@ class ContractImplementation #< BasicObject
   end
   
   def create2_address(salt:, deployer:, contract_type:)
-    salt = ::TypedVariableProxy.get_typed_variable(salt)
-    deployer = ::TypedVariableProxy.get_typed_variable(deployer)
-    contract_type = ::TypedVariableProxy.get_typed_variable(contract_type)
     
     to_contract_init_code_hash = self.class.available_contracts[contract_type.value].init_code_hash
     
@@ -473,14 +439,13 @@ class ContractImplementation #< BasicObject
       contract_instance = self
       potential_parent = self.class.available_contracts[method_name]
       
-      ::Object.new.tap do |proxy|
+      ::BoxedVariable.new.tap do |proxy|
         proxy.define_singleton_method("__proxy_name__") do
           method_name
         end
         
         potential_parent.abi.data.each do |name, _|
           proxy.define_singleton_method(name) do |*args, **kwargs|
-            # TODO: add trailing double underscore
             contract_instance.public_send("__#{potential_parent.name}_#{name}__", *args, **kwargs)
           end
         end

@@ -95,7 +95,7 @@ RSpec.describe ContractAstValidator do
     function_definition = get_def(ruby)
     expect(function_definition.valid?).to eq(true)
     expect(function_definition.name).to eq(:hi)
-    expect(function_definition.params).to eq({})
+    expect(function_definition.params).to eq({:arg=>:val})
     
     ruby = <<~RUBY
     function(:feeTo, :external, :view, returns: :address)

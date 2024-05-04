@@ -3,6 +3,14 @@ module RailsConsoleExtensions
     ActiveRecord::Base::logger.level = 1
   end
   
+  def parse(ruby)
+    Unparser.parse(ruby)
+  end
+  
+  def pro(ruby)
+    ConstsToSends.process(ruby)
+  end
+  
   def rparse(ruby)
     RuboCop::AST::ProcessedSource.new(ruby, 3.3).ast
   end

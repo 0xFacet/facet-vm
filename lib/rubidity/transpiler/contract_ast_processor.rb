@@ -183,6 +183,14 @@ class ContractAstProcessor
   def traverse_for_references(ast, referenced_contracts_set)
     return unless ast.is_a?(Parser::AST::Node)
     
+    if ast.type == :const
+      namespace, name = *ast
+      
+      if @available_contracts.include?(name)
+        referenced_contracts_set << name
+      end
+    end
+    
     if ast.type == :send
       if ast.children.second == :contract
         kwargs = ast.children.detect{|i| i.is_a?(Parser::AST::Node) && i.type == :kwargs}
