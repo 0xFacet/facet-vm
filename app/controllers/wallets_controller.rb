@@ -23,12 +23,13 @@ class WalletsController < ApplicationController
         Arel.sql("current_state->'symbol'"),
         Arel.sql("current_state->'balanceOf'->#{owner_quoted}"),
         Arel.sql("current_state->'userWithdrawalId'->#{owner_quoted}"),
+        Arel.sql("current_state->'withdrawalIdAmount'->(current_state->'userWithdrawalId'->#{owner_quoted})"),
         Arel.sql("current_state->'decimals'"),
         Arel.sql("current_state->'tokenSmartContract'"),
         Arel.sql("current_state->'factory'")
       )
 
-    keys = [:contract_address, :name, :symbol, :balance, :userWithdrawalId, :decimals, :token_smart_contract, :factory]
+    keys = [:contract_address, :name, :symbol, :balance, :withdrawal_id, :withdrawal_amount, :decimals, :token_smart_contract, :factory]
     token_balances = tokens.map do |values|
       keys.zip(values).to_h
     end
@@ -201,7 +202,7 @@ class WalletsController < ApplicationController
     total_bought = 0
     total_sold = 0
     percent_sold = 0
-    
+
     current_market_value = ((balance.to_f / (10 ** decimals.to_i)) * price.to_i).to_i
 
     swaps.each do |swap|
