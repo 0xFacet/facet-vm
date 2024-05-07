@@ -39,7 +39,7 @@ class WalletsController < ApplicationController
         data[:withdrawal_amount] = withdrawal_amount
       end
       data.delete(:withdrawal_amounts)
-      data
+      data.compact
     end
 
     render json: {
