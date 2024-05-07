@@ -1,4 +1,5 @@
 module ForLoop
+  include ContractErrors
   MAX_LOOPS = 100
   
   def forLoop(args)
@@ -33,7 +34,7 @@ module ForLoop
         
         iteration_count += 1
         if iteration_count > max_iterations
-          raise StandardError, "MaxIterationsExceeded"
+          raise ContractError, "MaxIterationsExceeded"
         end
       end
     end

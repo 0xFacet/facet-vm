@@ -20,8 +20,5 @@ class StateProxy < BoxedVariable
     else
       var.typed_variable
     end
-  rescue => e
-    binding.pry
-    raise
   end
 end

@@ -1,9 +1,23 @@
 module VM
+  class BasicProxy
+    def initialize(value = nil)
+      @value = value
+    end
+    
+    def value
+      @value
+    end
+    
+    def method_missing(method_name, *args, &block)
+      @value.public_send(method_name, *args, &block)
+    end
+  end
+  
   extend self
   
   def box(val)
     boxed_val = case val
-    when BoxedVariable
+    when BoxedVariable, BasicProxy
       return val
     when nil
       NullVariable.instance
@@ -19,7 +33,7 @@ module VM
       val.to_proxy
     when Array
       BoxedVariable.new(val)
-    when Hash, Class, Proc # proc for lambdas in forLoop
+    when BasicProxy, Hash, Class, Proc # proc for lambdas in forLoop
       BoxedVariable.new(val)
     when Struct, DestructureOnly
       return val # For box(msg).value

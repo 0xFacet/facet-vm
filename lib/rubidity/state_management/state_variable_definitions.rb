@@ -57,6 +57,8 @@ module StateVariableDefinitions
   private
   
   def define_state_variable(type, args)
+    args = VM.deep_get_values(args)
+    
     # TODO: Fix hack
     unless args.last.is_a?(::Symbol)
       return ::TypedVariable.create(type, args.last).to_proxy

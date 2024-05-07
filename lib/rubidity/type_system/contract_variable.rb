@@ -4,11 +4,30 @@ class ContractVariable < GenericVariable
   def initialize(...)
     super(...)
     
-    value.define_methods_on_variable(self)
+    value.contract_class.public_abi.each_key do |method_name|
+      define_singleton_method(method_name) do |*args, **kwargs|
+        computed_args = VM.deep_unbox(args.presence || kwargs)
+        
+        TransactionContext.call_stack.execute_in_new_frame(
+          to_contract_address: value.address,
+          function: method_name,
+          args: computed_args,
+          type: :call
+        )
+      end
+    end
   end
   
   def serialize
     value.address
+  end
+  
+  def address
+    TypedVariable.create(:address, value.address)
+  end
+  
+  def contract_type
+    value.contract_class.name
   end
   
   def method_missing(name, *args, **kwargs, &block)
@@ -44,21 +63,6 @@ class ContractVariable < GenericVariable
     
       self.address = address
       self.contract_class = contract_class
-    end
-    
-    def define_methods_on_variable(var)
-      contract_class.public_abi.each_key do |method_name|
-        var.define_singleton_method(method_name) do |*args, **kwargs|
-          computed_args = VM.deep_unbox(args.presence || kwargs)
-          
-          TransactionContext.call_stack.execute_in_new_frame(
-            to_contract_address: address,
-            function: method_name,
-            args: computed_args,
-            type: :call
-          )
-        end
-      end
     end
     
     def currentInitCodeHash

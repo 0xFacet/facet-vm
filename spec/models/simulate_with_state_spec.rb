@@ -52,7 +52,7 @@ describe 'Simulate with state' do
         }
       },
       initial_state: resp[:state]}.to_json.pbcopy
-    exit
+    
     resp = ContractTransaction.simulate_transaction_with_state(
       from: alice,
       tx_payload: {

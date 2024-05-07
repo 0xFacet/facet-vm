@@ -10,7 +10,24 @@ class StructVariable < GenericVariable
       on_change: -> { on_change&.call }
     )
     
-    value.define_methods_on_var(self)
+    names = value.state_manager.state_variables.keys
+    with_setters = names.map{|n| [n, "#{n}="]}.flatten
+    
+    with_setters.each do |name|
+      define_singleton_method(name) do |*args, **kwargs|
+        ret_val = nil
+      
+        begin
+          value.state_manager.detecting_changes(revert_on_change: true) do
+            ret_val = value.state_proxy.__send__(name, *args, **kwargs)
+          end
+        rescue InvalidStateVariableChange
+          on_change&.call
+        end
+        
+        ret_val
+      end
+    end
   end
   
   def deep_dup
@@ -32,6 +49,8 @@ class StructVariable < GenericVariable
   
   class Value
     include ContractErrors
+    
+    attr_accessor :state_manager, :state_proxy
     
     extend AttrPublicReadPrivateWrite
     
@@ -64,30 +83,6 @@ class StructVariable < GenericVariable
       @state_proxy ||= StateProxy.new(@state_manager)
       
       self.on_change = on_change
-    end
-
-    def define_methods_on_var(var)
-      manager = @state_manager
-      proxy = @state_proxy
-      
-      names = manager.state_variables.keys
-      with_setters = names.map{|n| [n, "#{n}="]}.flatten
-      
-      with_setters.each do |name|
-        var.define_singleton_method(name) do |*args, **kwargs|
-          ret_val = nil
-      
-          begin
-            manager.detecting_changes(revert_on_change: true) do
-              ret_val = proxy.__send__(name, *args, **kwargs)
-            end
-          rescue InvalidStateVariableChange
-            on_change&.call
-          end
-          
-          ret_val
-        end
-      end
     end
     
     def ==(other)

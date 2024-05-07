@@ -9,7 +9,10 @@ class CleanRoom #< UltraBasicObject
       
       case valid_call_method
       when ::Enumerable
-        valid_call_method.include?(method_name)
+        valid_call_method.include?(method_name) || (
+          ::Object.instance_method(:respond_to?).bind_call(@context, :structs) &&
+          @context.structs[method_name]
+        )
       when ::Proc
         valid_call_method.call(method_name)
       end
@@ -46,8 +49,6 @@ class CleanRoom #< UltraBasicObject
     else
       super
     end
-  rescue => e
-    binding.pry
   end
   
   def self.execute_user_code_on_context(
@@ -70,7 +71,7 @@ class CleanRoom #< UltraBasicObject
       singleton_class.class_eval(
         method_definition,
         filename,
-        line_number
+        line_number || 1
       )
     else
       singleton_class.send(:define_method, dummy_name, &user_code_or_block)

@@ -1,4 +1,7 @@
 class FunctionContext #< UltraBasicObject
+  # TODO: not necessary for basic object setup
+  undef_method :hash, :require
+  
   def initialize(contract, method_name, args)
     @contract = contract
     @top_level_method_name = method_name
@@ -31,11 +34,11 @@ class FunctionContext #< UltraBasicObject
       sqrt
       json
       array
+      memory
     ]
     
     @get_values_for = (8..256).step(8).flat_map{|i| ["uint#{i}", "int#{i}"]} + 
     %i[
-      new
       emit
       array
     ]
@@ -68,11 +71,6 @@ class FunctionContext #< UltraBasicObject
     else
       super
     end
-  end
-  
-  # TODO: not necessary for basic object setup
-  def require(...)
-    method_missing(:require, ...)
   end
   
   # TODO: remove

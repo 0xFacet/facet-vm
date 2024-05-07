@@ -12,13 +12,13 @@ RSpec.describe CleanRoom do
         allow(context).to receive(:allowed_method).and_return("Method Executed")
         block = -> { allowed_method }
 
-        result = CleanRoom.execute_user_code_on_context(context, valid_call_proc, block)
+        result = CleanRoom.execute_user_code_on_context(context, valid_call_proc, "allowed_method", block)
         expect(result).to eq("Method Executed")
       end
 
       it "does not execute the block if the method is not allowed" do
         expect {
-          CleanRoom.execute_user_code_on_context(context, valid_call_proc, -> { not_allowed_method })
+          CleanRoom.execute_user_code_on_context(context, valid_call_proc, "not_allowed_method", -> { not_allowed_method })
         }.to raise_error(NameError)
       end
     end
@@ -28,13 +28,13 @@ RSpec.describe CleanRoom do
         allow(context).to receive(:allowed_method).and_return("Method Executed")
         code = "allowed_method"
 
-        result = CleanRoom.execute_user_code_on_context(context, valid_call_proc, code, *filename_and_line)
+        result = CleanRoom.execute_user_code_on_context(context, valid_call_proc, "allowed_method", code, *filename_and_line)
         expect(result).to eq("Method Executed")
       end
 
       it "does not execute the string if the method is not allowed" do
         expect {
-          CleanRoom.execute_user_code_on_context(context, valid_call_proc, "not_allowed_method", *filename_and_line)
+          CleanRoom.execute_user_code_on_context(context, valid_call_proc, "not_allowed_method", code, *filename_and_line)
         }.to raise_error(NameError)
       end
     end

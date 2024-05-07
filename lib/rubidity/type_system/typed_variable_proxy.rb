@@ -78,7 +78,7 @@ class TypedVariableProxy < BoxedVariable
     end + @value.singleton_methods
     
     unless methods.include?(name)
-      raise "No method #{name} on #{@value.inspect}"
+      raise ContractErrors::VariableTypeError, "No method #{name} on #{@value.inspect}"
     end
     
     args = VM.deep_unbox(args)

@@ -74,6 +74,8 @@ class ContractImplementation #< BasicObject
       
     error_message = "#{message}. (#{file}:#{line})\n\n#{emphasized_code}\n\n"
     raise ContractError.new(error_message, self)
+    
+    NullVariable.instance
   end
   
   def self.public_abi
@@ -230,7 +232,7 @@ class ContractImplementation #< BasicObject
   # private
 
   def json
-    ::BoxedVariable.new.tap do |proxy|
+    ::VM::BasicProxy.new.tap do |proxy|
       def proxy.stringify(...)
         res = ::ActiveSupport::JSON.encode(VM.deep_get_values(...))
         ::TypedVariable.create(:string, res)
@@ -239,7 +241,7 @@ class ContractImplementation #< BasicObject
   end
   
   def abi
-    ::BoxedVariable.new.tap do |proxy|
+    ::VM::BasicProxy.new.tap do |proxy|
       def proxy.encodePacked(*args)
         args = VM.deep_unbox(args)
         
@@ -439,7 +441,7 @@ class ContractImplementation #< BasicObject
       contract_instance = self
       potential_parent = self.class.available_contracts[method_name]
       
-      ::BoxedVariable.new.tap do |proxy|
+      ::VM::BasicProxy.new.tap do |proxy|
         proxy.define_singleton_method("__proxy_name__") do
           method_name
         end

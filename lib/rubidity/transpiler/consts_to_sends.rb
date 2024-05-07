@@ -218,13 +218,15 @@ class ConstsToSends
       end
     end
   end
-  
+  'b24cae71-6181-469a-a0c2-2d00a7759535:413c8086c83266f15a90e273b0ac2867'
   def on_block(node)
     send_node, args, body = *node
     
+    processed_body = body ? process(body) : process(s(:nil))
+    
     new_send = send_node.updated(nil, safe_process_all(send_node.children))
     
-    node.updated(nil, [new_send, process(args), process(body)])
+    node.updated(nil, [new_send, process(args), processed_body])
   end
   
   private
