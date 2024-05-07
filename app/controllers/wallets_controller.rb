@@ -23,15 +23,23 @@ class WalletsController < ApplicationController
         Arel.sql("current_state->'symbol'"),
         Arel.sql("current_state->'balanceOf'->#{owner_quoted}"),
         Arel.sql("current_state->'userWithdrawalId'->#{owner_quoted}"),
-        Arel.sql("current_state->'withdrawalIdAmount'->(current_state->'userWithdrawalId'->#{owner_quoted})"),
+        Arel.sql("current_state->'withdrawalIdAmount'"),
         Arel.sql("current_state->'decimals'"),
         Arel.sql("current_state->'tokenSmartContract'"),
         Arel.sql("current_state->'factory'")
       )
 
-    keys = [:contract_address, :name, :symbol, :balance, :withdrawal_id, :withdrawal_amount, :decimals, :token_smart_contract, :factory]
+    keys = [:contract_address, :name, :symbol, :balance, :withdrawal_id, :withdrawal_amounts, :decimals, :token_smart_contract, :factory]
     token_balances = tokens.map do |values|
-      keys.zip(values).to_h
+      data = keys.zip(values).to_h
+      withdrawal_id = data[:withdrawal_id]
+      withdrawal_amounts = data[:withdrawal_amounts]
+      if withdrawal_id && withdrawal_amounts
+        withdrawal_amount = withdrawal_amounts[withdrawal_id]
+        data[:withdrawal_amount] = withdrawal_amount
+      end
+      data.delete(:withdrawal_amounts)
+      data.compact
     end
 
     render json: {
