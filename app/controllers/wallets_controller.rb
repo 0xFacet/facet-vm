@@ -6,7 +6,7 @@ class WalletsController < ApplicationController
     owner = TypedVariable.validated_value(:address, params[:address])
     owner_quoted = ActiveRecord::Base.connection.quote(owner)
 
-    scope = Contract.where("current_state->'balanceOf'->? IS NOT NULL", owner)
+    scope = Contract.where("(current_state->'balanceOf'->? IS NOT NULL OR current_state->'userWithdrawalId'->? IS NOT NULL)", owner, owner)
       .where("current_state->'name' IS NOT NULL")
       .where("current_state->'symbol' IS NOT NULL")
       .where("current_state->'decimals' IS NOT NULL")
@@ -22,12 +22,13 @@ class WalletsController < ApplicationController
         Arel.sql("current_state->'name'"),
         Arel.sql("current_state->'symbol'"),
         Arel.sql("current_state->'balanceOf'->#{owner_quoted}"),
+        Arel.sql("current_state->'userWithdrawalId'->#{owner_quoted}"),
         Arel.sql("current_state->'decimals'"),
         Arel.sql("current_state->'tokenSmartContract'"),
         Arel.sql("current_state->'factory'")
       )
 
-    keys = [:contract_address, :name, :symbol, :balance, :decimals, :token_smart_contract, :factory]
+    keys = [:contract_address, :name, :symbol, :balance, :userWithdrawalId, :decimals, :token_smart_contract, :factory]
     token_balances = tokens.map do |values|
       keys.zip(values).to_h
     end
