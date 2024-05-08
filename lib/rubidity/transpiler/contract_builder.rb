@@ -1,17 +1,16 @@
-class ContractBuilder #< BasicObject
+class ContractBuilder < UltraBasicObject
   def self.build_contract_class(artifact)
     registry = {}.with_indifferent_access
     
     artifact.dependencies_and_self.each do |dep|
       builder = new(registry)
       
-      contract_class = ::CleanRoom.execute_user_code_on_context(
+      contract_class = ::ContractBuilderCleanRoom.execute_user_code_on_context(
         builder,
-        [:contract, :pragma],
-        "process_contract_file",
+        [:contract],
+        "contract",
         dep.execution_source_code,
-        dep.name,
-        1
+        dep.name
       )
       
       contract_class.instance_variable_set(:@source_code, dep.source_code)
@@ -31,10 +30,9 @@ class ContractBuilder #< BasicObject
     @available_contracts = available_contracts
   end
   
-  def pragma(...)
-  end
-  
   def contract(name, is: [], abstract: false, upgradeable: false, &block)
+    # TODO: validate arguments
+    
     available_contracts = @available_contracts
     
     ::Class.new(::ContractImplementation) do
@@ -53,7 +51,7 @@ class ContractBuilder #< BasicObject
       @is_abstract_contract = abstract
       @name = name.to_s
 
-      ::CleanRoom.execute_user_code_on_context(
+      ::ContractBuilderCleanRoom.execute_user_code_on_context(
         self,
         [
           :event,

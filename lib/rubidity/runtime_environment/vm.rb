@@ -112,6 +112,73 @@ module VM
     val.value
   end
   
+  def send_method(
+    _binding,
+    method_name,
+    args: [],
+    kwargs: {},
+    &block
+  )
+    Object.instance_method(:__send__).
+      bind_call(_binding, method_name, *args, **kwargs, &block)
+  end
+  
+  def call_method(
+    _binding,
+    method_name,
+    args: [],
+    kwargs: {},
+    &block
+  )
+    Object.instance_method(method_name).
+      bind_call(_binding, *Array.wrap(args), **kwargs, &block)
+  end
+  
+  def get_instance_variable(_binding, name, revert_if_undefined = true)
+    unless name.starts_with?("@")
+      name = "@#{name}"
+    end
+    
+    defined = call_method(
+      _binding,
+      :instance_variable_defined?,
+      args: name
+    )
+    
+    if !defined && revert_if_undefined
+      raise "Instance variable not defined: #{name}"
+    end
+    
+    call_method(
+      _binding,
+      :instance_variable_get,
+      args: name
+    )
+  end
+  
+  def call_respond_to?(_binding, name)
+    call_method(
+      _binding,
+      :respond_to?,
+      args: name
+    )
+  end
+  
+  def call_is_a?(_binding, name)
+    call_method(
+      method_name: :is_a?,
+      _binding: _binding,
+      args: name
+    )
+  end
+  
+  def get_singleton_class(_binding)
+    call_method(
+      _binding,
+      :singleton_class
+    )
+  end
+  
   private
   
   def infer_int_type(value)
