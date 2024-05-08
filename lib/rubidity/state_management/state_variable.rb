@@ -81,7 +81,7 @@ class StateVariable
     contract_class.class_eval do
       self.function(new_var.name, {index: :uint256}, :public, :view, returns: current_type.value_type.name) do
         value = s.send(new_var.name)
-        value[send(:index)]
+        value[__send__(:index)]
       end
     end
   end

@@ -1,10 +1,9 @@
-class FunctionContext #< UltraBasicObject
+class FunctionContext < UltraBasicObject
   # TODO: not necessary for basic object setup
-  undef_method :hash, :require
+  # undef_method :hash, :require
   
-  def initialize(contract, method_name, args)
+  def initialize(contract, args)
     @contract = contract
-    @top_level_method_name = method_name
     @args = args
     
     klass = ::Object.instance_method(:class).bind(contract).call
@@ -37,49 +36,48 @@ class FunctionContext #< UltraBasicObject
       memory
     ]
     
-    @get_values_for = (8..256).step(8).flat_map{|i| ["uint#{i}", "int#{i}"]} + 
-    %i[
+    @get_values_for = %i[
       emit
       array
     ]
     
     @allowed_contract_calls = @allowed_contract_calls.flatten.map(&:to_sym).to_set
   end
-
-  define_method(ConstsToSends.box_function_name) do |value|
-    VM.box(value)
-  end
   
-  define_method(ConstsToSends.unbox_and_get_bool_function_name) do |value|
-    VM.unbox_and_get_bool(value)
-  end
-  
-  def method_missing(name, *args, **kwargs, &block)
-    if @get_values_for.include?(name.to_sym)
-      args = VM.deep_get_values(args)
-      kwargs = VM.deep_get_values(kwargs)
-    else
-      args = VM.deep_unbox(args)
-      kwargs = VM.deep_unbox(kwargs)
+  def method_missing(method_name, *args, **kwargs, &block)
+    if method_name == ::ConstsToSends.box_function_name
+      return ::VM.box(args[0])
     end
     
-    if @args.members.include?(name.to_sym)
-      @args[name.to_sym]
-    elsif @allowed_contract_calls.include?(name.to_sym)
+    if method_name == ::ConstsToSends.unbox_and_get_bool_function_name
+      return ::VM.unbox_and_get_bool(args[0])
+    end
+    
+    if @get_values_for.include?(method_name.to_sym)
+      args = ::VM.deep_get_values(args)
+      kwargs = ::VM.deep_get_values(kwargs)
+    else
+      args = ::VM.deep_unbox(args)
+      kwargs = ::VM.deep_unbox(kwargs)
+    end
+    
+    if @args.members.include?(method_name.to_sym)
+      @args[method_name.to_sym]
+    elsif @allowed_contract_calls.include?(method_name.to_sym)
       # TODO: remove block unless forLoop
-      ::Object.instance_method(:public_send).bind(@contract).call(name, *args, **kwargs, &block)
+      ::Object.instance_method(:public_send).bind(@contract).call(method_name, *args, **kwargs, &block)
     else
       super
     end
   end
   
   # TODO: remove
-  def Kernel
-    ::Kernel
-  end
+  # def Kernel
+  #   ::Kernel
+  # end
   
   def self.define_and_call_function_method(contract, args, method_name, &block)
-    context = new(contract, method_name, args)
+    context = new(contract, args)
     
     dummy_name = "__#{method_name}__"
     
@@ -87,8 +85,6 @@ class FunctionContext #< UltraBasicObject
     singleton_class.send(:define_method, dummy_name, &block)
     
     result = ::Object.instance_method(:__send__).bind(context).call(dummy_name)
-    
-    singleton_class.send(:remove_method, dummy_name)
     
     result
   end
