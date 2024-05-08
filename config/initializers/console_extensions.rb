@@ -12,7 +12,7 @@ module RailsConsoleExtensions
   end
   
   def rparse(ruby)
-    RuboCop::AST::ProcessedSource.new(ruby, 3.3).ast
+    RuboCop::AST::ProcessedSource.new(ruby, RUBY_VERSION.to_f).ast
   end
   
   def rmatch(source_code_or_node, pattern)

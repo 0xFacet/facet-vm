@@ -487,6 +487,38 @@ ALTER SEQUENCE public.ethscriptions_id_seq OWNED BY public.ethscriptions.id;
 
 
 --
+-- Name: init_code_mappings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.init_code_mappings (
+    id bigint NOT NULL,
+    old_init_code_hash character varying NOT NULL,
+    new_init_code_hash character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: init_code_mappings_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.init_code_mappings_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: init_code_mappings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.init_code_mappings_id_seq OWNED BY public.init_code_mappings.id;
+
+
+--
 -- Name: schema_migrations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -645,6 +677,13 @@ ALTER TABLE ONLY public.ethscriptions ALTER COLUMN id SET DEFAULT nextval('publi
 
 
 --
+-- Name: init_code_mappings id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.init_code_mappings ALTER COLUMN id SET DEFAULT nextval('public.init_code_mappings_id_seq'::regclass);
+
+
+--
 -- Name: system_config_versions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -720,6 +759,14 @@ ALTER TABLE ONLY public.eth_blocks
 
 ALTER TABLE ONLY public.ethscriptions
     ADD CONSTRAINT ethscriptions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: init_code_mappings init_code_mappings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.init_code_mappings
+    ADD CONSTRAINT init_code_mappings_pkey PRIMARY KEY (id);
 
 
 --
@@ -1027,6 +1074,20 @@ CREATE UNIQUE INDEX index_ethscriptions_on_transaction_hash ON public.ethscripti
 
 
 --
+-- Name: index_init_code_mappings_on_new_init_code_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_init_code_mappings_on_new_init_code_hash ON public.init_code_mappings USING btree (new_init_code_hash);
+
+
+--
+-- Name: index_init_code_mappings_on_old_init_code_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_init_code_mappings_on_old_init_code_hash ON public.init_code_mappings USING btree (old_init_code_hash);
+
+
+--
 -- Name: index_system_config_versions_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1258,6 +1319,7 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20240507202106'),
 ('20240309162632'),
 ('20231113223006'),
 ('20231110173854'),

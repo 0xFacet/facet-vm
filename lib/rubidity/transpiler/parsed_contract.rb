@@ -15,6 +15,14 @@ class ParsedContract
     StateVariableDefinitions.instance_methods.include?(name)
   end
   
+  def_node_matcher :struct_state_variable_definition?, <<~PATTERN
+    (send nil? $#struct_name? (sym $_) (sym $_)?)
+  PATTERN
+  
+  def struct_name?(name)
+    calculated_struct_definitions.any?{|i| i.name.to_sym == name.to_sym }
+  end
+  
   def_node_matcher :mapping_call, <<~PATTERN
     (send nil? :mapping 
       (begin $(hash ...))  # Captures the hash inside a begin block
@@ -95,11 +103,12 @@ class ParsedContract
       valid = contract_function?(node) ||
         contract_function_no_body?(node) ||
         constructor?(node) ||
-        state_variable_definition?(node) ||
         mapping_call(node) ||
         struct_definition(node) ||
         array_variable_declaration(node) ||
-        event_definition(node)
+        event_definition(node) ||
+        state_variable_definition?(node) ||
+        struct_state_variable_definition?(node)
         
       unless valid
         puts body.unparse rescue body
@@ -193,9 +202,36 @@ class ParsedContract
   end
   memoize :parent_contracts
   
+  def calculated_parent_contracts
+    parent_contracts.map do |contract|
+      contract.parent_contracts + [contract]
+    end.flatten.uniq
+  end
+  memoize :calculated_parent_contracts
+  
   def calculated_available_contracts
     [self] + available_contracts
   end
+  
+  def struct_definitions
+    body.children.each.with_object([]) do |node, struct_definitions|
+      struct_definition(node) do |struct_name, fields, field_types, field_values|
+        field_hash = field_values.zip(field_types).to_h
+        
+        struct_definitions << OpenStruct.new(
+          name: struct_name,
+          type: :struct,
+          fields: field_hash
+        )
+      end
+    end
+  end
+  memoize :struct_definitions
+  
+  def calculated_struct_definitions
+    struct_definitions + parent_contracts.flat_map(&:calculated_struct_definitions)
+  end
+  memoize :calculated_struct_definitions
   
   def state_variables
     body.children.each.with_object([]) do |node, state_vars|
@@ -232,23 +268,19 @@ class ParsedContract
         )
       end
       
-      struct_definition(node) do |struct_name, fields, field_types, field_values|
-        field_hash = field_values.zip(field_types).to_h
+      struct_state_variable_definition?(node) do |struct_name, visibility, var_name|
+        var_name = var_name.first if var_name.is_a?(Array)
         
         state_vars << OpenStruct.new(
-          name: struct_name,
+          name: var_name,
+          visibility: visibility,
           type: :struct,
-          fields: field_hash
+          struct_name: struct_name
         )
       end
     end
   end
   memoize :state_variables
-  
-  def struct_definitions
-    state_variables.select{|i| i.type == :struct}
-  end
-  memoize :struct_definitions
   
   def process_mapping_hash(node)
     return {} unless node.type == :hash

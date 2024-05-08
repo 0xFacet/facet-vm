@@ -200,6 +200,15 @@ class BlockContext < ActiveSupport::CurrentAttributes
   end
   
   def get_cached_class(init_code_hash)
+    attempt = ContractArtifact.cached_class_as_of_tx_hash(
+      init_code_hash,
+      current_transaction&.transaction_hash
+    )
+    
+    return attempt if attempt
+    
+    init_code_hash = InitCodeMapping.old_to_new(init_code_hash)
+    
     ContractArtifact.cached_class_as_of_tx_hash(
       init_code_hash,
       current_transaction&.transaction_hash
@@ -212,7 +221,8 @@ class BlockContext < ActiveSupport::CurrentAttributes
     end
     
     current = contract_artifacts.detect do |artifact|
-      artifact.init_code_hash == init_code_hash
+      artifact.init_code_hash == init_code_hash ||
+      artifact.init_code_hash == InitCodeMapping.old_to_new(init_code_hash)
     end
   
     current&.build_class || get_cached_class(init_code_hash)

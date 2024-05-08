@@ -3,7 +3,7 @@ pragma :rubidity, "1.0.0"
 import './TestContract.rubidity'
 
 contract :TestContractOverrideNonVirtual, is: :TestContract do
-  function :nonVirtual, {}, :public, :override do
+  function :nonVirtual, { to: :address, amount: :uint256 }, :public, :override do
     ERC20._mint(to: to, amount: amount)
   end
 end
