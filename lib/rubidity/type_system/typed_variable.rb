@@ -89,10 +89,6 @@ class TypedVariable
     end
   end
   
-  def deserialize(serialized_value)
-    self.value = serialized_value
-  end
-  
   def value=(new_value)
     if type.bool? && !@value.nil?
       raise TypeError.new("Cannot change value of #{self.value.inspect}")
@@ -101,6 +97,10 @@ class TypedVariable
     new_value = type.check_and_normalize_literal(new_value)
     
     if @value != new_value
+      if type.is_value_type? && @value != type.default_value && !@value.nil?
+        raise TypeError.new("Cannot change value of #{self.value.inspect}")
+      end
+      
       on_change&.call
       
       if new_value.respond_to?(:on_change=)

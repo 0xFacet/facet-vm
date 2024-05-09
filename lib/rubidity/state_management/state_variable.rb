@@ -91,16 +91,12 @@ class StateVariable
   end
   
   def deserialize(value)
-    if typed_variable.type.bool?
-      self.typed_variable = value
-    else
-      typed_variable.deserialize(value)
-    end
+    self.typed_variable = TypedVariable.create(typed_variable.type, value)
   end
   
   def method_missing(name, ...)
     if typed_variable.respond_to?(name)
-      typed_variable.send(name, ...)
+      typed_variable.public_send(name, ...)
     else
       super
     end
