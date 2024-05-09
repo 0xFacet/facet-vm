@@ -42,12 +42,7 @@ module RubidityTypeExtensions
     include ContractErrors
     
     def call(json_call_data = nil, **kwargs)
-      
-      calldata = if kwargs.empty?
-        JSON.parse(json_call_data.value)
-      else
-        kwargs.transform_values{|i| i.unwrap.value}
-      end
+      calldata = kwargs.presence || JSON.parse(json_call_data.value)
       
       function, args = if calldata.is_a?(Hash)
         calldata = calldata.with_indifferent_access
@@ -98,17 +93,14 @@ module RubidityTypeExtensions
         raise ArgumentError.new("Invalid type")
       end
   
-      message = message.deep_transform_values do |value|
-        value = value.unwrap if value.respond_to?(:unwrap)
-        value.respond_to?(:value) ? value.value : value
-      end
-      
-      type = type.deep_transform_values do |value|
-        value = value.unwrap if value.respond_to?(:unwrap)
-        value.respond_to?(:value) ? value.value : value
-      end
-  
-      chainid = TransactionContext.block_chainid.unwrap.value
+      # TODO: Input validation
+      message = VM.deep_get_values(message)
+      type = VM.deep_get_values(type)
+      domainName = VM.deep_get_values(domainName)
+      domainVersion = VM.deep_get_values(domainVersion)
+      signer = VM.deep_get_values(signer)
+      verifyingContract = VM.deep_get_values(verifyingContract)
+      chainid = VM.deep_get_values(TransactionContext.block_chainid)
       
       typed_data = {
         types: {
@@ -121,15 +113,14 @@ module RubidityTypeExtensions
         }.merge(type),
         primaryType: type.keys.first.to_s,
         domain: {
-          name: domainName.respond_to?(:unwrap) ? domainName.unwrap.value : domainName,
-          version: domainVersion.respond_to?(:unwrap) ? domainVersion.unwrap.value : domainVersion,
+          name: domainName,
+          version: domainVersion,
           chainId: chainid,
-          verifyingContract: verifyingContract.respond_to?(:unwrap) ? verifyingContract.unwrap.value : verifyingContract
+          verifyingContract: verifyingContract
         },
         message: message
       }
       
-      signer = signer.respond_to?(:unwrap) ? signer.unwrap.value : signer
       signature = value
       
       TypedVariable.create(:bool, Eth::Signature.verify(typed_data, signature, signer, chainid))

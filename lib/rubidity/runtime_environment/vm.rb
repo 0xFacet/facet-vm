@@ -47,11 +47,12 @@ module VM
         raise "Invalid Type value: #{val.inspect}"
       end
     else
+      # return val if val == ::Kernel
       raise "Invalid value to box: #{val.inspect}"
     end
     
     loop do
-      return boxed_val if boxed_val.is_a?(BoxedVariable)
+      return boxed_val if call_is_a?(boxed_val, BoxedVariable)
       
       boxed_val = box(boxed_val)
     end
@@ -63,16 +64,20 @@ module VM
       value.map { |item| deep_unbox(item) }
     when Hash
       value.transform_keys do |key|
-        new_key = VM.deep_unbox(key)
+        val = VM.deep_unbox(key)
         
-        if new_key.is_a?(TypedVariable) && [:symbol, :string].include?(new_key.type.name)
-          new_key.value.to_sym
+        if val.is_a?(String)
+          val.to_sym
+        elsif val.is_a?(Symbol)
+          val
         else
-          new_key
+          raise "Invalid key type: #{val.inspect}"
         end
-      end.transform_values { |val| deep_unbox(val) }.deep_symbolize_keys # TODO: Do this better
+      end.transform_values { |val| deep_unbox(val) }
     when BoxedVariable
-      deep_unbox(value.unbox)
+      deep_unbox(
+        get_instance_variable(value, :value)
+      )
     else
       value
     end
@@ -99,13 +104,13 @@ module VM
   end
   
   def unbox_and_get_bool(boxed_typed_var)
-    unless boxed_typed_var.is_a?(BoxedVariable)
+    unless call_is_a?(boxed_typed_var, BoxedVariable)
       raise "Invalid value: #{boxed_typed_var.inspect}"
     end
     
     val = deep_unbox(boxed_typed_var)
     
-    unless val.is_a?(TypedVariable) && val.type.bool?
+    unless call_is_a?(val, TypedVariable) && val.type.bool?
       raise "Invalid value: #{val.inspect}"
     end
     
@@ -166,8 +171,8 @@ module VM
   
   def call_is_a?(_binding, name)
     call_method(
-      method_name: :is_a?,
-      _binding: _binding,
+      _binding,
+      :is_a?,
       args: name
     )
   end

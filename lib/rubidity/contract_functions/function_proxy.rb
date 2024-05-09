@@ -144,7 +144,7 @@ class FunctionProxy
       other_args = VM.deep_unbox(other_kwargs)
     end
     
-    if other_args.first.is_a?(Hash) && other_args.length == 1
+    if VM.call_is_a?(other_args.first, Hash) && other_args.length == 1
       other_args = other_args.first.deep_symbolize_keys
     end
     

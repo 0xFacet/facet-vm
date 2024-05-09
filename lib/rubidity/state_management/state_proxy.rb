@@ -4,7 +4,7 @@ class StateProxy < BoxedVariable
   end
   
   def method_missing(name, *args)
-    args = VM.deep_unbox(args)
+    args = ::VM.deep_unbox(args)
     
     is_setter = name.end_with?('=')
     var_name = name.to_s.chomp("=")

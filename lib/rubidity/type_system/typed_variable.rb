@@ -17,10 +17,6 @@ class TypedVariable
     TypedVariableProxy.new(self)
   end
   
-  def unwrap
-    self
-  end
-  
   def initialize(type, value = nil, on_change: nil, **options)
     self.type = type
     self.value = value.nil? ? type.default_value : value
@@ -72,6 +68,10 @@ class TypedVariable
   end
   
   def self.validated_value(type, value, allow_nil: false)
+    if CleanRoomAdmin.call_is_a?(value, TypedVariableProxy)
+      value = CleanRoomAdmin.get_instance_variable(value, :value)
+    end
+    
     return nil if value.nil? && allow_nil
     
     create_or_validate(type, value).value

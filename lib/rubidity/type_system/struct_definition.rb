@@ -21,6 +21,7 @@ class StructDefinition
   
   def update_struct_definition(type, name)
     type = ::Type.create(type)
+    name = ::VM.deep_get_values(name)
     
     if @fields[name]
       raise "No shadowing: #{name} is already defined."

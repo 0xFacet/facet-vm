@@ -78,6 +78,16 @@ class ConstsToSends
     )
   end
   
+  def on_pair(node)
+    left, right = *node.children
+    
+    unless left.type == :sym
+      raise "Unsupported key type for hash pair: #{left.inspect}"
+    end
+    
+    s(:pair, left , process(right))
+  end
+  
   # def on_begin(node)
   #   if node.children.size == 1
   #     process(node.children.first)
@@ -218,7 +228,7 @@ class ConstsToSends
       end
     end
   end
-  'b24cae71-6181-469a-a0c2-2d00a7759535:413c8086c83266f15a90e273b0ac2867'
+  
   def on_block(node)
     send_node, args, body = *node
     

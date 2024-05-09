@@ -1,17 +1,13 @@
-class BoxedVariable # < UltraBasicObject
+class BoxedVariable < UltraBasicObject
   def initialize(value = nil)
     @value = value
   end
-
-  def unbox
-    @value
-  end
   
   def to_ary
-    if @value.is_a?(Array)
+    if ::VM.call_is_a?(@value, ::Array)
       @value.to_ary
     else
-      raise "Cannot convert to array: #{@value.inspect}"
+      ::VM.call_method(self, :raise, args: "Cannot convert to array: #{::VM.call_method(@value, :inspect)}")
     end
   end
 end

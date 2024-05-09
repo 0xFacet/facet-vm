@@ -1,7 +1,7 @@
 class TypedVariableProxy < BoxedVariable
-  [:!, :!=, :+, :==, :>, :<=, :>=, :*, :-, :<, :%, :/, :[], :[]=, :coerce, :length, :to_int, :to_str, :upcase, :cast, :push, :pop, :div, :downcase, :last].each do |method|
-    undef_method(method) if method_defined?(method)
-  end
+  # [:!, :!=, :+, :==, :>, :<=, :>=, :*, :-, :<, :%, :/, :[], :[]=, :coerce, :length, :to_int, :to_str, :upcase, :cast, :push, :pop, :div, :downcase, :last].each do |method|
+  #   undef_method(method) if method_defined?(method)
+  # end
   
   def self.get_typed_var_if_necessary(proxy_or_var)
     if proxy_or_var.is_a?(::TypedVariable)
@@ -11,27 +11,18 @@ class TypedVariableProxy < BoxedVariable
     end
   end
   
-  def to_proxy
-    self
-  end
-  
-  def unwrap
-    @value
-  end
-  alias_method :unbox, :unwrap
-  
   def self.get_typed_variable(proxy)
-    if proxy.is_a?(::TypedVariable)
+    if ::VM.call_is_a?(proxy, ::TypedVariable)
       return proxy
     end
     
-    unless ::CleanRoomAdmin.call_is_a?(proxy, TypedVariableProxy)
+    unless ::CleanRoomAdmin.call_is_a?(proxy, ::TypedVariableProxy)
       raise "Can only use a proxy: #{proxy.inspect}"
     end
     
     var = ::CleanRoomAdmin.get_instance_variable(proxy, :value)
     
-    unless var.is_a?(::TypedVariable)
+    unless ::VM.call_is_a?(var, ::TypedVariable)
       # binding.pry
       raise "Invalid typed variable in proxy: #{var.inspect}"
     end
@@ -41,7 +32,7 @@ class TypedVariableProxy < BoxedVariable
   
   # TODO: Kill
   def cast(type)
-    @value.cast(VM.deep_unbox(type))
+    @value.cast(::VM.deep_unbox(type))
   end
   
   def to_ary
@@ -54,7 +45,7 @@ class TypedVariableProxy < BoxedVariable
   end
   
   def initialize(typed_variable)
-    unless typed_variable.is_a?(::TypedVariable) || typed_variable.is_a?(::DestructureOnly)
+    unless ::VM.call_is_a?(typed_variable, ::TypedVariable) || ::VM.call_is_a?(typed_variable, ::DestructureOnly)
       raise "Can only use a TypedVariable: #{typed_variable.inspect}"
     end
     
@@ -78,11 +69,11 @@ class TypedVariableProxy < BoxedVariable
     end + @value.singleton_methods
     
     unless methods.include?(name)
-      raise ContractErrors::VariableTypeError, "No method #{name} on #{@value.inspect}"
+      ::Kernel.instance_method(:raise).bind(self).call(::ContractErrors::VariableTypeError, "No method #{name} on #{@value.inspect}")
     end
     
-    args = VM.deep_unbox(args)
-    kwargs = VM.deep_unbox(kwargs)
+    args = ::VM.deep_unbox(args)
+    kwargs = ::VM.deep_unbox(kwargs)
     
     if name == :verifyTypedDataSignature
       res = @value.public_send(name, *args, **kwargs)

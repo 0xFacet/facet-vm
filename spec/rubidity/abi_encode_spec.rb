@@ -1,6 +1,12 @@
 require 'rails_helper'
 
-describe 'toPackedBytes' do  
+describe 'toPackedBytes' do
+  class TypedVariable
+    def unwrap
+      self
+    end
+  end
+  
   dc = RubidityTranspiler.transpile_and_get("ERC20").build_class
   
   it 'correctly encodes uint32' do
