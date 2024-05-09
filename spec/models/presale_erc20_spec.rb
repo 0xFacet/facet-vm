@@ -134,7 +134,7 @@ RSpec.describe "PresaleERC20", type: :model do
         expect(get_contract_state(presale_contract.address, "shares", buyer_address)).to eq(buy_amount - sell_amount)
       end
 
-      it 'does not allow claiming tokens before the presale ends' do
+      it 'does not allow finalizing before the presale ends' do
         buy_amount = 100.ether
         buy_shares_success(buy_amount)
 
@@ -159,7 +159,10 @@ RSpec.describe "PresaleERC20", type: :model do
 
       it 'allows claiming tokens after the presale is finalized' do
         finalize_presale_success()
-        expect(get_contract_state(presale_contract.address, "pairAddress")).not_to be_nil
+        pair_address = get_contract_state(presale_contract.address, "pairAddress")
+        expect(pair_address).not_to be_nil
+        expect(get_contract_state(presale_contract.address, "balanceOf", pair_address)).to eq(tokens_for_presale)
+        expect(get_contract_state(weth_contract.address, "balanceOf", pair_address)).to eq(100.ether)
 
         claim_receipt = claim_tokens_success()
         expect(claim_receipt.logs).to include(hash_including('event' => 'TokensClaimed'))
