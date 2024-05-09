@@ -50,10 +50,6 @@ class TypedVariable
   end
   
   def self.create_or_validate(type, value = nil, on_change: nil)
-    if CleanRoomAdmin.call_is_a?(value, TypedVariableProxy)
-      value = CleanRoomAdmin.get_instance_variable(value, :value)
-    end
-    
     if value.is_a?(TypedVariable)
       unless Type.create(type).can_be_assigned_from?(value.type)
         raise VariableTypeError.new("invalid #{type}: #{value.inspect}")
@@ -66,10 +62,6 @@ class TypedVariable
   end
   
   def self.validated_value(type, value, allow_nil: false)
-    if CleanRoomAdmin.call_is_a?(value, TypedVariableProxy)
-      value = CleanRoomAdmin.get_instance_variable(value, :value)
-    end
-    
     return nil if value.nil? && allow_nil
     
     create_or_validate(type, value).value
