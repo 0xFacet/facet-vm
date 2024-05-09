@@ -32,6 +32,8 @@ class StateVariable
     return unless @visibility == :public
     new_var = self
     
+    contract_class.expose(name)
+    
     if type.mapping?
       create_mapping_getter_function(contract_class)
     elsif type.array?

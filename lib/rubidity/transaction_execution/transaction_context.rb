@@ -16,16 +16,9 @@ class TransactionContext < ActiveSupport::CurrentAttributes
       attribute full_attr_name
 
       define_method("#{full_attr_name}=") do |new_value|
-        new_value = TypedVariable.create_or_validate(type, new_value).to_proxy
+        new_value = TypedVariable.create_or_validate(type, new_value)
         super(new_value)
       end
-    end
-
-    define_method(struct_name) do
-      struct_params = details[:attributes].keys
-      struct_values = struct_params.map { |key| send("#{struct_name}_#{key}") }
-    
-      Struct.new(*struct_params).new(*struct_values)
     end
   end
   
@@ -65,7 +58,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def msg_sender
-    TypedVariable.create_or_validate(:address, current_call.from_address).to_proxy
+    TypedVariable.create_or_validate(:address, current_call.from_address)
   end
   
   def current_contract
@@ -77,10 +70,9 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def blockhash(input_block_number)
-    input_block_number = TypedVariableProxy.get_typed_variable(input_block_number).value
-    block_number = TypedVariableProxy.get_typed_variable(block.number).value
+    input_block_number = VM.deep_get_values(input_block_number)
     
-    unless input_block_number == block_number
+    unless input_block_number == block_number.value
       # TODO: implement
       raise "Not implemented"
     end

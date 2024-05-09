@@ -34,6 +34,8 @@ class AbiProxy
         prefixed_name = "__#{parent.name}_#{name}__"
         define_function_method(prefixed_name, func, contract_class)
         add_function(name, func, from_parent: true)
+        
+        contract_class.expose(prefixed_name)
       end
     end
   end
@@ -70,6 +72,8 @@ class AbiProxy
   
   def define_function_method(method_name, func_proxy, target_class)
     target_class.class_eval do
+      expose(method_name)
+      
       define_method(method_name) do |*args, **kwargs|
         begin
           cooked_args = func_proxy.convert_args_to_typed_variables_struct(args, kwargs)

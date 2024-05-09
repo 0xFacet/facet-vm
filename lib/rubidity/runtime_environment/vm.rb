@@ -1,23 +1,9 @@
 module VM
-  class BasicProxy
-    def initialize(value = nil)
-      @value = value
-    end
-    
-    def value
-      @value
-    end
-    
-    def method_missing(method_name, *args, &block)
-      @value.public_send(method_name, *args, &block)
-    end
-  end
-  
   extend self
   
   def box(val)
     boxed_val = case val
-    when BoxedVariable, BasicProxy
+    when BoxedVariable
       return val
     when nil
       NullVariable.instance
@@ -30,13 +16,9 @@ module VM
     when Symbol
       TypedVariable.create(:symbol, val)
     when TypedVariable
-      val.to_proxy
-    when Array
+      TypedVariableProxy.new(val)
+    when Array, Hash, Proc, DestructureOnly # proc for lambdas in forLoop
       BoxedVariable.new(val)
-    when BasicProxy, Hash, Class, Proc, DestructureOnly # proc for lambdas in forLoop
-      BoxedVariable.new(val)
-    when Struct
-      return val # For box(msg).value
     when Binding, Kernel
       raise unless Rails.env.development? || Rails.env.test?
       return val

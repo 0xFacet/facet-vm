@@ -25,13 +25,13 @@ class AddressVariable < GenericVariable
     ).to_json
     
     DestructureOnly.new( 
-      success: TypedVariable.create(:bool, true).to_proxy,
-      data: TypedVariable.create(:string, data).to_proxy
+      success: TypedVariable.create(:bool, true),
+      data: TypedVariable.create(:string, data)
     )
   rescue ContractError, TransactionError, JSON::ParserError => e
     return DestructureOnly.new(
-      success: TypedVariable.create(:bool, false).to_proxy,
-      data: TypedVariable.create(:string).to_proxy
+      success: TypedVariable.create(:bool, false),
+      data: TypedVariable.create(:string)
     )
   end
 end

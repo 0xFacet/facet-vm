@@ -28,6 +28,8 @@ class ConstsToSends
   SimpleBoxNodes = [:true, :false, :array, :hash, :int, :str, :sym, :lvasgn, :nil, :lvar]
 
   SimpleBoxNodes.each do |type|
+    # TODO: Do we need to box lvasgn?
+    
     define_method("on_#{type}") do |node|
       box_expression(node)
     end
@@ -186,9 +188,68 @@ class ConstsToSends
     end
   end
 
+  SENDS_TO_UNDERSCORE = %w(
+    abi.encodePacked
+    msg.sender
+    block.timestamp
+    json.stringify
+    tx.origin
+    tx.current_transaction_hash
+    block.number
+    block.timestamp
+    block.blockhash
+    block.chainid
+  ).map { |pattern| pattern.split('.').map(&:to_sym) }.to_set.freeze
+  
+  def underscore_sends(node)
+    receiver, method_name, *args = *node
+    
+    unless receiver&.type == :send && receiver.children[0].nil?
+      return node
+    end
+    
+    receiver_method_name = receiver.children[1]
+    
+    method_call = [receiver_method_name, method_name]
+
+    if SENDS_TO_UNDERSCORE.include?(method_call)
+      new_method_name = "#{method_call[0]}_#{method_call[1]}".to_sym
+      
+      return process(s(:send, nil, new_method_name, *args))
+    end
+    
+    node
+  end
+  
+  def underscore_const_sends(node)
+    receiver, method_name, *args = *node
+    
+    unless receiver&.type == :const && receiver.children[0].nil?
+      return node
+    end
+    
+    receiver_name = receiver.children[1]
+    
+    new_method_name = "__#{receiver_name}_#{method_name}__".to_sym
+    
+    process(s(:send, nil, new_method_name, *args))
+  end
+  
   def on_send(node)
     if is_box_send?(node)
       return node
+    end
+    
+    underscored = underscore_sends(node)
+    
+    if underscored != node
+      return underscored
+    end
+    
+    underscored = underscore_const_sends(node)
+    
+    if underscored != node
+      return underscored
     end
     
     if node == (s(:send, nil, :pragma,

@@ -10,10 +10,6 @@ class TypedVariable
   
   attr_accessor :value, :on_change
   attr_public_read_private_write :type
-  # TODO: kill
-  def to_proxy
-    TypedVariableProxy.new(self)
-  end
   
   def initialize(type, value = nil, on_change: nil, **options)
     self.type = type

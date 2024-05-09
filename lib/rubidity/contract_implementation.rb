@@ -1,18 +1,66 @@
-class ContractImplementation #< BasicObject
+class ContractImplementation
   extend ::StateVariableDefinitions
   include ::ContractErrors
   include ::ForLoop
+  include Exposable
   
   class << self
     attr_reader :name, :is_abstract_contract, :source_code,
-    :init_code_hash, :parent_contracts, :available_contracts, :source_file,
+    :init_code_hash, :parent_contracts, :source_file,
     :is_upgradeable
     
-    attr_accessor :state_variable_definitions, :events, :structs
+    attr_accessor :available_contracts, :state_variable_definitions, :events, :structs
+    
+    def available_contracts=(contracts)
+      @available_contracts = contracts
+      
+      contracts.each_key do |contract_name|
+        define_method(contract_name) do |*args, **kwargs|
+          handle_contract_name_call(contract_name, *args, **kwargs)
+        end
+        
+        expose contract_name
+      end
+    end
   end
   
-  delegate :block, :blockhash, :tx, :msg, :log_event, :call_stack,
-           :current_address, to: :current_context
+  delegate :msg_sender,
+  :block_timestamp,
+  :tx_origin,
+  :tx_current_transaction_hash,
+  :block_number,
+  :block_blockhash,
+  :block_chainid,
+  :blockhash,
+  :log_event,
+  :call_stack,
+  :current_address,
+  to: :current_context
+  
+  expose :msg_sender,
+  :block_timestamp,
+  :tx_origin,
+  :tx_current_transaction_hash,
+  :block_number,
+  :block_blockhash,
+  :block_chainid,
+  :blockhash,
+  :s,
+  :require,
+  :keccak256,
+  :create2_address,
+  :forLoop,
+  :new,
+  :emit,
+  :this,
+  :sqrt,
+  :array,
+  :memory,
+  :abi_encodePacked,
+  :json_stringify,
+  :string,
+  :address,
+  :bytes32
   
   attr_reader :current_context
   
@@ -220,43 +268,24 @@ class ContractImplementation #< BasicObject
     end
   end
   
-  def public_send(...)
-    ::Object.instance_method(:public_send).bind(self).call(...)
+  def json_stringify(...)
+    res = ::ActiveSupport::JSON.encode(VM.deep_get_values(...))
+    ::TypedVariable.create(:string, res)
   end
   
-  def send(...)
-    ::Object.instance_method(:send).bind(self).call(...)
-  end
-  
-  # TODO: put in right place
-  # private
-
-  def json
-    ::VM::BasicProxy.new.tap do |proxy|
-      def proxy.stringify(...)
-        res = ::ActiveSupport::JSON.encode(VM.deep_get_values(...))
-        ::TypedVariable.create(:string, res)
-      end
+  def abi_encodePacked(*args)
+    args = VM.deep_unbox(args)
+    
+    if args.all? {|arg| arg.value == '' }
+      raise "Can't encode empty bytes"
     end
-  end
-  
-  def abi
-    ::VM::BasicProxy.new.tap do |proxy|
-      def proxy.encodePacked(*args)
-        args = VM.deep_unbox(args)
-        
-        if args.all? {|arg| arg.value == '' }
-          raise "Can't encode empty bytes"
-        end
-        
-        res = args.map do |arg|
-          bytes = arg.toPackedBytes
-          bytes = bytes.value.sub(/\A0x/, '')
-        end.join
-        
-        ::TypedVariable.create(:bytes, "0x" + res)
-      end
-    end
+    
+    res = args.map do |arg|
+      bytes = arg.toPackedBytes
+      bytes = bytes.value.sub(/\A0x/, '')
+    end.join
+    
+    ::TypedVariable.create(:bytes, "0x" + res)
   end
   
   def string(i)
@@ -300,10 +329,7 @@ class ContractImplementation #< BasicObject
     else
       raise "Not implemented"
     end
-  rescue => e
-    binding.pry
   end
-  
   
   def self.calculate_new_contract_address_with_salt(salt, from_address, to_contract_init_code_hash)
     from_address = ::TypedVariable.validated_value(:address, from_address).sub(/\A0x/, '')
@@ -323,7 +349,6 @@ class ContractImplementation #< BasicObject
   end
   
   def create2_address(salt:, deployer:, contract_type:)
-    
     to_contract_init_code_hash = self.class.available_contracts[contract_type.value].init_code_hash
     
     address = self.class.calculate_new_contract_address_with_salt(
@@ -331,17 +356,9 @@ class ContractImplementation #< BasicObject
     )
     
     ::TypedVariable.create(:address, address)
-  rescue => e
-    binding.pry
   end
   
   def downcast_integer(integer, target_bits)
-    if integer.is_a?(::TypedVariableProxy)
-      integer = integer.unwrap
-    end
-    
-    # ap integer
-    # ap target_bits
     if integer.is_a?(::TypedVariable) && integer.type.address?
       integer = integer.value.sub(/\A0x/, '').to_i(16)
     end
@@ -353,8 +370,6 @@ class ContractImplementation #< BasicObject
   
   # TODO: fix
   def downcast_int(integer, bits)
-    return integer if integer.is_a?(::TypedVariableProxy)
-    
     type = IntegerVariable.smallest_allowable_type(integer)
     
     TypedVariable.create_or_validate(type, integer)
@@ -366,10 +381,12 @@ class ContractImplementation #< BasicObject
     define_method("uint#{bits}") do |integer|
       downcast_integer(integer, bits)
     end
+    expose "uint#{bits}"
     
     define_method("int#{bits}") do |integer|
       downcast_int(integer, bits)
     end
+    expose "int#{bits}"
   end
   
   def sqrt(integer)
@@ -384,10 +401,6 @@ class ContractImplementation #< BasicObject
       contract_initializer = {
         to_contract_type: contract_initializer.contract_type,
         args: contract_initializer.uncast_address,
-      }
-    elsif contract_initializer.respond_to?("__proxy_name__")
-      contract_initializer = {
-        to_contract_type: contract_initializer.__proxy_name__
       }
     end
     
@@ -428,35 +441,12 @@ class ContractImplementation #< BasicObject
     }
   end
   
-  def method_missing(method_name, *args, **kwargs, &block)
-    unless self.class.available_contracts.include?(method_name)
-      raise ::NoMethodError.new("undefined method `#{method_name}' for #{self.class.name}", method_name)
-    end
-    
-    if args.many? || (args.blank? && kwargs.present?) || (args.one? && args.first.is_a?(::Hash))
-      create_contract_initializer(method_name, args.presence || kwargs)
-    elsif args.one?
-      handle_contract_type_cast(method_name, args.first)
+  def handle_contract_name_call(contract_name, *args, **kwargs)
+    if args.one? && args.first.is_a?(TypedVariable) && args.first.type.address?
+      handle_contract_type_cast(contract_name, args.first)
     else
-      contract_instance = self
-      potential_parent = self.class.available_contracts[method_name]
-      
-      ::VM::BasicProxy.new.tap do |proxy|
-        proxy.define_singleton_method("__proxy_name__") do
-          method_name
-        end
-        
-        potential_parent.abi.data.each do |name, _|
-          proxy.define_singleton_method(name) do |*args, **kwargs|
-            contract_instance.public_send("__#{potential_parent.name}_#{name}__", *args, **kwargs)
-          end
-        end
-      end
+      create_contract_initializer(contract_name, args.presence || kwargs)
     end
-  end
-
-  def self.respond_to_missing?(method_name, include_private = false)
-    available_contracts.include?(method_name) || super
   end
 
   def this
@@ -474,14 +464,5 @@ class ContractImplementation #< BasicObject
   
   def self.inspect
     "#<#{name}:#{object_id}>"
-  end
-  
-  # TODO: disallow
-  def class
-    ::Object.instance_method(:class).bind(self).call
-  end
-  
-  def raise(...)
-    ::Kernel.instance_method(:raise).bind(self).call(...)
   end
 end

@@ -3,37 +3,6 @@ class TypedVariableProxy < BoxedVariable
   #   undef_method(method) if method_defined?(method)
   # end
   
-  def self.get_typed_var_if_necessary(proxy_or_var)
-    if proxy_or_var.is_a?(::TypedVariable)
-      proxy_or_var
-    else
-      ::TypedVariableProxy.get_typed_variable(proxy_or_var)
-    end
-  end
-  
-  def self.get_typed_variable(proxy)
-    if ::VM.call_is_a?(proxy, ::TypedVariable)
-      return proxy
-    end
-    
-    unless ::CleanRoomAdmin.call_is_a?(proxy, ::TypedVariableProxy)
-      raise "Can only use a proxy: #{proxy.inspect}"
-    end
-    
-    var = ::CleanRoomAdmin.get_instance_variable(proxy, :value)
-    
-    unless ::VM.call_is_a?(var, ::TypedVariable)
-      # binding.pry
-      raise "Invalid typed variable in proxy: #{var.inspect}"
-    end
-    
-    var
-  end
-  
-  def self.get_type(proxy)
-    ::TypedVariableProxy.get_typed_variable(proxy).type
-  end
-  
   def initialize(typed_variable)
     unless ::VM.call_is_a?(typed_variable, ::TypedVariable)
       raise "Can only use a TypedVariable: #{typed_variable.inspect}"
@@ -42,15 +11,6 @@ class TypedVariableProxy < BoxedVariable
     super(typed_variable)
   end
 
-  def toPackedBytes
-    @value.toPackedBytes
-  end
-  
-  def as_json
-    # TODO: remove this and stop ContractCall from coercing args to json. Have working_args or something.
-    @value.as_json
-  end
-  
   def method_missing(name, *args, **kwargs, &block)
     unless @value.method_exposed?(name)
       ::Kernel.instance_method(:raise).bind(self).call(::ContractErrors::VariableTypeError, "No method #{name} on #{@value.inspect}")
@@ -73,4 +33,3 @@ class TypedVariableProxy < BoxedVariable
     end
   end
 end
-

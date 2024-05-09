@@ -17,10 +17,7 @@ class ContractBuilder < UltraBasicObject
       contract_class.instance_variable_set(:@init_code_hash, dep.init_code_hash)
       registry[dep.name] = contract_class
       
-      contract_class.instance_variable_set(
-        :@available_contracts,
-        registry.deep_dup
-      )
+      contract_class.available_contracts = registry.deep_dup
     end
     
     registry[artifact.name]
