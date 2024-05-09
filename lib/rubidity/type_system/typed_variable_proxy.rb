@@ -24,12 +24,6 @@ class TypedVariableProxy < BoxedVariable
       kwargs = ::VM.deep_get_values(kwargs)
     end
     
-    if args.present? && kwargs.present?
-      @value.public_send(name, *args, **kwargs)
-    elsif args.present?
-      @value.public_send(name, *args)
-    else
-      @value.public_send(name, **kwargs)
-    end
+    @value.public_send(name, *args, **kwargs)
   end
 end
