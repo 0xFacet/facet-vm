@@ -1,23 +1,28 @@
 class ConstsToSends
   include AST::Processor::Mixin
   
-  def self.process(ast)
-    if ast.is_a?(String)
-      ast = Unparser.parse(ast)
-    end
+  class << self
+    extend Memoist
     
-    obj = ConstsToSends.new
-    new_ast = obj.process(ast)
-    new_ast.unparse
+    def process(ast)
+      if ast.is_a?(String)
+        ast = Unparser.parse(ast)
+      end
+      
+      obj = ConstsToSends.new
+      new_ast = obj.process(ast)
+      new_ast.unparse
+    end
+    memoize :process
   end
   
   def self.box_function_name
-    :_b
+    :__box__
   end
   delegate :box_function_name, to: :class
   
   def self.unbox_and_get_bool_function_name
-    :_gb
+    :__get_bool__
   end
   delegate :unbox_and_get_bool_function_name, to: :class
   

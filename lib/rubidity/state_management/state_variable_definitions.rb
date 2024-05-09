@@ -74,9 +74,6 @@ module StateVariableDefinitions
     
     state_var = ::StateVariable.create(name, type, args)
     state_var.create_public_getter_function(self)
-  rescue => e
-    binding.pry
-    raise
   end
   
   def validate_name_format!(name)

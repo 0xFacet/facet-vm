@@ -123,24 +123,4 @@ class StateVariable
     message = "immutability error for #{var.name}: #{e.message}"
     raise ContractError.new(message, contract)
   end
-  
-  def ==(other)
-    unless other.is_a?(self.class)
-      raise ContractError, "Cannot compare StateVariable with #{other.class}"
-    end
-    
-    typed_variable.eq(other.typed_variable).value
-  end
-  
-  def !=(other)
-    !(self == other)
-  end
-  
-  def hash
-    [typed_variable, name, visibility, immutable, constant].hash
-  end
-
-  def eql?(other)
-    hash == other.hash
-  end
 end

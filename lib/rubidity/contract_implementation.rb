@@ -122,8 +122,6 @@ class ContractImplementation
       
     error_message = "#{message}. (#{file}:#{line})\n\n#{emphasized_code}\n\n"
     raise ContractError.new(error_message, self)
-    
-    NullVariable.instance
   end
   
   def self.public_abi
@@ -294,7 +292,6 @@ class ContractImplementation
     elsif i.is_a?(::String)
       ::TypedVariable.create(:string, i)
     else
-      binding.pry
       raise "Input must be typed"
     end
   end
@@ -373,8 +370,6 @@ class ContractImplementation
     type = IntegerVariable.smallest_allowable_type(integer)
     
     TypedVariable.create_or_validate(type, integer)
-  rescue => e
-    binding.pry
   end
   
   (8..256).step(8).flat_map do |bits|

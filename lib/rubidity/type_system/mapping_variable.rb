@@ -12,7 +12,6 @@ class MappingVariable < GenericVariable
     end
   end
   
-  # TODO: make private
   def serialize
     value.serialize
   end

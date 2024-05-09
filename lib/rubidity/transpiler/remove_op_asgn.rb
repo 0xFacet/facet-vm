@@ -17,32 +17,48 @@ class RemoveOpAsgn
   
   def on_op_asgn(node)
     target, op, value = *node.children
-    # Check if the target is a send node that represents indexing
-    if target.type == :send && target.children[1] == :[]
-      # Decompose the operation into an explicit form
-      process_compound_assignment(target, op, value)
+  
+    if target.type == :lvasgn
+      process(handle_local_variable_assignment(target, op, value))
+    elsif target.type == :send
+      process(handle_method_setter_assignment(target, op, value))
     else
-      # Handle other types of operation assignments normally
-      node.updated(nil, safe_process_all(node.children))
+      raise "Unsupported target type for compound assignment: #{target.type}"
     end
   end
   
-  def process_compound_assignment(target, op, value)
-    base, index = target.children[0], target.children[2]
-    processed_base = process(base)
+  def handle_local_variable_assignment(target, op, value)
+    var_name = target.children.first
+    
+    # Compute the new value based on the operation
+    new_value = s(:send, s(:lvar, var_name), op, process(value))
+    
+    # Update the AST node to represent the local variable assignment
+    s(:lvasgn, var_name, new_value)
+  end
+  
+  def handle_method_setter_assignment(target, op, value)
+    object, method_name, index = *target.children
+    
+    processed_object = process(object)
     processed_index = process(index)
     processed_value = process(value)
     
-    # Fetch the current value at the index
-    current_value = s(:send, processed_base, :[], processed_index)
-  
-    # Apply the operation to the current value with the new value
-    new_value = s(:send, current_value, op, processed_value)
-  
-    # Assign the result back to the index
-    s(:send, processed_base, :[]=, processed_index, new_value)
+    current_value = if index
+      s(:send, processed_object, method_name, processed_index)
+    else
+      s(:send, processed_object, method_name)
+    end
+    
+    new_value = s(:send, current_value, op, processed_value) 
+    
+    if index
+      s(:send, processed_object, "#{method_name}=".to_sym, processed_index, new_value)
+    else
+      s(:send, processed_object, "#{method_name}=".to_sym, new_value)
+    end
   end
-
+  
   private
   
   def safe_process_all(nodes)
