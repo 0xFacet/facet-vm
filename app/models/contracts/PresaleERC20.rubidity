@@ -1,0 +1,171 @@
+pragma :rubidity, "1.0.0"
+
+import "./Ownable.rubidity"
+import "./ERC20.rubidity"
+
+contract :IFacetSwapV1Router, abstract: true do
+  function :addLiquidity, {
+    tokenA: :address,
+    tokenB: :address,
+    amountADesired: :uint256,
+    amountBDesired: :uint256,
+    amountAMin: :uint256,
+    amountBMin: :uint256,
+    to: :address,
+    deadline: :uint256
+  }, :public, returns: { amountA: :uint256, amountB: :uint256, liquidity: :uint256 }
+  function :factory, :public, returns: :address
+end
+
+contract :IFacetSwapV1Factory, abstract: true do
+  function :getPair, {
+    arg0: :address,
+    arg1: :address,
+  }, :public, returns: :address
+end
+
+contract :PresaleERC20, is: [:ERC20, :Ownable] do
+  event :PresaleStarted, {}
+  event :PresaleFinalized, {}
+  event :PresaleBuy, { buyer: :address, amount: :uint256 }
+  event :PresaleSell, { seller: :address, amount: :uint256 }
+  event :TokensClaimed, { user: :address, shareAmount: :uint256, tokenAmount: :uint256 }
+
+  address :public, :wethAddress
+  address :public, :facetSwapRouterAddress
+  address :public, :pairAddress
+  uint256 :public, :presaleEndTime
+  uint256 :public, :presaleDuration
+  mapping ({ address: :uint256 }), :public, :shares
+  uint256 :public, :totalShares
+  uint256 :public, :maxSupply
+  uint256 :public, :tokensForPresale
+
+  constructor(
+    name: :string,
+    symbol: :string,
+    _wethAddress: :address,
+    _facetSwapRouterAddress: :address,
+    _maxSupply: :uint256,
+    _presaleTokenPercentage: :uint256,
+    _presaleDuration: :uint256
+  ) {
+    require(_presaleTokenPercentage <= 50, "Presale token percentage must not exceed 50")
+    require(_presaleTokenPercentage > 0, "Presale token percentage must exceed 0")
+    require(_wethAddress != address(0), "WETH address not set")
+
+    decimals = ERC20(_wethAddress).decimals
+
+    ERC20.constructor(name: name, symbol: symbol, decimals: decimals)
+    Ownable.constructor(owner: msg.sender)
+
+    s.wethAddress = _wethAddress
+    s.facetSwapRouterAddress = _facetSwapRouterAddress
+    s.maxSupply = _maxSupply
+    s.tokensForPresale = (_maxSupply * _presaleTokenPercentage) / 100
+    s.presaleDuration = _presaleDuration
+  }
+
+  function :buyShares, { recipient: :address, amount: :uint256 }, :public do
+    require(s.presaleEndTime > 0, "Presale has not started")
+    require(block.timestamp < s.presaleEndTime, "Presale has ended")
+    require(amount > 0, "Amount must be greater than 0")
+
+    s.shares[recipient] += amount
+    s.totalShares += amount
+
+    ERC20(s.wethAddress).transferFrom(msg.sender, address(this), amount)
+
+    emit :PresaleBuy, buyer: recipient, amount: amount
+  end
+
+  function :sellShares, { amount: :uint256 }, :public do
+    require(s.presaleEndTime > 0, "Presale has not started")
+    require(block.timestamp < s.presaleEndTime, "Presale has ended")
+    require(amount > 0, "Amount must be greater than 0")
+    require(s.shares[msg.sender] >= amount, "Not enough shares")
+
+    s.shares[msg.sender] -= amount
+    s.totalShares -= amount
+
+    ERC20(s.wethAddress).transfer(msg.sender, amount)
+
+    emit :PresaleSell, seller: msg.sender, amount: amount
+  end
+
+  function :claimTokens, :public do
+    userShares = s.shares[msg.sender]
+    require(userShares > 0, "User does not own shares")
+
+    if s.pairAddress == address(0)
+      finalize()
+    end
+
+    tokensPerShare = s.tokensForPresale / s.totalShares
+    tokenAmount = userShares * tokensPerShare
+    _mint(to: msg.sender, amount: tokenAmount)
+    s.shares[msg.sender] = 0
+
+    emit :TokensClaimed, user: msg.sender, shareAmount: userShares, tokenAmount: tokenAmount
+  end
+
+  function :calculateDust, :internal, :view, returns: :uint256 do
+    tokensPerShare = s.tokensForPresale / s.totalShares
+    totalDistributedTokens = tokensPerShare * s.totalShares
+    return s.tokensForPresale - totalDistributedTokens
+  end
+
+  function :finalize, :public do
+    require(s.pairAddress == address(0), 'Already finalized')
+    require(block.timestamp >= s.presaleEndTime, "Presale not finished")
+
+    dust = calculateDust()
+    tokensForTeam = s.maxSupply - s.tokensForPresale * 2
+    _mint(to: address(this), amount: s.tokensForPresale + dust + tokensForTeam)
+
+    s.allowance[address(this)][s.facetSwapRouterAddress] = s.tokensForPresale
+    ERC20(s.wethAddress).approve(spender: s.facetSwapRouterAddress, amount: s.totalShares)
+
+    IFacetSwapV1Router(s.facetSwapRouterAddress).addLiquidity(
+      tokenA: address(this),
+      tokenB: s.wethAddress,
+      amountADesired: s.tokensForPresale,
+      amountBDesired: s.totalShares,
+      amountAMin: 0,
+      amountBMin: 0,
+      to: address(0),
+      deadline: block.timestamp
+    )
+
+    factoryAddress = IFacetSwapV1Router(s.facetSwapRouterAddress).factory
+
+    s.pairAddress = IFacetSwapV1Factory(factoryAddress).getPair(address(this), s.wethAddress)
+
+    emit :PresaleFinalized
+  end
+
+  function :burn, { amount: :uint256 }, :public do
+    _burn(from: msg.sender, amount: amount)
+  end
+
+  function :withdrawTokens, { recipient: :address }, :public do
+    onlyOwner!
+
+    balance = balanceOf(address(this))
+    require(balance > 0, "No token balance")
+
+    ERC20(address(this)).transfer(recipient, balance)
+
+    return nil
+  end
+
+  function :startPresale, :public do
+    onlyOwner!
+
+    require(s.presaleEndTime == 0, "Already started")
+
+    s.presaleEndTime = block.timestamp + s.presaleDuration
+
+    emit :PresaleStarted
+  end
+end
