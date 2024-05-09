@@ -150,8 +150,8 @@ class FunctionProxy
     
     validate_arg_names(other_args)
     
-    return Struct.new(nil).new if args.blank?
-    
+    return ContractFunctionArgs.new if args.blank?
+        
     as_typed = if other_args.is_a?(Array)
       args.keys.zip(other_args).map do |key, value|
         type = args[key]
@@ -164,8 +164,7 @@ class FunctionProxy
       end
     end
     
-    struct_class = Struct.new(*as_typed.keys)
-    struct_class.new(*as_typed.values)
+    ContractFunctionArgs.new(as_typed)
   end
   
   def convert_return_to_typed_variable(ret_val)

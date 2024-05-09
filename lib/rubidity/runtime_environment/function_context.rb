@@ -24,8 +24,8 @@ class FunctionContext < UltraBasicObject
       kwargs = ::VM.deep_unbox(kwargs)
     end
     
-    if @args.members.include?(method_name.to_sym)
-      @args[method_name.to_sym]
+    if @args.method_exposed?(method_name) && args.blank? && kwargs.blank? && block.blank?
+      @args.public_send(method_name)
     elsif @contract.method_exposed?(method_name)
       if method_name != :forLoop && block.present?
         raise ::ContractError.new("Block passed to function call that is not a forLoop")
