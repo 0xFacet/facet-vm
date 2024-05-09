@@ -1,6 +1,4 @@
 class TypedVariable
-  include TypedObject
-  
   include ContractErrors
   extend AttrPublicReadPrivateWrite
   extend Memoist
@@ -56,7 +54,7 @@ class TypedVariable
       value = CleanRoomAdmin.get_instance_variable(value, :value)
     end
     
-    if value.is_a?(TypedObject)
+    if value.is_a?(TypedVariable)
       unless Type.create(type).can_be_assigned_from?(value.type)
         raise VariableTypeError.new("invalid #{type}: #{value.inspect}")
       end
@@ -79,6 +77,10 @@ class TypedVariable
   
   def as_json(args = {})
     serialize
+  end
+  
+  def serialize
+    value
   end
   
   def to_s

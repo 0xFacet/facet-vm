@@ -20,11 +20,11 @@ RSpec.describe TypedVariable, type: :model do
 
     it 'is fine to go up in bits' do
       typed_variable = TypedVariable.create(:uint128, 1)
-      expect(TypedVariable.create_or_validate(:uint256, typed_variable)).to be_a(TypedObject)
+      expect(TypedVariable.create_or_validate(:uint256, typed_variable)).to be_a(TypedVariable)
     end
 
     it 'creates a new TypedVariable if the value is not a TypedVariable' do
-      expect(TypedVariable.create_or_validate(:uint256, 1)).to be_a TypedObject
+      expect(TypedVariable.create_or_validate(:uint256, 1)).to be_a TypedVariable
     end
     
     it 'raises a VariableTypeError if the value is a TypedVariable and its type cannot be assigned from the specified type' do

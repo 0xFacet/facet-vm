@@ -58,7 +58,7 @@ class MappingVariable < GenericVariable
     end
     
     def [](key_var)
-      raw_key = key_var.is_a?(TypedObject) ? key_var.value : key_var
+      raw_key = key_var.is_a?(TypedVariable) ? key_var.value : key_var
       string_key = raw_key.to_s
     
       typed_key_var = TypedVariable.create_or_validate(key_type, key_var, on_change: -> { on_change&.call })

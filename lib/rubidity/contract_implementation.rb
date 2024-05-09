@@ -205,7 +205,7 @@ class ContractImplementation #< BasicObject
   end
   
   def type(var)
-    if var.is_a?(::TypedObject) && var.type.contract?
+    if var.is_a?(::TypedVariable) && var.type.contract?
       var = var.contract_type
     end
     
@@ -380,7 +380,7 @@ class ContractImplementation #< BasicObject
   end
   
   def new(contract_initializer)
-    if contract_initializer.is_a?(::TypedObject) && contract_initializer.type.contract?
+    if contract_initializer.is_a?(::TypedVariable) && contract_initializer.type.contract?
       contract_initializer = {
         to_contract_type: contract_initializer.contract_type,
         args: contract_initializer.uncast_address,

@@ -94,12 +94,6 @@ module RubidityTypeExtensions
       end
   
       # TODO: Input validation
-      message = VM.deep_get_values(message)
-      type = VM.deep_get_values(type)
-      domainName = VM.deep_get_values(domainName)
-      domainVersion = VM.deep_get_values(domainVersion)
-      signer = VM.deep_get_values(signer)
-      verifyingContract = VM.deep_get_values(verifyingContract)
       chainid = VM.deep_get_values(TransactionContext.block_chainid)
       
       typed_data = {

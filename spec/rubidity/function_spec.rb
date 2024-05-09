@@ -16,9 +16,9 @@ RSpec.describe FunctionProxy, type: :model do
 
       it 'converts named parameters to typed variables struct' do
         result = function_proxy.convert_args_to_typed_variables_struct([], args)
-        expect(result.arg1).to be_a(TypedObject)
-        expect(result.arg2).to be_a(TypedObject)
-        expect(result.arg3).to be_a(TypedObject)
+        expect(result.arg1).to be_a(TypedVariable)
+        expect(result.arg2).to be_a(TypedVariable)
+        expect(result.arg3).to be_a(TypedVariable)
       end
     end
 
@@ -27,8 +27,8 @@ RSpec.describe FunctionProxy, type: :model do
 
       it 'converts non-named parameters to typed variables struct' do
         result = function_proxy.convert_args_to_typed_variables_struct(args, {})
-        expect(result.arg1).to be_a(TypedObject)
-        expect(result.arg2).to be_a(TypedObject)
+        expect(result.arg1).to be_a(TypedVariable)
+        expect(result.arg2).to be_a(TypedVariable)
       end
     end
   end
@@ -106,8 +106,8 @@ RSpec.describe FunctionProxy, type: :model do
 
       it 'converts named parameters to typed variables struct' do
         result = function_proxy.convert_args_to_typed_variables_struct(args, {})
-        expect(result.arg1).to be_a(TypedObject)
-        expect(result.arg2).to be_a(TypedObject)
+        expect(result.arg1).to be_a(TypedVariable)
+        expect(result.arg2).to be_a(TypedVariable)
       end
     end
 
@@ -116,8 +116,8 @@ RSpec.describe FunctionProxy, type: :model do
 
       it 'converts non-named parameters to typed variables struct' do
         result = function_proxy.convert_args_to_typed_variables_struct(args, {})
-        expect(result.arg1).to be_a(TypedObject)
-        expect(result.arg2).to be_a(TypedObject)
+        expect(result.arg1).to be_a(TypedVariable)
+        expect(result.arg2).to be_a(TypedVariable)
       end
     end
 
@@ -126,7 +126,7 @@ RSpec.describe FunctionProxy, type: :model do
 
       it 'converts the string argument to a typed variables struct' do
         result = function_proxy.convert_args_to_typed_variables_struct([args, nil], {})
-        expect(result.arg1).to be_a(TypedObject)
+        expect(result.arg1).to be_a(TypedVariable)
       end
     end
   end

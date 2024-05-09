@@ -76,9 +76,10 @@ class TypedVariableProxy < BoxedVariable
     kwargs = ::VM.deep_unbox(kwargs)
     
     if name == :verifyTypedDataSignature
-      res = @value.public_send(name, *args, **kwargs)
-      return ::TypedVariableProxy.new(res)
+      args = ::VM.deep_get_values(args)
+      kwargs = ::VM.deep_get_values(kwargs)
     end
+    
     res = if args.present? && kwargs.present?
       @value.public_send(name, *args, **kwargs)
     elsif args.present?
