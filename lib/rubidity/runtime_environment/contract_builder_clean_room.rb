@@ -4,15 +4,15 @@ class ContractBuilderCleanRoom < UltraBasicObject
     @valid_call_methods = valid_call_methods
   end
   
+  define_method(::ConstsToSends.box_function_name) do |value|
+    ::VM.box(value)
+  end
+  
+  define_method(::ConstsToSends.unbox_and_get_bool_function_name) do |value|
+    ::VM.unbox_and_get_bool(value)
+  end
+  
   def method_missing(method_name, *args, **kwargs, &block)
-    if method_name == ::ConstsToSends.box_function_name
-      return ::VM.box(args[0])
-    end
-    
-    if method_name == ::ConstsToSends.unbox_and_get_bool_function_name
-      return ::VM.unbox_and_get_bool(args[0])
-    end
-    
     structs = ::VM.get_instance_variable(@context, :structs, false)
     
     valid_method = @valid_call_methods.include?(method_name) ||
