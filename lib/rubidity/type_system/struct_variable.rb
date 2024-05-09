@@ -27,6 +27,8 @@ class StructVariable < GenericVariable
         
         ret_val
       end
+      
+      expose_instance_method(name)
     end
   end
   

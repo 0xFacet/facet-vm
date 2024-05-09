@@ -33,11 +33,11 @@ module VM
       val.to_proxy
     when Array
       BoxedVariable.new(val)
-    when BasicProxy, Hash, Class, Proc # proc for lambdas in forLoop
+    when BasicProxy, Hash, Class, Proc, DestructureOnly # proc for lambdas in forLoop
       BoxedVariable.new(val)
-    when Struct, DestructureOnly
+    when Struct
       return val # For box(msg).value
-    when Binding
+    when Binding, Kernel
       raise unless Rails.env.development? || Rails.env.test?
       return val
     when Type

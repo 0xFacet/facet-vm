@@ -1,4 +1,6 @@
 class MappingVariable < GenericVariable
+  expose :[], :[]=
+  
   delegate :[], :[]=, to: :value
   
   def initialize(...)

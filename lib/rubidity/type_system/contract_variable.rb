@@ -1,5 +1,7 @@
-class ContractVariable < GenericVariable  
-  delegate :currentInitCodeHash, :upgradeImplementation, to: :value
+class ContractVariable < GenericVariable
+  expose :upgradeImplementation, :currentInitCodeHash, :address
+  
+  delegate :currentInitCodeHash, :upgradeImplementation, :uncast_address, to: :value
   
   def initialize(...)
     super(...)
@@ -15,6 +17,8 @@ class ContractVariable < GenericVariable
           type: :call
         )
       end
+      
+      expose_instance_method(method_name)
     end
   end
   
@@ -28,14 +32,6 @@ class ContractVariable < GenericVariable
   
   def contract_type
     value.contract_class.name
-  end
-  
-  def method_missing(name, *args, **kwargs, &block)
-    value.send(name, *args, **kwargs, &block)
-  end
-  
-  def respond_to_missing?(name, include_private = false)
-    value.respond_to?(name, include_private) || super
   end
 
   def toPackedBytes

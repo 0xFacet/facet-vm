@@ -1,4 +1,7 @@
 class StringVariable < GenericVariable
+  expose :+, :[], :length, :upcase, :downcase, :base64Encode,
+    :base64Decode, :isAlphaNumeric?
+  
   def initialize(...)
     super(...)
   end

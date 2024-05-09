@@ -1,4 +1,6 @@
 class ArrayVariable < GenericVariable
+  expose :push, :pop, :length, :last, :[], :[]=
+  
   MAX_ARRAY_LENGTH = 100
   
   delegate :push, :pop, :length, :last, :[], :[]=, to: :value

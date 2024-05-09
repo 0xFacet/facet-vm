@@ -1,4 +1,8 @@
 class NullVariable < TypedVariable
+  include Exposable
+  
+  expose :eq, :ne
+  
   def initialize
     @type = Type.create(:null)
     @value = nil

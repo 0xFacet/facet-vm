@@ -1,4 +1,6 @@
 class IntegerVariable < GenericVariable
+  expose :ether, :days, :toString, :eq
+  
   delegate :is_uint?, :is_int?, to: :type
   
   def initialize(...)
@@ -9,6 +11,8 @@ class IntegerVariable < GenericVariable
     define_method(operator) do |other|
       perform_operation(other, operator)
     end
+    
+    expose operator
   end
 
   [:>, :<, :>=, :<=].each do |operator|
@@ -22,6 +26,8 @@ class IntegerVariable < GenericVariable
     define_method(operator_to_method_name[operator]) do |other|
       perform_comparison(other, operator)
     end
+    
+    expose operator_to_method_name[operator]
   end
   
   def ether

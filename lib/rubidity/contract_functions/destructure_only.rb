@@ -1,7 +1,8 @@
 class DestructureOnly
-  # TODO: make this minimal
-  
+  include Exposable
   include ContractErrors
+  
+  expose :to_ary
   
   def initialize(hash)
     @hash = hash

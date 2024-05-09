@@ -1,14 +1,10 @@
 class GenericVariable < TypedVariable
+  include Exposable
+  
+  expose :cast, :not, :ne, :eq
+  
   def initialize(...)
     super(...)
-    
-    if type.address?
-      extend RubidityTypeExtensions::AddressMethods
-    end
-    
-    if type.bytes?
-      extend RubidityTypeExtensions::BytesMethods
-    end
   end
   
   def cast(type)

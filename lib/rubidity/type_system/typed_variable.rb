@@ -36,6 +36,10 @@ class TypedVariable
       StructVariable.new(type, value, **options)
     elsif type.string?
       StringVariable.new(type, value, **options)
+    elsif type.bytes?
+      BytesVariable.new(type, value, **options)
+    elsif type.address?
+      AddressVariable.new(type, value, **options)
     elsif type.is_int? || type.is_uint?
       IntegerVariable.new(type, value, **options)
     elsif type.null?
