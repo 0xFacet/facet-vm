@@ -141,10 +141,10 @@ class FunctionProxy
   
   def convert_args_to_typed_variables_struct(other_args, other_kwargs)
     if other_kwargs.present?
-      other_args = VM.deep_unbox(other_kwargs)
+      other_args = other_kwargs.deep_symbolize_keys
     end
     
-    if VM.call_is_a?(other_args.first, Hash) && other_args.length == 1
+    if other_args.first.is_a?(Hash) && other_args.length == 1
       other_args = other_args.first.deep_symbolize_keys
     end
     
@@ -193,8 +193,6 @@ class FunctionProxy
     else
       TypedVariable.create_or_validate(create_type(returns), ret_val)
     end
-  rescue => e
-    binding.pry
   end
   
   def validate_args!
