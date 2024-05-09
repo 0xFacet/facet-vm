@@ -224,7 +224,11 @@ class ConstsToSends
   def underscore_const_sends(node)
     receiver, method_name, *args = *node
     
-    unless receiver&.type == :const && receiver.children[0].nil?
+    unless (
+      receiver&.type == :const && receiver.children[0].nil?
+    ) || (
+      receiver&.type == :send && receiver.children[0]&.type == :self
+    )
       return node
     end
     
@@ -236,6 +240,8 @@ class ConstsToSends
   end
   
   def on_send(node)
+    receiver, method_name, *args = *node
+    
     if is_box_send?(node)
       return node
     end
@@ -265,7 +271,6 @@ class ConstsToSends
       
       process(s(:int, 2 ** 256 - 1))
     else
-      method_name = node.children[1]
       operator_to_method_name = {
         :== => :eq,
         :> => :gt,
