@@ -47,6 +47,8 @@ module StateVariableDefinitions
       ::StructVariable.new(type, field_values)
     end
     
+    expose(name)
+    
     define_singleton_method(name) do |*args|
       struct_definition = structs[name]
       type = ::Type.create(:struct, struct_definition: struct_definition)
@@ -57,6 +59,8 @@ module StateVariableDefinitions
   private
   
   def define_state_variable(type, args)
+    args = VM.deep_get_values(args)
+    
     name = args.last.to_sym
     type = ::Type.create(type)
     

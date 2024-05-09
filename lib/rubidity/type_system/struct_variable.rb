@@ -1,14 +1,35 @@
-class StructVariable < TypedVariable
+class StructVariable < GenericVariable
   attr_accessor :value
   
-  def initialize(type, value, **options)
-    super(type, value, **options)
+  def initialize(type, val, **options)
+    super(type, val, **options)
     
     self.value = Value.new(
       struct_definition: type.struct_definition,
-      values: value,
+      values: val,
       on_change: -> { on_change&.call }
     )
+    
+    names = value.state_manager.state_variables.keys
+    with_setters = names.map{|n| [n, "#{n}="]}.flatten
+    
+    with_setters.each do |name|
+      define_singleton_method(name) do |*args, **kwargs|
+        ret_val = nil
+      
+        begin
+          value.state_manager.detecting_changes(revert_on_change: true) do
+            ret_val = value.state_proxy.__send__(name, *args, **kwargs)
+          end
+        rescue InvalidStateVariableChange
+          on_change&.call
+        end
+        
+        ret_val
+      end
+      
+      expose_instance_method(name)
+    end
   end
   
   def deep_dup
@@ -28,16 +49,10 @@ class StructVariable < TypedVariable
     )
   end
   
-  def method_missing(name, *args, **kwargs, &block)
-    value.public_send(name, *args, **kwargs, &block)
-  end
-  
-  def respond_to_missing?(name, include_private = false)
-    value.respond_to?(name, include_private) || super
-  end
-  
   class Value
     include ContractErrors
+    
+    attr_accessor :state_manager, :state_proxy
     
     extend AttrPublicReadPrivateWrite
     
@@ -70,24 +85,6 @@ class StructVariable < TypedVariable
       @state_proxy ||= StateProxy.new(@state_manager)
       
       self.on_change = on_change
-    end
-
-    def method_missing(name, *args, **kwargs, &block)
-      ret_val = nil
-      
-      begin
-        @state_manager.detecting_changes(revert_on_change: true) do
-          ret_val = @state_proxy.__send__(name, *args, **kwargs, &block)
-        end
-      rescue InvalidStateVariableChange
-        on_change&.call
-      end
-      
-      ret_val
-    end
-
-    def respond_to_missing?(method_name, include_private = false)
-      @state_proxy.respond_to?(method_name, include_private) || super
     end
     
     def ==(other)

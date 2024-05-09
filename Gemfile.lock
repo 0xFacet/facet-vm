@@ -201,7 +201,7 @@ GEM
       activerecord (>= 5.0, < 7.2)
       activesupport (>= 5.0, < 7.2)
     parallel (1.24.0)
-    parser (3.3.0.5)
+    parser (3.3.1.0)
       ast (~> 2.4.1)
       racc
     pg (1.5.4)
@@ -359,6 +359,7 @@ DEPENDENCIES
   httpparty (~> 0.2.0)
   kaminari (~> 1.2)
   memoist (~> 0.16.2)
+  parser (= 3.3.1.0)
   pg (~> 1.1)
   pry
   puma (>= 6.4.0)
@@ -376,7 +377,7 @@ DEPENDENCIES
   unparser
 
 RUBY VERSION
-   ruby 3.3.0p0
+   ruby 3.3.1p55
 
 BUNDLED WITH
    2.4.14

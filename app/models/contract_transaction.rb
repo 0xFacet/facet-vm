@@ -257,24 +257,6 @@ class ContractTransaction < ApplicationRecord
     receipt.return_value
   end
   
-  def with_global_context
-    TransactionContext.set(
-      call_stack: CallStack.new(TransactionContext),
-      active_contracts: [],
-      current_transaction: self,
-      current_event_index: 0,
-      tx_origin: tx_origin,
-      tx_current_transaction_hash: transaction_hash,
-      block_number: block_number,
-      block_timestamp: block_timestamp,
-      block_blockhash: block_blockhash,
-      block_chainid: BlockContext.current_chainid,
-      transaction_index: transaction_index
-    ) do
-      yield
-    end
-  end
-  
   def make_initial_call
     payload_data = OpenStruct.new(payload.data)
       
@@ -291,7 +273,7 @@ class ContractTransaction < ApplicationRecord
   def execute_transaction
     begin
       make_initial_call
-    rescue ContractError, TransactionError
+    rescue ContractError, TransactionError => e
     end
 
     if success?

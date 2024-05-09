@@ -1,36 +1,57 @@
-class ContractVariable < TypedVariable  
+class ContractVariable < GenericVariable
+  expose :upgradeImplementation, :currentInitCodeHash, :address
+  
+  delegate :currentInitCodeHash, :upgradeImplementation, :uncast_address, to: :value
+  
   def initialize(...)
     super(...)
+    
+    value.contract_class.public_abi.each_key do |method_name|
+      define_singleton_method(method_name) do |*args, **kwargs|
+        computed_args = VM.deep_unbox(args.presence || kwargs)
+        
+        TransactionContext.call_stack.execute_in_new_frame(
+          to_contract_address: value.address,
+          function: method_name,
+          args: computed_args,
+          type: :call
+        )
+      end
+      
+      expose_instance_method(method_name)
+    end
   end
   
   def serialize
     value.address
   end
   
-  def method_missing(name, *args, **kwargs, &block)
-    value.send(name, *args, **kwargs, &block)
+  def address
+    TypedVariable.create(:address, value.address)
   end
   
-  def respond_to_missing?(name, include_private = false)
-    value.respond_to?(name, include_private) || super
+  def contract_type
+    value.contract_class.name
   end
 
   def toPackedBytes
     TypedVariable.create(:address, value.address).toPackedBytes
   end
 
+  def eq(other)
+    unless other.is_a?(self.class)
+      raise ContractError.new("Cannot compare contract with non-contract", self)
+    end
+    
+    other.value.contract_class.init_code_hash == value.contract_class.init_code_hash &&
+    other.value.address == value.address
+  end
+  
   class Value
     include ContractErrors
     extend AttrPublicReadPrivateWrite
     
     attr_public_read_private_write :contract_class, :address, :uncast_address
-
-    def ==(other)
-      return false unless other.is_a?(self.class)
-      
-      other.contract_class.init_code_hash == contract_class.init_code_hash &&
-      other.address == address
-    end
     
     def initialize(address:, contract_class:)
       self.uncast_address = address
@@ -38,33 +59,6 @@ class ContractVariable < TypedVariable
     
       self.address = address
       self.contract_class = contract_class
-    end
-    
-    def method_missing(name, *args, **kwargs, &block)
-      computed_args = args.presence || kwargs
-      
-      super unless contract_class
-      
-      known_function = contract_class.public_abi[name]
-      
-      unless known_function && known_function.args.length == computed_args.length
-        raise ContractError.new("Contract doesn't implement interface: #{contract_class.name}, #{name}")
-      end
-      
-      TransactionContext.call_stack.execute_in_new_frame(
-        to_contract_address: address,
-        function: name,
-        args: computed_args,
-        type: :call
-      )
-    end
-    
-    def respond_to_missing?(name, include_private = false)
-      !!contract_class.public_abi[name] || super
-    end
-    
-    def contract_type
-      contract_class.name
     end
     
     def currentInitCodeHash
@@ -111,7 +105,7 @@ class ContractVariable < TypedVariable
         current_init_code_hash: new_init_code_hash
       )
       
-      nil
+      NullVariable.instance
     end
   end
 end

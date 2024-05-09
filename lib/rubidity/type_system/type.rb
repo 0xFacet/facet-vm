@@ -10,7 +10,7 @@ class Type
    end.map(&:to_sym)
   
   TYPES = [:string, :mapping, :address, :bytes16, :bytes32, :contract,
-           :bool, :array, :bytes, :struct] + INTEGER_TYPES
+           :bool, :array, :bytes, :struct, :null, :symbol] + INTEGER_TYPES
   
   TYPES.each do |type|
     define_method("#{type}?") do
@@ -44,6 +44,8 @@ class Type
       type_name = :array
     end
     
+    # TODO Figure out how to kill
+    type_name = type_name.value if type_name.is_a?(TypedVariable)
     type_name = type_name.to_sym
     
     if TYPES.exclude?(type_name)
@@ -120,6 +122,8 @@ class Type
       "0x" + "0" * 64
     when string? || bytes?
       ''
+    when symbol?
+      :''
     when bool?
       false
     when mapping?
@@ -152,8 +156,8 @@ class Type
   end
   
   def check_and_normalize_literal(literal)
-    if literal.is_a?(TypedVariable)
-      raise VariableTypeError, "Only literals and TypedObjects can be passed to check_and_normalize_literal: #{literal.inspect}"
+    if literal.is_a?(TypedVariable) || literal.is_a?(TypedVariableProxy)
+      raise VariableTypeError, "Only literals can be passed to check_and_normalize_literal: #{literal.inspect}"
     end
     
     if address?
@@ -192,6 +196,16 @@ class Type
       end
       
       if literal.bytesize > MAX_STRING_LENGTH
+        raise "Max string length is #{MAX_STRING_LENGTH}"
+      end
+      
+      return literal.freeze
+    elsif symbol?
+      unless literal.is_a?(Symbol)
+        raise_variable_type_error(literal)
+      end
+      
+      if literal.to_s.bytesize > MAX_STRING_LENGTH
         raise "Max string length is #{MAX_STRING_LENGTH}"
       end
       
@@ -304,6 +318,6 @@ class Type
   end
   
   def is_value_type?
-    !mapping? && !array? && !struct? && !contract?
+    !mapping? && !array? && !struct? && !contract? && !null?
   end
 end

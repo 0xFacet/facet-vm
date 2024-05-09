@@ -124,7 +124,7 @@ class AstPostProcessor
     
     allowed = [:<, :>, :>=, :<=, :!, :!=, :==, :name,
       :public, :private, :y, :include?,
-      :require, :lambda, :new, :hash].to_set
+      :require, :lambda, :new, :hash, :j].to_set
   
   # :to_i,
   # :include?,

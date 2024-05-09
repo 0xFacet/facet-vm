@@ -169,12 +169,16 @@ class FunctionProxy
   end
   
   def convert_return_to_typed_variable(ret_val)
-    return nil if constructor?
+    return NullVariable.instance if constructor?
+    
+    ret_val = VM.deep_unbox(ret_val)
     
     if returns.nil?
-      return nil if ret_val.nil?
+      if ret_val.eq(NullVariable.instance)
+        return NullVariable.instance
+      end
       
-      raise ContractError, "Function #{func_location} returned #{ret_val.inspect}, but expected nil"
+      raise ContractError, "Function #{func_location} returned #{ret_val.inspect}, but expected null"
     end
   
     if ret_val.nil?

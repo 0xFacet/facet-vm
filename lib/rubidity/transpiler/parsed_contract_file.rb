@@ -39,7 +39,7 @@ class ParsedContractFile
         RuboCop::AST::ProcessedSource.new(filename_ast_or_code, RUBY_VERSION.to_f).ast
       end
     else
-      RuboCop::AST::ProcessedSource.new(filename_ast_or_code.unparse, RUBY_VERSION.to_f).ast
+      RuboCop::AST::ProcessedSource.new(RemoveOpAsgn.process(filename_ast_or_code), RUBY_VERSION.to_f).ast
     end
   end
   
@@ -92,8 +92,8 @@ class ParsedContractFile
       abstract = false
       upgradeable = false
       
-      unless body.type == :begin
-        body = s(:begin, body)
+      unless body&.type == :begin
+        body = s(:begin, *Array.wrap(body).compact)
       end
       
       options_hash = options_hash.first

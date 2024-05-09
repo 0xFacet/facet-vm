@@ -9,7 +9,7 @@ class ParsedContractFunction
     :return_type, :body, :original_node
   
   delegate :available_contracts, :state_variables, :calculated_state_variables,
-    :calculated_available_contracts, to: :contract  
+    :calculated_available_contracts, :calculated_struct_definitions, to: :contract  
   
   def_node_matcher :function_arg_reference?, <<~PATTERN
     (send nil? $#function_arg?)
@@ -92,7 +92,7 @@ class ParsedContractFunction
   end
   
   def parent_contract?(contract_name)
-    contract.parent_contracts.map(&:name).include?(contract_name)
+    contract.calculated_parent_contracts.map(&:name).include?(contract_name)
   end
   
   def contract_reference?(node)
@@ -153,6 +153,15 @@ class ParsedContractFunction
   def state_variable_name?(method_name)
     calculated_state_variables.map(&:name).include?(method_name) ||
     calculated_state_variables.map(&:name).include?(method_name.to_s.chomp("=").to_sym)
+  end
+  
+  def struct_initialization?(node)
+    pattern = '(send nil? $_ ...)'
+    struct_name = node.matches?(pattern)
+    
+    return false unless struct_name
+    
+    struct_name.to_sym.in?(calculated_struct_definitions.map(&:name))
   end
   
   def check_state_access(node)
@@ -244,6 +253,7 @@ class ParsedContractFunction
       forLoop
       to_i
       []
+      memory
     ].include?(method_name)
   end
   
@@ -262,6 +272,7 @@ class ParsedContractFunction
     call_to_function_arg?(send_node) ||
     internal_method_call?(send_node) ||
     call_to_parent_contract?(send_node) ||
+    struct_initialization?(send_node) ||
     BASIC_METHODS.include?(send_node.method_name)
   end
   

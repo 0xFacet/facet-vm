@@ -32,6 +32,8 @@ class StateVariable
     return unless @visibility == :public
     new_var = self
     
+    contract_class.expose(name)
+    
     if type.mapping?
       create_mapping_getter_function(contract_class)
     elsif type.array?
@@ -80,8 +82,8 @@ class StateVariable
   
     contract_class.class_eval do
       self.function(new_var.name, {index: :uint256}, :public, :view, returns: current_type.value_type.name) do
-        value = s.send(new_var.name)
-        value[send(:index)]
+        value = s.__send__(new_var.name)
+        value[__send__(:index)]
       end
     end
   end
@@ -91,16 +93,12 @@ class StateVariable
   end
   
   def deserialize(value)
-    if typed_variable.type.bool?
-      self.typed_variable = value
-    else
-      typed_variable.deserialize(value)
-    end
+    self.typed_variable = TypedVariable.create(typed_variable.type, value)
   end
   
   def method_missing(name, ...)
     if typed_variable.respond_to?(name)
-      typed_variable.send(name, ...)
+      typed_variable.public_send(name, ...)
     else
       super
     end
@@ -117,28 +115,12 @@ class StateVariable
       on_change: -> { on_change&.call }
     )
     
-    if new_typed_variable != @typed_variable
+    if new_typed_variable.ne(@typed_variable).value
       on_change&.call
       @typed_variable = new_typed_variable
     end
   rescue StateVariableMutabilityError => e
     message = "immutability error for #{var.name}: #{e.message}"
     raise ContractError.new(message, contract)
-  end
-  
-  def ==(other)
-    other.is_a?(self.class) && typed_variable == other.typed_variable
-  end
-  
-  def !=(other)
-    !(self == other)
-  end
-  
-  def hash
-    [typed_variable, name, visibility, immutable, constant].hash
-  end
-
-  def eql?(other)
-    hash == other.hash
   end
 end

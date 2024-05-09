@@ -20,13 +20,6 @@ class TransactionContext < ActiveSupport::CurrentAttributes
         super(new_value)
       end
     end
-
-    define_method(struct_name) do
-      struct_params = details[:attributes].keys
-      struct_values = struct_params.map { |key| send("#{struct_name}_#{key}") }
-    
-      Struct.new(*struct_params).new(*struct_values)
-    end
   end
   
   def transaction_hash
@@ -77,7 +70,9 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def blockhash(input_block_number)
-    unless input_block_number == block_number
+    input_block_number = VM.deep_get_values(input_block_number)
+    
+    unless input_block_number == block_number.value
       # TODO: implement
       raise "Not implemented"
     end

@@ -132,9 +132,20 @@ class RubidityTranspiler
   end
   
   def get_desired_artifact(name_or_init_hash)
+    # TODO: Remove before production
+    
     desired_artifact = generate_contract_artifacts.detect do |artifact|
       artifact.name.to_s == name_or_init_hash.to_s ||
       artifact.init_code_hash == name_or_init_hash.to_s
+    end
+    
+    desired_artifact ||= generate_contract_artifacts.last
+    
+    if name_or_init_hash != desired_artifact.init_code_hash
+      InitCodeMapping.find_or_create_by!(
+        old_init_code_hash: name_or_init_hash,
+        new_init_code_hash: desired_artifact.init_code_hash
+      )
     end
     
     sub_transpiler = self.class.new(desired_artifact.source_code)

@@ -1,26 +1,23 @@
-class ContractBuilder < BasicObject
+class ContractBuilder < UltraBasicObject
   def self.build_contract_class(artifact)
     registry = {}.with_indifferent_access
     
     artifact.dependencies_and_self.each do |dep|
       builder = new(registry)
       
-      contract_class = ::CleanRoom.execute_user_code_on_context(
+      contract_class = ::ContractBuilderCleanRoom.execute_user_code_on_context(
         builder,
-        [:contract, :pragma],
+        [:contract],
+        "contract",
         dep.execution_source_code,
-        dep.name,
-        1
+        dep.name
       )
       
       contract_class.instance_variable_set(:@source_code, dep.source_code)
       contract_class.instance_variable_set(:@init_code_hash, dep.init_code_hash)
       registry[dep.name] = contract_class
       
-      contract_class.instance_variable_set(
-        :@available_contracts,
-        registry.deep_dup
-      )
+      contract_class.available_contracts = registry.deep_dup
     end
     
     registry[artifact.name]
@@ -30,10 +27,9 @@ class ContractBuilder < BasicObject
     @available_contracts = available_contracts
   end
   
-  def pragma(...)
-  end
-  
   def contract(name, is: [], abstract: false, upgradeable: false, &block)
+    # TODO: validate arguments
+    
     available_contracts = @available_contracts
     
     ::Class.new(::ContractImplementation) do
@@ -52,7 +48,7 @@ class ContractBuilder < BasicObject
       @is_abstract_contract = abstract
       @name = name.to_s
 
-      ::CleanRoom.execute_user_code_on_context(
+      ::ContractBuilderCleanRoom.execute_user_code_on_context(
         self,
         [
           :event,
@@ -60,6 +56,7 @@ class ContractBuilder < BasicObject
           :constructor,
           *::StateVariableDefinitions.public_instance_methods
         ],
+        "build_contract_class",
         block
       )
     end

@@ -9,6 +9,30 @@ module UnparserExtensions
     class << self
       extend Memoist
       
+      def custom_builder
+        Class.new(Parser::Builders::Default) do
+          modernize
+    
+          def self.emit_index
+            false
+          end
+          
+          def initialize
+            super
+      
+            self.emit_file_line_as_literals = false
+          end
+        end
+      end
+      
+      def parser
+        Parser::CurrentRuby.new(self.custom_builder.new).tap do |parser|
+          parser.diagnostics.tap do |diagnostics|
+            diagnostics.all_errors_are_fatal = true
+          end
+        end
+      end
+      
       unless method_defined?(:original_unparse)
         alias_method :original_unparse, :unparse
         memoize :original_unparse
