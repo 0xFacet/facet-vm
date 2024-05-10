@@ -114,7 +114,13 @@ class ContractTransaction < ApplicationRecord
   end
   
   def self.simulate_transaction(from:, tx_payload:)
-    max_block_number = EthBlock.max_processed_block_number
+    max_block_number = Rails.cache.fetch(
+      "EthBlock.max_processed_block_number",
+      expires_in: 12.seconds
+    ) do
+      EthBlock.max_processed_block_number
+    end
+    
     config_version = SystemConfigVersion.current
     
     cache_key = [
