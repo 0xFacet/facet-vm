@@ -67,7 +67,7 @@ RSpec.describe TypedVariable, type: :model do
       expect { TypedVariable.new(Type.create(:bool)) }.to_not raise_error
       expect { false_bool.value = 4 }.to raise_error(TypeError)
       expect { !int }.to raise_error("Call not() instead of !")
-      expect { int.not }.to raise_error("Cannot negate #{int.inspect}")
+      expect { int.not }.to raise_error(TypeError, /Cannot negate/)
     end
   end
   

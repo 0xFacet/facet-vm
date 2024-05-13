@@ -1,0 +1,17 @@
+pragma :rubidity, "1.0.0"
+
+import '/app/models/contracts/ERC20.rubidity'
+
+contract :StorageLayoutTest, is: :ERC20 do
+  array :uint256, :public, :testArrayFixedLength, length: 3
+  array :uint256, :public, :testArrayVariableLength
+  
+  mapping ({ string: array(:string) }), :public, :arrayInMappingVariable
+  mapping ({ string: array(:string, length: 3) }), :public, :arrayInMappingFixed
+  
+  array array(array(:string)), :public, :arrayOfArrays
+  
+  constructor(name: :string) {
+    ERC20.constructor(name: name, symbol: "symbol", decimals: 18)
+  }
+end

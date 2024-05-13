@@ -85,7 +85,7 @@ class IntegerVariable < GenericVariable
     # end
   end
   
-  delegate :smallest_allowable_type, to: :class
+  delegate :smallest_allowable_type, to: :class, private: true
   def self.smallest_allowable_type(val)
     bits = val.bit_length + (val < 0 ? 1 : 0)
     whole_bits = bits / 8

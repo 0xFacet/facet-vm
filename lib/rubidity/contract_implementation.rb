@@ -3,6 +3,7 @@ class ContractImplementation
   include ::ContractErrors
   include ::ForLoop
   include Exposable
+  # include InstrumentAllMethods
   
   class << self
     attr_reader :name, :is_abstract_contract, :source_code,
@@ -63,6 +64,15 @@ class ContractImplementation
   :bytes32
   
   attr_reader :current_context
+  
+  def self.state_var_def_json
+    state_variable_definitions.map do |name, definition|
+      [
+        name,
+        definition[:type]
+      ]
+    end.to_h.with_indifferent_access
+  end
   
   def initialize(current_context: ::TransactionContext, initial_state: nil)
     @current_context = current_context || raise("Must provide current context")
