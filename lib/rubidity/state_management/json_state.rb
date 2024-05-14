@@ -9,14 +9,17 @@ class JsonState
   end
 
   def get(*keys)
+    keys = keys.as_json
+    
     value = keys.reduce(@transaction_data) { |data, key| data.is_a?(Hash) ? data[key.to_s] : data[key] if data } ||
             keys.reduce(@state_data) { |data, key| data.is_a?(Hash) ? data[key.to_s] : data[key] if data }
     value
+  rescue => e
+    binding.pry
   end
 
   def set(*keys, value)
     last_key = keys.pop
-
     # Ensure the target path exists in transaction_data, using state_data if needed
     target = keys.reduce(@transaction_data) do |data, key|
       key = key.to_s if data.is_a?(Hash)

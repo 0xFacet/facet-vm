@@ -1,24 +1,21 @@
 class ProxyBase
-  def initialize(wrapper, *path)
+  attr_accessor :wrapper, :path, :raw_data
+  
+  def initialize(wrapper, *path, raw_data: nil)
     @wrapper = wrapper
-    @path = path
+    @path = ::VM.deep_unbox(path)
+    @raw_data = raw_data
   end
 
   def [](key)
-    self.class.new(@wrapper, *@path, key)
+    @wrapper.read(*@path, key)
   end
 
   def []=(key, value)
-    self.class.new(@wrapper, *@path, key).set(value)
-  end
+    @wrapper.write(*@path, key, value)
+  end 
   
-  def wrapper
-    @wrapper
-  end
-
-  def method_missing(name, *args, &block)
-    args = ::VM.deep_unbox(args)
-    
+  def method_missing(name, *args)
     if name[-1] == '='
       property = name[0..-2]
       value = args.first
@@ -37,27 +34,27 @@ class ProxyBase
   end
 
   def set(value)
-    # type = infer_type(value)
-    # typed_value = TypedVariable.create(type, value)
     @wrapper.write(*@path, value)
     value
   end
 
   def push(value)
-    # type = infer_type(value)
-    # typed_value = TypedVariable.create(type, value)
-
-    # Find the current length of the array
-    array = @wrapper.read(*@path)
-    index = array.nil? ? 0 : array.length
-
-    # Insert the new value at the next available index
+    index = raw_data.nil? ? 0 : raw_data.length
     @wrapper.write(*@path, index, value)
   end
 
+  def pop
+    index = raw_data.length - 1
+    value = @wrapper.read(*@path, index)
+    @wrapper.write(*@path, index, nil)
+    value
+  end
+  
   private
 
   def get_property(property, *args)
+    property = property.to_s
+    
     if args.empty?
       @wrapper.read(*@path, property)
     else
@@ -66,8 +63,8 @@ class ProxyBase
   end
 
   def set_property(property, value)
-    # type = infer_type(value)
-    # typed_value = TypedVariable.create(type, value)
+    property = property.to_s
+    
     @wrapper.write(*@path, property, value)
   end
 end

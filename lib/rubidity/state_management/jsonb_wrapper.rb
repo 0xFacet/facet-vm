@@ -24,6 +24,8 @@ class JsonbWrapper
   end
 
   def read(*path)
+    path = ::VM.deep_unbox(path)
+    
     validate_path!(*path)
     type_object = layout_for_path(*path)
 
@@ -65,7 +67,7 @@ class JsonbWrapper
     else
       result = @block_data.get(*path)
       value = if result
-                TypedVariable.create(type_object, result)
+                type_output(type_object, result, path)
               else
                 default_value(*path)
               end
@@ -73,8 +75,19 @@ class JsonbWrapper
 
     value
   end
+  
+  def type_output(type_object, result, path)
+    if [:array, :mapping].exclude?(type_object.name)
+      TypedVariable.create(type_object, result)
+    else
+      ProxyBase.new(self, *path, raw_data: result)
+    end
+  end
 
   def write(*path, value)
+    path = ::VM.deep_unbox(path)
+    value = ::VM.deep_unbox(value)
+    
     validate_path!(*path)
     container_type = layout_for_path(*path[0..-2])
 
@@ -101,6 +114,12 @@ class JsonbWrapper
       if result.is_a?(Array)
         current_value = TypedVariable.create(array_type.value_type, result[array_index])
         
+        if value.nil? && array_index == result.length - 1
+          @block_data.set(*path[0..-2], result.reverse.drop(1).reverse)
+          @on_change.call(path, value) if @on_change
+          return
+        end
+        
         unless current_value.eq(value).value
           @block_data.set(*path, value.value)
           @on_change.call(path, value) if @on_change
@@ -116,6 +135,8 @@ class JsonbWrapper
         @on_change.call(path, value) if @on_change
       end
     end
+  rescue => e
+    binding.pry
   end
 
   def persist(block_number)

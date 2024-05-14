@@ -20,6 +20,15 @@ contract :StorageLayoutTest, is: :ERC20 do
     ERC20.constructor(name: name, symbol: "symbol", decimals: 18)
   }
   
+  function :pushTest, { value: :uint256 }, :public do
+    p.testArrayVariableLength.push(value)
+    nil
+  end
+  
+  function :popTest, :public, returns: :uint256 do
+    p.testArrayVariableLength.pop
+  end
+  
   function :changeName, { name: :string }, :public, returns: nil do
     p.name = name
     

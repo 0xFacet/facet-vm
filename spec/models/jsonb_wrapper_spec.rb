@@ -347,7 +347,7 @@ describe 'JSONB wrapper' do
     wrapper = token_a.wrapper
 
     wrapper.start_transaction
-    # binding.pry
+    
     expect(wrapper.read("testArrayFixedLength", 0).value).to eq(0)
     
     expect { wrapper.read("testArrayFixedLength", 1000) }.to raise_error(IndexError)
@@ -355,7 +355,7 @@ describe 'JSONB wrapper' do
 
     wrapper.write("testArrayFixedLength", 0, TypedVariable.create(:uint256, 100))
     wrapper.write("testArrayVariableLength", 0, TypedVariable.create(:uint256, 200))
-    # binding.pry
+    
     expect(wrapper.read("testArrayFixedLength", 0).value).to eq(100)
     expect(wrapper.read("testArrayVariableLength", 0).value).to eq(200)
 
@@ -378,5 +378,34 @@ describe 'JSONB wrapper' do
     
     expect(state["testArrayFixedLength"]).to eq([])
     expect(state["testArrayVariableLength"]).to eq([])
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        op: :call,
+        data: {
+          to: token_a_address,
+          function: "pushTest",
+          args: { value: 100 }
+        }
+      }
+    )
+    
+    expect(token_a.reload.current_state["testArrayVariableLength"]).to eq([100])
+    
+    ret_val = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        op: :call,
+        data: {
+          to: token_a_address,
+          function: "popTest",
+          args: {}
+        }
+      }
+    ).return_value
+    
+    expect(ret_val).to eq(100)
+    expect(token_a.reload.current_state["testArrayVariableLength"]).to eq([])
   end
 end
