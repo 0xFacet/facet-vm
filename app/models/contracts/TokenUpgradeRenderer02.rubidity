@@ -90,6 +90,7 @@ contract :TokenUpgradeRenderer02, is: :Upgradeable, upgradeable: true do
     require(newLevel.endTime > newLevel.startTime, "End time must be after start time")
     require(newLevel.startTime > lastLevel.endTime, "Start time must be after last level end time")
     require(s.tokenUpgradeLevelsByCollection[collection].length + 1 <= s.maxUpgradeLevelCount, "Max upgrade level count reached")
+    require(imageURIs.length <= 25, "Max 25 image URIs allowed")
     
     s.tokenUpgradeLevelsByCollection[collection].push(newLevel)
     
@@ -111,6 +112,8 @@ contract :TokenUpgradeRenderer02, is: :Upgradeable, upgradeable: true do
   
   function :editUpgradeLevel, { collection: :address, index: :uint256, newLevel: :TokenUpgradeLevel, imageURIs: [:string] }, :public do
     requireSenderAdmin(collection)
+    
+    require(imageURIs.length <= 25, "Max 25 image URIs allowed")
     
     editingFirstLevel = index == 0
     editingLastLevel = index == s.tokenUpgradeLevelsByCollection[collection].length - 1

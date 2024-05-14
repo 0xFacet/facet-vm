@@ -555,5 +555,20 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
     
     expect(token_uri["attributes"].any? { |attr| attr["trait_type"] == "Last Upgrade Level" }).to be true
     expect(expected_images).to include(token_uri['image'])
+    
+    trigger_contract_interaction_and_expect_error(
+      from: owner_address,
+      payload: {
+        to: upgrader.address,
+        data: {
+          function: "addUpgradeLevel",
+          args: {
+            collection: nft_contract.address,
+            newLevel: new_level,
+            imageURIs: expected_images * 10
+          }
+        }
+      }
+    )
   end
 end
