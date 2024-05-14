@@ -65,11 +65,14 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
   let(:allow_list_weth_balance) { "0" }
   
   before(:all) do
-    update_supported_contracts("TokenUpgradeRenderer01")
-    update_supported_contracts("NFTCollection01")
-    update_supported_contracts("EtherBridge03")
-    update_supported_contracts("FacetBuddyFactory")
-    update_supported_contracts("FacetBuddy")
+    update_supported_contracts(
+      "TokenUpgradeRenderer01",
+      "NFTCollection01",
+      "EtherBridge03",
+      "FacetBuddyFactory",
+      "FacetBuddy",
+      "TokenUpgradeRenderer02"
+    )
   end
 
   def set_public_mint_settings(
@@ -471,5 +474,86 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
     contract_uri = JSON.parse(Base64.decode64(contract_uri_base_64.split("data:application/json;base64,").last))
     
     expect(contract_uri['description']).to eq("Test contract description")
+    
+    v2 = RubidityTranspiler.transpile_and_get("TokenUpgradeRenderer02")
+
+    upgrade_tx = trigger_contract_interaction_and_expect_success(
+      from: owner_address,
+      payload: {
+        to: upgrader.address,
+        data: {
+          function: "upgrade",
+          args: [v2.init_code_hash, v2.source_code]
+        }
+      }
+    )
+    
+    new_level = {
+      name: "Level 3",
+      imageURI: "https://example.com/image2.png",
+      animationURI: "",
+      extraAttributesJson: {
+        "trait_type": "Defining Trait", "value": "Mohawk"
+      }.to_json,
+      startTime: Time.now.to_i + 30.days,
+      endTime: Time.now.to_i + 31.days,
+    }
+    
+    expected_images = [
+      "https://example.com/image_array4.png",
+      "https://example.com/image_array3.png",
+      "https://example.com/image_array.png",
+      "https://example.com/image_array2.png"
+    ]
+    
+    expect {
+      trigger_contract_interaction_and_expect_success(
+        from: owner_address,
+        payload: {
+          to: upgrader.address,
+          data: {
+            function: "addUpgradeLevel",
+            args: {
+              collection: nft_contract.address,
+              newLevel: new_level,
+              imageURIs: expected_images
+            }
+          }
+        }
+      )
+    }.to change { get_contract_state(upgrader.address, "upgradeLevelCount", nft_contract.address) }.by(1)
+    
+    travel_to Time.current + 30.days + 1.hour
+    
+    active_level = get_contract_state(upgrader.address, "activeUpgradeLevelIndex", nft_contract.address)
+    
+    expect(active_level).to eq(2)
+    
+    set_weth_allowance(
+      wallet: non_owner_address,
+      spender: upgrader.address,
+      amount: amount * per_mint_fee
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: non_owner_address,
+      payload: {
+        to: upgrader.address,
+        data: {
+          function: "upgradeMultipleTokens",
+          args: {
+            collection: nft_contract.address,
+            tokenIds: [1, 2]
+          }
+        }
+      }
+    )
+    
+    token_uri_base_64 = get_contract_state(nft_contract.address, "tokenURI", 1)
+    
+    token_uri = JSON.parse(Base64.decode64(token_uri_base_64.split("data:application/json;base64,").last))
+    
+    expect(token_uri["attributes"].any? { |attr| attr["trait_type"] == "Last Upgrade Level" }).to be true
+    expect(expected_images).to include(token_uri['image'])
   end
 end
