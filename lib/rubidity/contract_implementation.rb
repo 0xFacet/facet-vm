@@ -61,7 +61,8 @@ class ContractImplementation
   :json_stringify,
   :string,
   :address,
-  :bytes32
+  :bytes32,
+  :p
   
   attr_reader :current_context
   
@@ -74,8 +75,10 @@ class ContractImplementation
     end.to_h.with_indifferent_access
   end
   
-  def initialize(current_context: ::TransactionContext, initial_state: nil)
+  def initialize(current_context: ::TransactionContext, initial_state: nil, wrapper: nil)
     @current_context = current_context || raise("Must provide current context")
+    
+    @wrapper = wrapper
     
     if initial_state
       state_manager.load(initial_state)
@@ -88,6 +91,10 @@ class ContractImplementation
   
   def s
     state_manager.state_proxy
+  end
+  
+  def p
+    @_p ||= StateProxyTwo.new(@wrapper)
   end
   
   def state_manager

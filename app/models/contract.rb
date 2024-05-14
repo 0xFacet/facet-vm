@@ -36,7 +36,8 @@ class Contract < ApplicationRecord
   
   def initialize_state
     @implementation = implementation_class.new(
-      initial_state: current_state
+      initial_state: current_state,
+      wrapper: wrapper
     )
     
     take_state_snapshot
@@ -137,7 +138,8 @@ class Contract < ApplicationRecord
     
     old_implementation = implementation
     @implementation = implementation_class.new(
-      initial_state: old_implementation.state_manager.serialize
+      initial_state: old_implementation.state_manager.serialize,
+      wrapper: wrapper
     )
     
     result = yield

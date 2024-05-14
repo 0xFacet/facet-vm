@@ -4,9 +4,10 @@ describe 'JSONB wrapper' do
   let(:user_address) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
   let(:alice) { "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
   let(:bob) { "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }
+  let(:daryl) { "0xcccccccccccccccccccccccccccccccccccccccc" }
 
   before(:all) do
-    update_supported_contracts('StorageLayoutTest')
+    update_supported_contracts('StorageLayoutTest', 'POpenEditionERC721')
   end
 
   it 'handles wrapping and persistence correctly' do
@@ -67,7 +68,7 @@ describe 'JSONB wrapper' do
     expect(wrapper.read("allowance", user_address, alice).value).to eq(new_allowance2)
 
     wrapper.commit_transaction
-    wrapper.persist(EthBlock.max_processed_block_number + 1)
+    wrapper.persist(EthBlock.max_processed_block_number + 1000)
 
     token_a.reload
     state = token_a.current_state
@@ -75,6 +76,44 @@ describe 'JSONB wrapper' do
     expect(state["balanceOf"].dig(user_address)).to eq(new_balance)
     expect(state["decimals"]).to eq(new_decimals)
     expect(state["allowance"].dig(user_address, alice)).to eq(new_allowance2)
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        op: :call,
+        data: {
+          to: token_a_address,
+          function: "changeName",
+          args: { name: "Token A NEW" }
+        }
+      }
+    )
+    
+    token_a.reload
+    
+    state = token_a.current_state
+    expect(state["name"]).to eq("Token A NEW")
+    
+    res = ContractTransaction.make_static_call(
+      contract: token_a.address,
+      function_name: "getName"
+    )
+    
+    expect(res).to eq("Token A NEW")
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        op: :call,
+        data: {
+          to: token_a_address,
+          function: "updateBalance",
+          args: { amount: 1000 }
+        }
+      }
+    )
+    
+    expect(token_a.reload.current_state["balanceOf"].dig(user_address)).to eq(1000)
   end
 
   it 'handles block-level rollback (reorg)' do
@@ -128,6 +167,129 @@ describe 'JSONB wrapper' do
     expect(state["allowance"].dig(user_address, alice)).to eq(new_allowance)
   end
 
+  it 'handles live transaction rollback' do
+    contract = trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: :create,
+        data: {
+          type: "StorageLayoutTest",
+          args: { name: "Token A" }
+        }
+      }
+    )
+    
+    target = trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: :create,
+        data: {
+          type: "StorageLayoutTest",
+          args: { name: "Token B" }
+        }
+      }
+    )
+    
+    in_block do |c|
+      c.trigger_contract_interaction_and_expect_success(
+        from: alice,
+        payload: {
+          op: :call,
+          data: {
+            to: target.address,
+            function: "changeVar1",
+            args: [5, false]
+          }
+        }
+      )
+      
+      c.trigger_contract_interaction_and_expect_error(
+        from: alice,
+        payload: {
+          op: :call,
+          data: {
+            to: contract.address,
+            function: "oneSuccessOneRevert",
+            args: [target.address, 10]
+          }
+        }
+      )
+    end
+    
+    ts = ContractTransaction.make_static_call(
+      contract: target.address,
+      function_name: "var1",
+      function_args: {}
+    )
+    
+    expect(ts).to eq(5)
+
+    nft = trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: :create,
+        data: {
+          type: "POpenEditionERC721",
+          args: {
+            name: "name",
+            symbol: "symbol",
+            contentURI: "",
+            maxPerAddress: 10,
+            description: "description",
+            mintStart: 1,
+            mintEnd: (Time.current + 100.years).to_i
+          }
+        }
+      }
+    )
+    
+    in_block do |c|
+      c.trigger_contract_interaction_and_expect_success(
+        from: bob,
+        payload: {
+          op: :call,
+          data: {
+            to: nft.address,
+            function: "mint",
+            args: 2
+          }
+        }
+      )
+
+      c.trigger_contract_interaction_and_expect_error(
+        from: alice,
+        payload: {
+          op: :call,
+          data: {
+            to: nft.address,
+            function: "mint",
+            args: 11
+          }
+        }
+      )
+      
+      c.trigger_contract_interaction_and_expect_success(
+        from: daryl,
+        payload: {
+          op: :call,
+          data: {
+            to: nft.address,
+            function: "mint",
+            args: 5
+          }
+        }
+      )
+    end
+    
+    ts = ContractTransaction.make_static_call(
+      contract: nft.address,
+      function_name: "totalSupply",
+      function_args: {}
+    )
+    
+    expect(ts).to eq(7)
+  end
+  
   it 'handles multiple modifications to the same nested allowance mapping' do
     tokenA_deploy_receipt = trigger_contract_interaction_and_expect_success(
       from: user_address,

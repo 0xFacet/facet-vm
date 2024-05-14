@@ -6,10 +6,7 @@ class JsonbWrapper
     @on_change = on_change
     @contract = contract # ActiveRecord object that has a jsonb column current_state
 
-    # Load and parse the JSON blob from the database
-    result = ActiveRecord::Base.connection.execute("SELECT current_state FROM #{contract.class.table_name} WHERE id = #{contract.id}")
-    json_blob = result.getvalue(0, 0)
-    state_data = JSON.parse(json_blob)
+    state_data = JSON.parse(contract.attributes_before_type_cast['current_state'] || "{}")
 
     @block_data = JsonState.new(state_data, contract.address)
   end

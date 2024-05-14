@@ -99,6 +99,10 @@ class BlockContext < ActiveSupport::CurrentAttributes
     states_to_save.each do |state|
       state.run_callbacks(:create)
     end
+    
+    contracts.each do |c|
+      c.wrapper.persist(current_block.block_number)
+    end
   end
   
   def start_block_passed?
