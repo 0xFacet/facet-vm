@@ -9,15 +9,29 @@ class JsonState
   end
 
   def get(*keys)
-    value = keys.reduce(@transaction_data) { |data, key| data[key.to_s] if data } ||
-            keys.reduce(@state_data) { |data, key| data[key.to_s] if data }
+    value = keys.reduce(@transaction_data) { |data, key| data.is_a?(Hash) ? data[key.to_s] : data[key] if data } ||
+            keys.reduce(@state_data) { |data, key| data.is_a?(Hash) ? data[key.to_s] : data[key] if data }
     value
   end
 
   def set(*keys, value)
-    last_key = keys.pop.to_s
-    target = keys.reduce(@transaction_data) { |data, key| data[key.to_s] ||= {} }
-    target[last_key] = value
+    last_key = keys.pop
+
+    # Ensure the target path exists in transaction_data, using state_data if needed
+    target = keys.reduce(@transaction_data) do |data, key|
+      key = key.to_s if data.is_a?(Hash)
+      data[key] ||= deep_dup(@state_data[key.to_s] || {})
+    end
+
+    if target.is_a?(Array)
+      target[last_key.to_i] = value
+    elsif target.is_a?(Hash)
+      target[last_key.to_s] = value
+    else
+      raise TypeError, "Unexpected target type: #{target.class}"
+    end
+
+    log_change(keys + [last_key], value)
   end
 
   def apply_transaction
@@ -79,10 +93,14 @@ class JsonState
 
   def update_state_and_log(keys, new_value)
     current = @state_data
+    
     keys[0...-1].each do |key|
-      current = current[key.to_s] ||= {}
+      key = key.to_s if current.is_a?(Hash)
+      current = current[key] ||= {}
     end
-    last_key = keys.last.to_s
+    
+    last_key = keys.last
+    last_key = last_key.to_s if current.is_a?(Hash)
 
     original_value = current[last_key]
     current[last_key] = new_value
@@ -91,16 +109,49 @@ class JsonState
       @change_log[keys] = { old_value: original_value, new_value: new_value }
     end
 
-    # Remove entries where the final value is the same as the original value
     @change_log.delete_if { |_, change| change[:old_value] == change[:new_value] }
   end
 
   def revert_change(keys, old_value)
     current = @state_data
     keys[0...-1].each do |key|
-      current = current[key.to_s] ||= {}
+      key = key.to_s if current.is_a?(Hash)
+      current = current[key] ||= {}
     end
-    last_key = keys.last.to_s
+    last_key = keys.last
+    last_key = last_key.to_s if current.is_a?(Hash)
     current[last_key] = old_value
+    
+    if current.is_a?(Array)
+      while current.last.nil? && current.length > 0
+        current.pop
+      end
+    end
+  end
+
+  def log_change(keys, new_value)
+    current = @state_data
+    keys[0...-1].each do |key|
+      key = key.to_s if current.is_a?(Hash)
+      current = current[key] ||= {}
+    end
+    last_key = keys.last
+    last_key = last_key.to_s if current.is_a?(Hash)
+    
+    original_value = current[last_key.as_json]
+    @change_log[keys] = { old_value: original_value, new_value: new_value } unless @change_log.key?(keys)
+    
+    @change_log.delete_if { |_, change| change[:old_value] == change[:new_value] }
+  end
+
+  def deep_dup(obj)
+    case obj
+    when Array
+      obj.map { |e| deep_dup(e) }
+    when Hash
+      obj.each_with_object({}) { |(k, v), h| h[k] = deep_dup(v) }
+    else
+      obj
+    end
   end
 end

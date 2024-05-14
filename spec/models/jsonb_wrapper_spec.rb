@@ -6,7 +6,7 @@ describe 'JSONB wrapper' do
   let(:bob) { "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }
 
   before(:all) do
-    update_supported_contracts('StubERC20')
+    update_supported_contracts('StorageLayoutTest')
   end
 
   it 'handles wrapping and persistence correctly' do
@@ -24,7 +24,7 @@ describe 'JSONB wrapper' do
     token_a = tokenA_deploy_receipt.contract
 
     wrapper = token_a.wrapper
-
+    
     wrapper.start_transaction
     expect(wrapper.read("balanceOf", user_address).value).to eq(0)
     expect(wrapper.read("decimals").value).to eq(18)
@@ -83,7 +83,7 @@ describe 'JSONB wrapper' do
       payload: {
         to: nil,
         data: {
-          type: "StubERC20",
+          type: "StorageLayoutTest",
           args: { name: "Token A" }
         }
       }
@@ -101,6 +101,7 @@ describe 'JSONB wrapper' do
 
     wrapper.write("balanceOf", user_address, TypedVariable.create(:uint256, new_balance))
     wrapper.write("decimals", TypedVariable.create(:uint8, new_decimals))
+    
     wrapper.write("allowance", user_address, alice, TypedVariable.create(:uint256, new_allowance))
     wrapper.commit_transaction
     wrapper.persist(EthBlock.max_processed_block_number + 1)
@@ -133,7 +134,7 @@ describe 'JSONB wrapper' do
       payload: {
         to: nil,
         data: {
-          type: "StubERC20",
+          type: "StorageLayoutTest",
           args: { name: "Token A" }
         }
       }
@@ -165,5 +166,55 @@ describe 'JSONB wrapper' do
 
     expect(state["allowance"].dig(user_address, alice)).to eq(new_allowance)
     expect(state["allowance"].dig(user_address, bob)).to eq(new_allowance2)
+  end
+  
+  it 'handles arrays' do
+    tokenA_deploy_receipt = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: nil,
+        data: {
+          type: "StorageLayoutTest",
+          args: { name: "Token A" }
+        }
+      }
+    )
+    token_a_address = tokenA_deploy_receipt.address
+    token_a = tokenA_deploy_receipt.contract
+
+    wrapper = token_a.wrapper
+
+    wrapper.start_transaction
+    # binding.pry
+    expect(wrapper.read("testArrayFixedLength", 0).value).to eq(0)
+    
+    expect { wrapper.read("testArrayFixedLength", 1000) }.to raise_error(IndexError)
+    expect { wrapper.read("testArrayVariableLength", 0) }.to raise_error(IndexError)
+
+    wrapper.write("testArrayFixedLength", 0, TypedVariable.create(:uint256, 100))
+    wrapper.write("testArrayVariableLength", 0, TypedVariable.create(:uint256, 200))
+    # binding.pry
+    expect(wrapper.read("testArrayFixedLength", 0).value).to eq(100)
+    expect(wrapper.read("testArrayVariableLength", 0).value).to eq(200)
+
+    wrapper.commit_transaction
+    
+    save_block = EthBlock.max_processed_block_number + 1
+    
+    wrapper.persist(save_block)
+
+    token_a.reload
+    state = token_a.current_state
+   
+    expect(state["testArrayFixedLength"][0]).to eq(100)
+    expect(state["testArrayVariableLength"][0]).to eq(200)
+    
+    wrapper.rollback_to_block(save_block - 1)
+    
+    token_a.reload
+    state = token_a.current_state
+    
+    expect(state["testArrayFixedLength"]).to eq([])
+    expect(state["testArrayVariableLength"]).to eq([])
   end
 end

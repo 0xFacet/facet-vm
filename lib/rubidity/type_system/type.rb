@@ -3,7 +3,7 @@ class Type
   
   include ContractErrors
   
-  attr_accessor :name, :metadata, :key_type, :value_type, :initial_length, :struct_definition
+  attr_accessor :name, :metadata, :key_type, :value_type, :initial_length, :struct_definition, :length
   
   INTEGER_TYPES = (8..256).step(8).flat_map do |num|
     ["uint#{num}", "int#{num}"]
@@ -76,6 +76,7 @@ class Type
     self.key_type = metadata[:key_type]
     self.value_type = metadata[:value_type]
     self.initial_length = metadata[:initial_length] if metadata[:initial_length]
+    self.length = metadata[:length] if metadata[:length]
     self.struct_definition = metadata[:struct_definition] if metadata[:struct_definition]
   end
   
@@ -154,6 +155,19 @@ class Type
       raise_variable_type_error(literal)
     end
   end
+  
+  # def as_json
+  #   case name
+  #   when :mapping
+  #     { key_type.as_json => value_type.as_json }
+  #   when :array
+  #     { array: { value_type: value_type.as_json, initial_length: initial_length } }
+  #   when :struct
+  #     { struct: { struct_definition: struct_definition.as_json } }
+  #   else
+  #     name
+  #   end
+  # end
   
   def check_and_normalize_literal(literal)
     if literal.is_a?(TypedVariable) || literal.is_a?(TypedVariableProxy)

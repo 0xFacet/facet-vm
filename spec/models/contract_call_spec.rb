@@ -61,6 +61,8 @@ RSpec.describe ContractCall, type: :model do
     final_nonce = BlockContext.calculate_eoa_nonce(from_address)
     
     expect(final_nonce - initial_nonce).to eq(3)
+    
+    BlockContext.current_block = nil
   end
   
   it 'calculates contract_nonce correctly' do
@@ -133,6 +135,8 @@ RSpec.describe ContractCall, type: :model do
     final_nonce = BlockContext.calculate_contract_nonce(factory_address)
 
     expect(final_nonce).to eq(2)
+    
+    BlockContext.current_block = nil
   end
   
   it 'fails on read only write' do

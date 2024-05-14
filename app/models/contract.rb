@@ -89,8 +89,8 @@ class Contract < ApplicationRecord
   end
   
   def wrapper
-    blank = lambda { |path, value| puts "Changed #{path.join('.')} to #{value.as_json}" }
-    @jsonb_wrapper ||= JsonbWrapper.new(implementation_class.state_var_def_json, blank, self)
+    blank = lambda { |path, value| puts "Changed #{path.map(&:as_json).join('.')} to #{value.as_json}" }
+    @jsonb_wrapper ||= JsonbWrapper.new(implementation_class.state_var_def_json, nil, self)
   end
   
   def self.types_that_implement(base_type)

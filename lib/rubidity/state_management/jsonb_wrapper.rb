@@ -1,5 +1,3 @@
-require 'json'
-
 class JsonbWrapper
   attr_accessor :state_var_layout, :on_change, :contract, :block_data
 
@@ -30,31 +28,103 @@ class JsonbWrapper
 
   def read(*path)
     validate_path!(*path)
-    result = @block_data.get(*path)
     type_object = layout_for_path(*path)
-    value = if result
-              TypedVariable.create(type_object, result)
-            else
-              default_value(*path)
-            end
+
+    container_type = layout_for_path(*path[0..-2])
+
+    if container_type.is_a?(Type) && container_type.name == :array
+      array_index = path.pop
+      array_type = container_type
+
+      unless array_index.is_a?(Integer)
+        raise ArgumentError, "Array index must be an Integer"
+      end
+
+      if array_type.length && array_index >= array_type.length
+        raise IndexError, "Index out of range for fixed-length array"
+      end
+
+      result = @block_data.get(*path)
+
+      if result.is_a?(Array)
+        if array_index < result.length
+          value = result[array_index]
+        else
+          value = nil
+        end
+      else
+        result = []
+      end
+
+      if value.nil?
+        if array_type.length && array_index < array_type.length
+          value = TypedVariable.create(array_type.value_type)
+        else
+          raise IndexError, "Index out of range for variable-length array"
+        end
+      else
+        value = TypedVariable.create(array_type.value_type, value)
+      end
+    else
+      result = @block_data.get(*path)
+      value = if result
+                TypedVariable.create(type_object, result)
+              else
+                default_value(*path)
+              end
+    end
+
     value
   end
 
   def write(*path, value)
     validate_path!(*path)
-    current_value = read(*path)
+    container_type = layout_for_path(*path[0..-2])
 
-    # If the value is different, update the state
-    unless current_value.eq(value).value
-      @block_data.set(*path, value.value)
-      @on_change.call(path, value) if @on_change
+    if container_type.is_a?(Type) && container_type.name == :array
+      array_index = path.pop
+      array_type = container_type
+
+      unless array_index.is_a?(Integer)
+        raise ArgumentError, "Array index must be an Integer"
+      end
+
+      path.push(array_index)
+      
+      if array_type.length && array_index >= array_type.length
+        raise IndexError, "Index out of range for fixed-length array"
+      end
+
+      result = @block_data.get(*path[0..-2])
+      if result.nil?
+        result = []
+        @block_data.set(*path[0..-2], result)
+      end
+
+      if result.is_a?(Array)
+        current_value = TypedVariable.create(array_type.value_type, result[array_index])
+        
+        unless current_value.eq(value).value
+          @block_data.set(*path, value.value)
+          @on_change.call(path, value) if @on_change
+        end
+      else
+        raise TypeError, "Expected an Array at #{path[0..-2].join('.')}, but found #{result.class}"
+      end
+
+    else
+      current_value = read(*path)
+      unless current_value.eq(value).value
+        @block_data.set(*path, value.value)
+        @on_change.call(path, value) if @on_change
+      end
     end
   end
 
   def persist(block_number)
     changes = @block_data.changes
     return if changes.empty?
-
+    
     # Save block changes before applying changes
     @block_data.save_block_changes(block_number)
 
@@ -62,7 +132,7 @@ class JsonbWrapper
     update_json = changes.each_with_object({}) do |(path, change), acc|
       current = acc
       path.each_with_index do |segment, idx|
-        segment_key = segment.to_s
+        segment_key = segment.is_a?(Integer) ? segment : segment.to_s
         if idx == path.length - 1
           current_value = @block_data.get(*path)
           current[segment_key] = current_value
@@ -72,9 +142,6 @@ class JsonbWrapper
         end
       end
     end
-
-    # Debugging output to ensure the update_json is correct
-    puts "Update JSON: #{update_json.inspect}"
 
     # Perform incremental update using PostgreSQL JSONB functions
     set_operations = build_jsonb_set_operations(update_json)
@@ -103,8 +170,14 @@ class JsonbWrapper
 
     path.each_with_index do |segment, index|
       if layout.is_a?(Type)
-        if layout.name == :mapping || layout.name == :array
+        if layout.name == :mapping
           layout = layout.value_type
+        elsif layout.name == :array
+          if segment.is_a?(Integer)
+            layout = layout.value_type
+          else
+            raise ArgumentError, "Index mismatch at segment #{index + 1}: expected Integer, got #{segment.class}"
+          end
         elsif layout.key_type && layout.value_type
           if segment.is_a?(TypedVariable) && segment.type == layout.key_type.name
             layout = layout.value_type
@@ -134,7 +207,11 @@ class JsonbWrapper
         if layout.name == :mapping
           layout = layout.value_type
         elsif layout.name == :array
-          layout = layout.value_type
+          if segment.is_a?(Integer)
+            layout = layout.value_type
+          else
+            raise ArgumentError, "Index mismatch: expected Integer, got #{segment.class}"
+          end
         end
       elsif layout.is_a?(Hash) && layout.key?(segment.to_s)
         layout = layout[segment.to_s]
