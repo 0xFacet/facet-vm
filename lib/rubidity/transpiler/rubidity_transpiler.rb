@@ -141,7 +141,7 @@ class RubidityTranspiler
     
     desired_artifact ||= generate_contract_artifacts.last
     
-    if name_or_init_hash != desired_artifact.init_code_hash
+    if name_or_init_hash != desired_artifact.init_code_hash && name_or_init_hash =~ /\A0x/
       InitCodeMapping.find_or_create_by!(
         old_init_code_hash: name_or_init_hash,
         new_init_code_hash: desired_artifact.init_code_hash
