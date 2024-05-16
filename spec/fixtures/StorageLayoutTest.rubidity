@@ -14,7 +14,16 @@ contract :StorageLayoutTest, is: :ERC20 do
   mapping ({ string: array(:string) }), :public, :arrayInMappingVariable
   mapping ({ string: array(:string, length: 3) }), :public, :arrayInMappingFixed
   
-  array array(array(:string)), :public, :arrayOfArrays
+  mapping ({ string: mapping({ string: :string })}), :public, :getPair
+  
+  function :addPair, { key1: :string, key2: :string, value: :string }, :public, returns: nil do
+    s.getPair[key1][key2] = value
+    s.getPair[key2][key1] = value
+    nil
+  end
+  
+  
+  # array array(array(:string)), :public, :arrayOfArrays
   
   constructor(name: :string) {
     ERC20.constructor(name: name, symbol: "symbol", decimals: 18)

@@ -10,7 +10,7 @@ module Exposable
   end
   
   def exposed_methods
-    self.class.__send__(:validate_exposed_methods)
+    # self.class.__send__(:validate_exposed_methods)
     self.class.exposed_methods + exposed_instance_methods
   end
   
@@ -26,11 +26,11 @@ module Exposable
   private
   
   def validate_exposed_instance_methods
-    exposed_instance_methods.each do |name|
-      unless public_methods.include?(name)
-        raise NameError, "undefined method `#{name}' for instance of `#{self.class.name}'"
-      end
-    end
+    # exposed_instance_methods.each do |name|
+    #   unless public_methods.include?(name)
+    #     raise NameError, "undefined method `#{name}' for instance of `#{self.class.name}'"
+    #   end
+    # end
   end
   
   class_methods do
@@ -54,12 +54,12 @@ module Exposable
     
     private
     
-    def validate_exposed_methods
-      @exposed_methods.each do |name|
-        unless public_method_defined?(name)
-          raise NameError, "undefined method `#{name}' for class `#{self.name}'"
-        end
-      end
-    end
+    # def validate_exposed_methods
+    #   @exposed_methods.each do |name|
+    #     unless public_method_defined?(name)
+    #       raise NameError, "undefined method `#{name}' for class `#{self.name}'"
+    #     end
+    #   end
+    # end
   end
 end

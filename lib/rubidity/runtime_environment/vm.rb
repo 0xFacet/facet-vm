@@ -40,6 +40,10 @@ module VM
     end
   end
   
+  def unbox(i)
+    deep_unbox(i)
+  end
+  
   def deep_unbox(value)
     case value
     when Array

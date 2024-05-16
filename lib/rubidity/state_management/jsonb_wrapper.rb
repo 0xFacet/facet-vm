@@ -6,11 +6,28 @@ class JsonbWrapper
     @on_change = on_change
     @contract = contract # ActiveRecord object that has a jsonb column current_state
 
-    state_data = JSON.parse(contract.attributes_before_type_cast['current_state'] || "{}")
-
-    @block_data = JsonState.new(state_data, contract.address)
+    # state_data = JSON.parse(contract.attributes_before_type_cast['current_state'] || "{}")
+    # Benchmark.msr do
+      @block_data = JsonState.new(contract.current_state, contract.address)
+    # end
+    # ap @block_data
+    @dirty_stack = []
   end
 
+  def detecting_changes(revert_on_change:)
+    old_on_change = on_change
+    # binding.pry if revert_on_change
+    self.on_change = ->(path, value) do
+      if revert_on_change
+        raise ContractErrors::InvalidStateVariableChange.new
+      end
+    end
+    # ap "YIELD"
+    yield
+    
+    self.on_change = old_on_change
+  end
+  
   def start_transaction
     @block_data.clear_transaction
   end
@@ -25,7 +42,8 @@ class JsonbWrapper
 
   def read(*path)
     path = ::VM.deep_unbox(path)
-    
+    path = path.as_json
+    # ap path
     validate_path!(*path)
     type_object = layout_for_path(*path)
 
@@ -66,27 +84,28 @@ class JsonbWrapper
       end
     else
       result = @block_data.get(*path)
-      value = if result
-                type_output(type_object, result, path)
-              else
-                default_value(*path)
-              end
+      value = type_output(type_object, result, path)
     end
 
     value
+  # rescue => e
+  #   binding.pry
   end
   
   def type_output(type_object, result, path)
     if [:array, :mapping].exclude?(type_object.name)
       TypedVariable.create(type_object, result)
     else
-      ProxyBase.new(self, *path, raw_data: result)
+      ProxyBase.new(self, *path, memory_var: TypedVariable.create(type_object, result))
     end
   end
 
   def write(*path, value)
     path = ::VM.deep_unbox(path)
     value = ::VM.deep_unbox(value)
+    # binding.pry if value.is_a?(ArrayVariable)
+    path = path.as_json
+    # value = value.as_json
     
     validate_path!(*path)
     container_type = layout_for_path(*path[0..-2])
@@ -113,6 +132,7 @@ class JsonbWrapper
 
       if result.is_a?(Array)
         current_value = TypedVariable.create(array_type.value_type, result[array_index])
+        # current_value = result[array_index]
         
         if value.nil? && array_index == result.length - 1
           @block_data.set(*path[0..-2], result.reverse.drop(1).reverse)
@@ -121,7 +141,7 @@ class JsonbWrapper
         end
         
         unless current_value.eq(value).value
-          @block_data.set(*path, value.value)
+          @block_data.set(*path, value.as_json)
           @on_change.call(path, value) if @on_change
         end
       else
@@ -130,22 +150,54 @@ class JsonbWrapper
 
     else
       current_value = read(*path)
+      # current_value = @block_data.get(*path)
+      # unless current_value == value
       unless current_value.eq(value).value
-        @block_data.set(*path, value.value)
+        # Compare variables directly but can't now bc of coercing contract variables to addresses
+        if value.as_json == TypedVariable.create(layout_for_path(*path)).as_json
+          @block_data.set(*path, nil)
+        else
+          @block_data.set(*path, value.as_json)
+        end
+        # binding.pry if path[0] == 'balanceOf'
         @on_change.call(path, value) if @on_change
       end
     end
-  rescue => e
-    binding.pry
+  # rescue => e
+  #   binding.pry
   end
-
+  
+  def default_value_for_type(type)
+    case type.name
+    when :mapping
+      {}
+    when :array
+      []
+    else
+      type.default_value
+    end
+  end
+  
   def persist(block_number)
     changes = @block_data.changes
     return if changes.empty?
     
+    # logs = @block_data.build_block_changes(block_number)
+    # binding.pry
     # Save block changes before applying changes
     @block_data.save_block_changes(block_number)
+    # @block_data.change_log = {}
+    
+    @state_var_layout.each do |key, type|
+      unless @block_data.state_data.key?(key)
+        @block_data.state_data[key] = default_value_for_type(type)
+      end
+    end
 
+    contract.update!(current_state: @block_data.state_data)
+    
+    return# logs
+    
     # Build a single JSON object with all updates
     update_json = changes.each_with_object({}) do |(path, change), acc|
       current = acc
@@ -160,18 +212,24 @@ class JsonbWrapper
         end
       end
     end
-
+    ap changes
+ap update_json
     # Perform incremental update using PostgreSQL JSONB functions
     set_operations = build_jsonb_set_operations(update_json)
-    sql = "UPDATE #{contract.class.table_name} SET current_state = #{set_operations} WHERE id = #{contract.id}"
+    ap set_operations
+    sql = ActiveRecord::Base.send(:sanitize_sql_array, ["UPDATE #{contract.class.table_name} SET current_state = #{set_operations} WHERE id = ?", contract.id])
     ActiveRecord::Base.connection.execute(sql)
   end
 
   def rollback_to_block(block_number)
     @block_data.rollback_to_block(block_number)
-
+    
+    contract.update!(current_state: @block_data.state_data)
+    
+    return
     # Persist the reverted state without creating a new change log
     update_json = @block_data.state_data
+
 
     # Construct a single JSONB set operation to apply all changes
     set_operations = build_jsonb_set_operations(update_json)
@@ -194,6 +252,7 @@ class JsonbWrapper
           if segment.is_a?(Integer)
             layout = layout.value_type
           else
+            # binding.pry
             raise ArgumentError, "Index mismatch at segment #{index + 1}: expected Integer, got #{segment.class}"
           end
         elsif layout.key_type && layout.value_type
@@ -248,13 +307,19 @@ class JsonbWrapper
 
   def build_jsonb_set_operations(update_json, prefix = 'current_state')
     update_json.reduce(prefix) do |operations, (key, value)|
-      jsonb_path = json_path_for(key)
-      value_json = value.is_a?(Hash) ? value.to_json : value.to_json
-      "jsonb_set(#{operations}, '{#{jsonb_path}}'::text[], '#{value_json}'::jsonb)"
+      jsonb_path = key.split('.').map { |k| ActiveRecord::Base.connection.quote_string(k) }.join(',')
+
+      # jsonb_path = json_path_for(key)
+      # value_json = value.is_a?(Hash) ? value.to_json : value.to_json
+      
+      value_json = ActiveRecord::Base.connection.quote(value.to_json)
+
+      
+      "jsonb_set(#{operations}, '{#{jsonb_path}}'::text[], #{value_json}::jsonb)"
     end
   end
 
-  def json_path_for(key)
-    key.split('.').map { |k| "\"#{k}\"" }.join(',')
-  end
+  # def json_path_for(key)
+  #   key.split('.').map { |k| "\"#{k}\"" }.join(',')
+  # end
 end

@@ -1,10 +1,27 @@
 class ProxyBase
-  attr_accessor :wrapper, :path, :raw_data
+  attr_accessor :wrapper, :path, :raw_data, :memory_var
   
-  def initialize(wrapper, *path, raw_data: nil)
+  def initialize(wrapper, *path, memory_var: nil)
     @wrapper = wrapper
-    @path = ::VM.deep_unbox(path)
-    @raw_data = raw_data
+    @path = path #::VM.deep_unbox(path)
+    @memory_var = memory_var
+    @raw_data = memory_var.value.data if memory_var
+  end
+  
+  def as_json
+    if memory_var
+      memory_var.as_json
+    else
+      raise "Can't serialize storage variable without memory_var"
+    end
+  end
+  
+  def eq(...)
+    if memory_var
+      memory_var.eq(...)
+    else
+      raise "Can't compare storage variable without memory_var"
+    end
   end
 
   def [](key)
@@ -23,6 +40,8 @@ class ProxyBase
     else
       get_property(name, *args)
     end
+  # rescue => e
+  #   binding.pry
   end
 
   def respond_to_missing?(name, include_private = false)
@@ -50,6 +69,14 @@ class ProxyBase
     value
   end
   
+  def length
+    memory_var.type.length || raw_data.length
+  end
+  
+  def last
+    self[self.length - 1]
+  end
+  
   private
 
   def get_property(property, *args)
@@ -60,17 +87,15 @@ class ProxyBase
     else
       @wrapper.read(*@path, property, *args)
     end
+
   end
 
   def set_property(property, value)
+    # value = VM.unbox(value)
+    # ap value
+    
     property = property.to_s
     
     @wrapper.write(*@path, property, value)
-  end
-end
-
-class StateProxyTwo < ProxyBase
-  def initialize(wrapper)
-    super(wrapper)
   end
 end

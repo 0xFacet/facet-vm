@@ -10,6 +10,96 @@ describe 'JSONB wrapper' do
     update_supported_contracts('StorageLayoutTest', 'POpenEditionERC721')
   end
 
+  it 'handles default values' do
+    tokenA_deploy_receipt = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: nil,
+        data: {
+          type: "StorageLayoutTest",
+          args: { name: "Token A" }
+        }
+      }
+    )
+    token_a_address = tokenA_deploy_receipt.address
+    token_a = tokenA_deploy_receipt.contract
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        op: :call,
+        data: {
+          to: token_a_address,
+          function: "updateBalance",
+          args: { amount: 1000 }
+        }
+      }
+    )
+    
+    expect(token_a.reload.current_state["balanceOf"]).to eq({user_address => 1000})
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        op: :call,
+        data: {
+          to: token_a_address,
+          function: "updateBalance",
+          args: { amount: 0 }
+        }
+      }
+    )
+    
+    expect(token_a.reload.current_state["balanceOf"]).to eq({})
+  end
+   
+  it 'handles getPair case' do
+    tokenA_deploy_receipt = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: nil,
+        data: {
+          type: "StorageLayoutTest",
+          args: { name: "Token A" }
+        }
+      }
+    )
+    token_a_address = tokenA_deploy_receipt.address
+    token_a = tokenA_deploy_receipt.contract
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        op: :call,
+        data: {
+          to: token_a_address,
+          function: "addPair",
+          args: ["Token A", "Token B", "Pair AB"]
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        op: :call,
+        data: {
+          to: token_a_address,
+          function: "addPair",
+          args: ["Token A", "Token C", "Pair AC"]
+        }
+      }
+    )
+    
+    token_a.reload
+    
+    expect(token_a.current_state["getPair"]).to eq({
+      "Token A"=>{"Token C"=>"Pair AC", "Token B" => "Pair AB"},
+      "Token C"=>{"Token A"=>"Pair AC"},
+      "Token B"=>{"Token A" => "Pair AB"},
+    })
+  end
+  
   it 'handles wrapping and persistence correctly' do
     tokenA_deploy_receipt = trigger_contract_interaction_and_expect_success(
       from: user_address,

@@ -18,8 +18,8 @@ contract :TestOnChange do
   mapping ({ address: :uint256 }), :public, :balanceOf
   mapping ({ address: mapping(address: :uint256) }), :public, :allowance
   
-  array :uint256, :public, :testArray, initial_length: 3
-  array :uint256, :public, :uninitializedArray, initial_length: 1
+  array :uint256, :public, :testArray, length: 3
+  array :uint256, :public, :uninitializedArray, length: 1
   
   bool :public, :boolVar
   
