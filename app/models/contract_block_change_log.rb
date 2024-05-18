@@ -18,30 +18,35 @@ class ContractBlockChangeLog < ApplicationRecord
 
   # TODO: more testing
   def self.rollback_changes(contract_address, block_number)
-    logs = where(contract_address: contract_address)
-           .where('block_number > ?', block_number)
-           .order(block_number: :desc)
+    ContractBlockChangeLog.transaction do
+      logs = where(contract_address: contract_address)
+            .where('block_number > ?', block_number)
+            .order(block_number: :desc)
 
-    changes_to_apply = []
-    keys_to_delete = []
+      changes_to_apply = []
+      keys_to_delete = []
 
-    logs.each do |log|
-      log.state_changes.each do |change|
-        keys, value = change
-        
-        old_value = value['from']
-        if old_value.nil?
-          keys_to_delete << keys
-        else
-          changes_to_apply << { contract_address: contract_address, key: keys,
-            value: old_value }
+      logs.each do |log|
+        log.state_changes.each do |change|
+          keys, value = change
+          
+          old_value = value['from']
+          if old_value.nil?
+            keys_to_delete << keys
+          else
+            changes_to_apply << { contract_address: contract_address, key: keys,
+              value: old_value }
+          end
         end
       end
-    end
-    
-    NewContractState.import_records!(changes_to_apply)
-    NewContractState.delete_state(contract_address: contract_address, keys_to_delete: keys_to_delete)
+      
+      changes_to_apply.each do |change|
+        NewContractState.import_records!([change])
+      end
+      
+      NewContractState.delete_state(contract_address: contract_address, keys_to_delete: keys_to_delete)
 
-    logs.delete_all
+      logs.delete_all
+    end
   end
 end

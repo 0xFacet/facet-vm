@@ -431,6 +431,68 @@ RSpec.describe StateManager, type: :model do
       expect(state_manager.get("name").value).to eq("Token A")
       expect(state_manager.get("decimals").value).to eq(18)
     end
+    
+    it 'handles intra-tx updates' do
+      target = trigger_contract_interaction_and_expect_success(
+        from: alice,
+        payload: {
+          op: :create,
+          data: {
+            type: "StorageLayoutTest",
+            args: { name: "Token A" }
+          }
+        }
+      ).contract
+      
+      end_balance = nil
+      
+      in_block do |c|
+        c.trigger_contract_interaction_and_expect_success(
+          from: target.address,
+          payload: {
+            op: :call,
+            data: {
+              to: target.address,
+              function: "updateBalance",
+              args: 1000
+            }
+          }
+        )
+        
+        target.reload.wrapper
+        
+        c.trigger_contract_interaction_and_expect_success(
+          from: target.address,
+          payload: {
+            op: :call,
+            data: {
+              to: target.address,
+              function: "updateBalance",
+              args: 0
+            }
+          }
+        )
+        
+        c.trigger_contract_interaction_and_expect_success(
+          from: target.address,
+          payload: {
+            op: :call,
+            data: {
+              to: target.address,
+              function: "testUpdate"
+            }
+          }
+        )
+      end
+      
+      ts = ContractTransaction.make_static_call(
+        contract: target.address,
+        function_name: "balanceOf",
+        function_args: target.address
+      )
+
+      expect(ts).to eq(100)
+    end
   end
   
   describe "build_structure" do

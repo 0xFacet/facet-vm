@@ -43,6 +43,16 @@ contract :StorageLayoutTest, is: :ERC20 do
     nil
   end
   
+  function :revertUnlessBalanceIs, { amount: :uint256 }, :public do
+    require(s.balanceOf[msg.sender] == amount, "Balance is not the expected amount")
+  end
+  
+  function :testUpdate, :public do
+    StorageLayoutTest(address(this)).updateBalance(100)
+    StorageLayoutTest(address(this)).revertUnlessBalanceIs(100)
+    require(s.balanceOf[address(this)] == 100, "Balance is not the expected amount")
+  end
+  
   function :getName, :public, :view, returns: :string do
     s.name
   end

@@ -46,18 +46,23 @@ class StateManager
   end
   
   def raw_read(*keys)
-    # key = keys.as_json
     key = format_key(keys)
+  
+    if @transaction_changes.key?(key)
+      return @transaction_changes[key][:to]
+    end
+  
+    value_at_start_of_tx(key)
+  end
+  
+  def value_at_start_of_tx(key)
+    key = format_key(key)
     
-    if @transaction_changes.key?(key) && @transaction_changes[key][:to].nil?
-      return nil
+    if @block_changes.key?(key)
+      return @block_changes[key][:to]
     end
     
-    if @block_changes.key?(key) && @block_changes[key][:to].nil?
-      return nil
-    end
-
-    @transaction_changes.dig(key, :to) || @block_changes.dig(key, :to) || @state_data[key]
+    @state_data[key]
   end
   
   # Set value
@@ -88,12 +93,9 @@ class StateManager
   end
   
   def set_transaction_change_value(key, value, container)
-    current_value = raw_read(*key)
-    # json_key = key.as_json
+    current_value = value_at_start_of_tx(key)
+    
     json_key = format_key(key)
-    # unless container.is_a?(TypedVariable) && container.array?
-    #   json_key[-1] = json_key[-1].to_s
-    # end
     
     json_value = value.as_json
     
@@ -108,7 +110,9 @@ class StateManager
     # end
     
     json_value = value.as_json
-    @transaction_changes[json_key] = { from: raw_read(*keys), to: json_value }
+    current_value = value_at_start_of_tx(keys)
+    
+    @transaction_changes[json_key] = { from: current_value, to: json_value }
     @on_change&.call if @transaction_changes[json_key][:from] != @transaction_changes[json_key][:to]
   end
   
