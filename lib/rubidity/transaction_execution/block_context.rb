@@ -19,7 +19,9 @@ class BlockContext < ActiveSupport::CurrentAttributes
   end
   
   def system_config_versions
-    (parsed_ethscriptions || []).map(&:system_config_version).compact
+    parsed_ethscriptions.select do |eth|
+      eth.mimetype == SystemConfigVersion.system_mimetype
+    end.map(&:system_config_version).compact
   end
   
   def process!
@@ -100,7 +102,8 @@ class BlockContext < ActiveSupport::CurrentAttributes
       state.run_callbacks(:create)
     end
     
-    contracts.each do |c|
+    # TODO do this in batches
+    contracts.map do |c|
       c.wrapper.persist(current_block.block_number)
     end
   end
@@ -205,18 +208,7 @@ class BlockContext < ActiveSupport::CurrentAttributes
   
   def get_cached_class(init_code_hash)
     attempt = ContractArtifact.cached_class_as_of_tx_hash(
-      init_code_hash,
-      current_transaction&.transaction_hash
-    )
-    
-    return attempt if attempt
-    
-    init_code_hash = InitCodeMapping.old_to_new(init_code_hash)
-    
-    ContractArtifact.cached_class_as_of_tx_hash(
-      init_code_hash,
-      current_transaction&.transaction_hash
-    )
+      init_code_hash)
   end
   
   def find_and_build_class(init_code_hash)
@@ -225,8 +217,7 @@ class BlockContext < ActiveSupport::CurrentAttributes
     end
     
     current = contract_artifacts.detect do |artifact|
-      artifact.init_code_hash == init_code_hash ||
-      artifact.init_code_hash == InitCodeMapping.old_to_new(init_code_hash)
+      artifact.init_code_hash == init_code_hash
     end
   
     current&.build_class || get_cached_class(init_code_hash)

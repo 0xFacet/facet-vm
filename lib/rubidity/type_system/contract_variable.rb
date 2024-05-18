@@ -22,6 +22,10 @@ class ContractVariable < GenericVariable
     end
   end
   
+  def as_json
+    serialize
+  end
+  
   def serialize
     value.address
   end
@@ -63,6 +67,10 @@ class ContractVariable < GenericVariable
     
     def currentInitCodeHash
       TypedVariable.create(:bytes32, contract_class.init_code_hash)
+    end
+    
+    def as_json
+      address
     end
     
     def upgradeImplementation(new_init_code_hash, new_source_code)

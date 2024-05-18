@@ -79,10 +79,6 @@ class ContractImplementation
     @current_context = current_context || raise("Must provide current context")
     
     @wrapper = wrapper
-    
-    if initial_state
-      state_manager.load(initial_state)
-    end
   end
   
   def self.state_variable_definitions
@@ -90,15 +86,7 @@ class ContractImplementation
   end
   
   def s
-    state_manager.state_proxy
-  end
-  
-  def p
-    @_p ||= StateProxyTwo.new(@wrapper)
-  end
-  
-  def state_manager
-    @state_manager ||= ::StateManager.new(self.class.state_variable_definitions)
+    @storage_pointer ||= StoragePointer.new(@wrapper)
   end
   
   def self.abi

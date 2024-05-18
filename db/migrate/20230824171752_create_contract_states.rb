@@ -3,7 +3,7 @@ class CreateContractStates < ActiveRecord::Migration[7.1]
     create_table :contract_states, force: :cascade do |t|
       t.string :type, null: false
       t.string :init_code_hash, null: false
-      t.column :state, :jsonb, default: {}, null: false
+      t.column :state, :jsonb, default: {}
       t.bigint :block_number, null: false
       t.string :contract_address, null: false
     
@@ -37,8 +37,7 @@ class CreateContractStates < ActiveRecord::Migration[7.1]
           LIMIT 1;
 
           UPDATE contracts
-          SET current_state = latest_contract_state.state,
-              current_type = latest_contract_state.type,
+          SET current_type = latest_contract_state.type,
               current_init_code_hash = latest_contract_state.init_code_hash,
               updated_at = NOW()
           WHERE address = NEW.contract_address;
@@ -51,8 +50,7 @@ class CreateContractStates < ActiveRecord::Migration[7.1]
           LIMIT 1;
 
           UPDATE contracts
-          SET current_state = latest_contract_state.state,
-              current_type = latest_contract_state.type,
+          SET current_type = latest_contract_state.type,
               current_init_code_hash = latest_contract_state.init_code_hash,
               updated_at = NOW()
           WHERE address = OLD.contract_address;

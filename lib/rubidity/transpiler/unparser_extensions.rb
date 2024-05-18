@@ -1,7 +1,11 @@
 module UnparserExtensions
+  unless defined?(::Unparser::DEFAULT_EMIT_INDEX)
+    ::Unparser::DEFAULT_EMIT_INDEX = true
+  end
+    
   ::Parser::AST::Node.class_eval do
-    def unparse
-      Unparser.unparse(self)
+    def unparse(emit_index: ::Unparser::DEFAULT_EMIT_INDEX)
+      Unparser.unparse(self, emit_index: emit_index)
     end
   end
   
@@ -9,24 +13,23 @@ module UnparserExtensions
     class << self
       extend Memoist
       
-      def custom_builder
+      def custom_builder(emit_index: ::Unparser::DEFAULT_EMIT_INDEX)
         Class.new(Parser::Builders::Default) do
           modernize
     
-          def self.emit_index
-            false
+          define_singleton_method(:emit_index) do
+            emit_index
           end
           
           def initialize
             super
-      
             self.emit_file_line_as_literals = false
           end
         end
       end
       
-      def parser
-        Parser::CurrentRuby.new(self.custom_builder.new).tap do |parser|
+      def parser(emit_index: ::Unparser::DEFAULT_EMIT_INDEX)
+        Parser::CurrentRuby.new(self.custom_builder(emit_index: emit_index).new).tap do |parser|
           parser.diagnostics.tap do |diagnostics|
             diagnostics.all_errors_are_fatal = true
           end
@@ -39,15 +42,19 @@ module UnparserExtensions
         memoize :parse
       end
   
-      def unparse(node)
+      def unparse(node, emit_index: ::Unparser::DEFAULT_EMIT_INDEX)
         code = original_unparse(node)
-        test_node = parse(code)
+        test_node = parse(code, emit_index: emit_index)
   
         unless test_node == node
           raise "Unparse error: #{code}"
         end
         
         code
+      end
+
+      def parse(code, emit_index: ::Unparser::DEFAULT_EMIT_INDEX)
+        parser(emit_index: emit_index).parse(buffer(code))
       end
     end
   end
@@ -63,7 +70,7 @@ end
     block_given? ? yield(*match_data) : match_data
   end
   
-  def unparse
-    Unparser.unparse(self)
+  def unparse(emit_index: ::Unparser::DEFAULT_EMIT_INDEX)
+    Unparser.unparse(self, emit_index: emit_index)
   end
 end

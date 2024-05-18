@@ -88,7 +88,7 @@ module StateVariableDefinitions
     methods = (StateManager.instance_methods + StateManager.private_instance_methods)
     
     if methods.include?(name.to_sym)
-      # raise InvalidStateVariableDefinition, "Invalid name format: #{name}"
+      raise InvalidStateVariableDefinition, "Invalid name format: #{name}"
     end
   end
 end

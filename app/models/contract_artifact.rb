@@ -30,10 +30,23 @@ class ContractArtifact < ApplicationRecord
       newest_first.limit(1).pluck(:transaction_hash).first
     end
     
-    def cached_class_as_of_tx_hash(init_code_hash, hash)
-      find_by(init_code_hash: init_code_hash)&.build_class
+    def init_code_to_class
+      @init_code_to_class ||= {}
     end
-    memoize :cached_class_as_of_tx_hash
+    
+    def cached_class_as_of_tx_hash(init_code_hash)
+      if init_code_to_class.key?(init_code_hash)
+        return init_code_to_class[init_code_hash]
+      end
+      
+      res = find_by(init_code_hash: init_code_hash)&.build_class
+      
+      if res
+        init_code_to_class[init_code_hash] = res
+      end
+      
+      res
+    end
     
     def all_contract_classes
       all.map(&:build_class).index_by(&:init_code_hash).with_indifferent_access
@@ -94,7 +107,7 @@ class ContractArtifact < ApplicationRecord
   end
   
   def execution_source_code
-    @_execution_source_code ||= ConstsToSends.process(Unparser.parse(source_code))
+    @_execution_source_code ||= ConstsToSends.process(source_code)
   end
   
   def set_abi

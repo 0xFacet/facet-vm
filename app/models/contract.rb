@@ -46,15 +46,13 @@ class Contract < ApplicationRecord
   def should_take_snapshot?
     state_snapshots.blank? ||
     current_init_code_hash_changed? ||
-    current_type_changed? ||
-    implementation.state_manager.state_changed
+    current_type_changed?
   end
   
   def take_state_snapshot
     return unless should_take_snapshot?
     
     new_snapshot = ContractStateSnapshot.new(
-      state: implementation.state_manager.serialize,
       type: current_type,
       init_code_hash: current_init_code_hash
     )
@@ -65,8 +63,6 @@ class Contract < ApplicationRecord
   def load_last_snapshot
     self.current_init_code_hash = state_snapshots.last.init_code_hash
     self.current_type = state_snapshots.last.type
-    
-    implementation.state_manager.load(state_snapshots.last.state.deep_dup)
   end
   
   def new_state_for_save(block_number:)
@@ -77,21 +73,28 @@ class Contract < ApplicationRecord
       block_number: block_number,
       init_code_hash: state_snapshots.last.init_code_hash,
       type: state_snapshots.last.type,
-      state: state_snapshots.last.state
     )
   end
   
   def implementation_class
     return unless current_init_code_hash
     
+    # t = current_type == "NameRegistry" ? "NameRegistry01" : current_type
+    
+    # return RubidityTranspiler.hack_get(t)&.build_class if Rails.env.development?
+    
     BlockContext.supported_contract_class(
       current_init_code_hash, validate: false
     )
+  # rescue => e
+  #   binding.pry
   end
   
   def wrapper
-    blank = lambda { |path, value| puts "Changed #{path.map(&:as_json).join('.')} to #{value.as_json}" }
-    @jsonb_wrapper ||= JsonbWrapper.new(implementation_class.state_var_def_json, nil, self)
+    @_state_manager ||= StateManager.new(
+      self.address,
+      implementation_class.state_var_def_json
+    )
   end
   
   def self.types_that_implement(base_type)
@@ -138,17 +141,16 @@ class Contract < ApplicationRecord
     
     old_implementation = implementation
     @implementation = implementation_class.new(
-      initial_state: old_implementation.state_manager.serialize,
       wrapper: wrapper
     )
     
-    result = yield
+    wrapper.state_var_layout = @implementation.class.state_var_def_json
     
-    post_execution_state = implementation.state_manager.serialize
+    result = yield
     
     @implementation = old_implementation
     
-    implementation.state_manager.load(post_execution_state)
+    wrapper.state_var_layout = @implementation.class.state_var_def_json
     
     result
   end

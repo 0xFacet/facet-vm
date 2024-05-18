@@ -14,6 +14,8 @@ class TypedVariable
   def initialize(type, value = nil, on_change: nil, **options)
     self.type = type
     self.value = value.nil? ? type.default_value : value
+    
+    #TODO: Kill all on_change
     self.on_change = on_change
   end
   
@@ -22,9 +24,7 @@ class TypedVariable
     
     options[:on_change] = on_change
     
-    if type.mapping?
-      MappingVariable.new(type, value, **options)
-    elsif type.array?
+    if type.array?
       ArrayVariable.new(type, value, **options)
     elsif type.contract?
       ContractVariable.new(type, value, **options)

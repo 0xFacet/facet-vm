@@ -10,34 +10,6 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- Name: heroku_ext; Type: SCHEMA; Schema: -; Owner: -
---
-
-CREATE SCHEMA heroku_ext;
-
-
---
--- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON SCHEMA public IS '';
-
-
---
--- Name: pg_stat_statements; Type: EXTENSION; Schema: -; Owner: -
---
-
-CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA public;
-
-
---
--- Name: EXTENSION pg_stat_statements; Type: COMMENT; Schema: -; Owner: -
---
-
-COMMENT ON EXTENSION pg_stat_statements IS 'track planning and execution statistics of all SQL statements executed';
-
-
---
 -- Name: pgcrypto; Type: EXTENSION; Schema: -; Owner: -
 --
 
@@ -579,6 +551,39 @@ ALTER SEQUENCE public.init_code_mappings_id_seq OWNED BY public.init_code_mappin
 
 
 --
+-- Name: new_contract_states; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.new_contract_states (
+    id bigint NOT NULL,
+    contract_address character varying NOT NULL,
+    key jsonb NOT NULL,
+    value jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: new_contract_states_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.new_contract_states_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: new_contract_states_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.new_contract_states_id_seq OWNED BY public.new_contract_states.id;
+
+
+--
 -- Name: schema_migrations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -751,6 +756,13 @@ ALTER TABLE ONLY public.init_code_mappings ALTER COLUMN id SET DEFAULT nextval('
 
 
 --
+-- Name: new_contract_states id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.new_contract_states ALTER COLUMN id SET DEFAULT nextval('public.new_contract_states_id_seq'::regclass);
+
+
+--
 -- Name: system_config_versions id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -842,6 +854,14 @@ ALTER TABLE ONLY public.ethscriptions
 
 ALTER TABLE ONLY public.init_code_mappings
     ADD CONSTRAINT init_code_mappings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: new_contract_states new_contract_states_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.new_contract_states
+    ADD CONSTRAINT new_contract_states_pkey PRIMARY KEY (id);
 
 
 --
@@ -1177,17 +1197,24 @@ CREATE UNIQUE INDEX index_init_code_mappings_on_old_init_code_hash ON public.ini
 
 
 --
+-- Name: index_new_contract_states_on_contract_address; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_new_contract_states_on_contract_address ON public.new_contract_states USING btree (contract_address);
+
+
+--
+-- Name: index_new_contract_states_on_contract_address_and_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_new_contract_states_on_contract_address_and_key ON public.new_contract_states USING btree (contract_address, key);
+
+
+--
 -- Name: index_system_config_versions_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX index_system_config_versions_on_transaction_hash ON public.system_config_versions USING btree (transaction_hash);
-
-
---
--- Name: index_transaction_receipts_on_block_blockhash; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_transaction_receipts_on_block_blockhash ON public.transaction_receipts USING btree (block_blockhash);
 
 
 --
@@ -1415,9 +1442,9 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20240516140434'),
 ('20240512205338'),
 ('20240507202106'),
-('20240428130837'),
 ('20240309162632'),
 ('20231113223006'),
 ('20231110173854'),

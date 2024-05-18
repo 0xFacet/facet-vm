@@ -121,6 +121,7 @@ class ContractTransaction < ApplicationRecord
       'ContractCall',
       'ContractArtifact',
       'Contract',
+      'NewContractState',
     ]
     
     with_temporary_database_environment do

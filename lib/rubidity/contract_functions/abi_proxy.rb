@@ -80,14 +80,14 @@ class AbiProxy
           
           ret_val = nil
           
-          state_manager.detecting_changes(revert_on_change: func_proxy.read_only?) do
+          s.wrapper.detecting_changes(revert_on_change: func_proxy.read_only?) do
             ret_val = FunctionContext.define_and_call_function_method(
               self, cooked_args, method_name, &func_proxy.implementation
             )
           end
           
           func_proxy.convert_return_to_typed_variable(ret_val)
-        rescue Contract::ContractArgumentError, Contract::VariableTypeError => e
+        rescue Contract::ContractArgumentError, Contract::VariableTypeError, IndexError => e
           # TODO
           c_locs = ::Kernel.instance_method(:caller_locations).bind(self).call
           caller_location = c_locs.detect { |location| location.path.ends_with?(".rubidity") }

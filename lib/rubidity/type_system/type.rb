@@ -127,8 +127,6 @@ class Type
       :''
     when bool?
       false
-    when mapping?
-      MappingVariable::Value.new(key_type: key_type, value_type: value_type)
     when array?
       ArrayVariable::Value.new(value_type: value_type, initial_length: initial_length)
     when contract?
@@ -155,19 +153,6 @@ class Type
       raise_variable_type_error(literal)
     end
   end
-  
-  # def as_json
-  #   case name
-  #   when :mapping
-  #     { key_type.as_json => value_type.as_json }
-  #   when :array
-  #     { array: { value_type: value_type.as_json, initial_length: initial_length } }
-  #   when :struct
-  #     { struct: { struct_definition: struct_definition.as_json } }
-  #   else
-  #     name
-  #   end
-  # end
   
   def check_and_normalize_literal(literal)
     if literal.is_a?(TypedVariable) || literal.is_a?(TypedVariableProxy)
@@ -256,19 +241,11 @@ class Type
       end
       
       return literal.downcase.freeze
-    elsif mapping?
-      if literal.is_a?(MappingVariable::Value)
-        return literal
-      end
-      
-      unless literal.is_a?(Hash)
-        raise VariableTypeError.new("invalid #{literal}")
-      end
-    
-      proxy = MappingVariable::Value.new(literal, key_type: key_type, value_type: value_type)
-      
-      return proxy
     elsif array?
+      if literal.is_a?(StoragePointer)
+        literal = literal.load_array
+      end
+      
       if literal.is_a?(ArrayVariable::Value)
         return literal
       end

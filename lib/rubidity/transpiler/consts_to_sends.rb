@@ -4,9 +4,11 @@ class ConstsToSends
   class << self
     extend Memoist
     
-    def process(ast)
-      if ast.is_a?(String)
-        ast = Unparser.parse(ast)
+    def process(start_ast)
+      if start_ast.is_a?(String)
+        ast = Unparser.parse(start_ast, emit_index: false)
+      else
+        ast = start_ast
       end
       
       obj = ConstsToSends.new
@@ -83,6 +85,10 @@ class ConstsToSends
         unbox_and_get_bool(processed_right)
       )
     )
+  end
+  
+  def on_self(node)
+    raise "Invalid use of 'self' node: #{node.inspect}"
   end
   
   def on_pair(node)
@@ -246,6 +252,11 @@ class ConstsToSends
   
   def on_send(node)
     receiver, method_name, *args = *node
+    
+    # Case where processor turns consts to sends before this.
+    if receiver&.type == :self && method_name.to_s.match?(/\A[A-Z]/) && args.empty?
+      return node.updated(nil, [receiver, method_name])
+    end
     
     if is_box_send?(node)
       return node

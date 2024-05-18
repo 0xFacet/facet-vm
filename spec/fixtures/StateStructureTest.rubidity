@@ -1,0 +1,27 @@
+pragma :rubidity, "1.0.0"
+
+import '/app/models/contracts/ERC20.rubidity'
+
+contract :StateStructureTest do
+  string :name
+  uint8 :decimals
+  mapping ({ address: :uint256 }), :public, :balanceOf
+  mapping ({ uint256: :address }), :public, :ownerOf
+  mapping ({ address: mapping(address: :uint256) }), :public, :allowance
+
+  array :uint256, :public, :testArray
+  
+  constructor(alice: :address, bob: :address) {
+    s.name = "Token A"
+    s.decimals = 18
+    s.balanceOf[alice] = 1000
+    s.balanceOf[bob] = 0
+    s.allowance[alice][bob] = 500
+    
+    s.testArray.push(42)
+    s.testArray.push(43)
+    
+    s.ownerOf[1] = alice
+    s.ownerOf[2] = bob
+  }
+end
