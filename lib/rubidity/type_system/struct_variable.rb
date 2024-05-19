@@ -1,90 +1,82 @@
 class StructVariable < GenericVariable
+  include Exposable
+  
   attr_accessor :value
   
   def initialize(type, val, **options)
     super(type, val, **options)
     
-    self.value = Value.new(
-      struct_definition: type.struct_definition,
-      values: val,
-      on_change: -> { on_change&.call }
-    )
+    self.value = if val.is_a?(Value)
+      val
+    else
+      Value.new(
+        struct_definition: type.struct_definition,
+        values: val,
+      )
+    end
     
-    names = value.state_manager.state_variables.keys
-    with_setters = names.map{|n| [n, "#{n}="]}.flatten
-    
-    with_setters.each do |name|
-      define_singleton_method(name) do |*args, **kwargs|
-        ret_val = nil
-      
-        begin
-          value.state_manager.detecting_changes(revert_on_change: true) do
-            ret_val = value.state_proxy.__send__(name, *args, **kwargs)
-          end
-        rescue InvalidStateVariableChange
-          on_change&.call
-        end
-        
-        ret_val
+    type.struct_definition.fields.each_key do |field|
+      define_singleton_method(field) do
+        value.get(field)
       end
       
-      expose_instance_method(name)
+      define_singleton_method("#{field}=") do |new_value|
+        value.set(field, new_value)# rescue binding.pry
+      end
+      
+      expose_instance_method(field, "#{field}=")
     end
+    # binding.pry
   end
   
-  def deep_dup
-    fresh_type = Type.create(:struct, struct_definition: type.struct_definition)
-    StructVariable.new(fresh_type, value.serialize, on_change: on_change)
+  def as_json
+    value.as_json
   end
   
   def serialize
     value.serialize
   end
   
-  def deserialize(hash)
-    self.value = Value.new(
-      struct_definition: type.struct_definition,
-      values: hash,
-      on_change: -> { on_change&.call }
-    )
+  def eq(other)
+    self.value == other.value
+  end
+  
+  def ne(other)
+    !eq(other)
   end
   
   class Value
     include ContractErrors
     
-    attr_accessor :state_manager, :state_proxy
+    attr_accessor :data, :struct_definition
     
-    extend AttrPublicReadPrivateWrite
-    
-    attr_accessor :on_change
-    attr_public_read_private_write :struct_definition
-    
-    def initialize(
-      struct_definition:,
-      values:,
-      on_change: nil
-    )
+    def initialize(struct_definition:, values:)
       @struct_definition = struct_definition
+      @data = {}.with_indifferent_access
       
-      defined_fields = struct_definition&.fields || {}
-      
-      @state_manager = StateManager.new(defined_fields)
-      
-      values = values.serialize if values.is_a?(StructVariable::Value)
-      
-      values = values&.transform_values{|v| v.respond_to?(:serialize) ? v.serialize : v}
+      values.each do |key, value|
+        self.set(key, value)
+      end
       
       if values.present?
-        unless defined_fields.keys.sort.map(&:to_s) == values.keys.sort.map(&:to_s)
+        unless struct_definition.fields.keys.sort.map(&:to_s) == values.keys.sort.map(&:to_s)
           raise ArgumentError, "Keys of values hash must match fields of struct_definition. Got: #{values.keys.sort}, expected: #{defined_fields.keys.sort}"
         end
       end
+    # rescue => e
+    #   binding.pry
+    end
+    
+    def get(field)
+      type = struct_definition.fields[field]['type']
+
+      TypedVariable.create_or_validate(type, data[field])
+    end
+    
+    def set(field, new_value)
+      type = struct_definition.fields[field]['type']
       
-      @state_manager.load(values || {})
-      
-      @state_proxy ||= StateProxy.new(@state_manager)
-      
-      self.on_change = on_change
+      data[field] = TypedVariable.create_or_validate(type, new_value)
     end
     
     def ==(other)
@@ -95,7 +87,7 @@ class StructVariable < GenericVariable
     end
     
     def toPackedBytes
-      res = @state_manager.state_variables.values
+      res = data.values
       .map do |val|
         val.toPackedBytes.value.sub(/\A0x/, '')
       end.join
@@ -103,8 +95,20 @@ class StructVariable < GenericVariable
       ::TypedVariable.create(:bytes, "0x" + res)
     end
     
+    def as_json
+      output = {}
+      struct_definition.fields.each_key.each do |field|
+        type = struct_definition.fields[field]['type']
+        value = data[field]
+        
+        output[field] = value || type.default_value
+      end
+      
+      output.as_json
+    end
+    
     def serialize
-      @state_manager.serialize
+      as_json
     end
   end
 end

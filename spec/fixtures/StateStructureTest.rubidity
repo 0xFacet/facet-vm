@@ -11,6 +11,13 @@ contract :StateStructureTest do
 
   array :uint256, :public, :testArray
   
+  struct :Person do
+    string :name
+    uint256 :age
+  end
+  
+  Person :public, :jim
+  
   constructor(alice: :address, bob: :address) {
     s.name = "Token A"
     s.decimals = 18
@@ -23,5 +30,7 @@ contract :StateStructureTest do
     
     s.ownerOf[1] = alice
     s.ownerOf[2] = bob
+    
+    s.jim = Person(name: "Jim", age: 100)
   }
 end

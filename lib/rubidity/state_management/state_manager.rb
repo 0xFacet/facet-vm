@@ -53,6 +53,8 @@ class StateManager
     end
   
     value_at_start_of_tx(key)
+  rescue => e
+    binding.pry
   end
   
   def value_at_start_of_tx(key)
@@ -65,56 +67,114 @@ class StateManager
     @state_data[key]
   end
   
-  # Set value
   def set(*keys, typed_variable)
     type = validate_and_get_type(keys)
     validate_type(type, typed_variable)
     validate_index_range(keys, type)
     json_key = format_key(keys)
     
-    # current_value = get(*keys).value
-
-    # @transaction_changes[key] = { from: current_value, to: typed_variable.value }
-    
     container = container_of(keys)
-    
     array_container = container.is_a?(TypedVariable) && container.array?
     
-    if typed_variable.value == type.default_value && !array_container
-      # @transaction_changes[key][:to] = nil
-      set_transaction_change_value(keys, nil, container)
+    if typed_variable.is_a?(StructVariable)
+      typed_variable.value.data.each do |field, field_value|
+        field_type = type.struct_definition.fields[field]['type']
+        
+        raw_write(keys + [field], value_to_write(field_value))
+      end
     else
-      set_transaction_change_value(keys, typed_variable, container)
+      raw_write(keys, value_to_write(typed_variable))
     end
-    
+  
     if @transaction_changes.key?(json_key) && @transaction_changes[json_key][:from] != @transaction_changes[json_key][:to]
       @on_change&.call
     end
   end
   
-  def set_transaction_change_value(key, value, container)
-    current_value = value_at_start_of_tx(key)
-    
-    json_key = format_key(key)
-    
-    json_value = value.as_json
-    
-    @transaction_changes[json_key] = { from: current_value, to: json_value }
+  def value_to_write(value)
+    return value if value.nil?
+    value.has_default_value? ? nil : value
   end
   
-  def raw_write(*keys, value, container)
-    # json_key = keys.as_json
-    json_key = format_key(keys)
-    # unless container.is_a?(TypedVariable) && container.array?
-    #   json_key[-1] = json_key[-1].to_s# if json_key.is_a?(Array) && json_key.last.is_a?(Integer)
-    # end
-    
+  def raw_write(keys, value)
+    original_value = value_at_start_of_tx(keys)
+    key = format_key(keys)
     json_value = value.as_json
-    current_value = value_at_start_of_tx(keys)
     
-    @transaction_changes[json_key] = { from: current_value, to: json_value }
-    @on_change&.call if @transaction_changes[json_key][:from] != @transaction_changes[json_key][:to]
+    @transaction_changes[key] = { from: original_value, to: json_value }
   end
+  
+  
+  
+  # Set value
+  # def set(*keys, typed_variable)
+  #   type = validate_and_get_type(keys)
+  #   validate_type(type, typed_variable)
+  #   validate_index_range(keys, type)
+  #   json_key = format_key(keys)
+    
+  #   container = container_of(keys)
+    
+  #   array_container = container.is_a?(TypedVariable) && container.array?
+    
+  #   if typed_variable.value == type.default_value && !array_container
+  #     raw_write(keys, nil, container)
+  #   else
+  #     raw_write(keys, typed_variable, container)
+  #   end
+    
+  #   if @transaction_changes.key?(json_key) && @transaction_changes[json_key][:from] != @transaction_changes[json_key][:to]
+  #     @on_change&.call
+  #   end
+  # end
+  
+  # def set_transaction_change_value(key, value, container)
+  #   return raw_write(*key, value, container)
+    
+  #   current_value = value_at_start_of_tx(key)
+    
+  #   json_key = format_key(key)
+  #   # ap value
+  #   json_value = value.as_json
+    
+  #   @transaction_changes[json_key] = { from: current_value, to: json_value }
+  # end
+  
+  # def raw_write(*keys, value, container)
+  #   original_value = value_at_start_of_tx(keys)
+  #   key = format_key(keys)
+  #   json_value = value.as_json
+    
+  #   if value.is_a?(StructVariable)
+  #     value.value.data.each do |field, field_value|
+  #       struct_key = keys + [field]
+  #       struct_json_key = format_key(struct_key)
+        
+  #       @transaction_changes[struct_json_key] = { from: value_at_start_of_tx(struct_key), to: field_value.as_json }
+  #     end
+  #   else
+  #     @transaction_changes[key] = { from: original_value, to: json_value }
+  #     @on_change&.call if @transaction_changes[key][:from] != @transaction_changes[key][:to]
+  #   end
+  # end
+  
+  # def cooked_values_to_write(value)
+  #   if value.is_a?(StructVariable)
+  #     value.as_json
+  #   else
+  #     value
+  #   end
+  # end
+  
+  # def raw_write(*keys, value)
+  #   original_value = value_at_start_of_tx(keys)
+
+  #   key = format_key(keys)
+  #   json_value = value.as_json
+  
+  #   @transaction_changes[key] = { from: original_value, to: json_value }
+  #   @on_change&.call if @transaction_changes[key][:from] != @transaction_changes[key][:to]
+  # end
   
   def commit_transaction
     apply_transaction
@@ -233,7 +293,7 @@ class StateManager
 
     length = array_length(*keys)
     set(*(keys + [length]), typed_variable)
-    raw_write(*(keys + [ARRAY_LENGTH_SUFFIX]), TypedVariable.create(:uint256, length.value + 1), type)
+    raw_write((keys + [ARRAY_LENGTH_SUFFIX]), TypedVariable.create(:uint256, length.value + 1))
   # rescue => e
   #   binding.pry
   end
@@ -250,8 +310,8 @@ class StateManager
     last_index = length - 1
     value = get(*(keys + [TypedVariable.create(:uint256, last_index)]))
 
-    set_transaction_change_value(keys + [last_index], nil, type)
-    raw_write(*(keys + [ARRAY_LENGTH_SUFFIX]), TypedVariable.create(:uint256, last_index), type)
+    set(*(keys + [last_index]), nil)
+    raw_write((keys + [ARRAY_LENGTH_SUFFIX]), TypedVariable.create(:uint256, last_index))
     value
   end
   
@@ -373,27 +433,29 @@ class StateManager
   
   def validate_and_get_type(keys)
     layout = @state_var_layout
-
     keys.each_with_index do |segment, index|
       if layout.is_a?(Type)
         if layout.name == :mapping
           key_type = layout.key_type
-          
           mapping_exception = segment.is_a?(TypedVariable) && segment.type.contract? && key_type.address?
-          # unless (segment.is_a?(TypedVariable) && segment.type == key_type) || mapping_exception
           unless mapping_exception || TypedVariable.create_or_validate(key_type, segment)
-            binding.pry
             raise TypeError, "Invalid mapping key type at index #{index}: expected #{key_type.name}, got #{segment.class}"
           end
-
           layout = layout.value_type
         elsif layout.name == :array
-          # unless segment.is_a?(Integer)
-          unless segment.type.is_uint?
-            binding.pry
+          # unless (allow_untyped_array_index && segment.is_a?(Integer)) || (segment.is_a?(TypedVariable) && segment.type.is_uint?)
+          unless TypedVariable.create_or_validate(:uint256, segment)
+            # binding.pry
             raise TypeError, "Invalid array index type at index #{index}: expected Integer, got #{segment.class}"
           end
+          
           layout = layout.value_type
+        elsif layout.struct? # With struct .name is the name of the struct not the type
+          unless layout.struct_definition.fields.key?(segment.to_s)
+            # binding.pry
+            raise KeyError, "Invalid struct field at segment #{index}: #{segment}"
+          end
+          layout = layout.struct_definition.fields[segment.to_s]["type"]
         else
           raise KeyError, "Invalid path at segment #{index}: #{keys.join('.')}"
         end
@@ -403,11 +465,9 @@ class StateManager
         raise KeyError, "Invalid path: #{keys.join('.')}"
       end
     end
-
+    
     layout
-  # rescue => e
-  #   binding.pry
-  end
+  end  
   
   def container_of(keys)
     validate_and_get_type(keys[0..-2])
@@ -434,6 +494,8 @@ class StateManager
     state_structure = NewContractState.build_structure(@contract_address)
     ensure_layout_defaults(@state_var_layout, state_structure)
     state_structure
+  # rescue => e
+  #   binding.pry
   end
 
 
@@ -445,7 +507,7 @@ class StateManager
         structure[key] = default_value_for_type(type)
       end
 
-      if type.is_a?(Type) && type.name == :mapping
+      if type.is_a?(Type) && type.mapping? || type.struct?
         structure[key] = {} unless structure[key].is_a?(Hash)
       elsif type.is_a?(Type) && type.name == :array
         structure[key] = [] unless structure[key].is_a?(Array)
@@ -454,7 +516,7 @@ class StateManager
       if type.is_a?(Hash)
         structure[key] ||= {}
         ensure_layout_defaults(type, structure[key])
-      elsif type.is_a?(Type) && type.name == :mapping
+      elsif type.is_a?(Type) && type.mapping? || type.struct?
         structure[key] ||= {}
       elsif type.is_a?(Type) && type.name == :array
         structure[key] ||= []
@@ -463,7 +525,7 @@ class StateManager
   end
 
   def default_value_for_type(type)
-    if type.is_a?(Type) && type.name == :mapping
+    if type.is_a?(Type) && type.mapping? || type.struct?
       {}
     elsif type.is_a?(Type) && type.name == :array
       []

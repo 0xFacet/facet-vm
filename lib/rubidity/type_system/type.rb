@@ -268,9 +268,15 @@ class Type
         raise_variable_type_error("No literals allowed for contract types")
       end
     elsif struct?
+      if literal.is_a?(StoragePointer)
+        literal = literal.load_struct
+      end
+      
       if literal.is_a?(StructVariable::Value)
         return StructVariable::Value.new(struct_definition: literal.struct_definition, values: literal.serialize)
       end
+      
+      StructVariable::Value.new(data: literal, struct_definition: struct_definition)
     end
     
     raise VariableTypeError.new("Unknown type #{self.inspect}: #{literal.inspect}")

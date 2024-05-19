@@ -50,6 +50,14 @@ class TypedVariable
   end
   
   def self.create_or_validate(type, value = nil, on_change: nil)
+    if value.is_a?(StoragePointer)
+      if value.current_type.array?
+        value = value.load_array
+      elsif value.current_type.struct?
+        value = value.load_struct
+      end
+    end
+    
     if value.is_a?(TypedVariable)
       unless Type.create(type).can_be_assigned_from?(value.type)
         raise VariableTypeError.new("invalid #{type}: #{value.inspect}")
@@ -81,6 +89,10 @@ class TypedVariable
     else
       raise "No string conversion"
     end
+  end
+  
+  def has_default_value?
+    value == type.default_value
   end
   
   def value=(new_value)

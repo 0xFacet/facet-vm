@@ -64,7 +64,12 @@ class IntegerVariable < GenericVariable
     enforce_typing!(other, operation)
     
     result = self.value.public_send(operation, other.value)
-    TypedVariable.create(smallest_allowable_type(result), result)
+    
+    if result.negative? && is_uint?
+      raise ContractError.new("Integer overflow")
+    end
+    
+    TypedVariable.create(smallest_allowable_type(result, force_int: is_int?), result)
   end
 
   def perform_comparison(other, operation)
@@ -86,7 +91,7 @@ class IntegerVariable < GenericVariable
   end
   
   delegate :smallest_allowable_type, to: :class, private: true
-  def self.smallest_allowable_type(val)
+  def self.smallest_allowable_type(val, force_int: false)
     bits = val.bit_length + (val < 0 ? 1 : 0)
     whole_bits = bits / 8
     if bits % 8 != 0
@@ -96,6 +101,10 @@ class IntegerVariable < GenericVariable
     whole_bits = 1 if whole_bits == 0
     
     type_prefix = val < 0 ? "int" : "uint"
+    
+    if force_int
+      type_prefix = "int"
+    end
 
     Type.create(:"#{type_prefix}#{whole_bits * 8}")
   end

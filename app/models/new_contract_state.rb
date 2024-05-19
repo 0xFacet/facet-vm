@@ -50,10 +50,15 @@ class NewContractState < ApplicationRecord
       current = nested_structure
 
       keys.each_with_index do |k, index|
-        if index == keys.length - 1
+        on_last_key = index == keys.length - 1
+        on_second_to_last_key = index == keys.length - 2
+        
+        if on_last_key
           current[k] = value
         else
-          current[k] ||= k.is_a?(Integer) ? [] : {}
+          next_key_is_array = as_hash.key?(keys[0..index] + [ARRAY_LENGTH_SUFFIX])
+          
+          current[k] ||= next_key_is_array ? [] : {}
           current = current[k]
         end
       end

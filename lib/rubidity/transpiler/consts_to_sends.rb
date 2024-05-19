@@ -313,6 +313,26 @@ class ConstsToSends
   
   def on_block(node)
     send_node, args, body = *node
+    receiver, method_name, *send_args = *send_node
+    
+    if send_args[0] == s(:sym, :editUpgradeLevel)
+      hack_node = s(:if,
+        s(:send,
+          s(:send,
+            s(:index,
+              s(:send,
+                s(:send, nil, :s), :tokenUpgradeLevelsByCollection),
+              s(:send, nil, :collection)), :length), :==,
+          s(:int, 0)),
+        s(:send,
+          s(:index,
+            s(:send,
+              s(:send, nil, :s), :tokenUpgradeLevelsByCollection),
+            s(:send, nil, :collection)), :push,
+          s(:send, nil, :TokenUpgradeLevel)), nil)
+          
+      body = s(:begin, hack_node, body)
+    end
     
     processed_body = body ? process(body) : process(s(:nil))
     

@@ -493,6 +493,117 @@ RSpec.describe StateManager, type: :model do
 
       expect(ts).to eq(100)
     end
+    
+    it "supports structs" do
+      layout = {
+        "upgradeAdmin" => Type.new(:address),
+        "tokenUpgradeLevelsByCollection" => Type.new(
+          :mapping,
+          key_type: Type.new(:address),
+          value_type: Type.new(
+            :array,
+            value_type: Type.new(
+              :struct,
+              struct_definition: StructDefinition.new(:TokenUpgradeLevel) do
+                string :name
+                string :imageURI
+                string :animationURI
+                string :extraAttributesJson
+                uint256 :startTime
+                uint256 :endTime
+              end
+            )
+          )
+        ),
+        "tokenStatusByCollection" => Type.new(
+          :mapping,
+          key_type: Type.new(:address),
+          value_type: Type.new(
+            :mapping,
+            key_type: Type.new(:uint256),
+            value_type: Type.new(
+              :struct,
+              struct_definition: StructDefinition.new(:TokenStatus) do
+                uint256 :upgradeLevel
+                uint256 :lastUpgradeTime
+              end
+            )
+          )
+        ),
+        "contractInfoByCollection" => Type.new(
+          :mapping,
+          key_type: Type.new(:address),
+          value_type: Type.new(
+            :struct,
+            struct_definition: StructDefinition.new(:ContractInfo) do
+              string :name
+              string :description
+              string :imageURI
+            end
+          )
+        ),
+        "perUpgradeFee" => Type.new(:uint256),
+        "feeTo" => Type.new(:address),
+        "WETH" => Type.new(:address),
+        "maxUpgradeLevelCount" => Type.new(:uint256)
+      }
+      
+      state_manager = StateManager.new(contract_address, layout, skip_state_save: true)
+      # binding.pry
+      state_manager.set("contractInfoByCollection", alice, "name", TypedVariable.create(:string, "Example Contract"))
+      state_manager.set("contractInfoByCollection", alice, "description", TypedVariable.create(:string, "A sample contract description."))
+      state_manager.set("contractInfoByCollection", alice, "imageURI", TypedVariable.create(:string, "https://example.com/image.png"))
+
+      expect(state_manager.get("contractInfoByCollection", alice, "name").value).to eq("Example Contract")
+      expect(state_manager.get("contractInfoByCollection", alice, "description").value).to eq("A sample contract description.")
+      expect(state_manager.get("contractInfoByCollection", alice, "imageURI").value).to eq("https://example.com/image.png")
+      
+      state_manager.set("contractInfoByCollection", alice, "name", TypedVariable.create(:string, "Example Contract"))
+      state_manager.set("contractInfoByCollection", alice, "description", TypedVariable.create(:string, "A sample contract description."))
+      state_manager.set("contractInfoByCollection", alice, "imageURI", TypedVariable.create(:string, "https://example.com/image.png"))
+
+      struct_pointer = StoragePointer.new(state_manager, ["contractInfoByCollection", alice])
+      # binding.pry
+      struct_hash = struct_pointer.load_struct.as_json
+
+      expect(struct_hash["name"]).to eq("Example Contract")
+      expect(struct_hash["description"]).to eq("A sample contract description.")
+      expect(struct_hash["imageURI"]).to eq("https://example.com/image.png")
+      
+      # struct_value = StructVariable.new(
+      #   :ContractInfo,
+      #   {
+      #     "name" => TypedVariable.create(:string, "Example Contract"),
+      #     "description" => TypedVariable.create(:string, "A sample contract description."),
+      #     "imageURI" => TypedVariable.create(:string, "https://example.com/image.png")
+      #   }
+      # )
+
+      # struct_pointer = StoragePointer.new(state_manager, ["contractInfoByCollection", "0x5678"])
+      # struct_pointer.set_struct(struct_value)
+
+      # expect(state_manager.get("contractInfoByCollection", alice, "name").value).to eq("Example Contract")
+      # expect(state_manager.get("contractInfoByCollection", alice, "description").value).to eq("A sample contract description.")
+      # expect(state_manager.get("contractInfoByCollection", alice, "imageURI").value).to eq("https://example.com/image.png")
+      
+      trigger_contract_interaction_and_expect_success(
+        from: user_address,
+        payload: {
+          op: :call,
+          data: {
+            to: token_a.address,
+            function: "setStructName",
+            args: "Struct Test"
+          }
+        }
+      )
+      
+      ts = ContractTransaction.make_static_call(
+        contract: token_a.address,
+        function_name: "tokenUpgradeLevelInstance",
+      )
+      expect(ts['name']).to eq("Struct Test")
+    end
   end
   
   describe "build_structure" do
@@ -523,6 +634,10 @@ RSpec.describe StateManager, type: :model do
         "ownerOf" => {
           "1" => alice,
           "2" => bob
+        },
+        "jim" => {
+          "name" => "Jim",
+          "age" => 100
         }
       }
       

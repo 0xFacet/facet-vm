@@ -184,6 +184,14 @@ class FunctionProxy
       raise ContractError, "Function #{func_location} returned nil, but expected #{returns}"
     end
     
+    if ret_val.is_a?(StoragePointer)
+      if ret_val.current_type.array?
+        ret_val = ret_val.load_array
+      elsif ret_val.current_type.struct?
+        ret_val = ret_val.load_struct
+      end
+    end
+    
     if returns.is_a?(Hash)
       ret_val.each.with_object({}) do |(key, value), acc|
         acc[key.to_sym] = TypedVariable.create_or_validate(create_type(returns[key]), value)

@@ -205,9 +205,9 @@ class ContractImplementation
   end
   
   def memory(struct)
-    raise "Not implemented" unless struct.is_a?(::StructVariable)
+    raise "Not implemented" unless struct.is_a?(::StoragePointer)
     
-    struct.deep_dup
+    struct.load_struct
   end
   
   def self.event(name, args)
@@ -372,6 +372,10 @@ class ContractImplementation
   
   # TODO: fix
   def downcast_int(integer, bits)
+    if integer.is_a?(::TypedVariable)
+      return TypedVariable.create(:"int#{bits}", integer.value)
+    end
+    
     type = IntegerVariable.smallest_allowable_type(integer)
     
     TypedVariable.create_or_validate(type, integer)

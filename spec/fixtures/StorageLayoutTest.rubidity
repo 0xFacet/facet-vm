@@ -16,6 +16,23 @@ contract :StorageLayoutTest, is: :ERC20 do
   
   mapping ({ string: mapping({ string: :string })}), :public, :getPair
   
+  struct :TokenUpgradeLevel do
+    string :name
+    string :imageURI
+    string :animationURI
+    string :extraAttributesJson
+    uint256 :startTime
+    uint256 :endTime
+  end
+  
+  TokenUpgradeLevel :public, :tokenUpgradeLevelInstance
+  
+  function :setStructName, { name: :string }, :public do
+    s.tokenUpgradeLevelInstance.name = name
+    
+    nil
+  end
+  
   function :addPair, { key1: :string, key2: :string, value: :string }, :public, returns: nil do
     s.getPair[key1][key2] = value
     s.getPair[key2][key1] = value
