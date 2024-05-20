@@ -43,6 +43,34 @@ class Contract < ApplicationRecord
     take_state_snapshot
   end
   
+  def self.cache_all_state
+    find_each do |contract|
+      contract.cache_state
+    end
+  end
+  
+  def cache_state(block_number = TransactionReceipt.maximum(:block_number))
+    Contract.transaction do
+      structure = wrapper.build_structure
+      contract = self
+      
+      # if contract.current_state != structure
+        contract.update!(current_state: structure)
+      
+        state = ContractState.find_or_initialize_by(
+          contract_address: address,
+          block_number: block_number
+        )
+        
+        state.type ||= contract.current_type
+        state.init_code_hash ||= contract.current_init_code_hash
+        state.state = structure
+        
+        state.save!
+      # end
+    end
+  end
+  
   def should_take_snapshot?
     state_snapshots.blank? ||
     current_init_code_hash_changed? ||
@@ -73,15 +101,21 @@ class Contract < ApplicationRecord
       block_number: block_number,
       init_code_hash: state_snapshots.last.init_code_hash,
       type: state_snapshots.last.type,
+      state: current_state
     )
   end
   
   def implementation_class
     return unless current_init_code_hash
     
-    # t = current_type == "NameRegistry" ? "NameRegistry01" : current_type
     
-    # return RubidityTranspiler.hack_get(t)&.build_class if Rails.env.development?
+
+    
+    # t = current_type == "NameRegistry" ? "NameRegistry01" : current_type
+    # ap current_type
+    # if current_type == "FacetPortV101"
+    #   return RubidityTranspiler.hack_get("FacetPortV101")&.build_class if Rails.env.development?
+    # end
     
     BlockContext.supported_contract_class(
       current_init_code_hash, validate: false

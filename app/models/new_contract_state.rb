@@ -1,9 +1,16 @@
 class NewContractState < ApplicationRecord
   validates :contract_address, presence: true
   validates :key, presence: true
-  validates :value, presence: true
+  # validate :value_must_be_present_and_not_zero
   
   ARRAY_LENGTH_SUFFIX = "__length".freeze
+  
+  # def value_must_be_present_and_not_zero
+  #   if value.nil? || value == "" || value == 0
+  #     binding.pry
+  #     errors.add(:value, "cannot be nil, an empty string, or zero (#{value.inspect})")
+  #   end
+  # end
 
   def self.load_state_as_hash(contract_address)
     results = where(contract_address: contract_address).pluck(:key, :value).to_h

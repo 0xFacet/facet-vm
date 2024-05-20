@@ -86,7 +86,9 @@ class ContractImplementation
   end
   
   def s
-    @storage_pointer ||= StoragePointer.new(@wrapper)
+    @wrapper.state_var_layout = self.class.state_var_def_json
+    StoragePointer.new(@wrapper)
+    # @storage_pointer ||= StoragePointer.new(@wrapper)
   end
   
   def self.abi
@@ -447,6 +449,7 @@ class ContractImplementation
   
   def handle_contract_name_call(contract_name, *args, **kwargs)
     if args.one? && args.first.is_a?(TypedVariable) && args.first.type.address?
+      # TODO: still ambiguous w.r.t. call to constructor with one address arg
       handle_contract_type_cast(contract_name, args.first)
     else
       create_contract_initializer(contract_name, args.presence || kwargs)

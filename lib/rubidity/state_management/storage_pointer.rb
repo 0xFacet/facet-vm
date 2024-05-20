@@ -72,8 +72,6 @@ class StoragePointer
   def pop
     validate_array!
     @state_manager.array_pop(*@path)
-  rescue => e
-    binding.pry
   end
 
   def length

@@ -65,9 +65,10 @@ class IntegerVariable < GenericVariable
     
     result = self.value.public_send(operation, other.value)
     
-    if result.negative? && is_uint?
-      raise ContractError.new("Integer overflow")
-    end
+    # TODO: put back
+    # if result.negative? && is_uint?
+    #   raise ContractError.new("Integer overflow")
+    # end
     
     TypedVariable.create(smallest_allowable_type(result, force_int: is_int?), result)
   end

@@ -68,13 +68,13 @@ class StructVariable < GenericVariable
     end
     
     def get(field)
-      type = struct_definition.fields[field]['type']
+      type = struct_definition.fields[field]
 
       TypedVariable.create_or_validate(type, data[field])
     end
     
     def set(field, new_value)
-      type = struct_definition.fields[field]['type']
+      type = struct_definition.fields[field]
       
       data[field] = TypedVariable.create_or_validate(type, new_value)
     end
@@ -98,7 +98,7 @@ class StructVariable < GenericVariable
     def as_json
       output = {}
       struct_definition.fields.each_key.each do |field|
-        type = struct_definition.fields[field]['type']
+        type = struct_definition.fields[field]
         value = data[field]
         
         output[field] = value || type.default_value

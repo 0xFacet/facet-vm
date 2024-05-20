@@ -22,7 +22,7 @@ class StateManager
   # Get value
   def get(*keys)
     type = validate_and_get_type(keys)
-    validate_index_range(keys, type)
+    validate_index_range(keys)
     # key = keys.as_json
 
     # if @transaction_changes.key?(key) && @transaction_changes[key][:to].nil?
@@ -70,15 +70,12 @@ class StateManager
   def set(*keys, typed_variable)
     type = validate_and_get_type(keys)
     validate_type(type, typed_variable)
-    validate_index_range(keys, type)
+    validate_index_range(keys)
     json_key = format_key(keys)
-    
-    container = container_of(keys)
-    array_container = container.is_a?(TypedVariable) && container.array?
     
     if typed_variable.is_a?(StructVariable)
       typed_variable.value.data.each do |field, field_value|
-        field_type = type.struct_definition.fields[field]['type']
+        field_type = type.struct_definition.fields[field]
         
         raw_write(keys + [field], value_to_write(field_value))
       end
@@ -239,24 +236,6 @@ class StateManager
       end
     end
     
-    structure = build_structure
-    contract = Contract.find_by_address(@contract_address)
-    
-    if contract.current_state != structure
-      contract.update!(current_state: structure)
-    
-      state = ContractState.find_or_initialize_by(
-        contract_address: @contract_address,
-        block_number: block_number
-      )
-      
-      state.type ||= contract.current_type
-      state.init_code_hash ||= contract.current_init_code_hash
-      state.state = structure
-      
-      state.save! unless @skip_state_save
-    end
-    
     clear_block
   end
   
@@ -292,10 +271,10 @@ class StateManager
     raise IndexError, "Cannot push to fixed length array" if type.length
 
     length = array_length(*keys)
-    set(*(keys + [length]), typed_variable)
     raw_write((keys + [ARRAY_LENGTH_SUFFIX]), TypedVariable.create(:uint256, length.value + 1))
+    set(*(keys + [length]), typed_variable)
   # rescue => e
-  #   binding.pry
+    # binding.pry
   end
 
   # Pop from array
@@ -307,11 +286,14 @@ class StateManager
     length = array_length(*keys).value
     raise "Array is empty" if length.zero?
 
-    last_index = length - 1
-    value = get(*(keys + [TypedVariable.create(:uint256, last_index)]))
+    last_index = TypedVariable.create(:uint256, length - 1)
+    value = get(*(keys + [last_index]))
 
     set(*(keys + [last_index]), nil)
-    raw_write((keys + [ARRAY_LENGTH_SUFFIX]), TypedVariable.create(:uint256, last_index))
+    
+    write_val = last_index.value == 0 ? nil : last_index
+    raw_write((keys + [ARRAY_LENGTH_SUFFIX]), write_val)
+    binding.pry if value.is_a?(Integer)
     value
   end
   
@@ -455,7 +437,7 @@ class StateManager
             # binding.pry
             raise KeyError, "Invalid struct field at segment #{index}: #{segment}"
           end
-          layout = layout.struct_definition.fields[segment.to_s]["type"]
+          layout = layout.struct_definition.fields[segment.to_s]
         else
           raise KeyError, "Invalid path at segment #{index}: #{keys.join('.')}"
         end
@@ -473,11 +455,13 @@ class StateManager
     validate_and_get_type(keys[0..-2])
   end
   
-  def validate_index_range(keys, type)
-    if type.name == :array
+  def validate_index_range(keys)
+    container = container_of(keys)
+    
+    if container.is_a?(Type) && container.array?
       index = keys.last
       length = array_length(*keys[0..-2])
-      if index >= length
+      if index.value >= length.value
         raise IndexError, "Index out of range for array"
       end
     end
@@ -491,39 +475,102 @@ class StateManager
   end
   
   def build_structure
-    state_structure = NewContractState.build_structure(@contract_address)
+    state_structure = build_structure_raw
+    # binding.pry
     ensure_layout_defaults(@state_var_layout, state_structure)
     state_structure
   # rescue => e
   #   binding.pry
   end
+  
+  def build_structure_raw
+    as_hash = state_data
+    nested_structure = {}
+
+    as_hash.each do |key, value|
+      next if key.last == ARRAY_LENGTH_SUFFIX  # Skip array length keys
+
+      keys = key
+      current = nested_structure
+
+      keys.each_with_index do |k, index|
+        on_last_key = index == keys.length - 1
+        on_second_to_last_key = index == keys.length - 2
+        
+        # begin
+        #   container = validate_and_get_type(keys[0..index])
+        # rescue KeyError, TypeError
+        #   # Skip keys that are not in the current layout
+        #   break
+        # end
+        
+        if on_last_key
+          current[k] = value
+        else
+          begin
+            container = validate_and_get_type(keys[0..index])
+            next_key_is_array = container.is_a?(Type) && container.array?
+          rescue
+            next_key_is_array = k.is_a?(Integer)
+          end
+
+          current[k] ||= next_key_is_array ? [] : {}
+          current = current[k]
+        end
+      end
+    end
+
+    convert_arrays(nested_structure)
+  end
+
+  def convert_arrays(structure)
+    structure.each do |key, value|
+      if value.is_a?(Hash) && value.keys.all? { |k| k.is_a?(Integer) }
+        structure[key] = value.keys.sort.map { |i| value[i] }
+      elsif value.is_a?(Hash)
+        convert_arrays(value)
+      end
+    end
+    structure
+  end
 
 
   private
 
-  def ensure_layout_defaults(layout, structure)
+  
+  def ensure_layout_defaults(layout, structure, keys = [])
     layout.each do |key, type|
+      current_keys = keys + [key]
+  
       unless structure.key?(key)
         structure[key] = default_value_for_type(type)
       end
-
-      if type.is_a?(Type) && type.mapping? || type.struct?
-        structure[key] = {} unless structure[key].is_a?(Hash)
-      elsif type.is_a?(Type) && type.name == :array
-        structure[key] = [] unless structure[key].is_a?(Array)
-      end
-
-      if type.is_a?(Hash)
+  
+      if type.is_a?(Type)
+        if type.mapping?
+          structure[key] = {} unless structure[key].is_a?(Hash)
+        elsif type.struct?
+          structure[key] = {} unless structure[key].is_a?(Hash)
+        elsif type.name == :array
+          # TODO: arrays in mappings etc?
+          structure[key] = [] unless structure[key].is_a?(Array)
+          pad_array_with_defaults(structure[key], type, current_keys)
+        end
+      elsif type.is_a?(Hash)
         structure[key] ||= {}
-        ensure_layout_defaults(type, structure[key])
-      elsif type.is_a?(Type) && type.mapping? || type.struct?
-        structure[key] ||= {}
-      elsif type.is_a?(Type) && type.name == :array
-        structure[key] ||= []
+        ensure_layout_defaults(type, structure[key], current_keys)
       end
     end
   end
 
+  def pad_array_with_defaults(array, type, keys)
+    array_length = array_length(*keys).value
+    default_value = default_value_for_type(type.value_type)
+    array_length.times do |i|
+      array[i] ||= default_value
+    end
+  end
+  
   def default_value_for_type(type)
     if type.is_a?(Type) && type.mapping? || type.struct?
       {}

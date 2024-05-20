@@ -148,6 +148,8 @@ class ContractTransaction < ApplicationRecord
         )
       )
       
+      Contract.cache_all_state
+      
       state = state_defining_model_names.each.with_object({}) do |model_name, hash|
         model_class = model_name.constantize
         key = model_name.underscore.pluralize.to_sym
@@ -211,14 +213,19 @@ class ContractTransaction < ApplicationRecord
       
       eth.save! if persist
       
-      BlockContext.set(
-        system_config: config_version,
-        current_block: current_block,
-        contracts: [],
-        contract_artifacts: [],
-        ethscriptions: [eth]
+      BlockBatchContext.set(
+        contracts: {},
+        contract_classes: {},
       ) do
-        BlockContext.process_contract_transactions(persist: persist)
+        BlockContext.set(
+          system_config: config_version,
+          current_block: current_block,
+          contracts: [],
+          contract_artifacts: [],
+          ethscriptions: [eth]
+        ) do
+          BlockContext.process_contract_transactions(persist: persist)
+        end
       end
       
       {

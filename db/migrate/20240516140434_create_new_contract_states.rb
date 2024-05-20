@@ -9,6 +9,8 @@ class CreateNewContractStates < ActiveRecord::Migration[7.1]
       
       t.index :contract_address
       t.index [:contract_address, :key], unique: true
+      
+      # t.index :key, using: :gin, opclass: :jsonb_path_ops
     end
   end
 end

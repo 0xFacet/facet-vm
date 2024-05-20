@@ -28,7 +28,7 @@ class StructDefinition
       raise "No shadowing: #{name} is already defined."
     end
     
-    @fields[name] = { type: type }
+    @fields[name] = type
   end
   
   def ==(other)

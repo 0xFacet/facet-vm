@@ -30,7 +30,8 @@ RSpec.describe StateManager, type: :model do
       "totalSupply" => Type.new(:uint256),
       "balanceOf" => Type.new(:mapping, key_type: Type.new(:address), value_type: Type.new(:uint256)),
       "allowance" => Type.new(:mapping, key_type: Type.new(:address), value_type: Type.new(:mapping, key_type: Type.new(:address), value_type: Type.new(:uint256))),
-      "testArray" => Type.new(:array, value_type: Type.new(:uint256))
+      "testArray" => Type.new(:array, value_type: Type.new(:uint256)),
+      "testArrayFixed" => Type.new(:array, value_type: Type.new(:string), length: 3)
     }
   }
   let!(:state_manager) { StateManager.new(contract_address, state_var_layout, skip_state_save: true) }
@@ -205,7 +206,7 @@ RSpec.describe StateManager, type: :model do
           }
         }
       )
-      
+      Contract.cache_all_state
       expect(token_a.reload.current_state["balanceOf"]).to eq({user_address => 1000})
       
       trigger_contract_interaction_and_expect_success(
@@ -219,7 +220,7 @@ RSpec.describe StateManager, type: :model do
           }
         }
       )
-      
+      Contract.cache_all_state
       expect(token_a.reload.current_state["balanceOf"]).to eq({})
     end
      
@@ -260,7 +261,7 @@ RSpec.describe StateManager, type: :model do
           }
         }
       )
-      
+      Contract.cache_all_state
       token_a.reload
       
       expect(token_a.current_state["getPair"]).to eq({
@@ -343,6 +344,29 @@ RSpec.describe StateManager, type: :model do
       state_manager.reload_state
       expect(state_manager.array_length("testArray").value).to eq(1)
       expect(state_manager.get("testArray", 0.t).value).to eq(42)
+      
+      expect(state_manager.get("testArrayFixed", 0.t).value).to eq("")
+      state_manager.set("testArrayFixed", 1.t, TypedVariable.create(:string, "hi"))
+      
+      expect(state_manager.get("testArrayFixed", 1.t).value).to eq("hi")
+      
+      expect(state_manager.get("testArrayFixed", 2.t).value).to eq("")
+
+      expect {
+        state_manager.get("testArrayFixed", 10.t)
+      }.to raise_error(IndexError)
+      
+      expect {
+        state_manager.get("testArray", 10.t)
+      }.to raise_error(IndexError)
+      
+      expect {
+        state_manager.set("testArray", 10.t, TypedVariable.create(:uint256, 100))
+      }.to raise_error(IndexError)
+      
+      expect {
+        state_manager.set("testArrayFixed", 3.t, TypedVariable.create(:string, "hi"))
+      }.to raise_error(IndexError)
     end
 
     it "handles deletions and default values" do
@@ -630,7 +654,8 @@ RSpec.describe StateManager, type: :model do
             bob => 500
           }
         },
-        "testArray" => [42, 43],
+        "testArray" => [0, 42, 43, 0, 1, 0],
+        "testArrayFixed" => ['', 'hi', ''],
         "ownerOf" => {
           "1" => alice,
           "2" => bob
@@ -638,7 +663,15 @@ RSpec.describe StateManager, type: :model do
         "jim" => {
           "name" => "Jim",
           "age" => 100
-        }
+        },
+        "jimExtended" => {
+          "name" => "Jim",
+          "age" => 100
+        },
+        "blank" => {},
+        "peopleFixed" => [{}, {"age"=>30, "name"=>"Alice"}, {}],
+        "peopleVariable" => [{}, {"age"=>30, "name"=>"Alice"}, {}, {"age"=>31, "name"=>"Bob"}, {}],
+        "peopleMap" => {"Jim"=>{"age"=>100, "name"=>"Jim"}},
       }
       
       result = contract.wrapper.build_structure
@@ -716,6 +749,47 @@ RSpec.describe StateManager, type: :model do
       state_manager.reload_state
       expect(storage_pointer["testArray"].length.value).to eq(1)
       expect(storage_pointer["testArray"][0.t].value).to eq(42)
+      
+      storage_pointer["testArray"].push(TypedVariable.create(:uint256, 0))
+      
+      state_manager.apply_transaction
+      state_manager.save_block_changes(100)
+      
+      state_manager.reload_state
+      
+      expect(storage_pointer["testArray"].length.value).to eq(2)
+      expect(storage_pointer["testArray"][0.t].value).to eq(42)
+      expect(storage_pointer["testArray"][1.t].value).to eq(0)
+      
+      storage_pointer["testArray"].push(TypedVariable.create(:uint256, 110))
+      storage_pointer["testArray"].push(TypedVariable.create(:uint256, 0))
+      
+      state_manager.apply_transaction
+      state_manager.save_block_changes(101)
+      
+      state_manager.reload_state
+      
+      expect(storage_pointer["testArray"].length.value).to eq(4)
+      expect(storage_pointer["testArray"][0.t].value).to eq(42)
+      expect(storage_pointer["testArray"][1.t].value).to eq(0)
+      expect(storage_pointer["testArray"][2.t].value).to eq(110)
+      expect(storage_pointer["testArray"][3.t].value).to eq(0)
+      
+      expect(state_manager.build_structure['testArray']).to eq([42, 0, 110, 0])
+      
+      storage_pointer["testArray"].pop
+      
+      state_manager.apply_transaction
+      state_manager.save_block_changes(102)
+      
+      state_manager.reload_state
+      
+      expect(storage_pointer["testArray"].length.value).to eq(3)
+      expect(storage_pointer["testArray"][0.t].value).to eq(42)
+      expect(storage_pointer["testArray"][1.t].value).to eq(0)
+      expect(storage_pointer["testArray"][2.t].value).to eq(110)
+      
+      expect(state_manager.build_structure['testArray']).to eq([42, 0, 110])
     end
   end
 end
