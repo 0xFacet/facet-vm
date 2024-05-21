@@ -54,7 +54,7 @@ class RubidityTranspiler
           self.filename = fixtures_path
         else
           # If the file doesn't exist in any of the directories, treat the input as a code string
-          @source_code = filename_or_string
+          @code = filename_or_string
           @file_ast = Unparser.parse(filename_or_string)
         end
       end
