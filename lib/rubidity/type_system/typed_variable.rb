@@ -1,6 +1,5 @@
 class TypedVariable
   include ContractErrors
-  extend AttrPublicReadPrivateWrite
   extend Memoist
   class << self; extend Memoist; end
   
@@ -8,21 +7,15 @@ class TypedVariable
     undef_method(method) if method_defined?(method)
   end
   
-  attr_accessor :value, :on_change
-  attr_public_read_private_write :type
+  attr_accessor :value, :type
   
-  def initialize(type, value = nil, on_change: nil, **options)
+  def initialize(type, value = nil, **options)
     self.type = type
     self.value = value.nil? ? type.default_value : value
-    
-    #TODO: Kill all on_change
-    self.on_change = on_change
   end
   
-  def self.create(type, value = nil, on_change: nil, **options)
+  def self.create(type, value = nil, **options)
     type = Type.create(type)
-    
-    options[:on_change] = on_change
     
     if type.array?
       ArrayVariable.new(type, value, **options)
@@ -49,7 +42,7 @@ class TypedVariable
     ::TypedVariableProxy.new(create(...))
   end
   
-  def self.create_or_validate(type, value = nil, on_change: nil)
+  def self.create_or_validate(type, value = nil)
     if value.is_a?(StoragePointer)
       if value.current_type.array?
         value = value.load_array
@@ -66,7 +59,7 @@ class TypedVariable
       value = value.value
     end
     
-    create(type, value, on_change: on_change)
+    create(type, value)
   end
   
   def self.validated_value(type, value, allow_nil: false)
@@ -95,6 +88,7 @@ class TypedVariable
     value == type.default_value
   end
   
+  # TODO: Make immutable for value types
   def value=(new_value)
     if type.bool? && !@value.nil?
       raise TypeError.new("Cannot change value of #{self.value.inspect}")
@@ -105,12 +99,6 @@ class TypedVariable
     if @value != new_value
       if type.is_value_type? && @value != type.default_value && !@value.nil?
         raise TypeError.new("Cannot change value of #{self.value.inspect}")
-      end
-      
-      on_change&.call
-      
-      if new_value.respond_to?(:on_change=)
-        new_value.on_change = on_change
       end
       
       @value = new_value

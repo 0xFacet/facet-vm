@@ -53,9 +53,8 @@ class ContractVariable < GenericVariable
   
   class Value
     include ContractErrors
-    extend AttrPublicReadPrivateWrite
     
-    attr_public_read_private_write :contract_class, :address, :uncast_address
+    attr_accessor :contract_class, :address, :uncast_address
     
     def initialize(address:, contract_class:)
       self.uncast_address = address
