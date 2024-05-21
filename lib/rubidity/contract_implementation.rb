@@ -61,8 +61,7 @@ class ContractImplementation
   :json_stringify,
   :string,
   :address,
-  :bytes32,
-  :p
+  :bytes32
   
   attr_reader :current_context
   
@@ -86,7 +85,6 @@ class ContractImplementation
   end
   
   def s
-    # @state_manager.state_var_layout = self.class.state_var_def_json
     @_s ||= StoragePointer.new(@state_manager)
   end
   
