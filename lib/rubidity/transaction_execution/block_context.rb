@@ -115,6 +115,10 @@ class BlockContext < ActiveSupport::CurrentAttributes
     contract
   end
   
+  def remove_contract(contract)
+    contracts.delete(contract)
+  end
+  
   def get_existing_contract(address)
     in_memory = contracts.detect do |contract|
       contract.deployed_successfully? &&

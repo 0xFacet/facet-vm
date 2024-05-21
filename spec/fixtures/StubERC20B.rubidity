@@ -1,12 +1,15 @@
 pragma :rubidity, "1.0.0"
 
 import '/app/models/contracts/ERC20.rubidity'
+import './StubERC20.rubidity'
 
 contract :StubERC20B, is: :ERC20 do
   uint256 :public, :unsafeReadOnlyCounter
+  event :ContractDeployed, { address: :address }
   
   constructor() {
     ERC20.constructor(name: "name", symbol: "symbol", decimals: 18)
+    emit :ContractDeployed, address: this
   }
   
   function :unsafeReadOnly, :public, :view do
@@ -16,5 +19,19 @@ contract :StubERC20B, is: :ERC20 do
   
   function :callOwnUnsafeReadOnly, :public do
     unsafeReadOnly()
+  end
+  
+  function :deployAndFail, :public do
+    newContract = new StubERC20B()
+    
+    newContract.unsafeReadOnly()
+  end
+  
+  function :upgradeAndFail, :public do
+    newContract = new StubERC20("test")
+    
+    this.upgradeImplementation(newContract.currentInitCodeHash, "")
+    
+    newContract.unsafeReadOnly()
   end
 end

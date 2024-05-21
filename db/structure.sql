@@ -131,8 +131,7 @@ CREATE FUNCTION public.update_current_state() RETURNS trigger
           LIMIT 1;
 
           UPDATE contracts
-          SET current_state = latest_contract_state.state,
-              current_type = latest_contract_state.type,
+          SET current_type = latest_contract_state.type,
               current_init_code_hash = latest_contract_state.init_code_hash,
               updated_at = NOW()
           WHERE address = NEW.contract_address;
@@ -145,8 +144,7 @@ CREATE FUNCTION public.update_current_state() RETURNS trigger
           LIMIT 1;
 
           UPDATE contracts
-          SET current_state = latest_contract_state.state,
-              current_type = latest_contract_state.type,
+          SET current_type = latest_contract_state.type,
               current_init_code_hash = latest_contract_state.init_code_hash,
               updated_at = NOW()
           WHERE address = OLD.contract_address;
@@ -220,10 +218,11 @@ ALTER SEQUENCE public.contract_artifacts_id_seq OWNED BY public.contract_artifac
 
 CREATE TABLE public.contract_block_change_logs (
     id bigint NOT NULL,
-    block_number bigint NOT NULL,
     contract_address character varying NOT NULL,
-    state_changes jsonb DEFAULT '{}'::jsonb NOT NULL,
-    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+    block_number bigint NOT NULL,
+    state_changes jsonb NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
 );
 
 
@@ -317,7 +316,7 @@ CREATE TABLE public.contract_states (
     id bigint NOT NULL,
     type character varying NOT NULL,
     init_code_hash character varying NOT NULL,
-    state jsonb DEFAULT '{}'::jsonb NOT NULL,
+    state jsonb DEFAULT '{}'::jsonb,
     block_number bigint NOT NULL,
     contract_address character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
@@ -659,7 +658,6 @@ CREATE TABLE public.transaction_receipts (
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
     CONSTRAINT chk_rails_06c0d4e0bb CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT chk_rails_4a6d0a1199 CHECK (((to_contract_address IS NULL) <> (created_contract_address IS NULL))),
     CONSTRAINT chk_rails_592884e043 CHECK (((((call_type)::text = 'create'::text) AND ((effective_contract_address)::text = (created_contract_address)::text)) OR (((call_type)::text = 'call'::text) AND ((effective_contract_address)::text = (to_contract_address)::text)))),
     CONSTRAINT chk_rails_8b922d101f CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_a636a2bc58 CHECK (((to_contract_address IS NULL) OR ((to_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
@@ -896,13 +894,6 @@ CREATE UNIQUE INDEX idx_on_address_deployed_successfully ON public.contracts USI
 
 
 --
--- Name: idx_on_block_number_contract_address_94d811da5e; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_on_block_number_contract_address_94d811da5e ON public.contract_block_change_logs USING btree (block_number, contract_address);
-
-
---
 -- Name: idx_on_block_number_transaction_index_efc8dd9c1d; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -921,6 +912,13 @@ CREATE UNIQUE INDEX idx_on_block_number_transaction_index_internal_tran_570359f8
 --
 
 CREATE UNIQUE INDEX idx_on_block_number_txi_internal_txi ON public.contract_calls USING btree (block_number, transaction_index, internal_transaction_index);
+
+
+--
+-- Name: idx_on_contract_address_block_number_9a58e579f6; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_on_contract_address_block_number_9a58e579f6 ON public.contract_block_change_logs USING btree (contract_address, block_number);
 
 
 --
@@ -1442,6 +1440,7 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20240520215945'),
 ('20240516140434'),
 ('20240512205338'),
 ('20240507202106'),

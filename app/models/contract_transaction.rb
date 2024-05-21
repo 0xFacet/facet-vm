@@ -81,6 +81,11 @@ class ContractTransaction < ApplicationRecord
     contract_calls.target.sort_by(&:internal_transaction_index).first
   end
   
+  def computed_logs
+    return [] if failure?
+    contract_calls.target.flat_map(&:logs).sort_by { |log| log['index'] }.map { |log| log.except('index') }
+  end
+  
   def transaction_receipt_for_import
     base_attrs = {
       transaction_hash: transaction_hash,
@@ -88,7 +93,7 @@ class ContractTransaction < ApplicationRecord
       block_blockhash: block_blockhash,
       transaction_index: transaction_index,
       block_timestamp: block_timestamp,
-      logs: contract_calls.target.flat_map(&:logs).sort_by { |log| log['index'] }.map { |log| log.except('index') },
+      logs: computed_logs,
       status: status,
       runtime_ms: initial_call.calculated_runtime_ms,
       gas_price: ethscription.gas_price,
@@ -295,11 +300,32 @@ class ContractTransaction < ApplicationRecord
       TransactionContext.active_contracts.each do |c|
         c.wrapper.rollback_transaction
       end
+      
+      clean_up_failed_contracts
+    end
+  end
+  
+  def clean_up_failed_contracts
+    return unless failure?
+    
+    contract_calls.select do |call|
+      call.internal_transaction_index > 0
+    end.each do |call|
+      BlockContext.remove_contract(call.created_contract)
+      
+      call.assign_attributes(
+        created_contract: nil,
+        effective_contract: nil
+      )
     end
   end
   
   def success?
     status == :success
+  end
+  
+  def failure?
+    !success?
   end
   
   def status
