@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/0xfacet/facet_rails_common.git
-  revision: 70ab84b5f237f09ffdf4ef038ca5050f92d24c59
+  revision: 2d5cf107df9ea12bb7ab59a8b1ce4d38b4de483b
   specs:
     facet_rails_common (0.1.0)
       order_query (~> 0.5.3)
@@ -192,6 +192,7 @@ GEM
       timeout
     net-smtp (0.4.0)
       net-protocol
+    newrelic_rpm (9.9.0)
     nio4r (2.5.9)
     nokogiri (1.15.4)
       mini_portile2 (~> 2.8.2)
@@ -360,6 +361,7 @@ DEPENDENCIES
   kaminari (~> 1.2)
   memoist (~> 0.16.2)
   parser (= 3.3.1.0)
+  newrelic_rpm
   pg (~> 1.1)
   pry
   puma (>= 6.4.0)

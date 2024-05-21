@@ -2,7 +2,7 @@ class BlockContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
   attribute :current_block, :system_config, :contract_artifacts,
-    :contracts, :ethscriptions, :parsed_ethscriptions
+    :contracts, :ethscriptions, :parsed_ethscriptions, :current_log_index
   
   delegate :current_transaction, :current_call, to: TransactionContext
   
@@ -12,6 +12,13 @@ class BlockContext < ActiveSupport::CurrentAttributes
     end
     
     super(ethscriptions)
+  end
+  
+  def get_and_increment_log_index
+    current = current_log_index
+    self.current_log_index += 1
+    
+    current
   end
   
   def contract_transactions
@@ -59,7 +66,6 @@ class BlockContext < ActiveSupport::CurrentAttributes
         call_stack: CallStack.new(TransactionContext),
         active_contracts: [],
         current_transaction: contract_tx,
-        current_event_index: 0,
         tx_origin: contract_tx.tx_origin,
         tx_current_transaction_hash: contract_tx.transaction_hash,
         block_number: current_block.block_number,

@@ -14,7 +14,13 @@ describe 'Transactions API', doc: true do
                 type: :integer,
                 description: 'Filter transactions by block number.',
                 required: false
-
+                
+      parameter name: :block_blockhash,
+                in: :query,
+                type: :string,
+                description: 'Filter transactions by block hash.',
+                required: false
+                
       parameter name: :from,
                 in: :query,
                 type: :string,

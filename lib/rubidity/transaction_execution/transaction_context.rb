@@ -1,7 +1,7 @@
 class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
-  attribute :call_stack, :current_call, :transaction_index, :current_transaction, :current_event_index, :active_contracts
+  attribute :call_stack, :current_call, :transaction_index, :current_transaction, :active_contracts
   
   STRUCT_DETAILS = {
     msg:    { attributes: { sender: :address } },
@@ -61,10 +61,9 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def log_event(event)
-    current_index = current_event_index
-    self.current_event_index += 1
+    current_index = BlockContext.get_and_increment_log_index
     
-    current_call.log_event(event.merge(index: current_index))
+    current_call.log_event(event.merge(log_index: current_index))
   end
   
   def msg_sender
