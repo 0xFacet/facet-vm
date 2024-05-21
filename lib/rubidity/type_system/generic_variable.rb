@@ -1,4 +1,5 @@
 class GenericVariable < TypedVariable
+  include InstrumentAllMethods
   include Exposable
   
   expose :cast, :not, :ne, :eq
@@ -32,6 +33,12 @@ class GenericVariable < TypedVariable
   end
   
   def eq(other)
+    # TODO: we should also require other.eq(self) to be true
+    
+    if other.type.null?
+      return TypedVariable.create(:bool, false)
+    end
+    
     unless other.is_a?(TypedVariable)
       raise ContractError.new("Cannot compare TypedVariable with #{other.class}")
     end

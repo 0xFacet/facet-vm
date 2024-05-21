@@ -3,6 +3,7 @@ class ContractImplementation
   include ::ContractErrors
   include ::ForLoop
   include Exposable
+  # include InstrumentAllMethods
   
   class << self
     attr_reader :name, :is_abstract_contract, :source_code,
@@ -64,12 +65,19 @@ class ContractImplementation
   
   attr_reader :current_context
   
-  def initialize(current_context: ::TransactionContext, initial_state: nil)
+  def self.state_var_def_json
+    @_state_var_def_json ||= state_variable_definitions.map do |name, definition|
+      [
+        name,
+        definition[:type]
+      ]
+    end.to_h.with_indifferent_access
+  end
+  
+  def initialize(current_context: TransactionContext, state_manager: nil)
     @current_context = current_context || raise("Must provide current context")
     
-    if initial_state
-      state_manager.load(initial_state)
-    end
+    @state_manager = state_manager
   end
   
   def self.state_variable_definitions
@@ -77,11 +85,7 @@ class ContractImplementation
   end
   
   def s
-    state_manager.state_proxy
-  end
-  
-  def state_manager
-    @state_manager ||= ::StateManager.new(self.class.state_variable_definitions)
+    @_s ||= StoragePointer.new(@state_manager)
   end
   
   def self.abi
@@ -170,7 +174,7 @@ class ContractImplementation
     linearize_contracts(self).dup.tap(&:pop)
   end
   
-  def self.function(name, args, *options, returns: nil, &block)
+  def self.function(name, args = {}, *options, returns: nil, &block)
     if args.is_a?(::Symbol)
       options.unshift(args)
       args = {}
@@ -200,9 +204,9 @@ class ContractImplementation
   end
   
   def memory(struct)
-    raise "Not implemented" unless struct.is_a?(::StructVariable)
+    raise "Not implemented" unless struct.is_a?(::StoragePointer)
     
-    struct.deep_dup
+    struct.load_struct
   end
   
   def self.event(name, args)
@@ -367,6 +371,10 @@ class ContractImplementation
   
   # TODO: fix
   def downcast_int(integer, bits)
+    if integer.is_a?(::TypedVariable)
+      return TypedVariable.create(:"int#{bits}", integer.value)
+    end
+    
     type = IntegerVariable.smallest_allowable_type(integer)
     
     TypedVariable.create_or_validate(type, integer)
@@ -438,6 +446,7 @@ class ContractImplementation
   
   def handle_contract_name_call(contract_name, *args, **kwargs)
     if args.one? && args.first.is_a?(TypedVariable) && args.first.type.address?
+      # TODO: still ambiguous w.r.t. call to constructor with one address arg
       handle_contract_type_cast(contract_name, args.first)
     else
       create_contract_initializer(contract_name, args.presence || kwargs)

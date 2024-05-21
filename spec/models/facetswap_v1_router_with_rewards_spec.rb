@@ -488,6 +488,8 @@ describe 'FacetSwapV1Router contract' do
     
     swap_fee_amt = ((first_swap_amount_in + second_swap_amount_in) * effectiveSwapFee).div(10_000)
     
+    Contract.cache_all_state
+    
     expect(swap_fee_amt).to eq(
       rc.reload['current_state']['swapperRewardsPool'] + rc['current_state']['swapperRewards'].values.sum
     )

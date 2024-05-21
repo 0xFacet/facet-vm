@@ -1,0 +1,100 @@
+pragma :rubidity, "1.0.0"
+
+import '/app/models/contracts/ERC20.rubidity'
+
+contract :StorageLayoutTest, is: :ERC20 do
+  uint256 :public, :var1
+  uint256 :public, :var2
+  uint256 :public, :var3
+  uint256 :public, :var4
+  
+  array :uint256, :public, :testArrayFixedLength, length: 3
+  array :uint256, :public, :testArrayVariableLength
+  
+  mapping ({ string: array(:string) }), :public, :arrayInMappingVariable
+  mapping ({ string: array(:string, length: 3) }), :public, :arrayInMappingFixed
+  
+  mapping ({ string: mapping({ string: :string })}), :public, :getPair
+  
+  struct :TokenUpgradeLevel do
+    string :name
+    string :imageURI
+    string :animationURI
+    string :extraAttributesJson
+    uint256 :startTime
+    uint256 :endTime
+  end
+  
+  TokenUpgradeLevel :public, :tokenUpgradeLevelInstance
+  
+  function :setStructName, { name: :string }, :public do
+    s.tokenUpgradeLevelInstance.name = name
+    
+    nil
+  end
+  
+  function :addPair, { key1: :string, key2: :string, value: :string }, :public, returns: nil do
+    s.getPair[key1][key2] = value
+    s.getPair[key2][key1] = value
+    nil
+  end
+  
+  # array array(array(:string)), :public, :arrayOfArrays
+  
+  constructor(name: :string) {
+    ERC20.constructor(name: name, symbol: "symbol", decimals: 18)
+  }
+  
+  function :pushTest, { value: :uint256 }, :public do
+    s.testArrayVariableLength.push(value)
+    nil
+  end
+  
+  function :popTest, :public, returns: :uint256 do
+    s.testArrayVariableLength.pop
+  end
+  
+  function :changeName, { name: :string }, :public, returns: nil do
+    s.name = name
+    
+    nil
+  end
+  
+  function :revertUnlessBalanceIs, { amount: :uint256 }, :public do
+    require(s.balanceOf[msg.sender] == amount, "Balance is not the expected amount")
+  end
+  
+  function :testUpdate, :public do
+    StorageLayoutTest(address(this)).updateBalance(100)
+    StorageLayoutTest(address(this)).revertUnlessBalanceIs(100)
+    require(s.balanceOf[address(this)] == 100, "Balance is not the expected amount")
+  end
+  
+  function :getName, :public, :view, returns: :string do
+    s.name
+  end
+  
+  function :updateBalance, { amount: :uint256 }, :public, returns: nil do
+    s.balanceOf[msg.sender] = amount
+    
+    nil
+  end
+  
+  function :changeVar1, { newVar: :uint256, revert: :bool }, :public do
+    require(!revert, "Revert")
+    
+    s.var1 = newVar
+    nil
+  end
+  
+  function :changeOtherVar1, { target: :address, newVar: :uint256, revert: :bool }, :public do
+    StorageLayoutTest(target).changeVar1(newVar, revert)
+    nil
+  end
+  
+  function :oneSuccessOneRevert, { target: :address, newVar: :uint256 }, :public do
+    StorageLayoutTest(target).changeVar1(newVar, false)
+    StorageLayoutTest(target).changeVar1(newVar + 5, true)
+    nil
+  end
+end

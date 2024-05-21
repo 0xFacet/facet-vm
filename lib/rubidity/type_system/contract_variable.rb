@@ -22,6 +22,10 @@ class ContractVariable < GenericVariable
     end
   end
   
+  def as_json
+    serialize
+  end
+  
   def serialize
     value.address
   end
@@ -49,9 +53,8 @@ class ContractVariable < GenericVariable
   
   class Value
     include ContractErrors
-    extend AttrPublicReadPrivateWrite
     
-    attr_public_read_private_write :contract_class, :address, :uncast_address
+    attr_accessor :contract_class, :address, :uncast_address
     
     def initialize(address:, contract_class:)
       self.uncast_address = address
@@ -63,6 +66,10 @@ class ContractVariable < GenericVariable
     
     def currentInitCodeHash
       TypedVariable.create(:bytes32, contract_class.init_code_hash)
+    end
+    
+    def as_json
+      address
     end
     
     def upgradeImplementation(new_init_code_hash, new_source_code)
@@ -86,9 +93,15 @@ class ContractVariable < GenericVariable
         raise ContractError.new(e.message, target)
       end
       
-      unless target.implementation_class.is_upgradeable
+      current = target.state_manager.get_implementation 
+      current_class = BlockContext.supported_contract_class(
+        current[:init_code_hash],
+        validate: false
+      )
+      
+      unless current_class.is_upgradeable
         raise ContractError.new(
-          "Contract is not upgradeable: #{target.implementation_class.name}",
+          "Contract is not upgradeable: #{current_class.name}",
           target
         )
       end
@@ -100,9 +113,9 @@ class ContractVariable < GenericVariable
         )
       end
       
-      target.assign_attributes(
-        current_type: new_implementation_class.name,
-        current_init_code_hash: new_init_code_hash
+      target.state_manager.set_implementation(
+        type: new_implementation_class.name,
+        init_code_hash: new_init_code_hash
       )
       
       NullVariable.instance

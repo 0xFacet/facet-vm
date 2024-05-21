@@ -40,14 +40,24 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def mark_active(contract)
-    contract&.implementation&.state_manager&.clear_changed
-    active_contracts << contract if contract
+    if contract
+      active_contracts << contract
+      contract.state_manager.start_transaction
+    end
+    
     contract
   end
   
   def create_new_contract(...)
-    from_block = BlockContext.create_new_contract(...)
-    mark_active(from_block)
+    new_contract = BlockContext.create_new_contract(...)
+    mark_active(new_contract)
+    
+    new_contract.state_manager.set_implementation(
+      init_code_hash: new_contract.current_init_code_hash,
+      type: new_contract.current_type
+    )
+    
+    new_contract
   end
   
   def log_event(event)

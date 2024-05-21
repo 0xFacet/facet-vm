@@ -15,6 +15,8 @@ module VM
       TypedVariable.create(:string, val)
     when Symbol
       TypedVariable.create(:symbol, val)
+    when StoragePointer
+      StoragePointerProxy.new(val)
     when TypedVariable
       TypedVariableProxy.new(val)
     when Array, Hash, Proc, DestructureOnly # proc for lambdas in forLoop
@@ -38,6 +40,10 @@ module VM
       
       boxed_val = box(boxed_val)
     end
+  end
+  
+  def unbox(i)
+    deep_unbox(i)
   end
   
   def deep_unbox(value)

@@ -3,14 +3,8 @@ module ForLoop
   MAX_LOOPS = 100
   
   def forLoop(args)
-    start_val = args[:start]&.value.to_i
-    
-    unless start_val >= 0
-      raise ArgumentError, "Start value must be greater than or equal to 0"
-    end
-    
-    start = TypedVariable.create(:uint256, start_val)
-    current_val = start
+    start = args[:start]
+    current_val = start || TypedVariable.create(:uint256, 0)
     
     condition = args[:condition]
     step = args[:step] || TypedVariable.create(:int256, 1)

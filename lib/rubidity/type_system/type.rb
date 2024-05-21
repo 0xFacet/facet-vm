@@ -3,7 +3,7 @@ class Type
   
   include ContractErrors
   
-  attr_accessor :name, :metadata, :key_type, :value_type, :initial_length, :struct_definition
+  attr_accessor :name, :metadata, :key_type, :value_type, :initial_length, :struct_definition, :length
   
   INTEGER_TYPES = (8..256).step(8).flat_map do |num|
     ["uint#{num}", "int#{num}"]
@@ -76,6 +76,7 @@ class Type
     self.key_type = metadata[:key_type]
     self.value_type = metadata[:value_type]
     self.initial_length = metadata[:initial_length] if metadata[:initial_length]
+    self.length = metadata[:length] if metadata[:length]
     self.struct_definition = metadata[:struct_definition] if metadata[:struct_definition]
   end
   
@@ -126,8 +127,6 @@ class Type
       :''
     when bool?
       false
-    when mapping?
-      MappingVariable::Value.new(key_type: key_type, value_type: value_type)
     when array?
       ArrayVariable::Value.new(value_type: value_type, initial_length: initial_length)
     when contract?
@@ -242,19 +241,11 @@ class Type
       end
       
       return literal.downcase.freeze
-    elsif mapping?
-      if literal.is_a?(MappingVariable::Value)
-        return literal
-      end
-      
-      unless literal.is_a?(Hash)
-        raise VariableTypeError.new("invalid #{literal}")
-      end
-    
-      proxy = MappingVariable::Value.new(literal, key_type: key_type, value_type: value_type)
-      
-      return proxy
     elsif array?
+      if literal.is_a?(StoragePointer)
+        literal = literal.load_array
+      end
+      
       if literal.is_a?(ArrayVariable::Value)
         return literal
       end
@@ -277,9 +268,15 @@ class Type
         raise_variable_type_error("No literals allowed for contract types")
       end
     elsif struct?
+      if literal.is_a?(StoragePointer)
+        literal = literal.load_struct
+      end
+      
       if literal.is_a?(StructVariable::Value)
         return StructVariable::Value.new(struct_definition: literal.struct_definition, values: literal.serialize)
       end
+      
+      StructVariable::Value.new(data: literal, struct_definition: struct_definition)
     end
     
     raise VariableTypeError.new("Unknown type #{self.inspect}: #{literal.inspect}")

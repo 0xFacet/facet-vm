@@ -53,52 +53,22 @@ class ContractAstProcessor
     node.updated(nil, new_kids)
   end
   
-  def on_op_asgn(node)
-    target, op, value = *node.children
-  
-    if target.type == :lvasgn
-      process(handle_local_variable_assignment(target, op, value))
-    elsif target.type == :send
-      process(handle_method_setter_assignment(target, op, value))
-    else
-      raise "Unsupported target type for compound assignment: #{target.type}"
-    end
-  end
-  
-  def handle_local_variable_assignment(target, op, value)
-    var_name = target.children.first
-    
-    # Compute the new value based on the operation
-    new_value = s(:send, s(:lvar, var_name), op, process(value))
-    
-    # Update the AST node to represent the local variable assignment
-    s(:lvasgn, var_name, new_value)
-  end
-  
-  def handle_method_setter_assignment(target, op, value)
-    object, method_name, index = *target.children
-    
-    processed_object = process(object)
-    processed_index = process(index)
-    processed_value = process(value)
-    
-    current_value = if index
-      s(:send, processed_object, method_name, processed_index)
-    else
-      s(:send, processed_object, method_name)
-    end
-    
-    new_value = s(:send, current_value, op, processed_value) 
-    
-    if index
-      s(:send, processed_object, "#{method_name}=".to_sym, processed_index, new_value)
-    else
-      s(:send, processed_object, "#{method_name}=".to_sym, new_value)
-    end
-  end
-  
   def self.get_contract_ast(ast, contract_name)
     return find_matched_contracts(ast, [contract_name]).first
+  end
+
+  def on_send(node)
+    receiver, method_name, *args = *node
+    
+    return node unless receiver&.type == :const
+    
+    parent, name = *receiver
+    
+    return node unless parent.nil?
+    
+    s(:send,
+      s(:send,
+        s(:self), name), method_name, *args)
   end
 
   def post_process_references(ast)
@@ -198,14 +168,6 @@ class ContractAstProcessor
   def traverse_for_references(ast, referenced_contracts_set)
     return unless ast.is_a?(Parser::AST::Node)
     
-    if ast.type == :const
-      namespace, name = *ast
-      
-      if @available_contracts.include?(name)
-        referenced_contracts_set << name
-      end
-    end
-    
     if ast.type == :send
       if ast.children.second == :contract
         kwargs = ast.children.detect{|i| i.is_a?(Parser::AST::Node) && i.type == :kwargs}
@@ -232,16 +194,6 @@ class ContractAstProcessor
 
     ast.children.each do |child|
       traverse_for_references(child, referenced_contracts_set)
-    end
-  end
-  
-  def safe_process_all(nodes)
-    nodes.to_a.map do |child|
-      if child.is_a?(Parser::AST::Node)
-        process(child)
-      else
-        child
-      end
     end
   end
 end

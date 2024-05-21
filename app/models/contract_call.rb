@@ -18,7 +18,7 @@ class ContractCall < ApplicationRecord
   before_validation :ensure_runtime_ms
   
   attr_accessor :to_contract, :salt, :pending_logs, :to_contract_init_code_hash, :to_contract_source_code,
-    :in_low_level_call_context
+    :in_low_level_call_context, :call_stack, :internal_call_read_only_context_stack
   
   belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
   belongs_to :called_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'to_contract_address', optional: true
@@ -29,6 +29,53 @@ class ContractCall < ApplicationRecord
   belongs_to :contract_transaction, foreign_key: :transaction_hash,
     primary_key: :transaction_hash, optional: true, inverse_of: :contract_calls, autosave: false
 
+  def implementation_class
+    init_code_hash = state_manager.get_implementation[:init_code_hash]
+    implementation_class = BlockContext.supported_contract_class(
+      init_code_hash,
+      validate: false
+    )
+  end
+  
+  def internal_call_read_only_context_stack
+    @internal_calls ||= []
+  end
+  
+  def state_manager
+    effective_contract.state_manager
+  end
+  
+  def implementation
+    @_implementation ||= implementation_class.new(
+      state_manager: state_manager
+    )
+  end
+  
+  def in_read_only_context?
+    @call_stack.in_read_only_context?(self)
+  end
+  
+  def internal_call_in_read_only_context?
+    internal_call_read_only_context_stack.any?{|i| i == true}
+  end
+  
+  def read_only?
+    implementation.public_abi[function].read_only?
+  end
+  
+  def call_function(function, args)
+    public_functions = implementation.public_abi.keys
+    public_functions << :constructor if is_create?
+    
+    proxy = UltraMinimalProxy.new(implementation, public_functions.map(&:to_sym))
+    
+    if args.is_a?(Hash)
+      proxy.__send__(function, **args)
+    else
+      proxy.__send__(function, *Array.wrap(args))
+    end
+  end
+  
   def execute!
     self.pending_logs = []
     
@@ -38,11 +85,26 @@ class ContractCall < ApplicationRecord
       find_and_validate_existing_contract!
     end
     
-    result = effective_contract.execute_function(
-      function,
-      args,
-      is_static_call: is_static_call?
-    )
+    if !implementation.public_abi[function]
+      raise ContractError.new("Call to unknown function: #{function}", self)
+    end
+    
+    if is_static_call? && !in_read_only_context?
+      raise ContractError.new("Cannot call non-read-only function in static call: #{function}", self)
+    end
+    
+    if is_create? && in_read_only_context?
+      raise ContractError,
+      "Invalid change in read-only context: #{function}, #{args.inspect}. Contract: #{effective_contract.address}."
+    end
+    
+    internal_call_read_only_context_stack.push(in_read_only_context?)
+    
+    result = nil
+    
+    state_manager.with_state_var_layout(implementation_class.state_var_def_json) do
+      result = call_function(function, args)
+    end
     
     assign_attributes(
       return_value: result,
@@ -54,6 +116,9 @@ class ContractCall < ApplicationRecord
     assign_contract
     
     is_create? ? created_contract.address : result
+  rescue InvalidStateVariableChange
+    raise ContractError,
+    "Invalid change in read-only context: #{function}, #{args.inspect}. Contract: #{effective_contract.address}."
   rescue ContractError, TransactionError => e
     assign_attributes(error_message: e.message, status: :failure, end_time: Time.current)
     
@@ -113,8 +178,8 @@ class ContractCall < ApplicationRecord
       source_code: to_contract_source_code
     )
     
-    if effective_contract.implementation_class.is_abstract_contract
-      raise TransactionError.new("Cannot deploy abstract contract: #{effective_contract.implementation_class.name}")
+    if implementation_class.is_abstract_contract
+      raise TransactionError.new("Cannot deploy abstract contract: #{implementation_class.name}")
     end
     
     if function

@@ -4,9 +4,11 @@ class ConstsToSends
   class << self
     extend Memoist
     
-    def process(ast)
-      if ast.is_a?(String)
-        ast = Unparser.parse(ast)
+    def process(start_ast)
+      if start_ast.is_a?(String)
+        ast = Unparser.parse(start_ast, emit_index: false)
+      else
+        ast = start_ast
       end
       
       obj = ConstsToSends.new
@@ -83,6 +85,10 @@ class ConstsToSends
         unbox_and_get_bool(processed_right)
       )
     )
+  end
+  
+  def on_self(node)
+    raise "Invalid use of 'self' node: #{node.inspect}"
   end
   
   def on_pair(node)
@@ -247,6 +253,11 @@ class ConstsToSends
   def on_send(node)
     receiver, method_name, *args = *node
     
+    # Case where processor turns consts to sends before this.
+    if receiver&.type == :self && method_name.to_s.match?(/\A[A-Z]/) && args.empty?
+      return node.updated(nil, [receiver, method_name])
+    end
+    
     if is_box_send?(node)
       return node
     end
@@ -302,6 +313,26 @@ class ConstsToSends
   
   def on_block(node)
     send_node, args, body = *node
+    receiver, method_name, *send_args = *send_node
+    
+    if send_args[0] == s(:sym, :editUpgradeLevel)
+      hack_node = s(:if,
+        s(:send,
+          s(:send,
+            s(:index,
+              s(:send,
+                s(:send, nil, :s), :tokenUpgradeLevelsByCollection),
+              s(:send, nil, :collection)), :length), :==,
+          s(:int, 0)),
+        s(:send,
+          s(:index,
+            s(:send,
+              s(:send, nil, :s), :tokenUpgradeLevelsByCollection),
+            s(:send, nil, :collection)), :push,
+          s(:send, nil, :TokenUpgradeLevel)), nil)
+          
+      body = s(:begin, hack_node, body)
+    end
     
     processed_body = body ? process(body) : process(s(:nil))
     

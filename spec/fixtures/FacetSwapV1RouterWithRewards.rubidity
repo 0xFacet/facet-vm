@@ -26,7 +26,7 @@ contract :FacetSwapV1RouterWithRewards, is: :FacetSwapV1Router, upgradeable: tru
   mapping ({ address: :uint256 }), :public, :totalStakedLP
   mapping ({ address: :uint256 }), :public, :accRewardsPerShare
   
-  array :address, :public, :topFiveSwappers, initial_length: 5
+  array :address, :public, :topFiveSwappers, length: 5
   mapping ({ address: :uint256 }), :public, :feesGeneratedBySwapper
   mapping ({ address: :uint256 }), :public, :swapperRewards
   

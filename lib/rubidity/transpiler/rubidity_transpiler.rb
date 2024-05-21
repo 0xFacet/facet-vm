@@ -8,6 +8,11 @@ class RubidityTranspiler
   class << self
     extend Memoist
     
+    # def hack_get(name)
+    #   transpile_and_get(name)
+    # end
+    # memoize :hack_get
+    
     def transpile_file(filename)
       new(filename).generate_contract_artifacts
     end
@@ -133,20 +138,9 @@ class RubidityTranspiler
   end
   
   def get_desired_artifact(name_or_init_hash)
-    # TODO: Remove before production
-    
     desired_artifact = generate_contract_artifacts.detect do |artifact|
       artifact.name.to_s == name_or_init_hash.to_s ||
       artifact.init_code_hash == name_or_init_hash.to_s
-    end
-    
-    desired_artifact ||= generate_contract_artifacts.last
-    
-    if name_or_init_hash != desired_artifact.init_code_hash && name_or_init_hash =~ /\A0x/
-      InitCodeMapping.find_or_create_by!(
-        old_init_code_hash: name_or_init_hash,
-        new_init_code_hash: desired_artifact.init_code_hash
-      )
     end
     
     sub_transpiler = self.class.new(desired_artifact.source_code)
@@ -166,7 +160,8 @@ class RubidityTranspiler
       raise "Duplicate contract names in #{filename}: #{duplicated_names}"
     end
   
-    validate_rubidity! if validate
+    # TODO: adjust for indexasgn etc
+    # validate_rubidity! if validate
     
     preprocessed_contract_asts.each_with_object([]) do |contract_ast, artifacts|
       contract_ast = ast_with_pragma(contract_ast)

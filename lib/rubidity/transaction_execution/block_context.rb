@@ -19,7 +19,9 @@ class BlockContext < ActiveSupport::CurrentAttributes
   end
   
   def system_config_versions
-    (parsed_ethscriptions || []).map(&:system_config_version).compact
+    parsed_ethscriptions.select do |eth|
+      eth.mimetype == SystemConfigVersion.system_mimetype
+    end.map(&:system_config_version).compact
   end
   
   def process!
@@ -48,13 +50,9 @@ class BlockContext < ActiveSupport::CurrentAttributes
       t.payload.dig('data', 'to')&.downcase
     end.uniq.compact
     
-    Contract.where(address: initial_contracts, deployed_successfully: true).each do |contract|
+    BlockBatchContext.get_existing_contract_batch(initial_contracts).each do |contract|
       add_contract(contract)
     end
-    
-    self.contract_artifacts = ContractArtifact.where(
-      init_code_hash: contracts.map(&:current_init_code_hash)
-    ).to_a
     
     contract_transactions.each do |contract_tx|
       TransactionContext.set(
@@ -89,15 +87,9 @@ class BlockContext < ActiveSupport::CurrentAttributes
     ContractArtifact.import!(contract_artifacts.select(&:new_record?))
     
     Contract.import!(contracts.select(&:new_record?))
-    
-    states_to_save = contracts.map do |c|
-      c.new_state_for_save(block_number: current_block.block_number)
-    end.compact
-    
-    ContractState.import!(states_to_save)
-    
-    states_to_save.each do |state|
-      state.run_callbacks(:create)
+    # TODO do this in batches
+    contracts.map do |c|
+      c.state_manager.persist(current_block.block_number)
     end
   end
   
@@ -108,8 +100,11 @@ class BlockContext < ActiveSupport::CurrentAttributes
   
   def add_contract(contract)
     contracts << contract if contract
-    contract&.initialize_state
     contract
+  end
+  
+  def remove_contract(contract)
+    contracts.delete(contract)
   end
   
   def get_existing_contract(address)
@@ -120,9 +115,9 @@ class BlockContext < ActiveSupport::CurrentAttributes
     
     return in_memory if in_memory
     
-    from_db = Contract.find_by(deployed_successfully: true, address: address)
+    from_outer_context = BlockBatchContext.get_existing_contract(address)
     
-    add_contract(from_db)
+    add_contract(from_outer_context)
   end
   
   def create_new_contract(address:, init_code_hash:, source_code:)
@@ -201,18 +196,7 @@ class BlockContext < ActiveSupport::CurrentAttributes
   
   def get_cached_class(init_code_hash)
     attempt = ContractArtifact.cached_class_as_of_tx_hash(
-      init_code_hash,
-      current_transaction&.transaction_hash
-    )
-    
-    return attempt if attempt
-    
-    init_code_hash = InitCodeMapping.old_to_new(init_code_hash)
-    
-    ContractArtifact.cached_class_as_of_tx_hash(
-      init_code_hash,
-      current_transaction&.transaction_hash
-    )
+      init_code_hash)
   end
   
   def find_and_build_class(init_code_hash)
@@ -220,9 +204,12 @@ class BlockContext < ActiveSupport::CurrentAttributes
       return get_cached_class(init_code_hash)
     end
     
+    from_outer_context = BlockBatchContext.get_contract_class(init_code_hash)
+
+    return from_outer_context if from_outer_context
+    
     current = contract_artifacts.detect do |artifact|
-      artifact.init_code_hash == init_code_hash ||
-      artifact.init_code_hash == InitCodeMapping.old_to_new(init_code_hash)
+      artifact.init_code_hash == init_code_hash
     end
   
     current&.build_class || get_cached_class(init_code_hash)

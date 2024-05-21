@@ -81,6 +81,11 @@ class ContractTransaction < ApplicationRecord
     contract_calls.target.sort_by(&:internal_transaction_index).first
   end
   
+  def computed_logs
+    return [] if failure?
+    contract_calls.target.flat_map(&:logs).sort_by { |log| log['index'] }.map { |log| log.except('index') }
+  end
+  
   def transaction_receipt_for_import
     base_attrs = {
       transaction_hash: transaction_hash,
@@ -88,7 +93,7 @@ class ContractTransaction < ApplicationRecord
       block_blockhash: block_blockhash,
       transaction_index: transaction_index,
       block_timestamp: block_timestamp,
-      logs: contract_calls.target.flat_map(&:logs).sort_by { |log| log['index'] }.map { |log| log.except('index') },
+      logs: computed_logs,
       status: status,
       runtime_ms: initial_call.calculated_runtime_ms,
       gas_price: ethscription.gas_price,
@@ -121,6 +126,7 @@ class ContractTransaction < ApplicationRecord
       'ContractCall',
       'ContractArtifact',
       'Contract',
+      'NewContractState',
     ]
     
     with_temporary_database_environment do
@@ -146,6 +152,8 @@ class ContractTransaction < ApplicationRecord
           all_contracts_supported: true
         )
       )
+      
+      Contract.cache_all_state
       
       state = state_defining_model_names.each.with_object({}) do |model_name, hash|
         model_class = model_name.constantize
@@ -210,14 +218,19 @@ class ContractTransaction < ApplicationRecord
       
       eth.save! if persist
       
-      BlockContext.set(
-        system_config: config_version,
-        current_block: current_block,
-        contracts: [],
-        contract_artifacts: [],
-        ethscriptions: [eth]
+      BlockBatchContext.set(
+        contracts: {},
+        contract_classes: {},
       ) do
-        BlockContext.process_contract_transactions(persist: persist)
+        BlockContext.set(
+          system_config: config_version,
+          current_block: current_block,
+          contracts: [],
+          contract_artifacts: [],
+          ethscriptions: [eth]
+        ) do
+          BlockContext.process_contract_transactions(persist: persist)
+        end
       end
       
       {
@@ -275,16 +288,41 @@ class ContractTransaction < ApplicationRecord
       make_initial_call
     rescue ContractError, TransactionError => e
     end
-
+    
     if success?
-      TransactionContext.active_contracts.each(&:take_state_snapshot)
+      TransactionContext.active_contracts.each do |c|
+        c.state_manager.commit_transaction
+      end
     else
-      TransactionContext.active_contracts.each(&:load_last_snapshot)
+      TransactionContext.active_contracts.each do |c|
+        c.state_manager.rollback_transaction
+      end
+      
+      clean_up_failed_contracts
+    end
+  end
+  
+  def clean_up_failed_contracts
+    return unless failure?
+    
+    contract_calls.select do |call|
+      call.internal_transaction_index > 0
+    end.each do |call|
+      BlockContext.remove_contract(call.created_contract)
+      
+      call.assign_attributes(
+        created_contract: nil,
+        effective_contract: nil
+      )
     end
   end
   
   def success?
     status == :success
+  end
+  
+  def failure?
+    !success?
   end
   
   def status

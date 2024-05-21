@@ -61,12 +61,12 @@ contract :ForLoopTest do
   end
   
   function :negativeStep, { input: [:uint256] }, :public, returns: [:uint256] do
-    ret = array(:uint256)
+    ret = array(:int256)
     
     forLoop(
-      start: 5,
+      start: int256(5),
       condition: -> (i) { i >= 0 },
-      step: -1
+      step: int256(-1)
     ) do |i|
       ret.push(i)
     end
