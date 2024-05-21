@@ -74,7 +74,7 @@ class RubidityTranspiler
   
   def file_ast
     if filename
-      ImportResolver.process(filename, @file_ast&.unparse)
+      ImportResolver.process(filename, @code)
     else
       @file_ast
     end
@@ -142,7 +142,6 @@ class RubidityTranspiler
       artifact.name.to_s == name_or_init_hash.to_s ||
       artifact.init_code_hash == name_or_init_hash.to_s
     end
-    
     
     sub_transpiler = self.class.new(desired_artifact.source_code)
     
