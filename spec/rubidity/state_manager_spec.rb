@@ -483,7 +483,7 @@ RSpec.describe StateManager, type: :model do
           }
         )
         
-        target.reload.wrapper
+        target.reload.state_manager
         
         c.trigger_contract_interaction_and_expect_success(
           from: target.address,
@@ -674,7 +674,7 @@ RSpec.describe StateManager, type: :model do
         "peopleMap" => {"Jim"=>{"age"=>100, "name"=>"Jim"}},
       }
       
-      result = contract.wrapper.build_structure
+      result = contract.state_manager.build_structure
       
       expect(result).to eq(expected_structure)
     end

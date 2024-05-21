@@ -94,9 +94,15 @@ class ContractVariable < GenericVariable
         raise ContractError.new(e.message, target)
       end
       
-      unless target.implementation_class.is_upgradeable
+      current = target.state_manager.get_implementation 
+      current_class = BlockContext.supported_contract_class(
+        current[:init_code_hash],
+        validate: false
+      )
+      
+      unless current_class.is_upgradeable
         raise ContractError.new(
-          "Contract is not upgradeable: #{target.implementation_class.name}",
+          "Contract is not upgradeable: #{current_class.name}",
           target
         )
       end
@@ -108,9 +114,9 @@ class ContractVariable < GenericVariable
         )
       end
       
-      target.assign_attributes(
-        current_type: new_implementation_class.name,
-        current_init_code_hash: new_init_code_hash
+      target.state_manager.set_implementation(
+        type: new_implementation_class.name,
+        init_code_hash: new_init_code_hash
       )
       
       NullVariable.instance

@@ -288,17 +288,14 @@ class ContractTransaction < ApplicationRecord
       make_initial_call
     rescue ContractError, TransactionError => e
     end
+    
     if success?
-      TransactionContext.active_contracts.each(&:take_state_snapshot)
-      
       TransactionContext.active_contracts.each do |c|
-        c.wrapper.commit_transaction
+        c.state_manager.commit_transaction
       end
     else
-      TransactionContext.active_contracts.each(&:load_last_snapshot)
-      
       TransactionContext.active_contracts.each do |c|
-        c.wrapper.rollback_transaction
+        c.state_manager.rollback_transaction
       end
       
       clean_up_failed_contracts

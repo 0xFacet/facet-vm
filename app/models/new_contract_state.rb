@@ -1,16 +1,6 @@
 class NewContractState < ApplicationRecord
   validates :contract_address, presence: true
   validates :key, presence: true
-  # validate :value_must_be_present_and_not_zero
-  
-  ARRAY_LENGTH_SUFFIX = "__length".freeze
-  
-  # def value_must_be_present_and_not_zero
-  #   if value.nil? || value == "" || value == 0
-  #     binding.pry
-  #     errors.add(:value, "cannot be nil, an empty string, or zero (#{value.inspect})")
-  #   end
-  # end
 
   def self.load_state_as_hash(contract_address)
     results = where(contract_address: contract_address).pluck(:key, :value).to_h
@@ -49,6 +39,7 @@ class NewContractState < ApplicationRecord
   def self.build_structure(contract_address)
     as_hash = load_state_as_hash(contract_address)
     nested_structure = {}
+    ary_len_suffix = StateManager::ARRAY_LENGTH_SUFFIX
 
     as_hash.each do |key, value|
       next if key.last == ARRAY_LENGTH_SUFFIX  # Skip array length keys
@@ -63,8 +54,8 @@ class NewContractState < ApplicationRecord
         if on_last_key
           current[k] = value
         else
-          next_key_is_array = as_hash.key?(keys[0..index] + [ARRAY_LENGTH_SUFFIX])
-          
+          # Or nil?
+          next_key_is_array = k.is_a?(Integer) ? [] : {}
           current[k] ||= next_key_is_array ? [] : {}
           current = current[k]
         end

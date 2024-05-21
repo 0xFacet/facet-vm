@@ -1,5 +1,7 @@
-class CreateContractStates < ActiveRecord::Migration[7.1]
+class RemoveContractStates < ActiveRecord::Migration[7.1]
   def change
+    drop_table :contract_states
+    
     create_table :contract_states, force: :cascade do |t|
       t.string :type, null: false
       t.string :init_code_hash, null: false

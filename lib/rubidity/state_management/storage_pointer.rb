@@ -66,6 +66,16 @@ class StoragePointer
     validate_array!
     value = VM.unbox(value)
     
+    if value.is_a?(StoragePointer)
+      type = @state_manager.validate_and_get_type(value.path)
+      
+      if type.struct?
+        value = value.load_struct
+      else
+        raise TypeError, "Invalid type for StoragePointer assignment"
+      end
+    end
+    
     @state_manager.array_push(*@path, value)
   end
 

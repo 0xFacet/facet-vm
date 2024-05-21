@@ -222,7 +222,8 @@ CREATE TABLE public.contract_block_change_logs (
     block_number bigint NOT NULL,
     state_changes jsonb NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
-    updated_at timestamp(6) without time zone NOT NULL
+    updated_at timestamp(6) without time zone NOT NULL,
+    implementation_change jsonb DEFAULT '{}'::jsonb NOT NULL
 );
 
 
@@ -1307,13 +1308,6 @@ CREATE TRIGGER trigger_delete_later_blocks AFTER DELETE ON public.eth_blocks FOR
 
 
 --
--- Name: contract_states update_current_state; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER update_current_state AFTER INSERT OR DELETE ON public.contract_states FOR EACH ROW EXECUTE FUNCTION public.update_current_state();
-
-
---
 -- Name: contracts fk_rails_087f9c0a68; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1440,6 +1434,8 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20240521193031'),
+('20240521143513'),
 ('20240520215945'),
 ('20240516140434'),
 ('20240512205338'),

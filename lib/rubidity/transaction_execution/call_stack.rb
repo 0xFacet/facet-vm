@@ -19,6 +19,10 @@ class CallStack
     end
   end
   
+  def in_read_only_context?(call)
+    call.read_only? || @frames.any?(&:read_only?)
+  end
+  
   def execute_in_new_frame(
     call_level: :high,
     to_contract_address: nil,
@@ -40,6 +44,7 @@ class CallStack
     current_transaction = @transaction_context.current_transaction
       
     call = @transaction_context.current_transaction.contract_calls.build(
+      call_stack: self,
       call_level: call_level,
       in_low_level_call_context: in_low_level_call_context(call_level),
       to_contract_address: to_contract_address,

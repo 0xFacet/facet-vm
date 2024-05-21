@@ -67,7 +67,7 @@ class ContractImplementation
   attr_reader :current_context
   
   def self.state_var_def_json
-    state_variable_definitions.map do |name, definition|
+    @_state_var_def_json ||= state_variable_definitions.map do |name, definition|
       [
         name,
         definition[:type]
@@ -75,10 +75,10 @@ class ContractImplementation
     end.to_h.with_indifferent_access
   end
   
-  def initialize(current_context: ::TransactionContext, initial_state: nil, wrapper: nil)
+  def initialize(current_context: TransactionContext, state_manager: nil)
     @current_context = current_context || raise("Must provide current context")
     
-    @wrapper = wrapper
+    @state_manager = state_manager
   end
   
   def self.state_variable_definitions
@@ -86,9 +86,8 @@ class ContractImplementation
   end
   
   def s
-    @wrapper.state_var_layout = self.class.state_var_def_json
-    StoragePointer.new(@wrapper)
-    # @storage_pointer ||= StoragePointer.new(@wrapper)
+    # @state_manager.state_var_layout = self.class.state_var_def_json
+    @_s ||= StoragePointer.new(@state_manager)
   end
   
   def self.abi
@@ -177,7 +176,7 @@ class ContractImplementation
     linearize_contracts(self).dup.tap(&:pop)
   end
   
-  def self.function(name, args, *options, returns: nil, &block)
+  def self.function(name, args = {}, *options, returns: nil, &block)
     if args.is_a?(::Symbol)
       options.unshift(args)
       args = {}

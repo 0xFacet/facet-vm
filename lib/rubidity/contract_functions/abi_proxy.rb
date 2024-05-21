@@ -80,7 +80,13 @@ class AbiProxy
           
           ret_val = nil
           
-          s.wrapper.detecting_changes(revert_on_change: func_proxy.read_only?) do
+          call = TransactionContext.current_call
+          
+          call.internal_call_read_only_context_stack.push(func_proxy.read_only?)
+          
+          read_only_context = call.internal_call_in_read_only_context?
+          
+          call.state_manager.reverting_changes_if(read_only_context) do
             ret_val = FunctionContext.define_and_call_function_method(
               self, cooked_args, method_name, &func_proxy.implementation
             )
@@ -102,7 +108,9 @@ class AbiProxy
           raise ContractError.new("Wrong args in #{method_name} (#{func_proxy.func_location}): #{e.message}\n\n#{emphasized_code}", self)
         rescue InvalidStateVariableChange
           raise ContractError,
-          "Invalid change in read-only function: #{method_name}, #{(args.presence || kwargs).inspect}, to address: #{current_address}."
+          "Invalid change in read-only context: #{method_name}, #{(args.presence || kwargs).inspect}, to address: #{current_address}."
+        ensure
+          call.internal_call_read_only_context_stack.pop if call.present?
         end
       end
     end

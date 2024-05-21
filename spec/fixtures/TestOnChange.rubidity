@@ -1,6 +1,8 @@
 pragma :rubidity, "1.0.0"
 
-contract :TestOnChange do
+import './StubERC20.rubidity'
+
+contract :TestOnChange, upgradeable: true do
   struct :Person do
     string :name
     uint8 :age
@@ -13,6 +15,8 @@ contract :TestOnChange do
   uint8 :public, :decimals
   address :public, :deployer
   
+  mapping ({ uint256: array(:Person) }), :public, :numberToPeople
+  
   mapping ({ address: :uint256 }), :public, :uninitializedMapping
   mapping ({ address: mapping(address: :uint256) }), :public, :uninitializedDoubleMapping
   mapping ({ address: :uint256 }), :public, :balanceOf
@@ -23,6 +27,15 @@ contract :TestOnChange do
   array :uint256, :public, :uninitializedArray, length: 1
   
   bool :public, :boolVar
+  
+  address :public, :erc20
+  address :public, :externalSelfCopy
+  
+  function :pushPerson, { newPerson: :Person }, :public, :view do
+    s.numberToPeople[1].push(s.person)
+    s.numberToPeople[1].push(newPerson)
+    nil
+  end
   
   constructor() {
     s.name = "testNameVal"
@@ -36,7 +49,18 @@ contract :TestOnChange do
     s.testArrayVariable.push(1)
     
     s.person = Person(name: "Alice", age: 42)
+    
+    s.erc20 = new StubERC20(name: "Hi Token")
   }
+  
+  function :emptyNonView, :public do
+    nil
+  end
+  
+  function :deploySelfCopy, :public do
+    s.externalSelfCopy = new TestOnChange()
+    nil
+  end
   
   function :mappingSucceed1, :public, :view do
     s.balanceOf[s.deployer]
@@ -60,6 +84,66 @@ contract :TestOnChange do
     require(s.uninitializedArray[0] == 0, "Uninitialized array value should be 0")
     require(s.uninitializedDoubleMapping[s.deployer][s.deployer] == 0, "Uninitialized mapping value should be 0")
     s.uninitializedDoubleMapping[s.deployer][s.deployer] = 0
+    nil
+  end
+  
+  function :readOnlyContext0, :public, :view do
+    okWrite
+    nil
+  end
+  
+  function :readOnlyContext1, :public, :view do
+    this.okWrite()
+    nil
+  end
+  
+  function :internalUpgrade do
+    this.upgradeImplementation(StubERC20(s.erc20).currentInitCodeHash, "")
+    nil
+  end
+  
+  function :chain1, :public do
+    chain2()
+    nil
+  end
+  
+  function :chain2, :view do
+    chain3()
+    nil
+  end
+    
+  function :chain3, :public do
+    s.decimals += 1
+    nil
+  end
+  
+  function :readOnlyContext, :public, :view do
+    TestOnChange(s.externalSelfCopy).readOnlyCall()
+    nil
+  end
+  
+  function :readOnlyContext2, :public, :view do
+    TestOnChange(s.externalSelfCopy).readOnlyUpgrade()
+    nil
+  end
+  
+  function :okWrite, :public do
+    readOnlyCall()
+    nil
+  end
+  
+  function :readOnlyCreate, :public, :view do
+    new StubERC20(name: "Hi")
+    nil
+  end
+  
+  function :readOnlyCall, :public, :view do
+    StubERC20(s.erc20).mint(1)
+    nil
+  end
+  
+  function :readOnlyUpgrade, :public, :view do
+    this.upgradeImplementation(StubERC20(s.erc20).currentInitCodeHash, "")
     nil
   end
   

@@ -87,20 +87,9 @@ class BlockContext < ActiveSupport::CurrentAttributes
     ContractArtifact.import!(contract_artifacts.select(&:new_record?))
     
     Contract.import!(contracts.select(&:new_record?))
-    
-    states_to_save = contracts.map do |c|
-      c.new_state_for_save(block_number: current_block.block_number)
-    end.compact
-    
-    ContractState.import!(states_to_save)
-    
-    states_to_save.each do |state|
-      state.run_callbacks(:create)
-    end
-    
     # TODO do this in batches
     contracts.map do |c|
-      c.wrapper.persist(current_block.block_number)
+      c.state_manager.persist(current_block.block_number)
     end
   end
   
@@ -111,7 +100,6 @@ class BlockContext < ActiveSupport::CurrentAttributes
   
   def add_contract(contract)
     contracts << contract if contract
-    contract&.initialize_state
     contract
   end
   
