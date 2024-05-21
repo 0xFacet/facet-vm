@@ -15,6 +15,8 @@ module VM
       TypedVariable.create(:string, val)
     when Symbol
       TypedVariable.create(:symbol, val)
+    when StoragePointer
+      StoragePointerProxy.new(val)
     when TypedVariable
       TypedVariableProxy.new(val)
     when Array, Hash, Proc, DestructureOnly # proc for lambdas in forLoop

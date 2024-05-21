@@ -1,16 +1,16 @@
-# TODO: put behind save proxy
 class StoragePointer
+  include Exposable
+  
   attr_accessor :state_manager, :path
+  
+  expose :length, :last, :push, :pop, :eq, :ne,
+   :[], :[]=
   
   def initialize(state_manager, path = [])
     @state_manager = state_manager
     @path = path
     
-    # define_methods
-  end
-
-  def wrapper
-    state_manager
+    define_methods
   end
   
   def [](key)
@@ -19,18 +19,6 @@ class StoragePointer
 
   def []=(key, value)
     set(key, value)
-  end
-  
-  def method_missing(name, *args)
-    name = name.to_s
-    
-    if name[-1] == '='
-      key = name[0..-2]
-      value = args.first
-      set(key, value)
-    else
-      get(name)
-    end
   end
   
   def respond_to_missing?(name, include_private = false)
@@ -226,7 +214,7 @@ class StoragePointer
       define_top_level_methods
     else
       type = @state_manager.validate_and_get_type(@path)
-      define_struct_methods(type) if type.name == :struct
+      define_struct_methods(type) if type.struct?
     end
   end
   
@@ -235,10 +223,12 @@ class StoragePointer
       define_singleton_method(key) do
         get(key)
       end
+      expose_instance_method(key)
 
       define_singleton_method("#{key}=") do |value|
         set(key, value)
       end
+      expose_instance_method("#{key}=")
     end
   end
   
@@ -247,10 +237,12 @@ class StoragePointer
       define_singleton_method(field) do
         get(field)
       end
+      expose_instance_method(field)
 
       define_singleton_method("#{field}=") do |value|
         set(field, value)
       end
+      expose_instance_method("#{field}=")
     end
   end
 end
