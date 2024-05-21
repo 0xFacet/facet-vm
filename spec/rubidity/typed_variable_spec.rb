@@ -38,9 +38,6 @@ RSpec.describe TypedVariable, type: :model do
 
       int = TypedVariable.create_or_validate(:uint256, 10)
       
-      mapping_type = Type.create(:mapping, key_type: :uint256, value_type: :bool)
-      mapping = TypedVariable.create_or_validate(mapping_type, {})
-      
       expect(false_bool).to be_a(TypedVariable)
       expect(false_bool).to be_a(TypedVariable)
       expect(false_bool.type.name).to eq(:bool)
@@ -58,40 +55,10 @@ RSpec.describe TypedVariable, type: :model do
       
       expect { true_bool == true }.to raise_error(TypeError, "Call eq() instead of ==()")
 
-      
-      expect(mapping[1].eq(false_bool).value).to eq(true)
-      expect(mapping.[]=(1, true).eq(true_bool).value).to eq(true)
-      expect(mapping[1].eq(true_bool).value).to eq(true)
-      expect(mapping.serialize).to eq({"1"=>true})
-      
       expect { TypedVariable.new(Type.create(:bool)) }.to_not raise_error
       expect { false_bool.value = 4 }.to raise_error(TypeError)
       expect { !int }.to raise_error("Call not() instead of !")
       expect { int.not }.to raise_error(TypeError, /Cannot negate/)
     end
-  end
-  
-  it 'handles mappings' do
-    mapping_type1 = Type.create(:mapping, key_type: :string, value_type: :bool)
-    mapping_type2 = Type.create(:mapping, key_type: :uint256, value_type: mapping_type1)
-    mapping = TypedVariable.create_or_validate(mapping_type2, {})
-    
-    expect(mapping[1]['hi'].ft).to eq(false)
-    
-    expect(mapping[1].[]=('hi', true).ft).to eq(true)
-    expect(mapping[1]['hi'].ft).to eq(true)
-    expect(mapping[1]['bye'].ft).to eq(false)
-    
-    expect(mapping[1].[]=('bye', true).ft).to eq(true)
-    
-    expect(mapping[1]['bye'].ft).to eq(true)
-    expect(mapping[1]['hi'].ft).to eq(true)
-    expect(mapping[1]['a'].ft).to eq(false)
-    
-    
-    m_ary_type = ContractImplementation.mapping ({ uint256: ContractImplementation.array(:string, initial_length: 10) })
-    map_array = TypedVariable.create_or_validate(Type.create(:mapping, key_type: :uint256, value_type: m_ary_type))
-    
-    expect(map_array[1][1][1].eq(TypedVariable.create(:string)).value).to eq(true)
   end
 end

@@ -93,7 +93,7 @@ class ContractTransaction < ApplicationRecord
       block_blockhash: block_blockhash,
       transaction_index: transaction_index,
       block_timestamp: block_timestamp,
-      logs: computed_logs
+      logs: computed_logs,
       status: status,
       runtime_ms: initial_call.calculated_runtime_ms,
       gas_price: ethscription.gas_price,

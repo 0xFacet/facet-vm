@@ -1,36 +1,55 @@
 require 'rails_helper'
 
 RSpec.describe UltraMinimalProxy do
-  let(:context) { double("Context") }
-  let(:allowed_methods) { [:allowed_method] }
-  let(:valid_call_proc) { Proc.new { |method| allowed_methods.include?(method) } }
-  let(:filename_and_line) { ["test_filename", 1] }
+  let(:owner_address) { "0x000000000000000000000000000000000000000a" }
+
+  before do
+    update_supported_contracts("DangerousContract")
+  end
   
   describe ".execute_user_code_on_context" do
-    it "does things" do
-      code = <<~RUBY
-      pragma :rubidity, "1.0.0"
-      contract :A do
-        string :deserialize
-        uint256 :secret
-        
-        constructor do
-          # ::Kernel.binding.pry
-          s.deserialize({secret: 10})
-          # s.load({secret: 9})
+    module StoragePointerTestExtensions
+      def self.prepended(base)
+        class << base
+          attr_accessor :private_val
         end
       end
-      RUBY
+
+      def dangerousMethod
+        self.class.private_val = 10
+      end
       
-      artifact = RubidityTranspiler.new(code).get_desired_artifact("A")
+      def dangerousMethod=(value)
+        self.class.private_val = value
+      end
+
+      def self.private_val
+        @private_val
+      end
       
-      imp = artifact.build_class.new
-      
-      expect { imp.constructor }.to raise_error(NoMethodError)
-      
-      expect(imp.state_manager.serialize).to eq(
-        {"deserialize"=>"", "secret"=>0}
+      def self.private_val=(value)
+        @private_val = value
+      end
+    end
+
+    before do
+      StoragePointer.singleton_class.prepend(StoragePointerTestExtensions)
+      StoragePointer.prepend(StoragePointerTestExtensions)
+      StoragePointer.private_val = 100
+    end
+    
+    it "does things" do
+      trigger_contract_interaction_and_expect_success(
+        from: owner_address,
+        payload: {
+          op: :create,
+          data: {
+            type: "DangerousContract"
+          }
+        }
       )
+      
+      expect(StoragePointer.private_val).to eq(100)
     end
   end
 end

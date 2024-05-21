@@ -360,8 +360,8 @@ DEPENDENCIES
   httpparty (~> 0.2.0)
   kaminari (~> 1.2)
   memoist (~> 0.16.2)
-  parser (= 3.3.1.0)
   newrelic_rpm
+  parser (= 3.3.1.0)
   pg (~> 1.1)
   pry
   puma (>= 6.4.0)
