@@ -34,7 +34,7 @@ RSpec.describe StateManager, type: :model do
       "testArrayFixed" => Type.new(:array, value_type: Type.new(:string), length: 3)
     }
   }
-  let!(:state_manager) { StateManager.new(contract_address, state_var_layout, skip_state_save: true) }
+  let!(:state_manager) { StateManager.new(token_a, state_var_layout, skip_state_save: true) }
   let!(:storage_pointer) { StoragePointer.new(state_manager) }
   
   let(:start_block) { EthBlock.max_processed_block_number + 1 }
@@ -572,7 +572,7 @@ RSpec.describe StateManager, type: :model do
         "maxUpgradeLevelCount" => Type.new(:uint256)
       }
       
-      state_manager = StateManager.new(contract_address, layout, skip_state_save: true)
+      state_manager = StateManager.new(token_a, layout, skip_state_save: true)
       # binding.pry
       state_manager.set("contractInfoByCollection", alice, "name", TypedVariable.create(:string, "Example Contract"))
       state_manager.set("contractInfoByCollection", alice, "description", TypedVariable.create(:string, "A sample contract description."))

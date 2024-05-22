@@ -1,34 +1,36 @@
 class StateManager
-  attr_accessor :contract_address, :state_var_layout, :state_data, :max_indices,
-  :transaction_changes, :block_changes, :on_change, :saved_implementation
+  attr_accessor :contract, :state_var_layout, :state_data, :max_indices,
+  :transaction_changes, :block_changes, :saved_implementation,
   
   ARRAY_LENGTH_SUFFIX = "__length__".freeze
   
-  def initialize(contract_address, state_var_layout, on_change = nil, skip_state_save: false)
-    @contract_address = contract_address
+  def initialize(contract, state_var_layout, skip_state_save: false)
+    @contract = contract
+    @contract_address = contract.address
     @state_var_layout = state_var_layout
-    @transaction_changes = {
-      state: {}.with_indifferent_access,
-    }.with_indifferent_access
-    @block_changes = {
-      state: {}.with_indifferent_access,
-    }.with_indifferent_access
-    @on_change = on_change
+
     @skip_state_save = skip_state_save
     
     reload_state
   end
 
   def reload_state
+    @transaction_changes = {
+      state: {}.with_indifferent_access,
+    }.with_indifferent_access
+    
+    @block_changes = {
+      state: {}.with_indifferent_access,
+    }.with_indifferent_access
+    
     @state_data = NewContractState.load_state_as_hash(@contract_address)
-    contract = Contract.find_by_address(@contract_address)
     
-    @saved_implementation ||= {}
-    
-    if contract&.current_init_code_hash && contract&.current_type
-      @saved_implementation[:init_code_hash] = contract&.current_init_code_hash
-      @saved_implementation[:type] = contract&.current_type
-    end
+    contract.reload unless contract.new_record?
+
+    @saved_implementation = {
+      init_code_hash: contract.current_init_code_hash,
+      type: contract.current_type
+    }
   end
   
   def reverting_changes_if(read_only)
@@ -197,34 +199,43 @@ class StateManager
   
   # Save block changes
   def save_block_changes(block_number)
-    ContractBlockChangeLog.save_changes(@contract_address, block_number, @block_changes)
+    Contract.transaction do
+      ContractBlockChangeLog.save_changes(@contract_address, block_number, @block_changes)
 
-    new_records = @block_changes[:state].map do |key, change|
-      next if change[:to].nil?
-      {
-        contract_address: @contract_address,
-        key: key,
-        value: change[:to]
-      }
-    end.compact
-    
-    NewContractState.import_records!(new_records)
-    NewContractState.delete_state(contract_address: @contract_address, keys_to_delete: @block_changes[:state].select { |_, change| change[:to].nil? }.keys)
-    
-    if @block_changes[:implementation] && (@block_changes[:implementation][:from] != @block_changes[:implementation][:to])
-      Contract.find_by_address(@contract_address)&.update!(current_init_code_hash: @block_changes[:implementation][:to][:init_code_hash], current_type: @block_changes[:implementation][:to][:type])
-      @saved_implementation = @block_changes[:implementation][:to]
-    end
-    
-    @block_changes[:state].each do |key, change|
-      if change[:to].nil?
-        @state_data.delete(key)
-      else
-        @state_data[key] = change[:to]
+      new_records = @block_changes[:state].map do |key, change|
+        next if change[:to].nil?
+        {
+          contract_address: @contract_address,
+          key: key,
+          value: change[:to]
+        }
+      end.compact
+      
+      NewContractState.import_records!(new_records)
+      NewContractState.delete_state(contract_address: @contract_address, keys_to_delete: @block_changes[:state].select { |_, change| change[:to].nil? }.keys)
+      
+      if @block_changes[:implementation] && (@block_changes[:implementation][:from] != @block_changes[:implementation][:to])
+        contract.update!(current_init_code_hash: @block_changes[:implementation][:to][:init_code_hash], current_type: @block_changes[:implementation][:to][:type])
+        @saved_implementation = @block_changes[:implementation][:to]
       end
+      
+      @block_changes[:state].each do |key, change|
+        if change[:to].nil?
+          @state_data.delete(key)
+        else
+          @state_data[key] = change[:to]
+        end
+      end
+      
+      clear_block
+      
+      contract.touch unless contract.new_record?
     end
+  rescue ActiveRecord::StaleObjectError => e
+    reload_state
     
-    clear_block
+    raise ContractErrors::StaleContractError,
+      "Contract state lock version mismatch. State has been reloaded."
   end
   
   def clear_block
@@ -287,7 +298,6 @@ class StateManager
     raw_write((keys + [ARRAY_LENGTH_SUFFIX]), write_val)
     binding.pry if value.is_a?(Integer)
     revert_if_read_only!
-    # @on_change&.call
     value
   end
   

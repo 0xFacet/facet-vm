@@ -399,6 +399,7 @@ CREATE TABLE public.contracts (
     deployed_successfully boolean NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    lock_version integer DEFAULT 0 NOT NULL,
     CONSTRAINT chk_rails_03af4f4a44 CHECK (((address)::text ~ '^0x[a-f0-9]{40}$'::text)),
     CONSTRAINT chk_rails_afbe49f1ac CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_e1095f7a6a CHECK (((current_init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
@@ -1001,6 +1002,13 @@ CREATE UNIQUE INDEX index_contracts_on_address ON public.contracts USING btree (
 
 
 --
+-- Name: index_contracts_on_address_and_lock_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contracts_on_address_and_lock_version ON public.contracts USING btree (address, lock_version);
+
+
+--
 -- Name: index_contracts_on_current_init_code_hash; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1026,6 +1034,13 @@ CREATE INDEX index_contracts_on_deployed_successfully ON public.contracts USING 
 --
 
 CREATE UNIQUE INDEX index_contracts_on_deployed_successfully_and_address ON public.contracts USING btree (deployed_successfully, address);
+
+
+--
+-- Name: index_contracts_on_lock_version; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contracts_on_lock_version ON public.contracts USING btree (lock_version);
 
 
 --
@@ -1269,6 +1284,22 @@ ALTER TABLE ONLY public.ethscriptions
 
 
 --
+-- Name: contract_block_change_logs fk_rails_182cf2caab; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_block_change_logs
+    ADD CONSTRAINT fk_rails_182cf2caab FOREIGN KEY (contract_address) REFERENCES public.contracts(address) ON DELETE CASCADE;
+
+
+--
+-- Name: new_contract_states fk_rails_51c1625bbb; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.new_contract_states
+    ADD CONSTRAINT fk_rails_51c1625bbb FOREIGN KEY (contract_address) REFERENCES public.contracts(address) ON DELETE CASCADE;
+
+
+--
 -- Name: transaction_receipts fk_rails_54b606737e; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1379,6 +1410,8 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20240522154825'),
+('20240522150138'),
 ('20240521204818'),
 ('20240521195254'),
 ('20240521193031'),

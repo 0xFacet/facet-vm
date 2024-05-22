@@ -382,7 +382,11 @@ class ContractImplementation
   
   (8..256).step(8).flat_map do |bits|
     define_method("uint#{bits}") do |integer|
-      downcast_integer(integer, bits)
+      if integer.type.bytes32? && bits == 256
+        TypedVariable.create(:uint256, integer.value)
+      else
+        downcast_integer(integer, bits)
+      end
     end
     expose "uint#{bits}"
     
@@ -390,16 +394,6 @@ class ContractImplementation
       downcast_int(integer, bits)
     end
     expose "int#{bits}"
-  end
-  
-  def uint256(val)
-    if val.is_a?(::TypedVariable) && val.type.is_uint?
-      return downcast_integer(val, 256)
-    elsif val.is_a?(::TypedVariable) && val.type.bytes32?
-      return ::TypedVariable.create(:uint256, val.value)
-    end
-    
-    raise "Not implemented"
   end
   
   def sqrt(integer)

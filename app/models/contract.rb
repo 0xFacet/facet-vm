@@ -67,7 +67,7 @@ class Contract < ApplicationRecord
   
   def state_manager
     @_state_manager ||= StateManager.new(
-      self.address,
+      self,
       stored_implementation_class.state_var_def_json
     )
   end
