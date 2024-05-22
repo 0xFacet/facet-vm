@@ -182,6 +182,7 @@ module ContractTestHelper
   
   def self.set_initial_supported_contracts
     new_names = [
+      "TokenUpgradeRenderer02",
       "PresaleERC20",
       "ERC20Locker",
       "ERC20Bridge",
@@ -190,7 +191,6 @@ module ContractTestHelper
       "EtherBridge03",
       "FacetBuddyFactory",
       "FacetBuddy",
-      "TokenUpgradeRenderer01",
       "EditionMetadataRenderer01",
       "NFTCollection01",
       "FacetPortV101",
