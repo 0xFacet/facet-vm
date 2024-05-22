@@ -21,6 +21,80 @@ class ContractBlockChangeLog < ApplicationRecord
     )
   end
   
+  def self.historical_state(contract_address, target_block)
+    current_state = nil
+    current_block = nil
+  
+    ActiveRecord::Base.transaction do
+      # Lock the current state rows and fetch them
+      current_state = NewContractState.lock.where(contract_address: contract_address)
+      
+      # Lock the EthBlock table and fetch the current block number
+      current_block = EthBlock.max_processed_block_number
+    end
+  
+    state = current_state.each_with_object({}) do |record, hash|
+      hash[record.key] = record.value
+    end
+  
+    # Fetch the change logs from the current block back to the target block
+    change_logs = where(contract_address: contract_address)
+      .where('block_number > ? AND block_number <= ?', target_block, current_block)
+      .order(block_number: :desc)
+  
+    # Apply changes in reverse order
+    change_logs.each do |log|
+      log.state_changes.each do |change_key, change|
+        if state[change_key] == change['to']
+          state[change_key] = change['from']
+        else
+          raise "Historical value mismatch for #{change_key}: #{state[change_key]} != #{change['to']}"
+        end
+      end
+    end
+  
+    state
+  end
+  
+  def self.historical_value(contract_address, key, target_block)
+    key = Array.wrap(key)
+    current_state = nil
+    current_block = nil
+  
+    ActiveRecord::Base.transaction do
+      current_state = NewContractState.where(contract_address: contract_address).
+        where("key = ?", key.to_json).first
+      
+      current_block = EthBlock.max_processed_block_number
+    end
+    
+    current_value = current_state ? current_state.value : 0
+  
+    if current_block - target_block > 20
+      raise "Historical value query range too large: #{current_block - target_block} blocks"
+    end
+    
+    # Fetch the change logs from the current block back to the target block
+    change_logs = where(contract_address: contract_address)
+      .where('block_number > ? AND block_number <= ?', target_block, current_block)
+      .order(block_number: :desc)
+    
+    # Apply changes in reverse order
+    change_logs.each do |log|
+      log.state_changes.each do |change_key, change|
+        next unless change_key == key
+  
+        if change['to'] == current_value
+          current_value = change['from']
+        else
+          raise "Historical value mismatch for key '#{key}' at block #{log.block_number}: expected '#{change['to']}', got '#{current_value}'"
+        end
+      end
+    end
+  
+    current_value
+  end
+  
   def self.rollback_all_changes(to_block = nil)
     ActiveRecord::Base.transaction do
       ActiveRecord::Base.connection.execute(<<-SQL)

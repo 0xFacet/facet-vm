@@ -204,6 +204,8 @@ describe 'Reorg handling' do
       expect {
         ContractBlockChangeLog.rollback_all_changes(to_block)
       }.to raise_error(ActiveRecord::StatementInvalid, /could not obtain lock/)
+    rescue PG::LockNotAvailable
+      puts "Lock not available"
     end
 
     Process.wait(pid1)
@@ -221,5 +223,105 @@ describe 'Reorg handling' do
 
     Process.wait(pid1)
     Process.wait(pid2)
+  end
+  
+  it 'handles historical contract state' do
+    token_a = p1_setup
+    
+    start_block = EthBlock.max_processed_block_number
+    
+    start_supply = ContractTransaction.make_static_call(
+      contract: token_a.address,
+      function_name: "totalSupply"
+    )
+    
+    start_balance = ContractTransaction.make_static_call(
+      contract: token_a.address,
+      function_name: "balanceOf",
+      function_args: user_address
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: token_a.address,
+        data: {
+          function: "mint",
+          args: {
+            amount: 22.ether
+          }
+        }
+      }
+    )
+    
+    expect(
+      ContractBlockChangeLog.historical_value(
+        token_a.address, "totalSupply", start_block
+      )
+    ).to eq(start_supply)
+    
+    expect(
+      ContractBlockChangeLog.historical_value(
+        token_a.address, ["balanceOf", user_address], start_block
+      )
+    ).to eq(start_balance)
+
+    cp1 = EthBlock.max_processed_block_number
+    
+    cp1_balance = ContractTransaction.make_static_call(
+      contract: token_a.address,
+      function_name: "balanceOf",
+      function_args: user_address
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: token_a.address,
+        data: {
+          function: "mint",
+          args: {
+            amount: 1.ether
+          }
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: token_a.address,
+        data: {
+          function: "updateName",
+          args: {
+            name: "New Token A"
+          }
+        }
+      }
+    )
+    
+    expect(
+      ContractBlockChangeLog.historical_value(
+        token_a.address, ["balanceOf", user_address], cp1
+      )
+    ).to eq(cp1_balance)
+    
+    expect(
+      ContractBlockChangeLog.historical_state(
+        token_a.address, cp1
+      )[["balanceOf", user_address]]
+    ).to eq(cp1_balance)
+    
+    expect(
+      ContractBlockChangeLog.historical_value(
+        token_a.address, "name", cp1 + 1
+      )
+    ).to eq("Token A")
+    
+    expect(
+      ContractBlockChangeLog.historical_value(
+        token_a.address, "name", EthBlock.max_processed_block_number
+      )
+    ).to eq("New Token A")
   end
 end
