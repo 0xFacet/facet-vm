@@ -259,7 +259,7 @@ contract :TokenUpgradeRenderer02, is: :Upgradeable, upgradeable: true do
     
     imageURI = if uriAryLength > 0
       blockhash = s.blockHashByTokenLevelByCollection[collection][status.upgradeLevel]
-      entropy = uint256(keccak256(abi.encodePacked(blockhash, tokenId)))
+      entropy = uint256(keccak256(abi.encodePacked(collection, blockhash, tokenId)))
       
       s.tokenUpgradeLevelImageURIsByCollection[collection][status.upgradeLevel][entropy % uriAryLength]
     else
