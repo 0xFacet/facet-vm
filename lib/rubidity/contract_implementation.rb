@@ -381,6 +381,16 @@ class ContractImplementation < BasicObject
     end
   end
   
+  def uint256(val)
+    if val.is_a?(::TypedVariable) && val.type.is_uint?
+      return downcast_integer(val, 256)
+    elsif val.is_a?(::TypedVariable) && val.type.bytes32?
+      return ::TypedVariable.create(:uint256, val.value)
+    end
+    
+    raise "Not implemented"
+  end
+  
   def sqrt(integer)
     integer = ::TypedVariable.create_or_validate(:uint256, integer)
 
