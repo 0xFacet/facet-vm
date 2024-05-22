@@ -253,6 +253,10 @@ class ConstsToSends
   def on_send(node)
     receiver, method_name, *args = *node
     
+    if receiver&.type == :sym && method_name == :[] && (args.empty? || args.one? && args.first.type == :int)
+      return process(s(:send, nil, :array, receiver, *args))
+    end
+    
     # Case where processor turns consts to sends before this.
     if receiver&.type == :self && method_name.to_s.match?(/\A[A-Z]/) && args.empty?
       return node.updated(nil, [receiver, method_name])

@@ -3,8 +3,8 @@ module RailsConsoleExtensions
     ActiveRecord::Base::logger.level = 1
   end
   
-  def parse(ruby)
-    Unparser.parse(ruby)
+  def parse(ruby, emit_index: true)
+    Unparser.parse(ruby, emit_index: emit_index)
   end
   
   def pro(ruby)
