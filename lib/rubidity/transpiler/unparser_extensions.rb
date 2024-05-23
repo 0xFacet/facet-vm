@@ -46,10 +46,13 @@ module UnparserExtensions
   
       def unparse(node, emit_index: ::Unparser::DEFAULT_EMIT_INDEX)
         code = original_unparse(node)
-        test_node = parse(code, emit_index: emit_index)
-  
-        unless test_node == node
-          raise "Unparse error: #{code}"
+        
+        unless Rails.env.production?
+          test_node = parse(code, emit_index: emit_index)
+    
+          unless test_node == node
+            raise "Unparse error: #{code}"
+          end
         end
         
         code
