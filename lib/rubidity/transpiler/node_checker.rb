@@ -61,7 +61,6 @@ class NodeChecker
     end
     
     unless value.to_s =~ /\A[a-z0-9_=\[\]<>+\-!*%\/?]+\z/i
-      ap node
       raise NodeNotAllowed, "Identifier doesn't match /\\A[a-z0-9_=\[\]]+\\z/i: #{value.inspect}"
     end
     

@@ -21,17 +21,12 @@ module VM
       TypedVariableProxy.new(val)
     when Array, Hash, Proc, DestructureOnly # proc for lambdas in forLoop
       BoxedVariable.new(val)
+    when Type
+      BoxedVariable.new(val)
     when Binding, Kernel
       raise unless Rails.env.development? || Rails.env.test?
       return val
-    when Type
-      if [:mapping, :array].include?(val.name)
-        BoxedVariable.new(val)
-      else
-        raise "Invalid Type value: #{val.inspect}"
-      end
     else
-      # return val if val == ::Kernel
       raise "Invalid value to box: #{val.inspect}"
     end
     
