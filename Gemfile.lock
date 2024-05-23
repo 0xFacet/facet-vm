@@ -175,6 +175,8 @@ GEM
       net-pop
       net-smtp
     marcel (1.0.4)
+    memery (1.5.0)
+      ruby2_keywords (~> 0.0.2)
     memoist (0.16.2)
     method_source (1.0.0)
     mini_mime (1.1.5)
@@ -359,6 +361,7 @@ DEPENDENCIES
   facet_rails_common!
   httpparty (~> 0.2.0)
   kaminari (~> 1.2)
+  memery (~> 1.5)
   memoist (~> 0.16.2)
   newrelic_rpm
   parser (= 3.3.1.0)

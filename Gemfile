@@ -95,3 +95,5 @@ gem 'newrelic_rpm'
 gem "sqlite3", "~> 1.7"
 
 gem "rubocop"
+
+gem "memery", "~> 1.5"

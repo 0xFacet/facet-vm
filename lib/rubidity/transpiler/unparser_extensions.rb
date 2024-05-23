@@ -11,7 +11,7 @@ module UnparserExtensions
   
   ::Unparser.class_eval do
     class << self
-      extend Memoist
+      include Memery
       
       def custom_builder(emit_index: ::Unparser::DEFAULT_EMIT_INDEX)
         Class.new(Parser::Builders::Default) do
@@ -25,11 +25,12 @@ module UnparserExtensions
             super
             self.emit_file_line_as_literals = false
           end
-        end
+        end.new
       end
+      memoize :custom_builder
       
       def parser(emit_index: ::Unparser::DEFAULT_EMIT_INDEX)
-        Parser::CurrentRuby.new(self.custom_builder(emit_index: emit_index).new).tap do |parser|
+        Parser::CurrentRuby.new(self.custom_builder(emit_index: emit_index)).tap do |parser|
           parser.diagnostics.tap do |diagnostics|
             diagnostics.all_errors_are_fatal = true
           end
@@ -38,6 +39,7 @@ module UnparserExtensions
       
       unless method_defined?(:original_unparse)
         alias_method :original_unparse, :unparse
+        memoize :unparse
         memoize :original_unparse
         memoize :parse
       end

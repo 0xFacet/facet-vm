@@ -10,6 +10,8 @@ class ConstsToSends
       else
         ast = start_ast
       end
+   
+      NodeChecker.new.process(ast)
       
       obj = ConstsToSends.new
       new_ast = obj.process(ast)
@@ -44,6 +46,10 @@ class ConstsToSends
   
   def on_const(node)
     namespace, name = *node
+    
+    if namespace
+      raise NodeChecker::NodeNotAllowed, "Namespace not supported: #{node.inspect}"
+    end
     
     process(s(:send, s(:self), name))
   end
@@ -88,7 +94,7 @@ class ConstsToSends
   end
   
   def on_self(node)
-    raise "Invalid use of 'self' node: #{node.inspect}"
+    raise NodeChecker::NodeNotAllowed "Invalid use of 'self' node: #{node.inspect}"
   end
   
   def on_pair(node)
@@ -180,9 +186,9 @@ class ConstsToSends
   def handle_method_setter_assignment(target, op, value)
     object, method_name, index = *target.children
     
-    processed_object = process(object)
-    processed_index = process(index)
-    processed_value = process(value)
+    processed_object = safe_process(object)
+    processed_index = safe_process(index)
+    processed_value = safe_process(value)
     
     current_value = if index
       s(:send, processed_object, method_name, processed_index)
@@ -323,15 +329,15 @@ class ConstsToSends
       hack_node = s(:if,
         s(:send,
           s(:send,
-            s(:index,
+            s(:send,
               s(:send,
-                s(:send, nil, :s), :tokenUpgradeLevelsByCollection),
+                s(:send, nil, :s), :tokenUpgradeLevelsByCollection), :[],
               s(:send, nil, :collection)), :length), :==,
           s(:int, 0)),
         s(:send,
-          s(:index,
+          s(:send,
             s(:send,
-              s(:send, nil, :s), :tokenUpgradeLevelsByCollection),
+              s(:send, nil, :s), :tokenUpgradeLevelsByCollection), :[],
             s(:send, nil, :collection)), :push,
           s(:send, nil, :TokenUpgradeLevel)), nil)
           
@@ -381,13 +387,17 @@ class ConstsToSends
     box_single(processed_expr)
   end
   
+  def safe_process(node)
+    if node.is_a?(Parser::AST::Node)
+      process(node)
+    else
+      node
+    end
+  end
+  
   def safe_process_all(nodes)
     nodes.to_a.map do |child|
-      if child.is_a?(Parser::AST::Node)
-        process(child)
-      else
-        child
-      end
+      safe_process(child)
     end
   end
   
