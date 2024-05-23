@@ -77,7 +77,9 @@ class SystemConfigVersion < ApplicationRecord
   end
   
   def contract_supported?(init_code_hash)
-    all_contracts_supported || supported_contracts.include?(init_code_hash)
+    ENV['ALL_CONTRACTS_SUPPORTED'] == 'true' ||
+    all_contracts_supported ||
+    supported_contracts.include?(init_code_hash)
   end
   
   def self.current_supported_contract_artifacts
