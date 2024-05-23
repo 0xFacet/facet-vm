@@ -7,7 +7,7 @@ class ConstsToSends
     def process(start_ast)
       if start_ast.is_a?(String)
         if ENV['ETHEREUM_NETWORK'] == 'eth-sepolia'
-          start_ast.sub!(
+          start_ast = start_ast.sub(
             %{basic_attributes_json[1..-2]},
             %{basic_attributes_json[1, basic_attributes_json.length - 2]}
           )
