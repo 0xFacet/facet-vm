@@ -6,6 +6,13 @@ class ConstsToSends
     
     def process(start_ast)
       if start_ast.is_a?(String)
+        if ENV['ETHEREUM_NETWORK'] == 'eth-sepolia'
+          start_ast.sub!(
+            %{basic_attributes_json[1..-2]},
+            %{basic_attributes_json[1, basic_attributes_json.length - 2]}
+          )
+        end
+        
         ast = Unparser.parse(start_ast, emit_index: false)
       else
         ast = start_ast
