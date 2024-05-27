@@ -89,6 +89,10 @@ class ContractCall < ApplicationRecord
       find_and_validate_existing_contract!
     end
     
+    if !implementation.public_abi.key?(function)
+      raise ContractError.new("Call to unknown function: #{function}", self)
+    end
+    
     if is_create?
       if function.to_sym != :constructor
         raise ContractError.new("Cannot call function on contract creation: #{function}", self)
@@ -99,10 +103,6 @@ class ContractCall < ApplicationRecord
         "Invalid change in read-only context: #{function}, #{args.inspect}. Contract: #{effective_contract.address}."
       end
     else
-      if !implementation.public_abi.key?(function)
-        raise ContractError.new("Call to unknown function: #{function}", self)
-      end
-      
       if is_static_call? && !in_read_only_context?
         raise ContractError.new("Cannot call non-read-only function in static call: #{function}", self)
       end
