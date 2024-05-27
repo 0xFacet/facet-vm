@@ -10,6 +10,7 @@ RSpec.describe ContractBuilderCleanRoom do
     context "when given a block" do
       it "executes the block only if the method is allowed" do
         allow(context).to receive(:allowed_method).and_return("Method Executed")
+        allow(context).to receive(:handle_call_from_proxy).and_return("Method Executed")
         block = -> { allowed_method }
 
         result = ContractBuilderCleanRoom.execute_user_code_on_context(context, valid_call_proc, "allowed_method", block)
@@ -26,6 +27,7 @@ RSpec.describe ContractBuilderCleanRoom do
     context "when given a string of code" do
       it "executes the string only if the method is allowed" do
         allow(context).to receive(:allowed_method).and_return("Method Executed")
+        allow(context).to receive(:handle_call_from_proxy).and_return("Method Executed")
         code = "allowed_method"
 
         result = ContractBuilderCleanRoom.execute_user_code_on_context(context, valid_call_proc, "allowed_method", code, *filename_and_line)

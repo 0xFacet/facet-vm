@@ -1,6 +1,16 @@
 require 'rails_helper'
 
 RSpec.describe StateManager, type: :model do
+  around do |example|
+    TransactionContext.set(
+      call_log_stack: [],
+      call_counts: {},
+      gas_counter: GasCounter.new(TransactionContext)
+    ) do
+      example.run
+    end
+  end
+  
   let!(:user_address) { "0x000000000000000000000000000000000000000a" }
   let(:alice) { "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }
   let(:bob) { "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }

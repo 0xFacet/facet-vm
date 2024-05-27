@@ -6,11 +6,12 @@ module Exposable
   end
   
   def method_exposed?(name)
-    exposed_methods.include?(name)
+    exposed_methods.include?(name.to_sym)
   end
   
   def exposed_methods
     # self.class.__send__(:validate_exposed_methods)
+    # VM.call_method(self, :class).exposed_methods + exposed_instance_methods
     self.class.exposed_methods + exposed_instance_methods
   end
   
@@ -34,6 +35,18 @@ module Exposable
   end
   
   class_methods do
+    def wrap_with_logging(*method_names)
+      method_names.each do |method_name|
+        alias_method "original_#{method_name}", method_name
+  
+        define_method(method_name) do |*args, **kwargs, &block|
+          TransactionContext.log_call(self.class.name, method_name) do
+            send("original_#{method_name}", *args, **kwargs, &block)
+          end
+        end
+      end
+    end
+    
     def expose(*names)
       names = names.map(&:to_sym)
       

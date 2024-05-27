@@ -8,7 +8,7 @@ class IntegerVariable < GenericVariable
   end
   
   [:+, :-, :*, :/, :%, :**, :div].each do |operator|
-    define_method(operator) do |other|
+    define_method_with_check(operator) do |other|
       perform_operation(other, operator)
     end
     
@@ -23,7 +23,7 @@ class IntegerVariable < GenericVariable
       :< => :lt,
     }
     
-    define_method(operator_to_method_name[operator]) do |other|
+    define_method_with_check(operator_to_method_name[operator]) do |other|
       perform_comparison(other, operator)
     end
     

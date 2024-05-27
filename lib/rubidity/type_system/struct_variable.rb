@@ -14,19 +14,24 @@ class StructVariable < GenericVariable
         values: val,
       )
     end
-    
-    type.struct_definition.fields.each_key do |field|
-      define_singleton_method(field) do
-        value.get(field)
-      end
-      
-      define_singleton_method("#{field}=") do |new_value|
-        value.set(field, new_value)# rescue binding.pry
-      end
-      
-      expose_instance_method(field, "#{field}=")
+  end
+  
+  def handle_call_from_proxy(method_name, *args, **kwargs)
+    if method_exposed?(method_name)
+      return super
     end
-    # binding.pry
+    
+    chomped_method_name = method_name.to_s.chomp("=").to_sym
+    
+    unless value.struct_definition.fields.key?(chomped_method_name)
+      raise NoMethodError, "Undefined method `#{method_name}` for #{self}"
+    end
+    
+    if method_name.to_s.end_with?("=")
+      value.set(chomped_method_name, args.first)
+    else
+      value.get(chomped_method_name)
+    end
   end
   
   def as_json
@@ -40,13 +45,16 @@ class StructVariable < GenericVariable
   def eq(other)
     self.value == other.value
   end
+  wrap_with_logging :eq
   
   def ne(other)
     !eq(other)
   end
+  wrap_with_logging :ne
   
   class Value
     include ContractErrors
+    include Exposable
     
     attr_accessor :data, :struct_definition
     
@@ -72,12 +80,14 @@ class StructVariable < GenericVariable
 
       TypedVariable.create_or_validate(type, data[field])
     end
+    wrap_with_logging :get
     
     def set(field, new_value)
       type = struct_definition.fields[field]
       
       data[field] = TypedVariable.create_or_validate(type, new_value)
     end
+    wrap_with_logging :set
     
     def ==(other)
       return false unless other.is_a?(self.class)

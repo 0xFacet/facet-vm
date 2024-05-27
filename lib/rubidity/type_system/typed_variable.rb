@@ -15,7 +15,10 @@ class TypedVariable
   end
   
   def self.create(type, value = nil, **options)
+    # TODO: Cache this create also
     type = Type.create(type)
+    
+    @_var_cache ||= Hash.new { |h, k| h[k] = {} }
     
     if type.array?
       ArrayVariable.new(type, value, **options)
@@ -24,13 +27,17 @@ class TypedVariable
     elsif type.struct?
       StructVariable.new(type, value, **options)
     elsif type.string?
-      StringVariable.new(type, value, **options)
+      @_var_cache[type][value] ||= StringVariable.new(type, value, **options)
+      # StringVariable.new(type, value, **options)
     elsif type.bytes?
-      BytesVariable.new(type, value, **options)
+      @_var_cache[type][value] ||= BytesVariable.new(type, value, **options)
+      # BytesVariable.new(type, value, **options)
     elsif type.address?
-      AddressVariable.new(type, value, **options)
+      @_var_cache[type][value] ||= AddressVariable.new(type, value, **options)
+      # AddressVariable.new(type, value, **options)
     elsif type.is_int? || type.is_uint?
-      IntegerVariable.new(type, value, **options)
+      @_var_cache[type][value] ||= IntegerVariable.new(type, value, **options)
+      # IntegerVariable.new(type, value, **options)
     elsif type.null?
       NullVariable.instance
     else
@@ -90,7 +97,7 @@ class TypedVariable
   
   # TODO: Make immutable for value types
   def value=(new_value)
-    if type.bool? && !@value.nil?
+    if !@value.nil?
       raise TypeError.new("Cannot change value of #{self.value.inspect}")
     end
     

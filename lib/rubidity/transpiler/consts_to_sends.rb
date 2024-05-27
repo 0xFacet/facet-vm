@@ -1,4 +1,5 @@
 class ConstsToSends
+  include DefineMethodHelper
   include AST::Processor::Mixin
   
   class << self
@@ -44,7 +45,7 @@ class ConstsToSends
   SimpleBoxNodes.each do |type|
     # TODO: Do we need to box lvasgn?
     
-    define_method("on_#{type}") do |node|
+    define_method_with_check("on_#{type}") do |node|
       box_expression(node)
     end
   end

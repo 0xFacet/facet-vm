@@ -1,6 +1,5 @@
 module ForLoop
   include ContractErrors
-  MAX_LOOPS = 100
   
   def forLoop(args)
     start = args[:start]
@@ -8,27 +7,29 @@ module ForLoop
     
     condition = args[:condition]
     step = args[:step] || TypedVariable.create(:int256, 1)
-    max_iterations = args[:max_iterations]&.value || MAX_LOOPS
     
     iteration_count = 0
     
-    if max_iterations > MAX_LOOPS
-      raise ArgumentError, "Max iterations cannot exceed #{MAX_LOOPS}"
-    end
     
     unless Kernel.instance_method(:block_given?).bind(self).call
       raise ArgumentError, 'Block is required'
     end
         
-    while VM.unbox_and_get_bool(condition.call(current_val))
+    while VM.unbox_and_get_bool(
+      TransactionContext.log_call("ForLoop", "ForLoop", "condition") do
+        condition.call(current_val)
+      end
+    )
       begin
-        yield(current_val)
+        TransactionContext.log_call("ForLoop", "ForLoop", "yield") do
+          TransactionContext.increment_gas("ForLoopIteration")
+          yield(current_val)
+        end
       ensure
-        current_val += step
+        TransactionContext.log_call("ForLoop", self.class.name, "ForLoop step") do
+          current_val += step
         
-        iteration_count += 1
-        if iteration_count > max_iterations
-          raise ContractError, "MaxIterationsExceeded"
+          iteration_count += 1
         end
       end
     end

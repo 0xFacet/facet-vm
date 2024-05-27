@@ -1,8 +1,21 @@
 class GenericVariable < TypedVariable
+  include DefineMethodHelper
   include InstrumentAllMethods
   include Exposable
   
   expose :cast, :not, :ne, :eq
+  
+  def handle_call_from_proxy(method_name, *args, **kwargs)
+    unless method_exposed?(method_name)
+      raise NoMethodError.new("undefined method `#{method_name}' for #{self.inspect}")
+    end
+      
+    TransactionContext.log_call("TypedVariable", self.class.name, method_name) do
+      TransactionContext.increment_gas("TypedVariable#{method_name.to_s.upcase_first}")
+      
+      public_send(method_name, *args, **kwargs)
+    end
+  end
   
   def initialize(...)
     super(...)

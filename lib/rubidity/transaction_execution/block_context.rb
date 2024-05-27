@@ -64,6 +64,7 @@ class BlockContext < ActiveSupport::CurrentAttributes
     contract_transactions.each do |contract_tx|
       TransactionContext.set(
         call_stack: CallStack.new(TransactionContext),
+        gas_counter: GasCounter.new(TransactionContext),
         active_contracts: [],
         current_transaction: contract_tx,
         tx_origin: contract_tx.tx_origin,
@@ -72,7 +73,9 @@ class BlockContext < ActiveSupport::CurrentAttributes
         block_timestamp: current_block.timestamp,
         block_blockhash: current_block.blockhash,
         block_chainid: current_chainid,
-        transaction_index: contract_tx.transaction_index
+        transaction_index: contract_tx.transaction_index,
+        call_counts: {},
+        call_log_stack: []
       ) do
         contract_tx.execute_transaction
       end

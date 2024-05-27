@@ -97,3 +97,5 @@ gem "sqlite3", "~> 1.7"
 gem "rubocop"
 
 gem "memery", "~> 1.5"
+
+gem "correlations", "~> 1.0"

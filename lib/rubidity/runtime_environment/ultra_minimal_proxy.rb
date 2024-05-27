@@ -21,7 +21,9 @@ class UltraMinimalProxy < UltraBasicObject
     kwargs = ::VM.deep_unbox(kwargs)
     
     if @valid_methods.include?(name)
-      @target.public_send(name, *args, **kwargs, &block)
+      # ::TransactionContext.log_call(@target, name) do
+        @target.public_send(name, *args, **kwargs, &block)
+      # end
     else
       super
     end

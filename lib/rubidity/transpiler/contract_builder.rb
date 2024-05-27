@@ -23,6 +23,10 @@ class ContractBuilder < UltraBasicObject
     registry[artifact.name]
   end
 
+  def handle_call_from_proxy(method_name, *args, **kwargs, &block)
+    __send__(method_name, *args, **kwargs, &block)
+  end
+  
   def initialize(available_contracts)
     @available_contracts = available_contracts
   end
@@ -48,6 +52,10 @@ class ContractBuilder < UltraBasicObject
       @is_abstract_contract = abstract
       @name = name.to_s
 
+      def self.handle_call_from_proxy(method_name, *args, **kwargs, &block)
+        __send__(method_name, *args, **kwargs, &block)
+      end
+      
       ::ContractBuilderCleanRoom.execute_user_code_on_context(
         self,
         [

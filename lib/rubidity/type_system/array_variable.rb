@@ -23,6 +23,7 @@ class ArrayVariable < GenericVariable
   end
   
   class Value
+    include Exposable
     attr_accessor :value_type, :data
     
     def ==(other)
@@ -70,6 +71,7 @@ class ArrayVariable < GenericVariable
         value
       end
     end
+    # wrap_with_logging :[]
   
     def []=(index, value)
       index_var = TypedVariable.create_or_validate(:uint256, index)
@@ -89,6 +91,7 @@ class ArrayVariable < GenericVariable
       
       data[index_var.value]
     end
+    # wrap_with_logging :[]=
     
     def push(value)
       next_index = data.size
@@ -96,18 +99,22 @@ class ArrayVariable < GenericVariable
       self.[]=(next_index, value)
       NullVariable.instance
     end
+    # wrap_with_logging :push
     
     # TODO: In Solidity this returns null
     def pop
       TypedVariable.create(value_type, data.pop.value)
     end
+    # wrap_with_logging :pop
     
     def length
       TypedVariable.create(:uint256, data.length)
     end
+    # wrap_with_logging :length
     
     def last
       self.[](data.length - 1)
     end
+    # wrap_with_logging :last
   end
 end

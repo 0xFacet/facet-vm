@@ -1,7 +1,8 @@
 class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
-  attribute :call_stack, :current_call, :transaction_index, :current_transaction, :active_contracts
+  attribute :call_stack, :current_call, :transaction_index, :current_transaction, :active_contracts,
+    :call_counts, :call_log_stack, :gas_counter
   
   STRUCT_DETAILS = {
     msg:    { attributes: { sender: :address } },
@@ -24,6 +25,37 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   
   def transaction_hash
     tx.current_transaction_hash
+  end
+  
+  def increment_gas(event_name)
+    gas_counter.increment_gas(event_name)
+  end
+  
+  def gas_limit
+    ENV["GAS_LIMIT"].to_f
+  end
+  
+  def log_call(call_type, receiver, method_name = nil)
+    unless method_name
+      method_name = receiver
+      receiver = call_type
+    end
+    
+    key = [call_type, receiver, method_name]
+  
+    start_time = Time.now
+    
+    call_log_stack.push(key)
+    
+    composite_key = call_log_stack.to_json
+    
+    yield
+  ensure
+    runtime = (Time.now - start_time) * 1000.0
+    call_counts[composite_key] ||= []
+    call_counts[composite_key] << runtime
+    
+    call_log_stack.pop
   end
   
   def get_existing_contract(address)

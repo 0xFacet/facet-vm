@@ -64,16 +64,20 @@ class ContractCall < ApplicationRecord
   end
   
   def call_function(function, args)
-    public_functions = implementation.public_abi.keys
-    public_functions << :constructor if is_create?
-    
-    proxy = UltraMinimalProxy.new(implementation, public_functions.map(&:to_sym))
-    
-    if args.is_a?(Hash)
-      proxy.__send__(function, **args)
-    else
-      proxy.__send__(function, *Array.wrap(args))
-    end
+    # TransactionContext.log_call("ExternalContractCall", "ExternalContractCall", function) do
+
+      
+      # public_functions = implementation.public_abi.keys
+      # public_functions << :constructor if is_create?
+      
+      # proxy = UltraMinimalProxy.new(implementation, public_functions.map(&:to_sym))
+      
+      if args.is_a?(Hash)
+        implementation.handle_call_from_proxy(function, **args)
+      else
+        implementation.handle_call_from_proxy(function, *Array.wrap(args))
+      end
+    # end
   end
   
   def execute!
@@ -85,17 +89,23 @@ class ContractCall < ApplicationRecord
       find_and_validate_existing_contract!
     end
     
-    if !implementation.public_abi[function]
-      raise ContractError.new("Call to unknown function: #{function}", self)
-    end
-    
-    if is_static_call? && !in_read_only_context?
-      raise ContractError.new("Cannot call non-read-only function in static call: #{function}", self)
-    end
-    
-    if is_create? && in_read_only_context?
-      raise ContractError,
-      "Invalid change in read-only context: #{function}, #{args.inspect}. Contract: #{effective_contract.address}."
+    if is_create?
+      if function.to_sym != :constructor
+        raise ContractError.new("Cannot call function on contract creation: #{function}", self)
+      end
+      
+      if in_read_only_context?
+        raise ContractError,
+        "Invalid change in read-only context: #{function}, #{args.inspect}. Contract: #{effective_contract.address}."
+      end
+    else
+      if !implementation.public_abi.key?(function)
+        raise ContractError.new("Call to unknown function: #{function}", self)
+      end
+      
+      if is_static_call? && !in_read_only_context?
+        raise ContractError.new("Cannot call non-read-only function in static call: #{function}", self)
+      end
     end
     
     internal_call_read_only_context_stack.push(in_read_only_context?)

@@ -37,6 +37,7 @@ class StateManager
     old_read_only = @read_only_mode
     @read_only_mode = read_only
     yield
+  ensure
     @read_only_mode = old_read_only
   end
   
@@ -46,6 +47,7 @@ class StateManager
     
     yield
     
+  ensure
     @state_var_layout = old_layout
   end
   

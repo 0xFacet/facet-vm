@@ -52,21 +52,21 @@ RSpec.describe ForLoop do
       expect(result).to eq([0, 1, 2, 3, 4, 5])
     end
 
-    it 'raises an error when max iterations are exceeded' do
-      ary = (1..10).to_a
+    # it 'raises an error when max iterations are exceeded' do
+    #   ary = (1..10).to_a
       
-      result = trigger_contract_interaction_and_expect_error(
-        from: bob,
-        payload: {
-          op: "call",
-          data: {
-            to: test_contract_address,
-            function: "testMaxIterations",
-            args: [(1..10).to_a]
-          }
-        }
-      )
-    end
+    #   result = trigger_contract_interaction_and_expect_error(
+    #     from: bob,
+    #     payload: {
+    #       op: "call",
+    #       data: {
+    #         to: test_contract_address,
+    #         function: "testMaxIterations",
+    #         args: [(1..10).to_a]
+    #       }
+    #     }
+    #   )
+    # end
     
     it 'runs with default arguments' do
       result = trigger_contract_interaction_and_expect_success(

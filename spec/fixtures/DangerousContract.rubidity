@@ -8,4 +8,3 @@ contract :DangerousContract do
     s.dangerousMethod = 22
   }
 end
-e
