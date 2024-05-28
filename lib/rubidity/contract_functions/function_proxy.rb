@@ -49,8 +49,8 @@ class FunctionProxy
           components: type.struct_definition.fields.map do |field_name, field_type|
             {
               name: field_name,
-              type: field_type[:type].name.to_s,
-              internalType: field_type[:type].name.to_s,
+              type: field_type.name.to_s,
+              internalType: field_type.name.to_s,
             }
           end
         }
@@ -79,8 +79,8 @@ class FunctionProxy
           components: type.struct_definition.fields.map do |field_name, field_type|
             {
               name: field_name,
-              type: field_type[:type].name.to_s,
-              internalType: field_type[:type].name.to_s,
+              type: field_type.name.to_s,
+              internalType: field_type.name.to_s,
             }
           end
         }]
