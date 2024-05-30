@@ -113,6 +113,7 @@ GEM
     connection_pool (2.4.1)
     correlations (1.0.0)
     crass (1.0.6)
+    csv (3.3.0)
     dalli (3.2.5)
     date (3.3.4)
     descriptive_statistics (2.5.1)
@@ -356,6 +357,7 @@ DEPENDENCIES
   clockwork (~> 3.0)
   cloudflare-rails
   correlations (~> 1.0)
+  csv (~> 3.3)
   dalli (~> 3.2)
   descriptive_statistics (~> 2.5)
   dotenv-rails (~> 2.8)
