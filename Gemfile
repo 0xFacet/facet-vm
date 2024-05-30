@@ -101,3 +101,5 @@ gem "memery", "~> 1.5"
 gem "correlations", "~> 1.0"
 
 gem "csv", "~> 3.3"
+
+gem "cbor", "~> 0.5.9"
