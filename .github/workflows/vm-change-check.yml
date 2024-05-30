@@ -1,0 +1,32 @@
+name: Alert for VM Changes
+
+on:
+  pull_request:
+    paths:
+      - 'lib/rubidity/**/*'
+      - 'app/models/*'
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  add-comment:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Find Comment
+      id: find-comment
+      uses: peter-evans/find-comment@v1
+      with:
+        issue-number: ${{ github.event.pull_request.number }}
+        comment-author: 'github-actions[bot]'
+        body-includes: "Attention Required"
+
+    - name: Post Comment
+      if: steps.find-comment.outputs.comment-id == ''
+      uses: peter-evans/create-or-update-comment@v4
+      with:
+        issue-number: ${{ github.event.pull_request.number }}
+        body: |
+          :warning: **Attention Required:** You are potentially modifying VM logic. Please ensure this will not affect tx processing and that other VM instances have had adequate time to pull the latest changes.
