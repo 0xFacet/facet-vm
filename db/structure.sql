@@ -146,6 +146,7 @@ CREATE TABLE public.contract_artifacts (
     pragma_version character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    execution_source text,
     CONSTRAINT chk_rails_e07e6a7a0d CHECK (((init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
@@ -1348,7 +1349,9 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20240530200445'),
 ('20240527141933'),
+('20240524121645'),
 ('20240523191236'),
 ('20240522154825'),
 ('20240522150138'),

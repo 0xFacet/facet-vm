@@ -162,7 +162,15 @@ class ContractTransaction < ApplicationRecord
       state = state_defining_model_names.each.with_object({}) do |model_name, hash|
         model_class = model_name.constantize
         key = model_name.underscore.pluralize.to_sym
-        hash[key] = model_class.all.map { |instance| instance.attributes.as_json }
+        hash[key] = model_class.all.map do |instance|
+          ret = instance.attributes.as_json
+          
+          if model_class == ContractArtifact
+            ret['abi'] = instance.set_abi
+          end
+          
+          ret
+        end
       end.with_indifferent_access
       
       sim_res.merge(state: state).with_indifferent_access
