@@ -215,7 +215,7 @@ class ContractsController < ApplicationController
     )
   
     # Convert result to CBOR binary data
-    cbor_data = CBOR.encode(result)
+    cbor_data = CBOR.encode(result.as_json)
   
     # Set the response header to indicate binary data of type 'application/cbor'
     response.headers['Content-Type'] = 'application/cbor'
