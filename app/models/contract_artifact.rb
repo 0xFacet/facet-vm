@@ -36,7 +36,7 @@ class ContractArtifact < ApplicationRecord
     
     def cached_class_as_of_tx_hash(init_code_hash)
       if init_code_to_class.key?(init_code_hash)
-        return init_code_to_class[init_code_hash]
+        # return init_code_to_class[init_code_hash]
       end
       
       res = find_by(init_code_hash: init_code_hash)&.build_class
