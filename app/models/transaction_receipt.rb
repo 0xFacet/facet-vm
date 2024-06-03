@@ -26,7 +26,6 @@ class TransactionReceipt < ApplicationRecord
   end
   
   def self.a
-    #  reload!; ContractBlockChangeLog.rollback_all_changes(19949273); $s.import_eth_blocks_until_done; EthBlock.a
     scope = TransactionReceipt.where(status: "success", function: 'callBuddyForUser').where.not(function: 'constructor')
     
     scope = TransactionReceipt.all
@@ -36,74 +35,6 @@ class TransactionReceipt < ApplicationRecord
       scope.order("random()").limit(100_000)
     ).calculate_bucket_stats
   end
-  
-  # def aggregate_data()
-  #   aggregated_data = {}
-  #   receiver_data = Hash.new { |hash, key| hash[key] = { total_time: 0, call_count: 0 } }
-  #   caller_data = Hash.new { |hash, key| hash[key] = { total_time: 0, call_count: 0 } }
-  #   method_data = Hash.new { |hash, key| hash[key] = { total_time: 0, call_count: 0 } }
-  
-  #   function_stats.each do |key, runtimes|
-  #     fn_caller, receiver, method_name = JSON.parse(key)
-  #     total_time = runtimes.sum
-  #     call_count = runtimes.size
-  #     average_time = total_time / call_count
-  
-  #     aggregated_data[key] = {
-  #       total_time: total_time,
-  #       call_count: call_count,
-  #       average_time: average_time
-  #     }
-  
-  #     receiver_data[receiver][:total_time] += total_time
-  #     receiver_data[receiver][:call_count] += call_count
-  
-  #     caller_data[fn_caller][:total_time] += total_time
-  #     caller_data[fn_caller][:call_count] += call_count
-  
-  #     method_key = [receiver, method_name].to_json
-  #     method_data[method_key][:total_time] += total_time
-  #     method_data[method_key][:call_count] += call_count
-  #   end
-  
-  #   { aggregated_data: aggregated_data, receiver_data: receiver_data, caller_data: caller_data, method_data: method_data }
-  # end
-  
-  # def print_aggregated_data(aggregated_data)
-  #   sorted_data = aggregated_data.sort_by { |_, data| -data[:average_time] }
-  
-  #   sorted_data.each do |key, data|
-  #     puts "#{key}: #{data[:call_count]} calls, #{format('%.6f', data[:total_time])} seconds total, #{format('%.6f', data[:average_time])} seconds average"
-  #   end
-  # end
-  
-  # def print_receiver_data(receiver_data)
-  #   sorted_data = receiver_data.sort_by { |_, data| -data[:total_time] }
-  
-  #   sorted_data.each do |receiver, data|
-  #     average_time = data[:total_time] / data[:call_count]
-  #     puts "#{receiver}: #{data[:call_count]} calls, #{format('%.6f', data[:total_time])} seconds total, #{format('%.6f', average_time)} seconds average"
-  #   end
-  # end
-  
-  # def print_caller_data(caller_data)
-  #   sorted_data = caller_data.sort_by { |_, data| -data[:total_time] }
-  
-  #   sorted_data.each do |caller, data|
-  #     average_time = data[:total_time] / data[:call_count]
-  #     puts "#{caller}: #{data[:call_count]} calls, #{format('%.6f', data[:total_time])} seconds total, #{format('%.6f', average_time)} seconds average"
-  #   end
-  # end
-  
-  # def print_method_data(method_data)
-  #   sorted_data = method_data.sort_by { |_, data| -data[:average_time] }
-  
-  #   sorted_data.each do |key, data|
-  #     receiver, method_name = JSON.parse(key)
-  #     average_time = data[:total_time] / data[:call_count]
-  #     puts "#{receiver}##{method_name}: #{data[:call_count]} calls, #{format('%.6f', data[:total_time])} seconds total, #{format('%.6f', average_time)} seconds average time)} seconds average"
-  #   end
-  # end
   
   def page_key
     transaction_hash

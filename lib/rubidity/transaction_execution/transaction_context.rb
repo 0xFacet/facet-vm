@@ -32,7 +32,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def gas_limit
-    ENV["GAS_LIMIT"].to_f
+    ENV["GAS_LIMIT"].to_d
   end
   
   def log_call(call_type, receiver, method_name = nil)

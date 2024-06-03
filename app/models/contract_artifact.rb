@@ -36,6 +36,7 @@ class ContractArtifact < ApplicationRecord
     
     def cached_class_as_of_tx_hash(init_code_hash)
       if init_code_to_class.key?(init_code_hash)
+        # TODO: replace with cache that works with simulate_with_state
         # return init_code_to_class[init_code_hash]
       end
       

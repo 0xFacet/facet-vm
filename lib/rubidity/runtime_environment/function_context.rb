@@ -30,32 +30,6 @@ class FunctionContext < UltraBasicObject
     
     function_arg ||
       @contract.handle_call_from_proxy(method_name, *args, **kwargs, &block)
-    
-    # if function_arg && args.blank? && kwargs.blank? && block.blank?
-    #   # ::TransactionContext.log_call(@args, method_name) do
-    #     # @args.handle_call_from_proxy(method_name)
-    #     function_arg
-    #   # end
-    # elsif @contract.method_exposed?(method_name)
-    #   # if method_name != :forLoop && block.present?
-    #   #   raise ::ContractError.new("Block passed to function call that is not a forLoop")
-    #   # end
-    #   # ::Kernel.binding.pry
-      
-    #   # if @contract.public_abi.keys.map(&:to_sym).include?(method_name)
-    #   #   @contract.public_send(method_name, *args, **kwargs, &block)
-    #   # else
-    #   #   # ::TransactionContext.log_call(@contract, method_name) do
-    #   #     @contract.public_send(method_name, *args, **kwargs, &block)
-    #   #   # end
-    #   # end
-      
-    #   # ::TransactionContext.log_call(@contract, method_name) do
-    #     @contract.handle_call_from_proxy(method_name, *args, **kwargs, &block)
-    #   # end
-    # else
-    #   super
-    # end
   end
   
   # TODO: remove

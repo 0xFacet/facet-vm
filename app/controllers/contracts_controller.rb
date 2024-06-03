@@ -170,8 +170,8 @@ class ContractsController < ApplicationController
     artifact.abi = artifact.build_class.abi
     
     render json: { result: artifact }
-  # rescue => e
-    # render json: { error: e.message }, status: 500
+  rescue => e
+    render json: { error: e.message }, status: 500
   end
   
   def source_code_to_abi

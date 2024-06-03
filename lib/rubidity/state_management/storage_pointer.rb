@@ -46,20 +46,6 @@ class StoragePointer
     end
   end
   
-  # def handle_dynamic_method(methods_hash, method_name, *args, **kwargs)
-  #   chomped_method_name = method_name.to_s.chomp("=").to_sym
-  
-  #   unless methods_hash.key?(chomped_method_name)
-  #     raise ContractError, "Function #{method_name} not exposed in Storage Pointer"
-  #   end
-  
-  #   if method_name.to_s.end_with?("=")
-  #     set(chomped_method_name, args.first)
-  #   else
-  #     get(chomped_method_name)
-  #   end
-  # end
-  
   def initialize(state_manager, path = [])
     @state_manager = state_manager
     @path = path
