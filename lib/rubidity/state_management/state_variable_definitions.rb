@@ -1,8 +1,9 @@
 module StateVariableDefinitions
+  include DefineMethodHelper
   class InvalidStateVariableDefinition < RuntimeError; end
   
   ::Type.value_types.each do |type|
-    define_method(type) do |*args|
+    define_method_with_check(type) do |*args|
       define_state_variable(type, args)
     end
   end
@@ -41,7 +42,7 @@ module StateVariableDefinitions
     @structs ||= {}.with_indifferent_access
     @structs[name] = ::StructDefinition.new(name, &block)
 
-    define_method(name) do |**field_values|
+    define_method_with_check(name) do |**field_values|
       struct_definition = self.structs[name]
       type = ::Type.create(:struct, struct_definition: struct_definition)
       ::StructVariable.new(type, field_values)
@@ -49,7 +50,7 @@ module StateVariableDefinitions
     
     expose(name)
     
-    define_singleton_method(name) do |*args|
+    define_singleton_method_with_check(name) do |*args|
       struct_definition = structs[name]
       type = ::Type.create(:struct, struct_definition: struct_definition)
       define_state_variable(type, args)

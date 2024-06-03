@@ -4,7 +4,7 @@ class TypedVariableProxy < BoxedVariable
   # end
   
   def initialize(typed_variable)
-    unless ::VM.call_is_a?(typed_variable, ::TypedVariable)
+    unless typed_variable.is_a?(::TypedVariable)
       raise "Can only use a TypedVariable: #{typed_variable.inspect}"
     end
     
@@ -12,10 +12,6 @@ class TypedVariableProxy < BoxedVariable
   end
 
   def method_missing(name, *args, **kwargs, &block)
-    unless @value.method_exposed?(name)
-      ::Kernel.instance_method(:raise).bind(self).call(::ContractErrors::VariableTypeError, "No method #{name} on #{@value.inspect}")
-    end
-    
     args = ::VM.deep_unbox(args)
     kwargs = ::VM.deep_unbox(kwargs)
     
@@ -24,6 +20,6 @@ class TypedVariableProxy < BoxedVariable
       kwargs = ::VM.deep_get_values(kwargs)
     end
     
-    @value.public_send(name, *args, **kwargs)
+    @value.handle_call_from_proxy(name, *args, **kwargs)
   end
 end

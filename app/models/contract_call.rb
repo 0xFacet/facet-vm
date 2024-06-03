@@ -46,9 +46,11 @@ class ContractCall < ApplicationRecord
   end
   
   def implementation
-    @_implementation ||= implementation_class.new(
-      state_manager: state_manager
-    )
+    TransactionContext.log_call("ContractCall", "GetImplementation") do
+      @_implementation ||= implementation_class.new(
+        state_manager: state_manager
+      )
+    end
   end
   
   def in_read_only_context?
@@ -64,15 +66,10 @@ class ContractCall < ApplicationRecord
   end
   
   def call_function(function, args)
-    public_functions = implementation.public_abi.keys
-    public_functions << :constructor if is_create?
-    
-    proxy = UltraMinimalProxy.new(implementation, public_functions.map(&:to_sym))
-    
     if args.is_a?(Hash)
-      proxy.__send__(function, **args)
+      implementation.handle_call_from_proxy(function, **args)
     else
-      proxy.__send__(function, *Array.wrap(args))
+      implementation.handle_call_from_proxy(function, *Array.wrap(args))
     end
   end
   
@@ -85,17 +82,23 @@ class ContractCall < ApplicationRecord
       find_and_validate_existing_contract!
     end
     
-    if !implementation.public_abi[function]
+    if !implementation.public_abi.key?(function)
       raise ContractError.new("Call to unknown function: #{function}", self)
     end
     
-    if is_static_call? && !in_read_only_context?
-      raise ContractError.new("Cannot call non-read-only function in static call: #{function}", self)
-    end
-    
-    if is_create? && in_read_only_context?
-      raise ContractError,
-      "Invalid change in read-only context: #{function}, #{args.inspect}. Contract: #{effective_contract.address}."
+    if is_create?
+      if function.to_sym != :constructor
+        raise ContractError.new("Cannot call function on contract creation: #{function}", self)
+      end
+      
+      if in_read_only_context?
+        raise ContractError,
+        "Invalid change in read-only context: #{function}, #{args.inspect}. Contract: #{effective_contract.address}."
+      end
+    else
+      if is_static_call? && !in_read_only_context?
+        raise ContractError.new("Cannot call non-read-only function in static call: #{function}", self)
+      end
     end
     
     internal_call_read_only_context_stack.push(in_read_only_context?)
@@ -172,11 +175,13 @@ class ContractCall < ApplicationRecord
   end
   
   def create_and_validate_new_contract!
-    self.effective_contract = TransactionContext.create_new_contract(
-      address: calculate_new_contract_address,
-      init_code_hash: to_contract_init_code_hash,
-      source_code: to_contract_source_code
-    )
+    TransactionContext.log_call("ContractCreation", "TransactionContext.create_new_contract") do
+      self.effective_contract = TransactionContext.create_new_contract(
+        address: calculate_new_contract_address,
+        init_code_hash: to_contract_init_code_hash,
+        source_code: to_contract_source_code
+      )
+    end
     
     if implementation_class.is_abstract_contract
       raise TransactionError.new("Cannot deploy abstract contract: #{implementation_class.name}")

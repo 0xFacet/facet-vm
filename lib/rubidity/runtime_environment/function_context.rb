@@ -1,6 +1,8 @@
 class FunctionContext < UltraBasicObject
   # TODO: not necessary for basic object setup
-  # undef_method :hash, :require
+  # [:hash, :require, :p].each do |method_name|
+  #   undef_method(method_name) if method_defined?(method_name)
+  # end
   
   def initialize(contract, args)
     @contract = contract
@@ -24,17 +26,10 @@ class FunctionContext < UltraBasicObject
       kwargs = ::VM.deep_unbox(kwargs)
     end
     
-    if @args.method_exposed?(method_name) && args.blank? && kwargs.blank? && block.blank?
-      @args.public_send(method_name)
-    elsif @contract.method_exposed?(method_name)
-      if method_name != :forLoop && block.present?
-        raise ::ContractError.new("Block passed to function call that is not a forLoop")
-      end
-      
-      @contract.public_send(method_name, *args, **kwargs, &block)
-    else
-      super
-    end
+    function_arg = @args.get_arg(method_name)
+    
+    function_arg ||
+      @contract.handle_call_from_proxy(method_name, *args, **kwargs, &block)
   end
   
   # TODO: remove

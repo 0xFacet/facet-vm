@@ -3,6 +3,9 @@ require 'rails_helper'
 RSpec.describe ForLoop do
   before(:all) do
     update_supported_contracts("ForLoopTest")
+    
+    hashes = RubidityTranspiler.transpile_file("ForLoopTest").map(&:init_code_hash)
+    ContractTestHelper.update_supported_contracts(hashes)
   end
 
   let(:bob) { "0x000000000000000000000000000000000000000b" }
@@ -14,6 +17,18 @@ RSpec.describe ForLoop do
         to: nil,
         data: {
           type: "ForLoopTest"
+        }
+      }
+    ).address
+  end
+  
+  let(:test_contract_address2) do
+    address = trigger_contract_interaction_and_expect_success(
+      from: bob,
+      payload: {
+        to: nil,
+        data: {
+          type: "InfiniteLooper:ForLoopTest"
         }
       }
     ).address
@@ -53,16 +68,15 @@ RSpec.describe ForLoop do
     end
 
     it 'raises an error when max iterations are exceeded' do
-      ary = (1..10).to_a
+      allow(TransactionContext).to receive(:gas_limit).and_return(100)
       
       result = trigger_contract_interaction_and_expect_error(
         from: bob,
         payload: {
           op: "call",
           data: {
-            to: test_contract_address,
-            function: "testMaxIterations",
-            args: [(1..10).to_a]
+            to: test_contract_address2,
+            function: "doInfiniteLoop",
           }
         }
       )

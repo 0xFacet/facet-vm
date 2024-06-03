@@ -1,4 +1,5 @@
 class ContractImplementation
+  include DefineMethodHelper
   extend ::StateVariableDefinitions
   include ::ContractErrors
   include ::ForLoop
@@ -16,7 +17,7 @@ class ContractImplementation
       @available_contracts = contracts
       
       contracts.each_key do |contract_name|
-        define_method(contract_name) do |*args, **kwargs|
+        define_method_with_check(contract_name) do |*args, **kwargs|
           handle_contract_name_call(contract_name, *args, **kwargs)
         end
         
@@ -63,7 +64,71 @@ class ContractImplementation
   :address,
   :bytes32
   
+  GLOBAL_METHODS = [
+  :msg_sender,
+  :block_timestamp,
+  :tx_origin,
+  :tx_current_transaction_hash,
+  :block_number,
+  :block_blockhash,
+  :block_chainid,
+  :blockhash,
+  :s,
+  :require,
+  :keccak256,
+  :create2_address,
+  :forLoop,
+  :new,
+  :emit,
+  :this,
+  :sqrt,
+  :array,
+  :memory,
+  :abi_encodePacked,
+  :json_stringify,
+  :string,
+  :address,
+  :bytes32,
+  :msg_sender,
+  :block_timestamp,
+  :tx_origin,
+  :tx_current_transaction_hash,
+  :block_number,
+  :block_blockhash,
+  :block_chainid,
+  :blockhash,
+  :log_event,
+  :call_stack,
+  :current_address,
+  ].to_set.freeze
+  
   attr_reader :current_context
+  
+  def handle_call_from_proxy(method_name, *args, **kwargs, &block)
+    unless method_exposed?(method_name)
+      raise NoMethodError.new("undefined method `#{method_name}' for #{self.inspect}")
+    end
+    
+    if method_name != :forLoop && block.present?
+      raise ContractError.new("Block passed to function call that is not a forLoop")
+    end
+    
+    label = GLOBAL_METHODS.include?(method_name) ? "GlobalFunction" : "ContractFunction"
+    
+    if label == "ContractFunction"
+      TransactionContext.increment_gas("ContractFunction")
+    else
+      TransactionContext.increment_gas(method_name)
+    end
+    
+    if self.class.available_contracts.key?(method_name)
+      public_send(method_name, *args, **kwargs)
+    else
+      TransactionContext.log_call(label, label, method_name) do
+        public_send(method_name, *args, **kwargs, &block)
+      end
+    end
+  end
   
   def self.state_var_def_json
     @_state_var_def_json ||= state_variable_definitions.map do |name, definition|
@@ -381,7 +446,7 @@ class ContractImplementation
   end
   
   (8..256).step(8).flat_map do |bits|
-    define_method("uint#{bits}") do |integer|
+    define_method_with_check("uint#{bits}") do |integer|
       if integer.type.bytes32? && bits == 256
         TypedVariable.create(:uint256, integer.value)
       else
@@ -390,7 +455,7 @@ class ContractImplementation
     end
     expose "uint#{bits}"
     
-    define_method("int#{bits}") do |integer|
+    define_method_with_check("int#{bits}") do |integer|
       downcast_int(integer, bits)
     end
     expose "int#{bits}"
@@ -451,9 +516,15 @@ class ContractImplementation
   def handle_contract_name_call(contract_name, *args, **kwargs)
     if args.one? && args.first.is_a?(TypedVariable) && args.first.type.address?
       # TODO: still ambiguous w.r.t. call to constructor with one address arg
-      handle_contract_type_cast(contract_name, args.first)
+      TransactionContext.log_call("ContractFunction", "Contract Name Call", "Contract Type Cast") do
+        TransactionContext.increment_gas("ContractTypeCast")
+        handle_contract_type_cast(contract_name, args.first)
+      end
     else
-      create_contract_initializer(contract_name, args.presence || kwargs)
+      TransactionContext.log_call("ContractFunction", "Contract Name Call", "Contract Initializer") do
+        TransactionContext.increment_gas("ContractInitializer")
+        create_contract_initializer(contract_name, args.presence || kwargs)
+      end
     end
   end
 

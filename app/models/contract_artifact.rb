@@ -36,7 +36,8 @@ class ContractArtifact < ApplicationRecord
     
     def cached_class_as_of_tx_hash(init_code_hash)
       if init_code_to_class.key?(init_code_hash)
-        return init_code_to_class[init_code_hash]
+        # TODO: replace with cache that works with simulate_with_state
+        # return init_code_to_class[init_code_hash]
       end
       
       res = find_by(init_code_hash: init_code_hash)&.build_class
@@ -107,8 +108,20 @@ class ContractArtifact < ApplicationRecord
   end
   
   def execution_source_code
-    @_execution_source_code ||= ConstsToSends.process(source_code)
+    TransactionContext.log_call("ContractCreation", "ContractArtifact#execution_source_code") do
+      @_execution_source_code ||= ConstsToSends.process(source_code)
+    end
   end
+  
+  # def self.execution_source_code_batch(artifacts)
+  #   TransactionContext.log_call("ContractCreation", "ContractArtifact.execution_source_code_batch") do
+  #     Parallel.map(artifacts, in_processes: 16) do |artifact|
+  #       puts "starting #{artifact.name} at #{Time.now.to_i}"
+  #       artifact.execution_source_code
+  #       artifact
+  #     end
+  #   end
+  # end
   
   def set_abi
     self.abi = build_class.abi
@@ -120,6 +133,8 @@ class ContractArtifact < ApplicationRecord
     end
     
     as_objs << self
+    
+    # self.class.execution_source_code_batch(as_objs)
   end
   
   def build_class

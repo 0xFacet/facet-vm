@@ -112,49 +112,6 @@ CREATE FUNCTION public.delete_later_blocks() RETURNS trigger
       $$;
 
 
---
--- Name: update_current_state(); Type: FUNCTION; Schema: public; Owner: -
---
-
-CREATE FUNCTION public.update_current_state() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-      DECLARE
-        latest_contract_state RECORD;
-        state_count INTEGER;
-      BEGIN
-        IF TG_OP = 'INSERT' THEN
-          SELECT INTO latest_contract_state *
-          FROM contract_states
-          WHERE contract_address = NEW.contract_address
-          ORDER BY block_number DESC
-          LIMIT 1;
-
-          UPDATE contracts
-          SET current_type = latest_contract_state.type,
-              current_init_code_hash = latest_contract_state.init_code_hash,
-              updated_at = NOW()
-          WHERE address = NEW.contract_address;
-        ELSIF TG_OP = 'DELETE' THEN
-          SELECT INTO latest_contract_state *
-          FROM contract_states
-          WHERE contract_address = OLD.contract_address
-            AND id != OLD.id
-          ORDER BY block_number DESC
-          LIMIT 1;
-
-          UPDATE contracts
-          SET current_type = latest_contract_state.type,
-              current_init_code_hash = latest_contract_state.init_code_hash,
-              updated_at = NOW()
-          WHERE address = OLD.contract_address;
-        END IF;
-      
-        RETURN NULL; -- result is ignored since this is an AFTER trigger
-      END;
-      $$;
-
-
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
@@ -189,6 +146,8 @@ CREATE TABLE public.contract_artifacts (
     pragma_version character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    execution_source_code text,
+    serialized_ast bytea,
     CONSTRAINT chk_rails_e07e6a7a0d CHECK (((init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
@@ -272,9 +231,9 @@ CREATE TABLE public.contract_calls (
     transaction_index bigint NOT NULL,
     start_time timestamp(6) without time zone NOT NULL,
     end_time timestamp(6) without time zone NOT NULL,
-    runtime_ms integer NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    runtime_ms double precision,
     CONSTRAINT chk_rails_0351aa702f CHECK (((created_contract_address IS NULL) OR ((created_contract_address)::text ~ '^0x[a-f0-9]{40}$'::text))),
     CONSTRAINT chk_rails_1a921ba712 CHECK ((((call_type)::text <> 'call'::text) OR (to_contract_address IS NOT NULL))),
     CONSTRAINT chk_rails_27a87dcd58 CHECK (((call_type)::text = ANY (ARRAY[('call'::character varying)::text, ('create'::character varying)::text]))),
@@ -438,12 +397,11 @@ CREATE TABLE public.eth_blocks (
     imported_at timestamp(6) without time zone NOT NULL,
     processing_state character varying NOT NULL,
     transaction_count bigint,
-    runtime_ms integer,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    runtime_ms double precision,
     CONSTRAINT chk_rails_11dbe1957f CHECK (((processing_state)::text = ANY (ARRAY[('no_ethscriptions'::character varying)::text, ('pending'::character varying)::text, ('complete'::character varying)::text]))),
     CONSTRAINT chk_rails_1c105acdac CHECK (((parent_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
-    CONSTRAINT chk_rails_2ba9f3c274 CHECK ((((processing_state)::text <> 'complete'::text) OR (runtime_ms IS NOT NULL))),
     CONSTRAINT chk_rails_4f6ef583f4 CHECK ((((processing_state)::text <> 'complete'::text) OR (transaction_count IS NOT NULL))),
     CONSTRAINT chk_rails_7e9881ece2 CHECK (((blockhash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
@@ -620,13 +578,16 @@ CREATE TABLE public.transaction_receipts (
     transaction_index bigint NOT NULL,
     block_blockhash character varying NOT NULL,
     return_value jsonb,
-    runtime_ms integer NOT NULL,
     call_type character varying NOT NULL,
     gas_price bigint,
     gas_used bigint,
     transaction_fee bigint,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
+    function_stats jsonb DEFAULT '{}'::jsonb NOT NULL,
+    gas_stats jsonb DEFAULT '{}'::jsonb NOT NULL,
+    facet_gas_used double precision,
+    runtime_ms double precision,
     CONSTRAINT chk_rails_06c0d4e0bb CHECK (((block_blockhash)::text ~ '^0x[a-f0-9]{64}$'::text)),
     CONSTRAINT chk_rails_592884e043 CHECK (((((call_type)::text = 'create'::text) AND ((effective_contract_address)::text = (created_contract_address)::text)) OR (((call_type)::text = 'call'::text) AND ((effective_contract_address)::text = (to_contract_address)::text)))),
     CONSTRAINT chk_rails_8b922d101f CHECK (((transaction_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
@@ -1002,13 +963,6 @@ CREATE UNIQUE INDEX index_contracts_on_address ON public.contracts USING btree (
 
 
 --
--- Name: index_contracts_on_address_and_lock_version; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_contracts_on_address_and_lock_version ON public.contracts USING btree (address, lock_version);
-
-
---
 -- Name: index_contracts_on_current_init_code_hash; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1184,13 +1138,6 @@ CREATE INDEX index_transaction_receipts_on_block_number ON public.transaction_re
 
 
 --
--- Name: index_transaction_receipts_on_block_number_and_runtime_ms; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_transaction_receipts_on_block_number_and_runtime_ms ON public.transaction_receipts USING btree (block_number, runtime_ms);
-
-
---
 -- Name: index_transaction_receipts_on_created_contract_address; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1209,13 +1156,6 @@ CREATE INDEX index_transaction_receipts_on_effective_contract_address ON public.
 --
 
 CREATE INDEX index_transaction_receipts_on_from_address ON public.transaction_receipts USING btree (from_address);
-
-
---
--- Name: index_transaction_receipts_on_runtime_ms; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX index_transaction_receipts_on_runtime_ms ON public.transaction_receipts USING btree (runtime_ms);
 
 
 --
@@ -1410,6 +1350,10 @@ ALTER TABLE ONLY public.contract_calls
 SET search_path TO "$user", public;
 
 INSERT INTO "schema_migrations" (version) VALUES
+('20240530200445'),
+('20240527141933'),
+('20240524121645'),
+('20240523191236'),
 ('20240522154825'),
 ('20240522150138'),
 ('20240521204818'),

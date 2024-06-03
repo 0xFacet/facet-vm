@@ -2,7 +2,7 @@ require 'rails_helper'
 
 RSpec.describe "FacetSwapV1Pair", type: :model do
   before(:all) do
-    update_supported_contracts("FacetSwapV1CalleeTester")
+    update_supported_contracts("FacetSwapV1CalleeTester", "PublicMintERC20")
   end
   
   it 'executes the FacetSwapV1 process' do

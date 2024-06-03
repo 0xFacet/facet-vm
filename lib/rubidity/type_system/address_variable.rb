@@ -34,4 +34,5 @@ class AddressVariable < GenericVariable
       data: TypedVariable.create(:string)
     )
   end
+  wrap_with_logging :call
 end

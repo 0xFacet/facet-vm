@@ -98,8 +98,12 @@ class ContractTransaction < ApplicationRecord
       runtime_ms: initial_call.calculated_runtime_ms,
       gas_price: ethscription.gas_price,
       gas_used: ethscription.gas_used,
-      transaction_fee: ethscription.transaction_fee,
+      transaction_fee: ethscription.transaction_fee
     }
+    
+    base_attrs[:function_stats] = @call_counts
+    base_attrs[:facet_gas_used] = @total_gas_used
+    base_attrs[:gas_stats] = @gas_stats
     
     call_attrs = initial_call.attributes.with_indifferent_access.slice(
       :to_contract_address,
@@ -158,7 +162,15 @@ class ContractTransaction < ApplicationRecord
       state = state_defining_model_names.each.with_object({}) do |model_name, hash|
         model_class = model_name.constantize
         key = model_name.underscore.pluralize.to_sym
-        hash[key] = model_class.all.map { |instance| instance.attributes.as_json }
+        hash[key] = model_class.all.map do |instance|
+          ret = instance.attributes.as_json
+          
+          if model_class == ContractArtifact
+            ret['abi'] = instance.set_abi
+          end
+          
+          ret
+        end
       end.with_indifferent_access
       
       sim_res.merge(state: state).with_indifferent_access
@@ -279,6 +291,7 @@ class ContractTransaction < ApplicationRecord
   def with_global_context
     TransactionContext.set(
       call_stack: CallStack.new(TransactionContext),
+      gas_counter: GasCounter.new(TransactionContext),
       active_contracts: [],
       current_transaction: self,
       tx_origin: tx_origin,
@@ -287,7 +300,9 @@ class ContractTransaction < ApplicationRecord
       block_timestamp: block_timestamp,
       block_blockhash: block_blockhash,
       block_chainid: BlockContext.current_chainid,
-      transaction_index: transaction_index
+      transaction_index: transaction_index,
+      call_counts: {},
+      call_log_stack: [],
     ) do
       yield
     end
@@ -311,6 +326,10 @@ class ContractTransaction < ApplicationRecord
       make_initial_call
     rescue ContractError, TransactionError => e
     end
+    
+    @call_counts = TransactionContext.call_counts
+    @total_gas_used = TransactionContext.gas_counter.total_gas_used
+    @gas_stats = TransactionContext.gas_counter.per_event_gas_used
     
     if success?
       TransactionContext.active_contracts.each do |c|

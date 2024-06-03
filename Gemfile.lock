@@ -99,6 +99,7 @@ GEM
     bootsnap (1.16.0)
       msgpack (~> 1.2)
     builder (3.2.4)
+    cbor (0.5.9.8)
     clipboard (1.3.6)
     clockwork (3.0.2)
       activesupport
@@ -111,7 +112,9 @@ GEM
     coderay (1.1.3)
     concurrent-ruby (1.2.2)
     connection_pool (2.4.1)
+    correlations (1.0.0)
     crass (1.0.6)
+    csv (3.3.0)
     dalli (3.2.5)
     date (3.3.4)
     descriptive_statistics (2.5.1)
@@ -351,9 +354,12 @@ DEPENDENCIES
   airbrake (~> 13.0)
   awesome_print (~> 1.9)
   bootsnap
+  cbor (~> 0.5.9)
   clipboard
   clockwork (~> 3.0)
   cloudflare-rails
+  correlations (~> 1.0)
+  csv (~> 3.3)
   dalli (~> 3.2)
   descriptive_statistics (~> 2.5)
   dotenv-rails (~> 2.8)
@@ -363,6 +369,7 @@ DEPENDENCIES
   kaminari (~> 1.2)
   memery (~> 1.5)
   memoist (~> 0.16.2)
+  msgpack (~> 1.7.2)
   newrelic_rpm
   parser (= 3.3.1.0)
   pg (~> 1.1)

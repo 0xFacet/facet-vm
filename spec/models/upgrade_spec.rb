@@ -161,6 +161,8 @@ describe 'Upgrading Contracts' do
   end
   
   it 'deals with infinite loop' do
+    allow(TransactionContext).to receive(:gas_limit).and_return(100)
+    
     d1 = trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {

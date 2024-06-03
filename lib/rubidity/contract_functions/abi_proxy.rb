@@ -1,4 +1,5 @@
 class AbiProxy
+  include DefineMethodHelper
   include ContractErrors
   
   attr_accessor :data, :contract_class
@@ -76,24 +77,35 @@ class AbiProxy
       
       define_method(method_name) do |*args, **kwargs|
         begin
-          cooked_args = func_proxy.convert_args_to_typed_variables_struct(args, kwargs)
-          
+          call = nil
+          read_only_context = nil
+          cooked_args = nil
+          # TransactionContext.log_call(self, self, "#{method_name}-args-setup") do
+            cooked_args = func_proxy.convert_args_to_typed_variables_struct(args, kwargs)
+            
+            ret_val = nil
+            
+            call = TransactionContext.current_call
+            
+            call.internal_call_read_only_context_stack.push(func_proxy.read_only?)
+            
+            read_only_context = call.internal_call_in_read_only_context?
+          # end
           ret_val = nil
           
-          call = TransactionContext.current_call
+          # TransactionContext.log_call(self, self, "#{method_name}-execution") do
+            call.state_manager.reverting_changes_if(read_only_context) do
+              ret_val = FunctionContext.define_and_call_function_method(
+                self, cooked_args, method_name, &func_proxy.implementation
+              )
+            end
+          # end
           
-          call.internal_call_read_only_context_stack.push(func_proxy.read_only?)
-          
-          read_only_context = call.internal_call_in_read_only_context?
-          
-          call.state_manager.reverting_changes_if(read_only_context) do
-            ret_val = FunctionContext.define_and_call_function_method(
-              self, cooked_args, method_name, &func_proxy.implementation
-            )
-          end
-          
-          func_proxy.convert_return_to_typed_variable(ret_val)
-        rescue Contract::ContractArgumentError, Contract::VariableTypeError, IndexError => e
+          # TransactionContext.log_call(self, self, "#{method_name}-return-setup") do
+            func_proxy.convert_return_to_typed_variable(ret_val)
+          # end
+        rescue Contract::ContractArgumentError, Contract::VariableTypeError, IndexError,
+          DefineMethodHelper::MethodAlreadyDefinedError => e
           # TODO
           c_locs = ::Kernel.instance_method(:caller_locations).bind(self).call
           caller_location = c_locs.detect { |location| location.path.ends_with?(".rubidity") }
@@ -110,6 +122,7 @@ class AbiProxy
           raise ContractError,
           "Invalid change in read-only context: #{method_name}, #{(args.presence || kwargs).inspect}, to address: #{current_address}."
         ensure
+          # TODO make sure this handles early returns
           call.internal_call_read_only_context_stack.pop if call.present?
         end
       end

@@ -1,4 +1,5 @@
 class Type
+  include DefineMethodHelper
   MAX_STRING_LENGTH = 128.kilobytes * 10
   
   include ContractErrors
@@ -13,7 +14,7 @@ class Type
            :bool, :array, :bytes, :struct, :null, :symbol] + INTEGER_TYPES
   
   TYPES.each do |type|
-    define_method("#{type}?") do
+    define_method_with_check("#{type}?") do
       @name == type
     end
   end
@@ -26,6 +27,10 @@ class Type
   
   def name
     struct? ? struct_definition.name : @name
+  end
+  
+  def raw_name
+    @name
   end
   
   def initialize(type_name, metadata = {})

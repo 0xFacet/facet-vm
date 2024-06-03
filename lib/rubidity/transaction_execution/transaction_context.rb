@@ -1,7 +1,8 @@
 class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
-  attribute :call_stack, :current_call, :transaction_index, :current_transaction, :active_contracts
+  attribute :call_stack, :current_call, :transaction_index, :current_transaction, :active_contracts,
+    :call_counts, :call_log_stack, :gas_counter
   
   STRUCT_DETAILS = {
     msg:    { attributes: { sender: :address } },
@@ -24,6 +25,43 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   
   def transaction_hash
     tx.current_transaction_hash
+  end
+  
+  def increment_gas(event_name)
+    gas_counter.increment_gas(event_name)
+  end
+  
+  def gas_limit
+    ENV["GAS_LIMIT"].to_d
+  end
+  
+  def log_call(call_type, receiver, method_name = nil)
+    unless call_log_stack && call_counts
+      return yield
+    end
+    
+    unless method_name
+      method_name = receiver
+      receiver = call_type
+    end
+    
+    key = [call_type, receiver, method_name]
+  
+    start_time = Time.now
+    
+    call_log_stack.push(key)
+    
+    composite_key = call_log_stack.to_json
+    
+    yield
+  ensure
+    if start_time
+      runtime = (Time.now - start_time) * 1000.0
+      call_counts[composite_key] ||= []
+      call_counts[composite_key] << runtime
+      
+      call_log_stack.pop
+    end
   end
   
   def get_existing_contract(address)
@@ -49,13 +87,20 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   end
   
   def create_new_contract(...)
-    new_contract = BlockContext.create_new_contract(...)
-    mark_active(new_contract)
+    new_contract = TransactionContext.log_call("ContractCreation", "BlockContext.create_new_contract") do
+      BlockContext.create_new_contract(...)
+    end
     
-    new_contract.state_manager.set_implementation(
-      init_code_hash: new_contract.current_init_code_hash,
-      type: new_contract.current_type
-    )
+    TransactionContext.log_call("ContractCreation", "mark_active") do
+      mark_active(new_contract)
+    end
+    
+    TransactionContext.log_call("ContractCreation", "set_implementation") do
+      new_contract.state_manager.set_implementation(
+        init_code_hash: new_contract.current_init_code_hash,
+        type: new_contract.current_type
+      )
+    end
     
     new_contract
   end

@@ -22,9 +22,7 @@ class ContractBuilderCleanRoom < UltraBasicObject
     kwargs = ::VM.deep_get_values(kwargs)
     
     if valid_method
-      ::Object.instance_method(:public_send).bind_call(
-        @context, method_name, *args, **kwargs, &block
-      )
+      @context.handle_call_from_proxy(method_name, *args, **kwargs, &block)
     else
       super
     end

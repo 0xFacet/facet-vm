@@ -1,5 +1,18 @@
 pragma :rubidity, "1.0.0"
 
+contract :InfiniteLooper do
+  function :constructor do
+  end
+  
+  function :doInfiniteLoop, :public do
+    forLoop(
+      condition: -> (i) { true },
+    ) do |i|
+      1 + 1
+    end
+  end
+end
+
 contract :ForLoopTest do
   constructor() do
   end

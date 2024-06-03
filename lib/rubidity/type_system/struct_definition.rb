@@ -1,4 +1,5 @@
 class StructDefinition
+  include DefineMethodHelper
   include Exposable
   
   attr_reader :name, :fields
@@ -13,7 +14,7 @@ class StructDefinition
   end
   
   Type.value_types.each do |type|
-    define_method(type) do |name|
+    define_method_with_check(type) do |name|
       update_struct_definition(type, name)
     end
     

@@ -97,3 +97,11 @@ gem "sqlite3", "~> 1.7"
 gem "rubocop"
 
 gem "memery", "~> 1.5"
+
+gem "correlations", "~> 1.0"
+
+gem "csv", "~> 3.3"
+
+gem "cbor", "~> 0.5.9"
+
+gem "msgpack", "~> 1.7.2"

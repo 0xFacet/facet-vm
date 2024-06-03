@@ -199,20 +199,29 @@ class ContractsController < ApplicationController
   def simulate_transaction_with_state
     # TODO: fix "unsafe" parts
     
-    result = nil
-    Timeout.timeout(5.seconds) do
-      result = ContractTransaction.simulate_transaction_with_state(
-        from: params.require(:from),
-        tx_payload: params.require(:tx_payload).to_unsafe_h,
-        initial_state: params[:initial_state]&.to_unsafe_h
-      )
+    if request.content_type == 'application/cbor'
+      raw_data = request.body.read
+      decoded_data = CBOR.decode(raw_data)
+      cbor_params = ActionController::Parameters.new(decoded_data)
+    else
+      cbor_params = params
     end
+
+    # Use `cbor_params` to access the parameters
+    result = ContractTransaction.simulate_transaction_with_state(
+      from: cbor_params.require(:from),
+      tx_payload: cbor_params.require(:tx_payload).to_unsafe_h,
+      initial_state: cbor_params[:initial_state]&.to_unsafe_h
+    )
   
-    render json: { result: numbers_to_strings(result) }
-  rescue Timeout::Error
-    render json: { error: "Execution timeout" }, status: 408
-  rescue Exception => e
-    render json: { error: e.message }, status: 500
+    # Convert result to CBOR binary data
+    cbor_data = CBOR.encode(result.as_json)
+  
+    # Set the response header to indicate binary data of type 'application/cbor'
+    response.headers['Content-Type'] = 'application/cbor'
+  
+    # Send the binary data directly
+    send_data(cbor_data, type: 'application/cbor', disposition: 'inline')
   end
   
   def pairs_for_router

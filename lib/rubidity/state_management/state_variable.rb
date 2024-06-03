@@ -39,7 +39,7 @@ class StateVariable
     else
       contract_class.class_eval do
         self.function(new_var.name, {}, :public, :view, returns: new_var.type.name) do
-          s.__send__(new_var.name)
+          s.handle_call_from_proxy(new_var.name)
         end
       end
     end
@@ -65,7 +65,7 @@ class StateVariable
   
     contract_class.class_eval do
       self.function(new_var.name, arguments, :public, :view, returns: current_type.name) do
-        value = s.__send__(new_var.name)
+        value = s.handle_call_from_proxy(new_var.name)
         (0...index).each do |i|
           value = value[__send__("arg#{i}".to_sym)]
         end
@@ -80,7 +80,7 @@ class StateVariable
   
     contract_class.class_eval do
       self.function(new_var.name, {index: :uint256}, :public, :view, returns: current_type.value_type.name) do
-        value = s.__send__(new_var.name)
+        value = s.handle_call_from_proxy(new_var.name)
         value[__send__(:index)]
       end
     end

@@ -1,28 +1,34 @@
 class ContractBuilder < UltraBasicObject
   def self.build_contract_class(artifact)
-    registry = {}.with_indifferent_access
-    
-    artifact.dependencies_and_self.each do |dep|
-      builder = new(registry)
+    ::TransactionContext.log_call("ContractCreation", "ContractBuilder.build_contract_class") do
+      registry = {}.with_indifferent_access
       
-      contract_class = ::ContractBuilderCleanRoom.execute_user_code_on_context(
-        builder,
-        [:contract],
-        "contract",
-        dep.execution_source_code,
-        dep.name
-      )
+      artifact.dependencies_and_self.each do |dep|
+        builder = new(registry)
+        
+        contract_class = ::ContractBuilderCleanRoom.execute_user_code_on_context(
+          builder,
+          [:contract],
+          "contract",
+          dep.execution_source_code,
+          dep.name
+        )
+        
+        contract_class.instance_variable_set(:@source_code, dep.source_code)
+        contract_class.instance_variable_set(:@init_code_hash, dep.init_code_hash)
+        registry[dep.name] = contract_class
+        
+        contract_class.available_contracts = registry.deep_dup
+      end
       
-      contract_class.instance_variable_set(:@source_code, dep.source_code)
-      contract_class.instance_variable_set(:@init_code_hash, dep.init_code_hash)
-      registry[dep.name] = contract_class
-      
-      contract_class.available_contracts = registry.deep_dup
+      registry[artifact.name]
     end
-    
-    registry[artifact.name]
   end
 
+  def handle_call_from_proxy(method_name, *args, **kwargs, &block)
+    __send__(method_name, *args, **kwargs, &block)
+  end
+  
   def initialize(available_contracts)
     @available_contracts = available_contracts
   end
@@ -48,6 +54,10 @@ class ContractBuilder < UltraBasicObject
       @is_abstract_contract = abstract
       @name = name.to_s
 
+      def self.handle_call_from_proxy(method_name, *args, **kwargs, &block)
+        __send__(method_name, *args, **kwargs, &block)
+      end
+      
       ::ContractBuilderCleanRoom.execute_user_code_on_context(
         self,
         [

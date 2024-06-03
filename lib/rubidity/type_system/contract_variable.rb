@@ -5,20 +5,32 @@ class ContractVariable < GenericVariable
   
   def initialize(...)
     super(...)
+  end
+  
+  def handle_call_from_proxy(method_name, *args, **kwargs)
+    # TODO: What if there is a contract function called upgradeImplementation
     
-    value.contract_class.public_abi.each_key do |method_name|
-      define_singleton_method(method_name) do |*args, **kwargs|
-        computed_args = VM.deep_unbox(args.presence || kwargs)
-        
-        TransactionContext.call_stack.execute_in_new_frame(
-          to_contract_address: value.address,
-          function: method_name,
-          args: computed_args,
-          type: :call
-        )
+    if method_exposed?(method_name)
+      super
+    else
+      TransactionContext.log_call("TypedVariable", self.class.name, "Contract Call") do
+        dynamic_method_handler(method_name, *args, **kwargs)
       end
+    end
+  end
+  
+  def dynamic_method_handler(method_name, *args, **kwargs)
+    if value.contract_class.public_abi.key?(method_name)
+      computed_args = args.presence || kwargs
       
-      expose_instance_method(method_name)
+      TransactionContext.call_stack.execute_in_new_frame(
+        to_contract_address: value.address,
+        function: method_name,
+        args: computed_args,
+        type: :call
+      )
+    else
+      raise ContractError, "Function #{method_name} not exposed in #{self.class.name}"
     end
   end
   

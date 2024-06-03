@@ -1,10 +1,12 @@
 class ContractFunctionArgs
-  include Exposable
-  
   def initialize(args = {})
-    args.each do |key, value|
-      define_singleton_method(key) { value }
-      expose_instance_method(key)
+    @args = args
+  end
+  
+  def get_arg(arg_name)
+    TransactionContext.log_call("ContractFunctionArgs", "ContractFunctionArgs", "Get Arg") do
+      TransactionContext.increment_gas("ContractFunctionArgGet")
+      @args[arg_name]
     end
   end
 end
