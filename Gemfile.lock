@@ -369,6 +369,7 @@ DEPENDENCIES
   kaminari (~> 1.2)
   memery (~> 1.5)
   memoist (~> 0.16.2)
+  msgpack (~> 1.7.2)
   newrelic_rpm
   parser (= 3.3.1.0)
   pg (~> 1.1)

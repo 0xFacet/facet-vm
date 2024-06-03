@@ -40,22 +40,26 @@ class RubidityTranspiler
   end
   
   def initialize(filename_or_string)
-    if File.exist?(filename_or_string)
-      self.filename = filename_or_string
-    else
-      with_suffix = "#{filename_or_string}.rubidity"
-      contracts_path = Rails.root.join('app', 'models', 'contracts', with_suffix)
-      if File.exist?(contracts_path)
-        self.filename = contracts_path
+    TransactionContext.log_call("ContractCreation", "RubidityTranspiler.new") do
+      if File.exist?(filename_or_string)
+        self.filename = filename_or_string
       else
-        # Check if the file exists in "spec/fixtures"
-        fixtures_path = Rails.root.join('spec', 'fixtures', with_suffix)
-        if File.exist?(fixtures_path)
-          self.filename = fixtures_path
+        with_suffix = "#{filename_or_string}.rubidity"
+        contracts_path = Rails.root.join('app', 'models', 'contracts', with_suffix)
+        if File.exist?(contracts_path)
+          self.filename = contracts_path
         else
-          # If the file doesn't exist in any of the directories, treat the input as a code string
-          @code = filename_or_string
-          @file_ast = Unparser.parse(filename_or_string)
+          # Check if the file exists in "spec/fixtures"
+          fixtures_path = Rails.root.join('spec', 'fixtures', with_suffix)
+          if File.exist?(fixtures_path)
+            self.filename = fixtures_path
+          else
+            # If the file doesn't exist in any of the directories, treat the input as a code string
+            @code = filename_or_string
+            TransactionContext.log_call("ContractCreation", "Unparser.parse") do
+              @file_ast = Unparser.parse(filename_or_string)
+            end
+          end
         end
       end
     end
@@ -120,8 +124,10 @@ class RubidityTranspiler
   end
   
   def preprocessed_contract_asts
-    contract_asts.map do |contract_ast|
-      ContractAstProcessor.process(contract_ast)
+    TransactionContext.log_call("ContractCreation", "ContractAstProcessor.process") do
+      contract_asts.map do |contract_ast|
+        ContractAstProcessor.process(contract_ast)
+      end
     end
   end
   
@@ -143,15 +149,18 @@ class RubidityTranspiler
       artifact.init_code_hash == name_or_init_hash.to_s
     end
     
-    sub_transpiler = self.class.new(desired_artifact.source_code)
+    TransactionContext.log_call("ContractCreation", "RubidityTranspiler.new") do
+      sub_transpiler = self.class.new(desired_artifact.source_code)
     
-    new_artifacts = sub_transpiler.generate_contract_artifacts(validate: false)
+      new_artifacts = sub_transpiler.generate_contract_artifacts(validate: false)
   
-    references = new_artifacts.reject { |i| i.name == desired_artifact.name }.
-      map{|i| i.attributes.slice("name", "init_code_hash", "source_code")}
-    
-    desired_artifact.references = references
-    desired_artifact
+      references = new_artifacts.reject { |i| i.name == desired_artifact.name }.
+        map{|i| i.attributes.slice("name", "init_code_hash", "source_code",
+          "execution_source_code")}
+      
+      desired_artifact.references = references
+      desired_artifact
+    end
   end
   
   def generate_contract_artifacts(validate: true)
@@ -166,7 +175,10 @@ class RubidityTranspiler
     preprocessed_contract_asts.each_with_object([]) do |contract_ast, artifacts|
       contract_ast = ast_with_pragma(contract_ast)
 
-      new_source = contract_ast.unparse
+      new_source = TransactionContext.log_call("ContractCreation", "contract_ast.unparse") do
+        contract_ast.unparse
+      end
+      
       contract_name = extract_contract_name(contract_ast)
       init_code_hash = compute_init_code_hash(contract_ast)
   
@@ -174,6 +186,7 @@ class RubidityTranspiler
         init_code_hash: init_code_hash,
         name: contract_name,
         source_code: new_source,
+        # execution_source_code: ConstsToSends.process(new_source),
         pragma_language: pragma_lang_and_version.first,
         pragma_version: pragma_lang_and_version.last
       )

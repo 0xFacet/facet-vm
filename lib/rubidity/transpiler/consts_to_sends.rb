@@ -20,8 +20,13 @@ class ConstsToSends
       NodeChecker.new.process(ast)
       
       obj = ConstsToSends.new
-      new_ast = obj.process(ast)
-      new_ast.unparse
+      new_ast = TransactionContext.log_call("ConstsToSends", "ConstsToSends.process") do
+        obj.process(ast)
+      end
+      
+      TransactionContext.log_call("ConstsToSends", "ConstsToSends.unparse") do
+        new_ast.unparse
+      end
     end
     memoize :process
   end

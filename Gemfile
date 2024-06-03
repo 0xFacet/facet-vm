@@ -103,3 +103,5 @@ gem "correlations", "~> 1.0"
 gem "csv", "~> 3.3"
 
 gem "cbor", "~> 0.5.9"
+
+gem "msgpack", "~> 1.7.2"

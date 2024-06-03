@@ -130,21 +130,27 @@ class BlockContext < ActiveSupport::CurrentAttributes
   end
   
   def create_new_contract(address:, init_code_hash:, source_code:)
-    new_contract_implementation = BlockContext.supported_contract_class(
-      init_code_hash,
-      source_code
-    )
+    new_contract_implementation = TransactionContext.log_call("ContractCreation", "BlockContext.supported_contract_class") do
+      BlockContext.supported_contract_class(
+        init_code_hash,
+        source_code
+      )
+    end
     
-    new_contract = Contract.new(
-      transaction_hash: current_transaction.transaction_hash,
-      block_number: current_block.block_number,
-      transaction_index: current_transaction.transaction_index,
-      address: address,
-      current_type: new_contract_implementation.name,
-      current_init_code_hash: init_code_hash
-    )
+    new_contract = TransactionContext.log_call("ContractCreation", "BlockContext.Contract.new") do
+      Contract.new(
+        transaction_hash: current_transaction.transaction_hash,
+        block_number: current_block.block_number,
+        transaction_index: current_transaction.transaction_index,
+        address: address,
+        current_type: new_contract_implementation.name,
+        current_init_code_hash: init_code_hash
+        )
+    end
     
-    add_contract(new_contract)
+    TransactionContext.log_call("ContractCreation", "BlockContext.add_contract") do
+      add_contract(new_contract)
+    end
   end
   
   def supported_contract_class(init_code_hash, source_code = nil, validate: true)
@@ -209,19 +215,23 @@ class BlockContext < ActiveSupport::CurrentAttributes
   end
   
   def find_and_build_class(init_code_hash)
-    unless current_block
-      return get_cached_class(init_code_hash)
-    end
-    
-    from_outer_context = BlockBatchContext.get_contract_class(init_code_hash)
+    TransactionContext.log_call("ContractCreation", "find_and_build_class") do
+      unless current_block
+        return get_cached_class(init_code_hash)
+      end
+      
+      from_outer_context = BlockBatchContext.get_contract_class(init_code_hash)
 
-    return from_outer_context if from_outer_context
-    
-    current = contract_artifacts.detect do |artifact|
-      artifact.init_code_hash == init_code_hash
+      return from_outer_context if from_outer_context
+      
+      current = contract_artifacts.detect do |artifact|
+        artifact.init_code_hash == init_code_hash
+      end
+      
+      TransactionContext.log_call("ContractCreation", "current&.build_class") do
+        current&.build_class || get_cached_class(init_code_hash)
+      end
     end
-  
-    current&.build_class || get_cached_class(init_code_hash)
   end
   
   def previous_transactions
@@ -238,21 +248,29 @@ class BlockContext < ActiveSupport::CurrentAttributes
   end
     
   def create_artifact_and_build_class(init_code_hash, source_code = nil)
-    unless source_code
-      raise ContractSourceNotProvided.new("Need source code to create new artifact")
+    TransactionContext.log_call("ContractCreation", "create_artifact_and_build_class") do
+      unless source_code
+        raise ContractSourceNotProvided.new("Need source code to create new artifact")
+      end
+    
+      artifact = TransactionContext.log_call("ContractCreation", "RubidityTranspiler.new(source_code).get_desired_artifact(init_code_hash)") do
+        RubidityTranspiler.new(source_code).get_desired_artifact(init_code_hash)
+      end
+      
+      self.contract_artifacts << TransactionContext.log_call("ContractCreation", "ContractArtifact.new") do
+        ContractArtifact.new(
+            artifact.attributes.merge(
+            block_number: current_block.block_number,
+            transaction_hash: current_transaction.transaction_hash,
+            transaction_index: current_transaction.transaction_index,
+            internal_transaction_index: current_call.internal_transaction_index,
+          )
+        )
+      end
+      
+      TransactionContext.log_call("ContractCreation", "artifact&.build_class") do
+        artifact&.build_class
+      end
     end
-  
-    artifact = RubidityTranspiler.new(source_code).get_desired_artifact(init_code_hash)
-    
-    self.contract_artifacts << ContractArtifact.new(
-      artifact.attributes.merge(
-        block_number: current_block.block_number,
-        transaction_hash: current_transaction.transaction_hash,
-        transaction_index: current_transaction.transaction_index,
-        internal_transaction_index: current_call.internal_transaction_index,
-      )
-    )
-    
-    artifact&.build_class
   end
 end

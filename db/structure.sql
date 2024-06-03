@@ -146,7 +146,8 @@ CREATE TABLE public.contract_artifacts (
     pragma_version character varying NOT NULL,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    execution_source text,
+    execution_source_code text,
+    serialized_ast bytea,
     CONSTRAINT chk_rails_e07e6a7a0d CHECK (((init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 

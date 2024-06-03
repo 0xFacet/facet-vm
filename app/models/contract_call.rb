@@ -46,9 +46,11 @@ class ContractCall < ApplicationRecord
   end
   
   def implementation
-    @_implementation ||= implementation_class.new(
-      state_manager: state_manager
-    )
+    TransactionContext.log_call("ContractCall", "GetImplementation") do
+      @_implementation ||= implementation_class.new(
+        state_manager: state_manager
+      )
+    end
   end
   
   def in_read_only_context?
@@ -64,20 +66,11 @@ class ContractCall < ApplicationRecord
   end
   
   def call_function(function, args)
-    # TransactionContext.log_call("ExternalContractCall", "ExternalContractCall", function) do
-
-      
-      # public_functions = implementation.public_abi.keys
-      # public_functions << :constructor if is_create?
-      
-      # proxy = UltraMinimalProxy.new(implementation, public_functions.map(&:to_sym))
-      
-      if args.is_a?(Hash)
-        implementation.handle_call_from_proxy(function, **args)
-      else
-        implementation.handle_call_from_proxy(function, *Array.wrap(args))
-      end
-    # end
+    if args.is_a?(Hash)
+      implementation.handle_call_from_proxy(function, **args)
+    else
+      implementation.handle_call_from_proxy(function, *Array.wrap(args))
+    end
   end
   
   def execute!
@@ -182,11 +175,13 @@ class ContractCall < ApplicationRecord
   end
   
   def create_and_validate_new_contract!
-    self.effective_contract = TransactionContext.create_new_contract(
-      address: calculate_new_contract_address,
-      init_code_hash: to_contract_init_code_hash,
-      source_code: to_contract_source_code
-    )
+    TransactionContext.log_call("ContractCreation", "TransactionContext.create_new_contract") do
+      self.effective_contract = TransactionContext.create_new_contract(
+        address: calculate_new_contract_address,
+        init_code_hash: to_contract_init_code_hash,
+        source_code: to_contract_source_code
+      )
+    end
     
     if implementation_class.is_abstract_contract
       raise TransactionError.new("Cannot deploy abstract contract: #{implementation_class.name}")
