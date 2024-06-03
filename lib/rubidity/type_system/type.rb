@@ -1,19 +1,20 @@
 class Type
+  include DefineMethodHelper
   MAX_STRING_LENGTH = 128.kilobytes * 10
   
   include ContractErrors
   
-  attr_accessor :name, :metadata, :key_type, :value_type, :initial_length, :struct_definition
+  attr_accessor :name, :metadata, :key_type, :value_type, :initial_length, :struct_definition, :length
   
   INTEGER_TYPES = (8..256).step(8).flat_map do |num|
     ["uint#{num}", "int#{num}"]
    end.map(&:to_sym)
   
   TYPES = [:string, :mapping, :address, :bytes16, :bytes32, :contract,
-           :bool, :array, :bytes, :struct] + INTEGER_TYPES
+           :bool, :array, :bytes, :struct, :null, :symbol] + INTEGER_TYPES
   
   TYPES.each do |type|
-    define_method("#{type}?") do
+    define_method_with_check("#{type}?") do
       @name == type
     end
   end
@@ -26,6 +27,10 @@ class Type
   
   def name
     struct? ? struct_definition.name : @name
+  end
+  
+  def raw_name
+    @name
   end
   
   def initialize(type_name, metadata = {})
@@ -44,6 +49,8 @@ class Type
       type_name = :array
     end
     
+    # TODO Figure out how to kill
+    type_name = type_name.value if type_name.is_a?(TypedVariable)
     type_name = type_name.to_sym
     
     if TYPES.exclude?(type_name)
@@ -74,6 +81,7 @@ class Type
     self.key_type = metadata[:key_type]
     self.value_type = metadata[:value_type]
     self.initial_length = metadata[:initial_length] if metadata[:initial_length]
+    self.length = metadata[:length] if metadata[:length]
     self.struct_definition = metadata[:struct_definition] if metadata[:struct_definition]
   end
   
@@ -120,10 +128,10 @@ class Type
       "0x" + "0" * 64
     when string? || bytes?
       ''
+    when symbol?
+      :''
     when bool?
       false
-    when mapping?
-      MappingVariable::Value.new(key_type: key_type, value_type: value_type)
     when array?
       ArrayVariable::Value.new(value_type: value_type, initial_length: initial_length)
     when contract?
@@ -152,8 +160,8 @@ class Type
   end
   
   def check_and_normalize_literal(literal)
-    if literal.is_a?(TypedVariable)
-      raise VariableTypeError, "Only literals and TypedObjects can be passed to check_and_normalize_literal: #{literal.inspect}"
+    if literal.is_a?(TypedVariable) || literal.is_a?(TypedVariableProxy)
+      raise VariableTypeError, "Only literals can be passed to check_and_normalize_literal: #{literal.inspect}"
     end
     
     if address?
@@ -196,6 +204,16 @@ class Type
       end
       
       return literal.freeze
+    elsif symbol?
+      unless literal.is_a?(Symbol)
+        raise_variable_type_error(literal)
+      end
+      
+      if literal.to_s.bytesize > MAX_STRING_LENGTH
+        raise "Max string length is #{MAX_STRING_LENGTH}"
+      end
+      
+      return literal.freeze
     elsif bool?
       unless literal == true || literal == false
         raise_variable_type_error(literal)
@@ -228,19 +246,11 @@ class Type
       end
       
       return literal.downcase.freeze
-    elsif mapping?
-      if literal.is_a?(MappingVariable::Value)
-        return literal
-      end
-      
-      unless literal.is_a?(Hash)
-        raise VariableTypeError.new("invalid #{literal}")
-      end
-    
-      proxy = MappingVariable::Value.new(literal, key_type: key_type, value_type: value_type)
-      
-      return proxy
     elsif array?
+      if literal.is_a?(StoragePointer)
+        literal = literal.load_array
+      end
+      
       if literal.is_a?(ArrayVariable::Value)
         return literal
       end
@@ -263,9 +273,15 @@ class Type
         raise_variable_type_error("No literals allowed for contract types")
       end
     elsif struct?
+      if literal.is_a?(StoragePointer)
+        literal = literal.load_struct
+      end
+      
       if literal.is_a?(StructVariable::Value)
         return StructVariable::Value.new(struct_definition: literal.struct_definition, values: literal.serialize)
       end
+      
+      StructVariable::Value.new(data: literal, struct_definition: struct_definition)
     end
     
     raise VariableTypeError.new("Unknown type #{self.inspect}: #{literal.inspect}")
@@ -304,6 +320,6 @@ class Type
   end
   
   def is_value_type?
-    !mapping? && !array? && !struct?
+    !mapping? && !array? && !struct? && !contract? && !null?
   end
 end

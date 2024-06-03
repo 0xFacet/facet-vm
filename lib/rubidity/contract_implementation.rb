@@ -1,26 +1,148 @@
-class ContractImplementation < BasicObject
+class ContractImplementation
+  include DefineMethodHelper
+  extend ::StateVariableDefinitions
   include ::ContractErrors
   include ::ForLoop
+  include Exposable
+  # include InstrumentAllMethods
   
   class << self
     attr_reader :name, :is_abstract_contract, :source_code,
-    :init_code_hash, :parent_contracts, :available_contracts, :source_file,
+    :init_code_hash, :parent_contracts, :source_file,
     :is_upgradeable
     
-    attr_accessor :state_variable_definitions, :events, :structs
+    attr_accessor :available_contracts, :state_variable_definitions, :events, :structs
+    
+    def available_contracts=(contracts)
+      @available_contracts = contracts
+      
+      contracts.each_key do |contract_name|
+        define_method_with_check(contract_name) do |*args, **kwargs|
+          handle_contract_name_call(contract_name, *args, **kwargs)
+        end
+        
+        expose contract_name
+      end
+    end
   end
   
-  delegate :block, :blockhash, :tx, :msg, :log_event, :call_stack,
-           :current_address, to: :current_context
+  delegate :msg_sender,
+  :block_timestamp,
+  :tx_origin,
+  :tx_current_transaction_hash,
+  :block_number,
+  :block_blockhash,
+  :block_chainid,
+  :blockhash,
+  :log_event,
+  :call_stack,
+  :current_address,
+  to: :current_context
+  
+  expose :msg_sender,
+  :block_timestamp,
+  :tx_origin,
+  :tx_current_transaction_hash,
+  :block_number,
+  :block_blockhash,
+  :block_chainid,
+  :blockhash,
+  :s,
+  :require,
+  :keccak256,
+  :create2_address,
+  :forLoop,
+  :new,
+  :emit,
+  :this,
+  :sqrt,
+  :array,
+  :memory,
+  :abi_encodePacked,
+  :json_stringify,
+  :string,
+  :address,
+  :bytes32
+  
+  GLOBAL_METHODS = [
+  :msg_sender,
+  :block_timestamp,
+  :tx_origin,
+  :tx_current_transaction_hash,
+  :block_number,
+  :block_blockhash,
+  :block_chainid,
+  :blockhash,
+  :s,
+  :require,
+  :keccak256,
+  :create2_address,
+  :forLoop,
+  :new,
+  :emit,
+  :this,
+  :sqrt,
+  :array,
+  :memory,
+  :abi_encodePacked,
+  :json_stringify,
+  :string,
+  :address,
+  :bytes32,
+  :msg_sender,
+  :block_timestamp,
+  :tx_origin,
+  :tx_current_transaction_hash,
+  :block_number,
+  :block_blockhash,
+  :block_chainid,
+  :blockhash,
+  :log_event,
+  :call_stack,
+  :current_address,
+  ].to_set.freeze
   
   attr_reader :current_context
   
-  def initialize(current_context: ::TransactionContext, initial_state: nil)
+  def handle_call_from_proxy(method_name, *args, **kwargs, &block)
+    unless method_exposed?(method_name)
+      raise NoMethodError.new("undefined method `#{method_name}' for #{self.inspect}")
+    end
+    
+    if method_name != :forLoop && block.present?
+      raise ContractError.new("Block passed to function call that is not a forLoop")
+    end
+    
+    label = GLOBAL_METHODS.include?(method_name) ? "GlobalFunction" : "ContractFunction"
+    
+    if label == "ContractFunction"
+      TransactionContext.increment_gas("ContractFunction")
+    else
+      TransactionContext.increment_gas(method_name)
+    end
+    
+    if self.class.available_contracts.key?(method_name)
+      public_send(method_name, *args, **kwargs)
+    else
+      TransactionContext.log_call(label, label, method_name) do
+        public_send(method_name, *args, **kwargs, &block)
+      end
+    end
+  end
+  
+  def self.state_var_def_json
+    @_state_var_def_json ||= state_variable_definitions.map do |name, definition|
+      [
+        name,
+        definition[:type]
+      ]
+    end.to_h.with_indifferent_access
+  end
+  
+  def initialize(current_context: TransactionContext, state_manager: nil)
     @current_context = current_context || raise("Must provide current context")
     
-    if initial_state
-      state_proxy.load(initial_state)
-    end
+    @state_manager = state_manager
   end
   
   def self.state_variable_definitions
@@ -28,51 +150,11 @@ class ContractImplementation < BasicObject
   end
   
   def s
-    @state_proxy
-  end
-  
-  def state_proxy
-    @state_proxy ||= ::StateProxy.new(self.class.state_variable_definitions)
+    @_s ||= StoragePointer.new(@state_manager)
   end
   
   def self.abi
     @abi ||= ::AbiProxy.new(self)
-  end
-  
-  ::Type.value_types.each do |type|
-    define_singleton_method(type) do |*args|
-      define_state_variable(type, args)
-    end
-  end
-  
-  def self.mapping(*args)
-    key_type, value_type = args.first.first
-    metadata = {key_type: create_type(key_type), value_type: create_type(value_type)}
-    type = ::Type.create(:mapping, metadata)
-    
-    if args.last.is_a?(::Symbol)
-      define_state_variable(type, args)
-    else
-      type
-    end
-  end
-  
-  def self.array(*args, **kwargs)
-    value_type = args.first
-    metadata = {value_type: create_type(value_type)}.merge(kwargs)
-    
-    if args.length == 2
-      metadata.merge!(initial_length: args.last)
-      args.pop
-    end
-    
-    type = ::Type.create(:array, metadata)
-    
-    if args.length == 1
-      type
-    else
-      define_state_variable(type, args)
-    end
   end
   
   def array(value_type, initial_length = nil)
@@ -84,11 +166,15 @@ class ContractImplementation < BasicObject
   end
   
   def require(condition, message)
-    unless condition == true || condition == false
+    message = message.value
+    
+    unless condition.type.bool?
       raise "Invalid truthy value for require"
     end
     
-    return if condition == true
+    if condition.value == true
+      return NullVariable.new
+    end
     
     c_locs = ::Kernel.instance_method(:caller_locations).bind(self).call
     
@@ -153,7 +239,7 @@ class ContractImplementation < BasicObject
     linearize_contracts(self).dup.tap(&:pop)
   end
   
-  def self.function(name, args, *options, returns: nil, &block)
+  def self.function(name, args = {}, *options, returns: nil, &block)
     if args.is_a?(::Symbol)
       options.unshift(args)
       args = {}
@@ -164,23 +250,6 @@ class ContractImplementation < BasicObject
   
   def self.constructor(args = {}, *options, &block)
     function(:constructor, args, *options, returns: nil, &block)
-  end
-  
-  def self.struct(name, &block)
-    @structs ||= {}.with_indifferent_access
-    @structs[name] = ::StructDefinition.new(name, &block)
-
-    define_method(name) do |**field_values|
-      struct_definition = self.class.structs[name]
-      type = ::Type.create(:struct, struct_definition: struct_definition)
-      ::StructVariable.new(type, field_values)
-    end
-    
-    define_singleton_method(name) do |*args|
-      struct_definition = structs[name]
-      type = ::Type.create(:struct, struct_definition: struct_definition)
-      define_state_variable(type, args)
-    end
   end
   
   def self.structs
@@ -200,9 +269,9 @@ class ContractImplementation < BasicObject
   end
   
   def memory(struct)
-    raise "Not implemented" unless struct.is_a?(::StructVariable)
+    raise "Not implemented" unless struct.is_a?(::StoragePointer)
     
-    struct.deep_dup
+    struct.load_struct
   end
   
   def self.event(name, args)
@@ -216,7 +285,7 @@ class ContractImplementation < BasicObject
 
   def emit(event_name, args = {})
     unless self.class.events.key?(event_name)
-      raise ContractDefinitionError.new("Event #{event_name} is not defined in this contract.", self)
+      raise ContractDefinitionError.new("Event #{event_name.inspect} is not defined in this contract.", self)
     end
 
     expected_args = self.class.events[event_name]
@@ -236,20 +305,8 @@ class ContractImplementation < BasicObject
       event: event_name,
       data: args
     })
-  end
-
-  def self.define_state_variable(type, args)
-    name = args.last.to_sym
-    type = ::Type.create(type)
     
-    if state_variable_definitions[name]
-      raise "No shadowing: #{name} is already defined."
-    end
-    
-    state_variable_definitions[name] = { type: type, args: args }
-    
-    state_var = ::StateVariable.create(name, type, args)
-    state_var.create_public_getter_function(self)
+    NullVariable.instance
   end
   
   def keccak256(input)
@@ -263,7 +320,7 @@ class ContractImplementation < BasicObject
   end
   
   def type(var)
-    if var.is_a?(::TypedObject) && var.type.contract?
+    if var.is_a?(::TypedVariable) && var.type.contract?
       var = var.contract_type
     end
     
@@ -278,60 +335,50 @@ class ContractImplementation < BasicObject
     end
   end
   
-  def public_send(...)
-    ::Object.instance_method(:public_send).bind(self).call(...)
+  def json_stringify(...)
+    res = ::ActiveSupport::JSON.encode(VM.deep_get_values(...))
+    ::TypedVariable.create(:string, res)
   end
   
-  def send(...)
-    ::Object.instance_method(:send).bind(self).call(...)
-  end
-  
-  private
-
-  def json
-    ::Object.new.tap do |proxy|
-      def proxy.stringify(...)
-        res = ::ActiveSupport::JSON.encode(...)
-        ::TypedVariable.create(:string, res)
-      end
+  def abi_encodePacked(*args)
+    args = VM.deep_unbox(args)
+    
+    if args.all? {|arg| arg.value == '' }
+      raise "Can't encode empty bytes"
     end
-  end
-  
-  def abi
-    ::Object.new.tap do |proxy|
-      def proxy.encodePacked(*args)
-        if args.all? {|arg| arg.value == '' }
-          raise "Can't encode empty bytes"
-        end
-        
-        res = args.map do |arg|
-          bytes = arg.toPackedBytes
-          bytes = bytes.value.sub(/\A0x/, '')
-        end.join
-        
-        ::TypedVariable.create(:bytes, "0x" + res)
-      end
-    end
+    
+    res = args.map do |arg|
+      bytes = arg.toPackedBytes
+      bytes = bytes.value.sub(/\A0x/, '')
+    end.join
+    
+    ::TypedVariable.create(:bytes, "0x" + res)
   end
   
   def string(i)
-    if i.is_a?(::TypedObject) && i.type.is_value_type?
-      return ::TypedVariable.create(:string, i.value.to_s)
+    if i.is_a?(::TypedVariable) && i.type.is_value_type?
+      ::TypedVariable.create(:string, i.value.to_s)
+    elsif i.is_a?(::String)
+      ::TypedVariable.create(:string, i)
     else
       raise "Input must be typed"
     end
   end
   
   def address(i)
-    if i.is_a?(::TypedObject) && i.type.contract?
+    unless i.is_a?(::TypedVariable)
+      raise "Input must be typed"
+    end
+    
+    if i.type.contract?
       return ::TypedVariable.create(:address, i.value.address)
     end
     
-    if i.is_a?(::Integer) && i == 0
-      return ::TypedVariable.create(:address) 
+    if i.value == 0
+      return ::TypedVariable.create(:address)
     end
     
-    if i.is_a?(::TypedObject) && i.type.address?
+    if i.type.address?
       return i
     end
     
@@ -339,7 +386,11 @@ class ContractImplementation < BasicObject
   end
   
   def bytes32(i)
-    if i == 0
+    unless i.is_a?(::TypedVariable)
+      raise "Input must be typed"
+    end
+    
+    if i.value == 0
       return ::TypedVariable.create(:bytes32)
     else
       raise "Not implemented"
@@ -364,48 +415,64 @@ class ContractImplementation < BasicObject
   end
   
   def create2_address(salt:, deployer:, contract_type:)
-    to_contract_init_code_hash = self.class.available_contracts[contract_type].init_code_hash
+    to_contract_init_code_hash = self.class.available_contracts[contract_type.value].init_code_hash
     
-    self.class.calculate_new_contract_address_with_salt(salt, deployer, to_contract_init_code_hash)
+    address = self.class.calculate_new_contract_address_with_salt(
+      salt, deployer, to_contract_init_code_hash
+    )
+    
+    ::TypedVariable.create(:address, address)
   end
   
   def downcast_integer(integer, target_bits)
+    if integer.is_a?(::TypedVariable) && integer.type.address?
+      integer = integer.value.sub(/\A0x/, '').to_i(16)
+    end
+    
     integer = ::TypedVariable.create_or_validate(:uint256, integer)
     new_val = integer.value % (2 ** target_bits)
     ::TypedVariable.create(:"uint#{target_bits}", new_val)
   end
   
-  (8..256).step(8).flat_map do |bits|
-    define_method("uint#{bits}") do |integer|
-      downcast_integer(integer, bits)
-    end
-  end
-  
-  def uint256(val)
-    if val.is_a?(::TypedVariable) && val.type.is_uint?
-      return downcast_integer(val, 256)
-    elsif val.is_a?(::TypedVariable) && val.type.bytes32?
-      return ::TypedVariable.create(:uint256, val.value)
+  # TODO: fix
+  def downcast_int(integer, bits)
+    if integer.is_a?(::TypedVariable)
+      return TypedVariable.create(:"int#{bits}", integer.value)
     end
     
-    raise "Not implemented"
+    type = IntegerVariable.smallest_allowable_type(integer)
+    
+    TypedVariable.create_or_validate(type, integer)
+  end
+  
+  (8..256).step(8).flat_map do |bits|
+    define_method_with_check("uint#{bits}") do |integer|
+      if integer.type.bytes32? && bits == 256
+        TypedVariable.create(:uint256, integer.value)
+      else
+        downcast_integer(integer, bits)
+      end
+    end
+    expose "uint#{bits}"
+    
+    define_method_with_check("int#{bits}") do |integer|
+      downcast_int(integer, bits)
+    end
+    expose "int#{bits}"
   end
   
   def sqrt(integer)
     integer = ::TypedVariable.create_or_validate(:uint256, integer)
 
-    ::Math.sqrt(integer.value.to_d).floor
+    root = ::Math.sqrt(integer.value.to_d).floor
+    ::TypedVariable.create_or_validate(:uint256, root)
   end
   
   def new(contract_initializer)
-    if contract_initializer.is_a?(::TypedObject) && contract_initializer.type.contract?
+    if contract_initializer.is_a?(::TypedVariable) && contract_initializer.type.contract?
       contract_initializer = {
         to_contract_type: contract_initializer.contract_type,
         args: contract_initializer.uncast_address,
-      }
-    elsif contract_initializer.respond_to?("__proxy_name__")
-      contract_initializer = {
-        to_contract_type: contract_initializer.__proxy_name__
       }
     end
     
@@ -446,35 +513,19 @@ class ContractImplementation < BasicObject
     }
   end
   
-  def method_missing(method_name, *args, **kwargs, &block)
-    unless self.class.available_contracts.include?(method_name)
-      raise ::NoMethodError.new("undefined method `#{method_name}' for #{self.class.name}", method_name)
-    end
-    
-    if args.many? || (args.blank? && kwargs.present?) || (args.one? && args.first.is_a?(::Hash))
-      create_contract_initializer(method_name, args.presence || kwargs)
-    elsif args.one?
-      handle_contract_type_cast(method_name, args.first)
+  def handle_contract_name_call(contract_name, *args, **kwargs)
+    if args.one? && args.first.is_a?(TypedVariable) && args.first.type.address?
+      # TODO: still ambiguous w.r.t. call to constructor with one address arg
+      TransactionContext.log_call("ContractFunction", "Contract Name Call", "Contract Type Cast") do
+        TransactionContext.increment_gas("ContractTypeCast")
+        handle_contract_type_cast(contract_name, args.first)
+      end
     else
-      contract_instance = self
-      potential_parent = self.class.available_contracts[method_name]
-      
-      ::Object.new.tap do |proxy|
-        proxy.define_singleton_method("__proxy_name__") do
-          method_name
-        end
-        
-        potential_parent.abi.data.each do |name, _|
-          proxy.define_singleton_method(name) do |*args, **kwargs|
-            contract_instance.send("__#{potential_parent.name}__#{name}", *args, **kwargs)
-          end
-        end
+      TransactionContext.log_call("ContractFunction", "Contract Name Call", "Contract Initializer") do
+        TransactionContext.increment_gas("ContractInitializer")
+        create_contract_initializer(contract_name, args.presence || kwargs)
       end
     end
-  end
-
-  def self.respond_to_missing?(method_name, include_private = false)
-    available_contracts.include?(method_name) || super
   end
 
   def this
@@ -492,13 +543,5 @@ class ContractImplementation < BasicObject
   
   def self.inspect
     "#<#{name}:#{object_id}>"
-  end
-  
-  def class
-    ::Object.instance_method(:class).bind(self).call
-  end
-  
-  def raise(...)
-    ::Kernel.instance_method(:raise).bind(self).call(...)
   end
 end

@@ -32,4 +32,5 @@ module ContractErrors
   class UnknownContractName < StandardError; end
   class ContractSourceNotProvided < StandardError; end
   class InvalidEthscriptionError < StandardError; end
+  class StaleContractError < StandardError; end
 end

@@ -8,7 +8,8 @@ RSpec.describe ContractCall, type: :model do
       "FacetSwapV1Pair",
       "FacetSwapV1Factory",
       "FacetSwapV1Router",
-      "StubERC20B"
+      "StubERC20B",
+      "StubERC20"
     )
   end
   
@@ -61,6 +62,8 @@ RSpec.describe ContractCall, type: :model do
     final_nonce = BlockContext.calculate_eoa_nonce(from_address)
     
     expect(final_nonce - initial_nonce).to eq(3)
+    
+    BlockContext.current_block = nil
   end
   
   it 'calculates contract_nonce correctly' do
@@ -133,6 +136,8 @@ RSpec.describe ContractCall, type: :model do
     final_nonce = BlockContext.calculate_contract_nonce(factory_address)
 
     expect(final_nonce).to eq(2)
+    
+    BlockContext.current_block = nil
   end
   
   it 'fails on read only write' do
@@ -176,5 +181,69 @@ RSpec.describe ContractCall, type: :model do
         }
       }
     )
+  end
+  
+  it 'handles deployment failures' do
+    response = trigger_contract_interaction_and_expect_error(
+      from: from_address,
+      payload: {
+        to: nil,
+        data: {
+          type: "StubERC20"
+        }
+      }
+    )
+    
+    expect(response.contract.deployed_successfully).to eq(false)
+    
+    response = trigger_contract_interaction_and_expect_success(
+      from: from_address,
+      payload: {
+        to: nil,
+        data: {
+          type: "StubERC20B"
+        }
+      }
+    )
+    
+    stub_contract = response.contract
+    stub_address = response.effective_contract_address
+    
+    deployed = Contract.where(deployed_successfully: true).map(&:address)
+    
+    response = trigger_contract_interaction_and_expect_error(
+      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      payload: {
+        to: response.effective_contract_address,
+        data: {
+          function: "deployAndFail"
+        }
+      }
+    )
+    
+    new_deployed = Contract.where(deployed_successfully: true).map(&:address)
+    expect(new_deployed).to eq(deployed)
+    expect(response.logs).to eq([])
+    
+    calls = ContractCall.where(transaction_hash: response.transaction_hash)
+    
+    create_call = calls.find { |c| c.is_create? }
+    
+    expect(create_call.created_contract_address).to eq(nil)
+    expect(create_call.effective_contract_address).to eq(nil)
+    
+    current_init_code_hash = stub_contract.current_init_code_hash
+    
+    response = trigger_contract_interaction_and_expect_error(
+      from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
+      payload: {
+        to: response.effective_contract_address,
+        data: {
+          function: "upgradeAndFail"
+        }
+      }
+    )
+    
+    expect(current_init_code_hash).to eq(stub_contract.reload.current_init_code_hash)
   end
 end

@@ -1,43 +1,41 @@
-class ContractBuilder < BasicObject
+class ContractBuilder < UltraBasicObject
   def self.build_contract_class(artifact)
-    registry = {}.with_indifferent_access
-    
-    artifact.dependencies_and_self.each do |dep|
-      builder = new(registry, dep.source_code, dep.name, 1)
-      contract_class = builder.instance_eval_with_isolation
+    ::TransactionContext.log_call("ContractCreation", "ContractBuilder.build_contract_class") do
+      registry = {}.with_indifferent_access
       
-      contract_class.instance_variable_set(:@source_code, dep.source_code)
-      contract_class.instance_variable_set(:@init_code_hash, dep.init_code_hash)
-      registry[dep.name] = contract_class
+      artifact.dependencies_and_self.each do |dep|
+        builder = new(registry)
+        
+        contract_class = ::ContractBuilderCleanRoom.execute_user_code_on_context(
+          builder,
+          [:contract],
+          "contract",
+          dep.execution_source_code,
+          dep.name
+        )
+        
+        contract_class.instance_variable_set(:@source_code, dep.source_code)
+        contract_class.instance_variable_set(:@init_code_hash, dep.init_code_hash)
+        registry[dep.name] = contract_class
+        
+        contract_class.available_contracts = registry.deep_dup
+      end
       
-      contract_class.instance_variable_set(
-        :@available_contracts,
-        registry.deep_dup
-      )
+      registry[artifact.name]
     end
-    
-    registry[artifact.name]
   end
 
-  def instance_eval_with_isolation
-    instance_eval(@source, @filename, @line_number).tap do
-      remove_instance_variable(:@source)
-      remove_instance_variable(:@filename)
-      remove_instance_variable(:@line_number)
-    end
+  def handle_call_from_proxy(method_name, *args, **kwargs, &block)
+    __send__(method_name, *args, **kwargs, &block)
   end
   
-  def initialize(available_contracts, source, filename, line_number)
+  def initialize(available_contracts)
     @available_contracts = available_contracts
-    @source = source
-    @filename = filename.to_s
-    @line_number = line_number
-  end
-  
-  def pragma(...)
   end
   
   def contract(name, is: [], abstract: false, upgradeable: false, &block)
+    # TODO: validate arguments
+    
     available_contracts = @available_contracts
     
     ::Class.new(::ContractImplementation) do
@@ -45,6 +43,7 @@ class ContractBuilder < BasicObject
       
       ::Array.wrap(is).each do |dep|
         unless parent = available_contracts[dep]
+          # TODO: Raise real exception
           raise "Dependency #{dep} is not available."
         end
         
@@ -54,16 +53,22 @@ class ContractBuilder < BasicObject
       @is_upgradeable = upgradeable
       @is_abstract_contract = abstract
       @name = name.to_s
+
+      def self.handle_call_from_proxy(method_name, *args, **kwargs, &block)
+        __send__(method_name, *args, **kwargs, &block)
+      end
       
-      define_singleton_method(:evaluate_block, &block)
-      evaluate_block
-      singleton_class.remove_method(:evaluate_block)
+      ::ContractBuilderCleanRoom.execute_user_code_on_context(
+        self,
+        [
+          :event,
+          :function,
+          :constructor,
+          *::StateVariableDefinitions.public_instance_methods
+        ],
+        "build_contract_class",
+        block
+      )
     end
-  end
-  
-  private
-  
-  def remove_instance_variable(var)
-    ::Object.instance_method(:remove_instance_variable).bind(self).call(var)
   end
 end

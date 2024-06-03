@@ -1,26 +1,35 @@
 class StructDefinition
+  include DefineMethodHelper
+  include Exposable
+  
   attr_reader :name, :fields
 
   def initialize(name, &block)
     @name = name
     @fields = {}.with_indifferent_access
-    instance_eval(&block)
+    
+    StructDefinitionCleanRoom.execute(self, &block)
+    
+    @fields = VM.deep_unbox(@fields)
   end
-
-  ::Type.value_types.each do |type|
-    define_method(type) do |name|
+  
+  Type.value_types.each do |type|
+    define_method_with_check(type) do |name|
       update_struct_definition(type, name)
     end
+    
+    expose(type)
   end
   
   def update_struct_definition(type, name)
-    type = ::Type.create(type)
+    type = Type.create(type)
+    name = VM.deep_get_values(name)
     
     if @fields[name]
       raise "No shadowing: #{name} is already defined."
     end
     
-    @fields[name] = { type: type, args: [] }
+    @fields[name] = type
   end
   
   def ==(other)

@@ -1,7 +1,5 @@
 class CreateEthBlocks < ActiveRecord::Migration[7.1]
   def change
-    enable_extension 'pgcrypto' unless extension_enabled?('pgcrypto')
-    
     create_table :eth_blocks, force: :cascade do |t|
       t.bigint :block_number, null: false
       t.bigint :timestamp, null: false
@@ -26,14 +24,20 @@ class CreateEthBlocks < ActiveRecord::Migration[7.1]
       t.index :processing_state
       t.index :timestamp
     
-      t.check_constraint "blockhash ~ '^0x[a-f0-9]{64}$'"
-      t.check_constraint "parent_blockhash ~ '^0x[a-f0-9]{64}$'"
+      if pg_adapter?
+        enable_extension 'pgcrypto' unless extension_enabled?('pgcrypto')
+        t.check_constraint "blockhash ~ '^0x[a-f0-9]{64}$'"
+        t.check_constraint "parent_blockhash ~ '^0x[a-f0-9]{64}$'"
+      end
+      
       t.check_constraint "processing_state <> 'complete' OR transaction_count IS NOT NULL"
       t.check_constraint "processing_state <> 'complete' OR runtime_ms IS NOT NULL"
       t.check_constraint "processing_state IN ('no_ethscriptions', 'pending', 'complete')"
       
       t.timestamps
     end
+    
+    return unless pg_adapter?
     
     execute <<-SQL
       CREATE OR REPLACE FUNCTION check_block_order()

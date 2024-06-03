@@ -70,7 +70,7 @@ class ContractAstProcessor
       s(:send,
         s(:self), name), method_name, *args)
   end
-  
+
   def post_process_references(ast)
     @available_contracts.each do |contract_name|
       @contracts_referenced_by[contract_name] = Set.new

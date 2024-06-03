@@ -27,6 +27,8 @@ module FacetVm
       lib/rubidity/transpiler
       lib/rubidity/contract_functions
       lib/rubidity/transaction_execution
+      lib/rubidity/runtime_environment
+      lib/rubidity/helpers
     ).map{|i| Rails.root.join(i)}
     config.autoload_paths += additional_paths
     config.eager_load_paths += additional_paths

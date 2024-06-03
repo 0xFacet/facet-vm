@@ -30,10 +30,24 @@ class ContractArtifact < ApplicationRecord
       newest_first.limit(1).pluck(:transaction_hash).first
     end
     
-    def cached_class_as_of_tx_hash(init_code_hash, hash)
-      find_by(init_code_hash: init_code_hash)&.build_class
+    def init_code_to_class
+      @init_code_to_class ||= {}
     end
-    memoize :cached_class_as_of_tx_hash
+    
+    def cached_class_as_of_tx_hash(init_code_hash)
+      if init_code_to_class.key?(init_code_hash)
+        # TODO: replace with cache that works with simulate_with_state
+        # return init_code_to_class[init_code_hash]
+      end
+      
+      res = find_by(init_code_hash: init_code_hash)&.build_class
+      
+      if res
+        init_code_to_class[init_code_hash] = res
+      end
+      
+      res
+    end
     
     def all_contract_classes
       all.map(&:build_class).index_by(&:init_code_hash).with_indifferent_access
@@ -60,6 +74,7 @@ class ContractArtifact < ApplicationRecord
     def build_class(artifact_attributes)
       artifact = new(artifact_attributes)
       ContractBuilder.build_contract_class(artifact).tap do |new_class|
+        # TODO: validate the hash is the hash of the code
         if new_class.init_code_hash != artifact.init_code_hash || new_class.source_code != artifact.source_code
           raise CodeIntegrityError.new("Code integrity error")
         end
@@ -92,6 +107,22 @@ class ContractArtifact < ApplicationRecord
     end
   end
   
+  def execution_source_code
+    TransactionContext.log_call("ContractCreation", "ContractArtifact#execution_source_code") do
+      @_execution_source_code ||= ConstsToSends.process(source_code)
+    end
+  end
+  
+  # def self.execution_source_code_batch(artifacts)
+  #   TransactionContext.log_call("ContractCreation", "ContractArtifact.execution_source_code_batch") do
+  #     Parallel.map(artifacts, in_processes: 16) do |artifact|
+  #       puts "starting #{artifact.name} at #{Time.now.to_i}"
+  #       artifact.execution_source_code
+  #       artifact
+  #     end
+  #   end
+  # end
+  
   def set_abi
     self.abi = build_class.abi
   end
@@ -102,6 +133,8 @@ class ContractArtifact < ApplicationRecord
     end
     
     as_objs << self
+    
+    # self.class.execution_source_code_batch(as_objs)
   end
   
   def build_class
@@ -145,7 +178,10 @@ class ContractArtifact < ApplicationRecord
           :source_code,
           :init_code_hash
         ],
-        methods: :abi
+        methods: [
+          :abi,
+          :execution_source_code
+        ]
       )
     )
   end

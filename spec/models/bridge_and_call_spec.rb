@@ -17,6 +17,7 @@ describe 'BridgeAndCall contract' do
     update_supported_contracts("EtherBridge03")
     update_supported_contracts("FacetBuddyFactory")
     update_supported_contracts("FacetBuddy")
+    update_supported_contracts("NFTCollection01")
   end
   
   it "does things" do

@@ -1,0 +1,74 @@
+pragma :rubidity, "1.0.0"
+
+import '/app/models/contracts/ERC20.rubidity'
+
+contract :StateStructureTest do
+  string :name
+  uint8 :decimals
+  mapping ({ address: :uint256 }), :public, :balanceOf
+  mapping ({ uint256: :address }), :public, :ownerOf
+  mapping ({ address: mapping(address: :uint256) }), :public, :allowance
+
+  array :uint256, :public, :testArray
+  array :string, :public, :testArrayFixed, length: 3
+  
+  struct :Person do
+    string :name
+    uint256 :age
+  end
+  
+  struct :ExtendedPerson do
+    string :name
+    uint256 :age
+    string :address
+  end
+  
+  struct :Blank do
+    string :name
+  end
+  
+  array :Person, :public, :peopleVariable
+  array :Person, :public, :peopleFixed, length: 3
+  
+  mapping ({ string: :ExtendedPerson }), :public, :peopleMap
+  
+  Person :public, :jim
+  ExtendedPerson :public, :jimExtended
+  Blank :public, :blank
+  
+  constructor(alice: :address, bob: :address) {
+    s.peopleVariable.push(Person())
+    s.peopleVariable.push(Person(name: "Alice", age: 30))
+    s.peopleVariable.push(Person())
+    s.peopleVariable.push(Person(name: "Bob", age: 31))
+    s.peopleVariable.push(Person())
+    
+    s.peopleFixed[1] = Person(name: "Alice", age: 30)
+    
+    s.name = "Token A"
+    s.decimals = 18
+    s.balanceOf[alice] = 1000
+    s.balanceOf[bob] = 0
+    s.allowance[alice][bob] = 500
+    
+    s.testArray.push(0)
+    s.testArray.push(42)
+    s.testArray.push(43)
+    s.testArray.push(0)
+    s.testArray.push(1)
+    s.testArray.push(0)
+    
+    s.testArrayFixed[1] = 'hi'
+    
+    s.ownerOf[1] = alice
+    s.ownerOf[2] = bob
+    
+    s.jim = Person(name: "Jim", age: 100)
+    
+    s.jimExtended = ExtendedPerson()
+    s.jimExtended.name = "Jim"
+    s.jimExtended.age = 100
+    
+    s.peopleMap["Jim"] = s.jimExtended
+  }
+end

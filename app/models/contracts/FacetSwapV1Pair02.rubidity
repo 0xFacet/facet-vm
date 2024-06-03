@@ -148,10 +148,10 @@ contract :FacetSwapV1Pair02, is: [:FacetSwapV1ERC20, :Upgradeable], upgradeable:
       liquidity = sqrt(amount0 * amount1) - s.MINIMUM_LIQUIDITY
       _mint(address(0), s.MINIMUM_LIQUIDITY)
     else
-      liquidity = [
+      liquidity = _min(
         (amount0 * _totalSupply).div(_reserve0),
         (amount1 * _totalSupply).div(_reserve1)
-      ].min
+      )
     end
 
     require(liquidity > 0, 'FacetSwapV1: INSUFFICIENT_LIQUIDITY_MINTED')
@@ -268,5 +268,9 @@ contract :FacetSwapV1Pair02, is: [:FacetSwapV1ERC20, :Upgradeable], upgradeable:
     
     s.unlocked = 1
     nil
+  end
+  
+  function :_min, { x: :uint256, y: :uint256 }, :internal, :pure, returns: :uint256 do
+    return x < y ? x : y
   end
 end

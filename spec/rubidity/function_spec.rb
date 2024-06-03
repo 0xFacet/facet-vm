@@ -1,6 +1,16 @@
 require 'rails_helper'
 
 RSpec.describe FunctionProxy, type: :model do
+  around do |example|
+    TransactionContext.set(
+      call_log_stack: [],
+      call_counts: {},
+      gas_counter: GasCounter.new(TransactionContext),
+    ) do
+      example.run
+    end
+  end
+  
   describe '#convert_args_to_typed_variables_struct' do
     let(:function_proxy) do
       described_class.new(
@@ -16,9 +26,9 @@ RSpec.describe FunctionProxy, type: :model do
 
       it 'converts named parameters to typed variables struct' do
         result = function_proxy.convert_args_to_typed_variables_struct([], args)
-        expect(result.arg1).to be_a(TypedObject)
-        expect(result.arg2).to be_a(TypedObject)
-        expect(result.arg3).to be_a(TypedObject)
+        expect(result.get_arg(:arg1)).to be_a(TypedVariable)
+        expect(result.get_arg(:arg2)).to be_a(TypedVariable)
+        expect(result.get_arg(:arg3)).to be_a(TypedVariable)
       end
     end
 
@@ -27,8 +37,8 @@ RSpec.describe FunctionProxy, type: :model do
 
       it 'converts non-named parameters to typed variables struct' do
         result = function_proxy.convert_args_to_typed_variables_struct(args, {})
-        expect(result.arg1).to be_a(TypedObject)
-        expect(result.arg2).to be_a(TypedObject)
+        expect(result.get_arg(:arg1)).to be_a(TypedVariable)
+        expect(result.get_arg(:arg2)).to be_a(TypedVariable)
       end
     end
   end
@@ -106,8 +116,8 @@ RSpec.describe FunctionProxy, type: :model do
 
       it 'converts named parameters to typed variables struct' do
         result = function_proxy.convert_args_to_typed_variables_struct(args, {})
-        expect(result.arg1).to be_a(TypedObject)
-        expect(result.arg2).to be_a(TypedObject)
+        expect(result.get_arg(:arg1)).to be_a(TypedVariable)
+        expect(result.get_arg(:arg2)).to be_a(TypedVariable)
       end
     end
 
@@ -116,8 +126,8 @@ RSpec.describe FunctionProxy, type: :model do
 
       it 'converts non-named parameters to typed variables struct' do
         result = function_proxy.convert_args_to_typed_variables_struct(args, {})
-        expect(result.arg1).to be_a(TypedObject)
-        expect(result.arg2).to be_a(TypedObject)
+        expect(result.get_arg(:arg1)).to be_a(TypedVariable)
+        expect(result.get_arg(:arg2)).to be_a(TypedVariable)
       end
     end
 
@@ -126,7 +136,7 @@ RSpec.describe FunctionProxy, type: :model do
 
       it 'converts the string argument to a typed variables struct' do
         result = function_proxy.convert_args_to_typed_variables_struct([args, nil], {})
-        expect(result.arg1).to be_a(TypedObject)
+        expect(result.get_arg(:arg1)).to be_a(TypedVariable)
       end
     end
   end

@@ -47,51 +47,61 @@ class EthBlock < ApplicationRecord
     
     reporting_frequency_in_blocks = 10
 
-    loop do
-      iterations += 1
+    BlockBatchContext.set(
+      contracts: {},
+      contract_classes: {},
+    ) do
+      loop do
+        iterations += 1
 
-      just_processed = process_contract_actions_for_next_block_with_ethscriptions
-      
-      return unless just_processed
-      
-      batch_ethscriptions_processed += just_processed
-      unprocessed_ethscriptions -= just_processed
-      
-      if iterations % reporting_frequency_in_blocks == 0
-        curr_time = Time.current
+        just_processed = process_contract_actions_for_next_block_with_ethscriptions
         
-        batch_elapsed_time = curr_time - batch_start_time
+        return unless just_processed
         
-        ethscriptions_per_second = batch_ethscriptions_processed / batch_elapsed_time
-        blocks_per_second = reporting_frequency_in_blocks / batch_elapsed_time
+        batch_ethscriptions_processed += just_processed
+        unprocessed_ethscriptions -= just_processed
         
-        total_remaining -= batch_ethscriptions_processed
-        
-        Rails.cache.write("total_ethscriptions_behind", total_remaining)
-        
-        time_to_completion_in_words = if ethscriptions_per_second > 0
-          total_seconds = total_remaining / ethscriptions_per_second
-          ActionController::Base.helpers.distance_of_time_in_words(
-            Time.current,
-            Time.current + total_seconds
-          )
-        else
-          "N/A"
+        if iterations % reporting_frequency_in_blocks == 0
+          curr_time = Time.current
+          
+          batch_elapsed_time = curr_time - batch_start_time
+          
+          ethscriptions_per_second = batch_ethscriptions_processed / batch_elapsed_time
+          blocks_per_second = reporting_frequency_in_blocks / batch_elapsed_time
+          
+          total_remaining -= batch_ethscriptions_processed
+          
+          Rails.cache.write("total_ethscriptions_behind", total_remaining)
+          
+          time_to_completion_in_words = if ethscriptions_per_second > 0
+            total_seconds = total_remaining / ethscriptions_per_second
+            ActionController::Base.helpers.distance_of_time_in_words(
+              Time.current,
+              Time.current + total_seconds
+            )
+          else
+            "N/A"
+          end
+
+          puts "Imported #{reporting_frequency_in_blocks} blocks:"
+          puts "> Total time: #{(batch_elapsed_time * 1000).round}ms"
+          puts "> #{batch_ethscriptions_processed} ethscriptions processed"
+          puts "> #{ethscriptions_per_second.round(2)} ethscriptions / s"  
+          puts "> #{blocks_per_second.round(2)} blocks / s"
+          puts "> Time to completion: #{time_to_completion_in_words}"
+          
+          batch_start_time = curr_time
+          batch_ethscriptions_processed = 0
         end
-
-        puts "Imported #{reporting_frequency_in_blocks} blocks:"
-        puts "> Total time: #{(batch_elapsed_time * 1000).round}ms"
-        puts "> #{batch_ethscriptions_processed} ethscriptions processed"
-        puts "> #{ethscriptions_per_second.round(2)} ethscriptions / s"  
-        puts "> #{blocks_per_second.round(2)} blocks / s"
-        puts "> Time to completion: #{time_to_completion_in_words}"
         
-        batch_start_time = curr_time
-        batch_ethscriptions_processed = 0
+        # TODO: manage memory
+        break if unprocessed_ethscriptions == 0
       end
-      
-      break if iterations >= 10000 || unprocessed_ethscriptions == 0
     end
+  end
+  
+  def self.a
+    process_contract_actions_until_done
   end
   
   def self.process_contract_actions_for_next_block_with_ethscriptions
@@ -161,6 +171,23 @@ class EthBlock < ApplicationRecord
       
       json['transaction_count'] = json['transaction_count'].to_i
     end.with_indifferent_access
+  end
+  
+  def self.rollback_to(to_block)
+    Contract.all.pluck(:address).each do |address|
+      ContractBlockChangeLog.rollback_changes(address, to_block)
+    end
+    
+    EthBlock.where(processing_state: :complete).where("block_number > ?", to_block).
+      update_all(processing_state: "pending")
+    TransactionReceipt.where(block_number: to_block..).delete_all
+    ContractTransaction.where(block_number: to_block..).delete_all
+    ContractCall.where(block_number: to_block..).delete_all
+    ContractState.where(block_number: to_block..).delete_all
+    
+    Ethscription.where(block_number: to_block..).update_all(
+      processing_state: "pending"
+    )
   end
   
   private

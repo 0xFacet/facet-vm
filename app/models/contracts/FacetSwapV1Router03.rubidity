@@ -429,7 +429,7 @@ contract :FacetSwapV1Router03, is: [:Ownable, :Upgradeable, :Pausable], upgradea
   function :sortTokens, { tokenA: :address, tokenB: :address }, :internal, :pure, returns: { token0: :address, token1: :address } do
     require(tokenA != tokenB, 'FacetSwapV1Library: IDENTICAL_ADDRESSES')
     
-    token0, token1 = tokenA.cast(:uint256) < tokenB.cast(:uint256) ? [tokenA, tokenB] : [tokenB, tokenA]
+    token0, token1 = uint256(tokenA) < uint256(tokenB) ? [tokenA, tokenB] : [tokenB, tokenA]
     
     require(token0 != address(0), 'FacetSwapV1Library: ZERO_ADDRESS')
     

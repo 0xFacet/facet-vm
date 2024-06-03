@@ -1,9 +1,10 @@
 class StateVariable
   include ContractErrors
+  include InstrumentAllMethods
   
-  attr_accessor :typed_variable, :name, :visibility, :immutable, :constant, :on_change
+  attr_accessor :name, :visibility, :immutable, :constant, :type
   
-  def initialize(name, typed_variable, args, on_change: nil)
+  def initialize(name, type, args)
     visibility = :internal
     
     args.each do |arg|
@@ -17,20 +18,19 @@ class StateVariable
     @immutable = args.include?(:immutable)
     @constant = args.include?(:constant)
     @name = name
-    @on_change = on_change
     
-    @typed_variable = typed_variable
-    @typed_variable.on_change = -> { on_change&.call }
+    @type = type
   end
   
-  def self.create(name, type, args, on_change: nil)
-    var = TypedVariable.create(type, on_change: on_change)
-    new(name, var, args, on_change: on_change)
+  def self.create(name, type, args)
+    new(name, type, args)
   end
   
   def create_public_getter_function(contract_class)
     return unless @visibility == :public
     new_var = self
+    
+    contract_class.expose(name)
     
     if type.mapping?
       create_mapping_getter_function(contract_class)
@@ -39,7 +39,7 @@ class StateVariable
     else
       contract_class.class_eval do
         self.function(new_var.name, {}, :public, :view, returns: new_var.type.name) do
-          s.send(new_var.name)
+          s.handle_call_from_proxy(new_var.name)
         end
       end
     end
@@ -65,9 +65,9 @@ class StateVariable
   
     contract_class.class_eval do
       self.function(new_var.name, arguments, :public, :view, returns: current_type.name) do
-        value = s.send(new_var.name)
+        value = s.handle_call_from_proxy(new_var.name)
         (0...index).each do |i|
-          value = value[send("arg#{i}".to_sym)]
+          value = value[__send__("arg#{i}".to_sym)]
         end
         value
       end
@@ -80,65 +80,9 @@ class StateVariable
   
     contract_class.class_eval do
       self.function(new_var.name, {index: :uint256}, :public, :view, returns: current_type.value_type.name) do
-        value = s.send(new_var.name)
-        value[send(:index)]
+        value = s.handle_call_from_proxy(new_var.name)
+        value[__send__(:index)]
       end
     end
-  end
-  
-  def serialize
-    typed_variable.serialize
-  end
-  
-  def deserialize(value)
-    if typed_variable.type.bool?
-      self.typed_variable = value
-    else
-      typed_variable.deserialize(value)
-    end
-  end
-  
-  def method_missing(name, ...)
-    if typed_variable.respond_to?(name)
-      typed_variable.send(name, ...)
-    else
-      super
-    end
-  end
-
-  def respond_to_missing?(name, include_private = false)
-    typed_variable.respond_to?(name, include_private) || super
-  end
-  
-  def typed_variable=(new_value)
-    new_typed_variable = TypedVariable.create_or_validate(
-      type,
-      new_value,
-      on_change: -> { on_change&.call }
-    )
-    
-    if new_typed_variable != @typed_variable
-      on_change&.call
-      @typed_variable = new_typed_variable
-    end
-  rescue StateVariableMutabilityError => e
-    message = "immutability error for #{var.name}: #{e.message}"
-    raise ContractError.new(message, contract)
-  end
-  
-  def ==(other)
-    other.is_a?(self.class) && typed_variable == other.typed_variable
-  end
-  
-  def !=(other)
-    !(self == other)
-  end
-  
-  def hash
-    [typed_variable, name, visibility, immutable, constant].hash
-  end
-
-  def eql?(other)
-    hash == other.hash
   end
 end

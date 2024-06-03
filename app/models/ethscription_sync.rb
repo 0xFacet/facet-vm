@@ -51,8 +51,9 @@ class EthscriptionSync
       end
       
       unless reorged_blocks.empty?
-        EthBlock.where(block_number: reorged_blocks).each(&:destroy!)
-        Rails.logger.warn "Deleted blocks due to reorg: #{reorged_blocks.join(', ')}"
+        rollback_to_block = reorged_blocks.min - 1
+        ContractBlockChangeLog.rollback_all_changes(rollback_to_block)
+        Rails.logger.warn "Rolled back to block #{rollback_to_block} due to reorg: #{reorged_blocks.join(', ')}"
       end
     end
   end
@@ -91,8 +92,10 @@ class EthscriptionSync
         api_first_block = response['blocks'].first
       
         if previous_block && (previous_block.blockhash != api_first_block['parent_blockhash'])
-          previous_block.destroy!
-          Airbrake.notify("Deleted block #{previous_block.block_number} because it had a different parent blockhash")
+          rollback_to_block = previous_block.block_number - 1
+          
+          ContractBlockChangeLog.rollback_all_changes(rollback_to_block)
+          Airbrake.notify("Rolled back to block #{rollback_to_block} because previous block had a different parent blockhash")
         else
           import_block_batch_without_reorg_check(response)
         end

@@ -25,66 +25,50 @@ class Contract < ApplicationRecord
   
   has_many :contract_calls, foreign_key: :effective_contract_address, primary_key: :address
   has_one :transaction_receipt, through: :contract_transaction
-  delegate :implements?, to: :implementation
 
-  attr_reader :implementation
-  
-  attr_accessor :state_snapshots
-  def state_snapshots
-    @state_snapshots ||= []
+  def self.cache_all_state
+    find_each do |contract|
+      contract.cache_state
+    end
   end
   
-  def initialize_state
-    @implementation = implementation_class.new(
-      initial_state: current_state
-    )
-    
-    take_state_snapshot
+  def cache_state(block_number = TransactionReceipt.maximum(:block_number))
+    Contract.transaction do
+      structure = state_manager.build_structure
+      contract = self
+      
+      # if contract.current_state != structure
+        contract.update!(current_state: structure)
+      
+        state = ContractState.find_or_initialize_by(
+          contract_address: address,
+          block_number: block_number
+        )
+        
+        state.type ||= contract.current_type
+        state.init_code_hash ||= contract.current_init_code_hash
+        state.state = structure
+        
+        state.save!
+      # end
+    end
   end
   
-  def should_take_snapshot?
-    state_snapshots.blank? ||
-    current_init_code_hash_changed? ||
-    current_type_changed? ||
-    implementation.state_proxy.state_changed
-  end
-  
-  def take_state_snapshot
-    return unless should_take_snapshot?
-    
-    new_snapshot = ContractStateSnapshot.new(
-      state: implementation.state_proxy.serialize,
-      type: current_type,
-      init_code_hash: current_init_code_hash
-    )
-    
-    state_snapshots.push(new_snapshot)
-  end
-  
-  def load_last_snapshot
-    self.current_init_code_hash = state_snapshots.last.init_code_hash
-    self.current_type = state_snapshots.last.type
-    
-    implementation.state_proxy.load(state_snapshots.last.state.deep_dup)
-  end
-  
-  def new_state_for_save(block_number:)
-    return if state_snapshots.first == state_snapshots.last
-    
-    ContractState.new(
-      contract_address: address,
-      block_number: block_number,
-      init_code_hash: state_snapshots.last.init_code_hash,
-      type: state_snapshots.last.type,
-      state: state_snapshots.last.state
-    )
-  end
-  
-  def implementation_class
-    return unless current_init_code_hash
+  def stored_implementation_class
+    unless current_init_code_hash
+      raise ContractError.new("Contract has no init code hash", self)
+    end
     
     BlockContext.supported_contract_class(
-      current_init_code_hash, validate: false
+      current_init_code_hash,
+      validate: false
+    )
+  end
+  
+  def state_manager
+    @_state_manager ||= StateManager.new(
+      self,
+      stored_implementation_class.state_var_def_json
     )
   end
   
@@ -92,53 +76,7 @@ class Contract < ApplicationRecord
     ContractArtifact.types_that_implement(base_type)
   end
   
-  def execute_function(function_name, args, is_static_call:)
-    with_correct_implementation do
-      if !implementation.public_abi[function_name]
-        raise ContractError.new("Call to unknown function: #{function_name}", self)
-      end
-      
-      read_only = implementation.public_abi[function_name].read_only?
-      
-      if is_static_call && !read_only
-        raise ContractError.new("Cannot call non-read-only function in static call: #{function_name}", self)
-      end
-      
-      result = if args.is_a?(Hash)
-        implementation.public_send(function_name, **args)
-      else
-        implementation.public_send(function_name, *Array.wrap(args))
-      end
-      
-      result
-    end
-  end
-  
-  def with_correct_implementation
-    old_hash = implementation.send(:class).init_code_hash
-    new_hash = implementation_class.init_code_hash
-    in_upgrade = old_hash != new_hash
-    
-    unless in_upgrade
-      return yield
-    end
-    
-    old_implementation = implementation
-    @implementation = implementation_class.new(
-      initial_state: old_implementation.state_proxy.serialize
-    )
-    
-    result = yield
-    
-    post_execution_state = implementation.state_proxy.serialize
-    
-    @implementation = old_implementation
-    
-    implementation.state_proxy.load(post_execution_state)
-    
-    result
-  end
-  
+  # TODO: make work
   def fresh_implementation_with_current_state
     implementation_class.new(initial_state: current_state)
   end
@@ -195,24 +133,8 @@ class Contract < ApplicationRecord
     )
   end
   
-  def self.get_storage_value_by_path(contract_address, keys)
-    sanitized_keys = keys.map do |key|
-      ActiveRecord::Base.connection.quote_string(key.to_s)
-    end
-  
-    # Convert sanitized keys to a JSON path format expected by PostgreSQL
-    json_path = "{#{sanitized_keys.join(',')}}"
-  
-    # Construct a SQL expression that checks the type of the JSON value
-    # and returns the value only if it's not an 'object' or 'array'.
-    sql_expression = <<-SQL
-      CASE 
-        WHEN jsonb_typeof(current_state #> '#{json_path}') IN ('object', 'array') THEN NULL
-        ELSE current_state #>> '#{json_path}'
-      END
-    SQL
-  
-    # Use `pick` with the safely constructed SQL expression
-    result = where(address: contract_address).pick(Arel.sql(sql_expression))
+  def self.get_storage_value_by_path(contract_address, path)
+    NewContractState.where(contract_address: contract_address).
+      where("key = ?", path.to_json).pick(:value)
   end
 end

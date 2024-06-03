@@ -399,16 +399,21 @@ module ContractTestHelper
   
       Ethscription.create!(ethscription_attrs)
     end
-  
-    BlockContext.set(
-      system_config: SystemConfigVersion.current,
-      current_block: block,
-      contracts: [],
-      contract_artifacts: [],
-      ethscriptions: ethscriptions,
-      current_log_index: 0
+    
+    BlockBatchContext.set(
+      contracts: {},
+      contract_classes: {},
     ) do
-      BlockContext.process!
+      BlockContext.set(
+        system_config: SystemConfigVersion.current,
+        current_block: block,
+        contracts: [],
+        contract_artifacts: [],
+        ethscriptions: ethscriptions,
+        current_log_index: 0
+      ) do
+        BlockContext.process!
+      end
     end
   
     use_old_api ? ethscriptions.first : ethscriptions

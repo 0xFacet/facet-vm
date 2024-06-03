@@ -1,36 +1,72 @@
-class ContractVariable < TypedVariable  
+class ContractVariable < GenericVariable
+  expose :upgradeImplementation, :currentInitCodeHash, :address
+  
+  delegate :currentInitCodeHash, :upgradeImplementation, :uncast_address, to: :value
+  
   def initialize(...)
     super(...)
+  end
+  
+  def handle_call_from_proxy(method_name, *args, **kwargs)
+    # TODO: What if there is a contract function called upgradeImplementation
+    
+    if method_exposed?(method_name)
+      super
+    else
+      TransactionContext.log_call("TypedVariable", self.class.name, "Contract Call") do
+        dynamic_method_handler(method_name, *args, **kwargs)
+      end
+    end
+  end
+  
+  def dynamic_method_handler(method_name, *args, **kwargs)
+    if value.contract_class.public_abi.key?(method_name)
+      computed_args = args.presence || kwargs
+      
+      TransactionContext.call_stack.execute_in_new_frame(
+        to_contract_address: value.address,
+        function: method_name,
+        args: computed_args,
+        type: :call
+      )
+    else
+      raise ContractError, "Function #{method_name} not exposed in #{self.class.name}"
+    end
+  end
+  
+  def as_json
+    serialize
   end
   
   def serialize
     value.address
   end
   
-  def method_missing(name, *args, **kwargs, &block)
-    value.send(name, *args, **kwargs, &block)
+  def address
+    TypedVariable.create(:address, value.address)
   end
   
-  def respond_to_missing?(name, include_private = false)
-    value.respond_to?(name, include_private) || super
+  def contract_type
+    value.contract_class.name
   end
 
   def toPackedBytes
     TypedVariable.create(:address, value.address).toPackedBytes
   end
 
+  def eq(other)
+    unless other.is_a?(self.class)
+      raise ContractError.new("Cannot compare contract with non-contract", self)
+    end
+    
+    other.value.contract_class.init_code_hash == value.contract_class.init_code_hash &&
+    other.value.address == value.address
+  end
+  
   class Value
     include ContractErrors
-    extend AttrPublicReadPrivateWrite
     
-    attr_public_read_private_write :contract_class, :address, :uncast_address
-
-    def ==(other)
-      return false unless other.is_a?(self.class)
-      
-      other.contract_class.init_code_hash == contract_class.init_code_hash &&
-      other.address == address
-    end
+    attr_accessor :contract_class, :address, :uncast_address
     
     def initialize(address:, contract_class:)
       self.uncast_address = address
@@ -40,35 +76,12 @@ class ContractVariable < TypedVariable
       self.contract_class = contract_class
     end
     
-    def method_missing(name, *args, **kwargs, &block)
-      computed_args = args.presence || kwargs
-      
-      super unless contract_class
-      
-      known_function = contract_class.public_abi[name]
-      
-      unless known_function && known_function.args.length == computed_args.length
-        raise ContractError.new("Contract doesn't implement interface: #{contract_class.name}, #{name}")
-      end
-      
-      TransactionContext.call_stack.execute_in_new_frame(
-        to_contract_address: address,
-        function: name,
-        args: computed_args,
-        type: :call
-      )
-    end
-    
-    def respond_to_missing?(name, include_private = false)
-      !!contract_class.public_abi[name] || super
-    end
-    
-    def contract_type
-      contract_class.name
-    end
-    
     def currentInitCodeHash
       TypedVariable.create(:bytes32, contract_class.init_code_hash)
+    end
+    
+    def as_json
+      address
     end
     
     def upgradeImplementation(new_init_code_hash, new_source_code)
@@ -92,9 +105,15 @@ class ContractVariable < TypedVariable
         raise ContractError.new(e.message, target)
       end
       
-      unless target.implementation_class.is_upgradeable
+      current = target.state_manager.get_implementation 
+      current_class = BlockContext.supported_contract_class(
+        current[:init_code_hash],
+        validate: false
+      )
+      
+      unless current_class.is_upgradeable
         raise ContractError.new(
-          "Contract is not upgradeable: #{target.implementation_class.name}",
+          "Contract is not upgradeable: #{current_class.name}",
           target
         )
       end
@@ -106,12 +125,12 @@ class ContractVariable < TypedVariable
         )
       end
       
-      target.assign_attributes(
-        current_type: new_implementation_class.name,
-        current_init_code_hash: new_init_code_hash
+      target.state_manager.set_implementation(
+        type: new_implementation_class.name,
+        init_code_hash: new_init_code_hash
       )
       
-      nil
+      NullVariable.instance
     end
   end
 end

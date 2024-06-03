@@ -81,6 +81,11 @@ class ContractTransaction < ApplicationRecord
     contract_calls.target.sort_by(&:internal_transaction_index).first
   end
   
+  def computed_logs
+    return [] if failure?
+    contract_calls.target.flat_map(&:logs).sort_by { |log| log['log_index'] }
+  end
+  
   def transaction_receipt_for_import
     base_attrs = {
       transaction_hash: transaction_hash,
@@ -88,13 +93,17 @@ class ContractTransaction < ApplicationRecord
       block_blockhash: block_blockhash,
       transaction_index: transaction_index,
       block_timestamp: block_timestamp,
-      logs: contract_calls.target.flat_map(&:logs).sort_by { |log| log['log_index'] },
+      logs: computed_logs,
       status: status,
       runtime_ms: initial_call.calculated_runtime_ms,
       gas_price: ethscription.gas_price,
       gas_used: ethscription.gas_used,
-      transaction_fee: ethscription.transaction_fee,
+      transaction_fee: ethscription.transaction_fee
     }
+    
+    base_attrs[:function_stats] = @call_counts
+    base_attrs[:facet_gas_used] = @total_gas_used
+    base_attrs[:gas_stats] = @gas_stats
     
     call_attrs = initial_call.attributes.with_indifferent_access.slice(
       :to_contract_address,
@@ -113,7 +122,68 @@ class ContractTransaction < ApplicationRecord
     TransactionReceipt.new(attrs)
   end
   
-  def self.simulate_transaction(from:, tx_payload:)
+  def self.simulate_transaction_with_state(from:, tx_payload:, initial_state: {})
+    state_defining_model_names = [
+      'EthBlock',
+      'Ethscription',
+      'ContractTransaction',
+      'ContractCall',
+      'ContractArtifact',
+      'Contract',
+      'NewContractState',
+    ]
+    
+    with_temporary_database_environment do
+      initial_state.each do |model_name, records|
+        model_class_name = model_name.to_s.classify
+        
+        if state_defining_model_names.exclude?(model_class_name)
+          raise "Invalid model name: #{model_name}"
+        end
+        
+        model_class = model_class_name.constantize
+        instances = records.map { |record_attrs| model_class.new(record_attrs) }
+        model_class.import!(instances)
+      end
+      
+      sim_res = simulate_transaction(
+        from: from,
+        tx_payload: tx_payload,
+        persist: true,
+        no_cache: true,
+        config_version: SystemConfigVersion.new(
+          start_block_number: 0,
+          all_contracts_supported: true
+        )
+      )
+      
+      Contract.cache_all_state
+      
+      state = state_defining_model_names.each.with_object({}) do |model_name, hash|
+        model_class = model_name.constantize
+        key = model_name.underscore.pluralize.to_sym
+        hash[key] = model_class.all.map do |instance|
+          ret = instance.attributes.as_json
+          
+          if model_class == ContractArtifact
+            ret['abi'] = instance.set_abi
+          end
+          
+          ret
+        end
+      end.with_indifferent_access
+      
+      sim_res.merge(state: state).with_indifferent_access
+    end
+  end
+  
+  def self.simulate_transaction(
+    from:,
+    tx_payload:,
+    persist: false,
+    no_cache: false,
+    config_version: SystemConfigVersion.current
+  )
     max_block_number = Rails.cache.fetch(
       "EthBlock.max_processed_block_number",
       expires_in: 1.second
@@ -121,13 +191,12 @@ class ContractTransaction < ApplicationRecord
       EthBlock.max_processed_block_number
     end
     
-    config_version = SystemConfigVersion.current
-    
     cache_key = [
       config_version,
       max_block_number,
       from,
-      tx_payload
+      tx_payload,
+      (no_cache ? rand : nil)
     ].to_cache_key(:simulate_transaction)
     
     cache_key = Digest::SHA256.hexdigest(cache_key)
@@ -139,8 +208,15 @@ class ContractTransaction < ApplicationRecord
       current_block = EthBlock.new(
         block_number: max_block_number + 1,
         timestamp: Time.zone.now.to_i,
-        blockhash: "0x" + SecureRandom.hex(32)
+        blockhash: "0x" + SecureRandom.hex(32),
+        parent_blockhash: EthBlock.most_recently_imported_blockhash || "0x" + SecureRandom.hex(32),
+        imported_at: Time.zone.now,
+        processing_state: "complete",
+        transaction_count: 1,
+        runtime_ms: 1,
       )
+      
+      current_block.save! if persist
       
       ethscription_attrs = {
         transaction_hash: "0x" + SecureRandom.hex(32),
@@ -157,15 +233,22 @@ class ContractTransaction < ApplicationRecord
       
       eth = Ethscription.new(ethscription_attrs)
       
-      BlockContext.set(
-        system_config: config_version,
-        current_block: current_block,
-        contracts: [],
-        contract_artifacts: [],
-        ethscriptions: [eth],
-        current_log_index: 0
+      eth.save! if persist
+      
+      BlockBatchContext.set(
+        contracts: {},
+        contract_classes: {}
       ) do
-        BlockContext.process_contract_transactions(persist: false)
+        BlockContext.set(
+          system_config: config_version,
+          current_block: current_block,
+          contracts: [],
+          contract_artifacts: [],
+          ethscriptions: [eth],
+          current_log_index: 0
+        ) do
+          BlockContext.process_contract_transactions(persist: persist)
+        end
       end
       
       {
@@ -208,6 +291,7 @@ class ContractTransaction < ApplicationRecord
   def with_global_context
     TransactionContext.set(
       call_stack: CallStack.new(TransactionContext),
+      gas_counter: GasCounter.new(TransactionContext),
       active_contracts: [],
       current_transaction: self,
       tx_origin: tx_origin,
@@ -216,7 +300,9 @@ class ContractTransaction < ApplicationRecord
       block_timestamp: block_timestamp,
       block_blockhash: block_blockhash,
       block_chainid: BlockContext.current_chainid,
-      transaction_index: transaction_index
+      transaction_index: transaction_index,
+      call_counts: {},
+      call_log_stack: [],
     ) do
       yield
     end
@@ -238,18 +324,47 @@ class ContractTransaction < ApplicationRecord
   def execute_transaction
     begin
       make_initial_call
-    rescue ContractError, TransactionError
+    rescue ContractError, TransactionError => e
     end
-
+    
+    @call_counts = TransactionContext.call_counts
+    @total_gas_used = TransactionContext.gas_counter.total_gas_used
+    @gas_stats = TransactionContext.gas_counter.per_event_gas_used
+    
     if success?
-      TransactionContext.active_contracts.each(&:take_state_snapshot)
+      TransactionContext.active_contracts.each do |c|
+        c.state_manager.commit_transaction
+      end
     else
-      TransactionContext.active_contracts.each(&:load_last_snapshot)
+      TransactionContext.active_contracts.each do |c|
+        c.state_manager.rollback_transaction
+      end
+      
+      clean_up_failed_contracts
+    end
+  end
+  
+  def clean_up_failed_contracts
+    return unless failure?
+    
+    contract_calls.select do |call|
+      call.internal_transaction_index > 0
+    end.each do |call|
+      BlockContext.remove_contract(call.created_contract)
+      
+      call.assign_attributes(
+        created_contract: nil,
+        effective_contract: nil
+      )
     end
   end
   
   def success?
     status == :success
+  end
+  
+  def failure?
+    !success?
   end
   
   def status

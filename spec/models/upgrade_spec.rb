@@ -74,7 +74,95 @@ describe 'Upgrading Contracts' do
     expect(version).to eq(2)
   end
   
+  it 'upgrades can be reverted' do
+    v1 = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: nil,
+        data: {
+          type: "UpgradeableV1:UpgradeableTest"
+        }
+      }
+    )
+    
+    hi_result = ContractTransaction.make_static_call(
+      contract: v1.address,
+      function_name: "sayHi",
+      function_args: "Rubidity"
+    )
+    
+    expect(hi_result).to eq("Hello Rubidity")
+    
+    version = ContractTransaction.make_static_call(
+      contract: v1.address,
+      function_name: "version",
+    )
+    
+    expect(version).to eq(1)
+
+    v2 = RubidityTranspiler.transpile_and_get("UpgradeableV2:UpgradeableTest")
+
+    upgrade_tx = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: v1.effective_contract_address,
+        data: {
+          function: "upgradeFromV1",
+          args: [v2.init_code_hash, v2.source_code]
+        }
+      }
+    )
+    # binding.pry
+    
+    v1_log = upgrade_tx.logs.detect do |i|
+      i['event'] == 'NotifyOfVersion' && i['data']['from'] == "v1"
+    end
+    
+    v2_log = upgrade_tx.logs.detect do |i|
+      i['event'] == 'NotifyOfVersion' && i['data']['from'] == "v2"
+    end
+    
+    expect(v1_log['data']['version']).to eq(2)
+    expect(v2_log['data']['version']).to eq(2)
+    
+    hi_result = ContractTransaction.make_static_call(
+      contract: v1.address,
+      function_name: "sayHi",
+      function_args: "Rubidity"
+    )
+    
+    expect(hi_result).to eq("Greetings Rubidity")
+    
+    version = ContractTransaction.make_static_call(
+      contract: v1.address,
+      function_name: "version",
+    )
+    
+    expect(version).to eq(2)
+    
+    post_upgrade_block = EthBlock.max_processed_block_number
+    ContractBlockChangeLog.rollback_changes(v1.address, post_upgrade_block - 1)
+    
+    hi_result = ContractTransaction.make_static_call(
+      contract: v1.address,
+      function_name: "sayHi",
+      function_args: "Rubidity"
+    )
+    
+    expect(hi_result).to eq("Hello Rubidity")
+    
+    version = ContractTransaction.make_static_call(
+      contract: v1.address,
+      function_name: "version",
+    )
+    
+    expect(version).to eq(1)
+
+  end
+  
   it 'deals with infinite loop' do
+    allow(TransactionContext).to receive(:gas_limit).and_return(100)
+    
     d1 = trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {

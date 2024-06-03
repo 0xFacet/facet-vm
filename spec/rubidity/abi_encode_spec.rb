@@ -1,6 +1,12 @@
 require 'rails_helper'
 
-describe 'toPackedBytes' do  
+describe 'toPackedBytes' do
+  class TypedVariable
+    def unwrap
+      self
+    end
+  end
+  
   dc = RubidityTranspiler.transpile_and_get("ERC20").build_class
   
   it 'correctly encodes uint32' do
@@ -21,7 +27,7 @@ describe 'toPackedBytes' do
 
   it 'correctly encodes large integers' do
     large_num = TypedVariable.create(:uint256, 2**256 - 1)
-    packed = dc.new.send(:abi).encodePacked(large_num)
+    packed = dc.new.abi_encodePacked(large_num)
     expected = "0x" + ("f" * 64)
     expect(packed.value).to eq(expected)
   end
@@ -31,13 +37,13 @@ describe 'toPackedBytes' do
     empty_string = TypedVariable.create(:string)
   
     expect { 
-      dc.new.send(:abi).encodePacked(empty_bytes, empty_string)
+      var = dc.new.abi_encodePacked(empty_bytes, empty_string)
     }.to raise_error("Can't encode empty bytes")
   end  
   
   it 'correctly encodes zero values' do
     zero_int = TypedVariable.create(:int32, 0)
-    packed = dc.new.send(:abi).encodePacked(zero_int)
+    packed = dc.new.abi_encodePacked(zero_int).unwrap
     expect(packed.value).to eq("0x00000000")
   end  
   
@@ -45,7 +51,7 @@ describe 'toPackedBytes' do
     int_var = TypedVariable.create(:int32, 1)
     string_var = TypedVariable.create(:string, "test")
     address_var = TypedVariable.create(:address, "0x123456789abcdef0123456789abcdef012345679")
-    packed = dc.new.send(:abi).encodePacked(int_var, string_var, address_var)
+    packed = dc.new.abi_encodePacked(int_var, string_var, address_var).unwrap
     expected = "0x00000001" + "test".unpack1('H*') + "123456789abcdef0123456789abcdef012345679"
     expect(packed.value).to eq(expected)
   end
@@ -68,7 +74,7 @@ describe 'toPackedBytes' do
     
     contract_var = ::TypedVariable.create(:contract, proxy)
     
-    packed = dc.new.send(:abi).encodePacked(contract_var)
+    packed = dc.new.abi_encodePacked(contract_var).unwrap
     expected = contract_address
     expect(packed.value).to eq(expected)
   end  
@@ -79,7 +85,7 @@ describe 'toPackedBytes' do
       [1, 2, 3]
     )
     
-    packed = dc.new.send(:abi).encodePacked(array)
+    packed = dc.new.abi_encodePacked(array).unwrap
     expected = "0x" + [1, 2, 3].map { |n| n.to_s(16).rjust(8, '0') }.join
     expect(packed.value).to eq(expected)
   end  
@@ -88,7 +94,7 @@ describe 'toPackedBytes' do
     variable1 = TypedVariable.create(:int8, -123)
     variable2 = TypedVariable.create(:string, "Hello, world!")
     
-    packed = dc.new.send(:abi).encodePacked(variable1, variable2)
+    packed = dc.new.abi_encodePacked(variable1, variable2).unwrap
     expected = "0x" + variable1.toPackedBytes.value.sub(/\A0x/, '') + variable2.toPackedBytes.value.sub(/\A0x/, '')
     expect(packed.value).to eq(expected)
   end
@@ -96,7 +102,7 @@ describe 'toPackedBytes' do
   it 'correctly encodes a combination of types' do
     uint = TypedVariable.create(:int32, 1)
     str = TypedVariable.create(:string, "test")
-    result = dc.new.send(:abi).encodePacked(uint, str)
+    result = dc.new.abi_encodePacked(uint, str).unwrap
 
     expected = "0x" + "00000001" + "test".unpack1('H*')
     expect(result.value).to eq(expected)
