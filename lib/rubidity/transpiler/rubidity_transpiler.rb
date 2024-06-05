@@ -75,16 +75,6 @@ class RubidityTranspiler
     file_ast.children.first
   end
   
-  def pragma_lang_and_version
-    pragma_parser = Class.new(BasicObject) do
-      def self.pragma(lang, version)
-        [lang, version]
-      end
-    end
-    
-    pragma_parser.instance_eval(Unparser.unparse(pragma_node))
-  end
-  
   def contract_asts
     contract_nodes = []
     
@@ -159,8 +149,8 @@ class RubidityTranspiler
         init_code_hash: init_code_hash,
         name: contract_name,
         source_code: new_source,
-        pragma_language: pragma_lang_and_version.first,
-        pragma_version: pragma_lang_and_version.last
+        pragma_language: "rubidity",
+        pragma_version: "1.0.0"
       )
     end
   end
