@@ -17,7 +17,7 @@ class RubidityTranspiler
         contract_type, file = contract_type.split(":")
       end
       
-      new(file || contract_type).get_desired_artifact(contract_type)
+      new(file || contract_type).get_desired_artifact_by_name(contract_type)
     end
     
     def find_and_transpile(init_code_hash)
@@ -116,10 +116,24 @@ class RubidityTranspiler
     "0x" + Digest::Keccak256.hexdigest(ast.inspect)
   end
   
-  def get_desired_artifact(name_or_init_hash)
+  def get_desired_artifact_by_name(name)
     desired_artifact = generate_contract_artifacts.detect do |artifact|
-      artifact.name.to_s == name_or_init_hash.to_s ||
-      artifact.init_code_hash == name_or_init_hash.to_s
+      artifact.name == name
+    end
+    
+    sub_transpiler = self.class.new(desired_artifact.source_code)
+    
+    new_artifacts = sub_transpiler.generate_contract_artifacts
+  
+    references = new_artifacts.reject { |i| i.name == desired_artifact.name }
+    
+    desired_artifact.references = references
+    desired_artifact
+  end
+  
+  def get_desired_artifact(init_hash)
+    desired_artifact = generate_contract_artifacts.detect do |artifact|
+      artifact.init_code_hash == init_hash.to_s
     end
     
     sub_transpiler = self.class.new(desired_artifact.source_code)
