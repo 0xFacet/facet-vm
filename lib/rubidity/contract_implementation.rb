@@ -106,7 +106,7 @@ class ContractImplementation
   
   def handle_call_from_proxy(method_name, *args, **kwargs, &block)
     unless method_exposed?(method_name)
-      raise NoMethodError.new("undefined method `#{method_name}' for #{self.inspect}")
+      raise NoMethodError.new("undefined method `#{method_name}' for #{self.class.name}")
     end
     
     if method_name != :forLoop && block.present?

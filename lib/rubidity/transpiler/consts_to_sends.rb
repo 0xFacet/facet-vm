@@ -1,11 +1,12 @@
 class ConstsToSends
   include DefineMethodHelper
   include AST::Processor::Mixin
+  attr_accessor :box
   
   class << self
-    extend Memoist
+    include Memery
     
-    def process(start_ast)
+    def process(start_ast, box: true)
       if start_ast.is_a?(String)
         start_ast = start_ast.sub(
           %{basic_attributes_json[1..-2]},
@@ -17,9 +18,10 @@ class ConstsToSends
         ast = start_ast
       end
    
-      NodeChecker.new.process(ast)
+      # NodeChecker.new.process(ast)
       
       obj = ConstsToSends.new
+      obj.box = box
       new_ast = TransactionContext.log_call("ConstsToSends", "ConstsToSends.process") do
         obj.process(ast)
       end
@@ -45,11 +47,9 @@ class ConstsToSends
     node.updated(nil, safe_process_all(node.children))
   end
   
-  SimpleBoxNodes = [:true, :false, :array, :hash, :int, :str, :sym, :lvasgn, :nil, :lvar]
+  SimpleBoxNodes = [:true, :false, :array, :hash, :int, :str, :sym, :nil, :lvar]
 
   SimpleBoxNodes.each do |type|
-    # TODO: Do we need to box lvasgn?
-    
     define_method_with_check("on_#{type}") do |node|
       box_expression(node)
     end
@@ -365,10 +365,12 @@ class ConstsToSends
   private
   
   def is_box_send?(node)
-    node.type == :send && node.children[1] == box_function_name
+    node.type == :send && node.children[0].nil? && node.children[1] == box_function_name
   end
   
   def box_single(node)
+    return node unless box
+    
     if is_box_send?(node)
       return node
     end

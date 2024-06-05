@@ -107,11 +107,11 @@ class ContractArtifact < ApplicationRecord
     end
   end
   
-  def execution_source_code
-    TransactionContext.log_call("ContractCreation", "ContractArtifact#execution_source_code") do
-      @_execution_source_code ||= ConstsToSends.process(source_code)
-    end
-  end
+  # def execution_source_code
+  #   TransactionContext.log_call("ContractCreation", "ContractArtifact#execution_source_code") do
+  #     @_execution_source_code ||= ConstsToSends.process(source_code)
+  #   end
+  # end
   
   # def self.execution_source_code_batch(artifacts)
   #   TransactionContext.log_call("ContractCreation", "ContractArtifact.execution_source_code_batch") do

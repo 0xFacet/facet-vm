@@ -35,7 +35,7 @@ module AstSerializer
     true
   end
   
-  def self.serialize(node, format: :msgpack)
+  def self.serialize(node, format: :json)
     data = node_to_hash(node)
     case format
     when :json
@@ -49,7 +49,7 @@ module AstSerializer
     end
   end
 
-  def self.deserialize(data, format: :msgpack)
+  def self.deserialize(data, format: :json)
     if data.bytesize > MAX_SIZE
       raise "Data too large"
     end

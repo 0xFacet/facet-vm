@@ -182,11 +182,16 @@ class RubidityTranspiler
       contract_name = extract_contract_name(contract_ast)
       init_code_hash = compute_init_code_hash(contract_ast)
   
+      v1 = ConstsToSends.process(new_source, box: false)
+      serialized_ast = AstSerializer.serialize(Unparser.parse(v1), format: :json)
+  
+      processor = CombinedProcessor.new(serialized_ast)
+      
       artifacts << ContractArtifact.new(
         init_code_hash: init_code_hash,
         name: contract_name,
         source_code: new_source,
-        # execution_source_code: ConstsToSends.process(new_source),
+        execution_source_code: processor.process,
         pragma_language: pragma_lang_and_version.first,
         pragma_version: pragma_lang_and_version.last
       )
