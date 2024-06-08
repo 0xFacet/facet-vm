@@ -3,9 +3,8 @@ require 'rails_helper'
 describe 'Upgrading Contracts' do
   let(:user_address) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
 
-  before(:all) do
-    hashes = RubidityTranspiler.transpile_file("UpgradeableTest").map(&:init_code_hash)
-    ContractTestHelper.update_supported_contracts(hashes)
+  before(:each) do
+    allow_any_instance_of(SystemConfigVersion).to receive(:contract_supported?).and_return(true)
   end
   
   it 'is upgradeable' do

@@ -13,16 +13,22 @@ class RubidityTranspiler
     # end
     # memoize :hack_get
     
-    def transpile_file(filename)
-      new(filename).generate_contract_artifacts
-    end
-    
-    def transpile_and_get(contract_type)
+    def transpile_and_get(contract_type, get_hash: false)
       unless contract_type.include?(" ")
         contract_type, file = contract_type.split(":")
       end
       
-      new(file || contract_type).get_desired_artifact(contract_type)
+      instance = new(file || contract_type)
+      
+      ast = instance.preprocessed_contract_asts.detect do |ast|
+        instance.extract_contract_name(ast).to_s == contract_type.to_s
+      end
+      
+      hsh = new(ast).generate_contract_artifact
+      
+      return hsh if get_hash
+      
+      ContractArtifact.parse_and_store(hsh)
     end
     
     def find_and_transpile(init_code_hash)
@@ -41,7 +47,9 @@ class RubidityTranspiler
   
   def initialize(filename_or_string)
     TransactionContext.log_call("ContractCreation", "RubidityTranspiler.new") do
-      if File.exist?(filename_or_string)
+      if filename_or_string.is_a?(Parser::AST::Node)
+        @file_ast = filename_or_string
+      elsif File.exist?(filename_or_string)
         self.filename = filename_or_string
       else
         with_suffix = "#{filename_or_string}.rubidity"
@@ -89,17 +97,6 @@ class RubidityTranspiler
     file_ast.children.first
   end
   
-  def pragma_lang_and_version
-    # TODO: do statically
-    pragma_parser = Class.new(BasicObject) do
-      def self.pragma(lang, version)
-        [lang, version]
-      end
-    end
-    
-    pragma_parser.instance_eval(Unparser.unparse(pragma_node))
-  end
-  
   def contract_asts
     contract_nodes = []
     
@@ -143,58 +140,39 @@ class RubidityTranspiler
     "0x" + Digest::Keccak256.hexdigest(ast.inspect)
   end
   
-  def get_desired_artifact(name_or_init_hash)
-    desired_artifact = generate_contract_artifacts.detect do |artifact|
-      artifact.name.to_s == name_or_init_hash.to_s ||
-      artifact.init_code_hash == name_or_init_hash.to_s
+  def process_and_serialize_ast(ast)
+    v1 = ConstsToSends.process(ast.unparse, box: false)
+    AstSerializer.serialize(Unparser.parse(v1), format: :json)
+  end
+  
+  def generate_contract_artifact
+    ensure_unique_names!
+    
+    self_ast = preprocessed_contract_asts.last
+    dependency_asts = preprocessed_contract_asts.first(preprocessed_contract_asts.length - 1)
+    
+    dep_artifacts = dependency_asts.map do |ast|
+      RubidityTranspiler.new(ast).generate_contract_artifact
     end
     
-    TransactionContext.log_call("ContractCreation", "RubidityTranspiler.new") do
-      sub_transpiler = self.class.new(desired_artifact.source_code)
-    
-      new_artifacts = sub_transpiler.generate_contract_artifacts(validate: false)
+    {
+      name: extract_contract_name(self_ast),
+      ast: process_and_serialize_ast(self_ast.children.last),
+      dependencies: dep_artifacts,
+      legacy_source_code: self_ast.unparse
+    }.with_indifferent_access
+  end
   
-      references = new_artifacts.reject { |i| i.name == desired_artifact.name }.
-        map{|i| i.attributes.slice("name", "init_code_hash", "source_code",
-          "execution_source_code")}
-      
-      desired_artifact.references = references
-      desired_artifact
+  def extract_dependencies(contract_ast)
+    RubidityTranspiler.new(contract_ast).preprocessed_contract_asts.map do |sub_ast|
+      extract_contract_name(sub_ast)
     end
   end
   
-  def generate_contract_artifacts(validate: true)
+  def ensure_unique_names!
     unless contract_names == contract_names.uniq
       duplicated_names = contract_names.group_by(&:itself).select { |_, v| v.size > 1 }.keys
       raise "Duplicate contract names in #{filename}: #{duplicated_names}"
-    end
-  
-    # TODO: adjust for indexasgn etc
-    # validate_rubidity! if validate
-    
-    preprocessed_contract_asts.each_with_object([]) do |contract_ast, artifacts|
-      contract_ast = ast_with_pragma(contract_ast)
-
-      new_source = TransactionContext.log_call("ContractCreation", "contract_ast.unparse") do
-        contract_ast.unparse
-      end
-      
-      contract_name = extract_contract_name(contract_ast)
-      init_code_hash = compute_init_code_hash(contract_ast)
-  
-      v1 = ConstsToSends.process(new_source, box: false)
-      serialized_ast = AstSerializer.serialize(Unparser.parse(v1), format: :json)
-  
-      processor = CombinedProcessor.new(serialized_ast)
-      
-      artifacts << ContractArtifact.new(
-        init_code_hash: init_code_hash,
-        name: contract_name,
-        source_code: new_source,
-        execution_source_code: processor.process,
-        pragma_language: pragma_lang_and_version.first,
-        pragma_version: pragma_lang_and_version.last
-      )
     end
   end
   

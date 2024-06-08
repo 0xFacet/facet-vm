@@ -49,7 +49,8 @@ class EthBlock < ApplicationRecord
 
     BlockBatchContext.set(
       contracts: {},
-      contract_classes: {},
+      contracts: {},
+      contract_artifacts: {},
     ) do
       loop do
         iterations += 1
@@ -122,7 +123,7 @@ class EthBlock < ApplicationRecord
         system_config: SystemConfigVersion.current,
         current_block: locked_next_block,
         contracts: [],
-        contract_artifacts: [],
+        contract_artifacts: {},
         ethscriptions: ethscriptions,
         current_log_index: 0
       ) do

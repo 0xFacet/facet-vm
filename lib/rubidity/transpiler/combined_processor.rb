@@ -9,8 +9,10 @@ class CombinedProcessor
   
   RESERVED_WORDS = [:__binding__, :__id__, :__send__, :equal?, :initialize, :instance_eval, :instance_exec, :method_missing, :singleton_method_added, :singleton_method_removed, :singleton_method_undefined, :BasicObject, :Object, :Kernel, :Module, :Class].map(&:to_s).to_set.freeze
 
+  attr_accessor :ast_hash, :buffer
+  
   def initialize(serialized_ast)
-    @ast_hash = JSON.parse(serialized_ast)
+    @ast_hash = serialized_ast.is_a?(String) ? JSON.parse(serialized_ast) : serialized_ast
     @buffer = []
   end
   
@@ -131,16 +133,15 @@ class CombinedProcessor
       when :block
         process_block_node(children)
       else
-        raise "Unsupported node type: #{type}"
+        raise NodeNotAllowed, "Unsupported node type: #{type}"
       end
     end
-  # rescue => e
-  #   binding.irb
   end
   
   def process_return_node(children)
     @buffer << "return "
     @buffer << "("
+    # TODO: Don't add nodes here, just raise an exception
     process_node(children.first || s(:nil))
     @buffer << ")"
   end

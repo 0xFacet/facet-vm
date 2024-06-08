@@ -29,7 +29,6 @@ class CallStack
     call_level: :high,
     to_contract_address: nil,
     to_contract_init_code_hash: nil,
-    to_contract_source_code: nil,
     function: nil,
     args: {},
     type:,
@@ -43,7 +42,10 @@ class CallStack
         current_frame.effective_contract.address
       
       from_address = TypedVariable.validated_value(:address, from_address)
-      to_contract_init_code_hash = TypedVariable.validated_value(:bytes32, to_contract_init_code_hash)
+      to_contract_init_code_hash = TypedVariable.validated_value(
+        :bytes32,
+        to_contract_init_code_hash
+      )
       to_contract_address = TypedVariable.validated_value(:address, to_contract_address, allow_nil: true)
       
       current_transaction = @transaction_context.current_transaction
@@ -54,7 +56,6 @@ class CallStack
         in_low_level_call_context: in_low_level_call_context(call_level),
         to_contract_address: to_contract_address,
         to_contract_init_code_hash: to_contract_init_code_hash,
-        to_contract_source_code: to_contract_source_code,
         function: function,
         args: args,
         call_type: type,

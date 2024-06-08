@@ -52,10 +52,10 @@ RSpec.describe Contract, type: :model do
     end
 
    it "will simulate a deploy transaction for batch transfer ERC20" do
-      transpiled = RubidityTranspiler.transpile_file("ERC20BatchTransfer")
-      item = transpiled.detect{|i| i.name.to_s == "ERC20BatchTransfer"}
-
+      item = RubidityTranspiler.transpile_and_get("ERC20BatchTransfer")
+      
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
+
       data = {
         op: :create,
         data: {

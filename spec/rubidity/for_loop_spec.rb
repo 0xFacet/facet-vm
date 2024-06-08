@@ -1,11 +1,8 @@
 require 'rails_helper'
 
 RSpec.describe ForLoop do
-  before(:all) do
-    update_supported_contracts("ForLoopTest")
-    
-    hashes = RubidityTranspiler.transpile_file("ForLoopTest").map(&:init_code_hash)
-    ContractTestHelper.update_supported_contracts(hashes)
+  before(:each) do
+    allow_any_instance_of(SystemConfigVersion).to receive(:contract_supported?).and_return(true)
   end
 
   let(:bob) { "0x000000000000000000000000000000000000000b" }

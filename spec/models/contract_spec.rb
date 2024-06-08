@@ -65,9 +65,8 @@ RSpec.describe Contract, type: :model do
     end
     
     it "will simulate a deploy transaction" do
-      transpiled = RubidityTranspiler.transpile_file("PublicMintERC20")
-      item = transpiled.detect{|i| i.name.to_s == "PublicMintERC20"}
-
+      item = RubidityTranspiler.transpile_and_get("PublicMintERC20")
+      
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
       data = {
         op: :create,
@@ -303,6 +302,7 @@ RSpec.describe Contract, type: :model do
       
       v1_hash = RubidityTranspiler.transpile_and_get("EtherBridgeV1Test").init_code_hash
       v2 = RubidityTranspiler.transpile_and_get("EtherBridgeV2Test")
+      v2_hsh = RubidityTranspiler.transpile_and_get("EtherBridgeV2Test", get_hash: true)
       
       upgrade_tx = trigger_contract_interaction_and_expect_success(
         from: user_address,
@@ -310,7 +310,7 @@ RSpec.describe Contract, type: :model do
           to: bridge.effective_contract_address,
           data: {
             function: "upgrade",
-            args: [v2.init_code_hash, v2.source_code]
+            args: [v2.init_code_hash, v2_hsh.to_json]
           }
         }
       )

@@ -14,7 +14,7 @@ RSpec.describe ContractAstProcessor do
   
   it "disallows duplicate contract names" do
     expect {
-      RubidityTranspiler.transpile_file(dupe_contract)
+      RubidityTranspiler.transpile_and_get("TestDuplicateContract")
     }.to raise_error(/Duplicate contract names.*/)
   end
 
@@ -55,7 +55,6 @@ RSpec.describe ContractAstProcessor do
   
   it "works on files" do
     normalized = <<~RUBY
-      pragma(:rubidity, "1.0.0")
       contract(:Dep1) {
       }
       contract(:Dep2) {
@@ -64,9 +63,9 @@ RSpec.describe ContractAstProcessor do
       }
     RUBY
     
-    transpiled = RubidityTranspiler.transpile_file(unused_reference)
+    transpiled = RubidityTranspiler.transpile_and_get("TestUnusedReference")
     
-    expect(transpiled.last[:source_code]).to eq(normalized)
+    expect(transpiled.legacy_source_code).to eq(normalized)
   end
 
   it "retains the bottom contract" do

@@ -5,7 +5,8 @@ RSpec.describe StateManager, type: :model do
     TransactionContext.set(
       call_log_stack: [],
       call_counts: {},
-      gas_counter: GasCounter.new(TransactionContext)
+      gas_counter: GasCounter.new(TransactionContext),
+      contract_artifacts: {}
     ) do
       example.run
     end

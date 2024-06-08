@@ -342,10 +342,12 @@ module ContractTestHelper
       payload = transform_old_format_to_new(transaction[:payload]).with_indifferent_access
   
       if payload['data'] && payload['data']['type']
-        item = RubidityTranspiler.transpile_and_get(payload['data'].delete('type'))
-  
-        payload['data']['source_code'] = item.source_code
-        payload['data']['init_code_hash'] = item.init_code_hash
+        item = RubidityTranspiler.transpile_and_get(
+          payload['data'].delete('type'),
+          get_hash: true
+        )
+        payload['data']['init_code_hash'] = item[:init_code_hash]
+        payload['data']['contract_artifact'] = item
       end
   
       if !payload['op']
@@ -402,13 +404,13 @@ module ContractTestHelper
     
     BlockBatchContext.set(
       contracts: {},
-      contract_classes: {},
+      contract_artifacts: {},
     ) do
       BlockContext.set(
         system_config: SystemConfigVersion.current,
         current_block: block,
         contracts: [],
-        contract_artifacts: [],
+        contract_artifacts: {},
         ethscriptions: ethscriptions,
         current_log_index: 0
       ) do

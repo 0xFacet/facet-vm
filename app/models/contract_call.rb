@@ -17,7 +17,7 @@ class ContractCall < ApplicationRecord
   
   before_validation :ensure_runtime_ms
   
-  attr_accessor :to_contract, :salt, :pending_logs, :to_contract_init_code_hash, :to_contract_source_code,
+  attr_accessor :to_contract, :salt, :pending_logs, :to_contract_init_code_hash,
     :in_low_level_call_context, :call_stack, :internal_call_read_only_context_stack
   
   belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
@@ -179,7 +179,6 @@ class ContractCall < ApplicationRecord
       self.effective_contract = TransactionContext.create_new_contract(
         address: calculate_new_contract_address,
         init_code_hash: to_contract_init_code_hash,
-        source_code: to_contract_source_code
       )
     end
     

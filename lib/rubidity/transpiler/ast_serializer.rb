@@ -69,34 +69,40 @@ module AstSerializer
 
   private
 
-  def self.node_to_hash(node)
-    {
-      type: node.type.to_s,
-      children: node.children.map do |child|
-        if child.is_a?(Parser::AST::Node)
-          node_to_hash(child)
+  class << self
+    include Memery
+  
+    def node_to_hash(node)
+      {
+        type: node.type.to_s,
+        children: node.children.map do |child|
+          if child.is_a?(Parser::AST::Node)
+            node_to_hash(child)
+          else
+            child
+          end
+        end
+      }
+    end
+    memoize :node_to_hash
+
+    def hash_to_node(hash, depth = 0)
+      if depth > MAX_DEPTH
+        raise "Maximum depth reached"
+      end
+      
+      type = hash['type'].to_sym
+      children = hash['children'].map do |child|
+        if child.is_a?(Hash)
+          hash_to_node(child, depth + 1)
+        elsif type != :str && child.is_a?(String)
+          child.to_sym # Convert strings to symbols unless the parent type is :str
         else
-          child
+          child # Leave as is if it's not a string or if parent type is :str
         end
       end
-    }
-  end
-
-  def self.hash_to_node(hash, depth = 0)
-    if depth > MAX_DEPTH
-      raise "Maximum depth reached"
+      Parser::AST::Node.new(type, children)
     end
-    
-    type = hash['type'].to_sym
-    children = hash['children'].map do |child|
-      if child.is_a?(Hash)
-        hash_to_node(child, depth + 1)
-      elsif type != :str && child.is_a?(String)
-        child.to_sym # Convert strings to symbols unless the parent type is :str
-      else
-        child # Leave as is if it's not a string or if parent type is :str
-      end
-    end
-    Parser::AST::Node.new(type, children)
+    memoize :hash_to_node
   end
 end

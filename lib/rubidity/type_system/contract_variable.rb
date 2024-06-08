@@ -88,6 +88,17 @@ class ContractVariable < GenericVariable
       typed = TypedVariable.create_or_validate(:bytes32, new_init_code_hash)
       typed_source = TypedVariable.create_or_validate(:string, new_source_code)
       
+      artifact_json = begin
+        JSON.parse(typed_source.value)
+      rescue JSON::ParserError
+      end
+      
+      if artifact_json
+        artifact = ContractArtifact.parse_and_store(artifact_json, TransactionContext)
+      elsif typed_source.value.present?
+        artifact = ContractArtifact.parse_and_store(RubidityTranspiler.new(typed_source.value).generate_contract_artifact, TransactionContext)
+      end
+      
       new_init_code_hash = typed.value
       
       target = TransactionContext.current_contract
@@ -99,7 +110,6 @@ class ContractVariable < GenericVariable
       begin
         new_implementation_class = BlockContext.supported_contract_class(
           new_init_code_hash,
-          typed_source.value.presence
         )
       rescue UnknownInitCodeHash, ContractSourceNotProvided, Parser::SyntaxError => e
         raise ContractError.new(e.message, target)

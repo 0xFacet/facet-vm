@@ -59,6 +59,14 @@ class Contract < ApplicationRecord
       raise ContractError.new("Contract has no init code hash", self)
     end
     
+    # if current_type == "NameRegistry"
+    #   if Rails.env.development?
+    #     c = RubidityTranspiler.hack_get("NameRegistry01")&.build_class
+    #     ap c
+    #     return c
+    #   end
+    # end
+    
     BlockContext.supported_contract_class(
       current_init_code_hash,
       validate: false
@@ -72,21 +80,9 @@ class Contract < ApplicationRecord
     )
   end
   
-  def self.types_that_implement(base_type)
-    ContractArtifact.types_that_implement(base_type)
-  end
-  
   # TODO: make work
   def fresh_implementation_with_current_state
     implementation_class.new(initial_state: current_state)
-  end
-  
-  def self.deployable_contracts
-    ContractArtifact.deployable_contracts
-  end
-  
-  def self.all_abis(...)
-    ContractArtifact.all_abis(...)
   end
   
   def as_json(options = {})

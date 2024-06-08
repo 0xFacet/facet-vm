@@ -2,7 +2,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
   attribute :call_stack, :current_call, :transaction_index, :current_transaction, :active_contracts,
-    :call_counts, :call_log_stack, :gas_counter
+    :call_counts, :call_log_stack, :gas_counter, :contract_artifacts
   
   STRUCT_DETAILS = {
     msg:    { attributes: { sender: :address } },
@@ -25,6 +25,19 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   
   def transaction_hash
     tx.current_transaction_hash
+  end
+  
+  def copy_artifacts_into_block
+    contract_artifacts.values.each do |artifact|
+      BlockContext.add_contract_artifact(artifact)
+    end
+  end
+  
+  def add_contract_artifact(artifact)
+    artifact.transaction_hash = current_transaction.transaction_hash
+    artifact.transaction_index = current_transaction.transaction_index
+    
+    contract_artifacts[artifact.init_code_hash] = artifact
   end
   
   def increment_gas(event_name)
@@ -86,21 +99,21 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     contract
   end
   
-  def create_new_contract(...)
-    new_contract = TransactionContext.log_call("ContractCreation", "BlockContext.create_new_contract") do
-      BlockContext.create_new_contract(...)
-    end
+  def create_new_contract(
+    address:,
+    init_code_hash:
+  )
+    new_contract = BlockContext.create_new_contract(
+      address: address,
+      init_code_hash: init_code_hash,
+    )
     
-    TransactionContext.log_call("ContractCreation", "mark_active") do
-      mark_active(new_contract)
-    end
-    
-    TransactionContext.log_call("ContractCreation", "set_implementation") do
-      new_contract.state_manager.set_implementation(
-        init_code_hash: new_contract.current_init_code_hash,
-        type: new_contract.current_type
-      )
-    end
+    mark_active(new_contract)
+
+    new_contract.state_manager.set_implementation(
+      init_code_hash: new_contract.current_init_code_hash,
+      type: new_contract.current_type
+    )
     
     new_contract
   end

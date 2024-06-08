@@ -7,9 +7,9 @@ class ContractImplementation
   # include InstrumentAllMethods
   
   class << self
-    attr_reader :name, :is_abstract_contract, :source_code,
+    attr_accessor :name, :is_abstract_contract, :legacy_source_code,
     :init_code_hash, :parent_contracts, :source_file,
-    :is_upgradeable
+    :is_upgradeable, :contract_artifact
     
     attr_accessor :available_contracts, :state_variable_definitions, :events, :structs
     
@@ -187,7 +187,7 @@ class ContractImplementation
     file = caller_location.path
     line = caller_location.lineno
     
-    emphasized_code = ::ContractArtifact.emphasized_code_exerpt(name: file, line_number: line)
+    emphasized_code = nil #::ContractArtifact.emphasized_code_exerpt(name: file, line_number: line)
       
     error_message = "#{message}. (#{file}:#{line})\n\n#{emphasized_code}\n\n"
     raise ContractError.new(error_message, self)
@@ -483,7 +483,6 @@ class ContractImplementation
       **contract_initializer.merge(
         type: :create,
         to_contract_init_code_hash: target_implementation.init_code_hash,
-        to_contract_source_code: target_implementation.source_code,
       )
     )
     

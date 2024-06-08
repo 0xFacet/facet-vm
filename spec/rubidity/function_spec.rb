@@ -6,6 +6,7 @@ RSpec.describe FunctionProxy, type: :model do
       call_log_stack: [],
       call_counts: {},
       gas_counter: GasCounter.new(TransactionContext),
+      contract_artifacts: {},
     ) do
       example.run
     end

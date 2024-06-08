@@ -8,6 +8,7 @@ class ConstsToSends
     
     def process(start_ast, box: true)
       if start_ast.is_a?(String)
+        raise if start_ast.include?(%{basic_attributes_json[1..-2]})
         start_ast = start_ast.sub(
           %{basic_attributes_json[1..-2]},
           %{basic_attributes_json[1, basic_attributes_json.length - 2]}
