@@ -53,16 +53,16 @@ class ContractArtifact < ApplicationRecord
       name: name,
       ast: ast,
       init_code_hash: init_code_hash,
-      legacy_source_code: legacy_source_code,
+      # legacy_source_code: legacy_source_code,
       dependencies: dependencies.map(&:to_serializable_hash)
     }.tap do |hsh|
-      if legacy_source_code
-        hsh[:legacy_source_code] = legacy_source_code
-      end
+      # if legacy_source_code
+      #   hsh[:legacy_source_code] = legacy_source_code
+      # end
       
-      if legacy_init_code_hash
-        hsh[:legacy_init_code_hash] = legacy_init_code_hash
-      end
+      # if legacy_init_code_hash
+      #   hsh[:legacy_init_code_hash] = legacy_init_code_hash
+      # end
     end
   end
 
@@ -180,6 +180,7 @@ class ContractArtifact < ApplicationRecord
       json[:source_code] = source_code
       json[:abi] ||= contract_class.abi
       json[:abi] = json[:abi].as_json
+      json[:create_payload] = to_serializable_hash
     end
   end
   
