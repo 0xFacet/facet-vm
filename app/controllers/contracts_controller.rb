@@ -166,7 +166,7 @@ class ContractsController < ApplicationController
     transpiler = RubidityTranspiler.new(code)
     transpiler.filename = "./#{contract}__.rubidity"
     
-    json = RubidityTranspiler.new(source_code).generate_contract_artifact_json
+    json = RubidityTranspiler.new(code).generate_contract_artifact_json
      
     artifact = ContractArtifact.parse_and_store(json)
     
