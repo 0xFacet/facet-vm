@@ -51,7 +51,7 @@ describe 'Simulate with state' do
           args: 100
         }
       },
-      initial_state: resp[:state]}.to_json.pbcopy
+      initial_state: resp[:state]}.to_json
     
     resp = ContractTransaction.simulate_transaction_with_state(
       from: alice,

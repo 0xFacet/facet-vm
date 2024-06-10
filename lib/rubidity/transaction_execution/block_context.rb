@@ -63,6 +63,7 @@ class BlockContext < ActiveSupport::CurrentAttributes
     
     contract_transactions.each do |contract_tx|
       TransactionContext.set(
+        legacy_mode: false,
         call_stack: CallStack.new(TransactionContext),
         gas_counter: GasCounter.new(TransactionContext),
         active_contracts: [],
@@ -75,6 +76,7 @@ class BlockContext < ActiveSupport::CurrentAttributes
         block_chainid: current_chainid,
         transaction_index: contract_tx.transaction_index,
         call_counts: {},
+        contract_artifacts: {},
         call_log_stack: []
       ) do
         contract_tx.execute_transaction
@@ -93,7 +95,13 @@ class BlockContext < ActiveSupport::CurrentAttributes
       contract_transactions.flat_map{|i| i.contract_calls.target }
     )
     
-    ContractArtifact.import!(contract_artifacts.select(&:new_record?))
+    artifacts = contract_artifacts.values.select(&:new_record?)
+    ContractArtifact.import!(artifacts, on_duplicate_key_ignore: true)
+    
+    ContractDependency.import!(
+      contract_artifacts.values.flat_map(&:contract_dependencies).select(&:new_record?),
+      on_duplicate_key_ignore: true
+    )
     
     Contract.import!(contracts.select(&:new_record?))
     # TODO do this in batches
@@ -129,35 +137,53 @@ class BlockContext < ActiveSupport::CurrentAttributes
     add_contract(from_outer_context)
   end
   
-  def create_new_contract(address:, init_code_hash:, source_code:)
-    new_contract_implementation = TransactionContext.log_call("ContractCreation", "BlockContext.supported_contract_class") do
-      BlockContext.supported_contract_class(
-        init_code_hash,
-        source_code
-      )
+  def find_contract_artifact(init_code_hash)
+    unless current_block
+      return ContractArtifact.
+      includes(contract_dependencies: :dependency).
+      find_by!(init_code_hash: init_code_hash)
     end
     
-    new_contract = TransactionContext.log_call("ContractCreation", "BlockContext.Contract.new") do
-      Contract.new(
-        transaction_hash: current_transaction.transaction_hash,
-        block_number: current_block.block_number,
-        transaction_index: current_transaction.transaction_index,
-        address: address,
-        current_type: new_contract_implementation.name,
-        current_init_code_hash: init_code_hash
-        )
-    end
-    
-    TransactionContext.log_call("ContractCreation", "BlockContext.add_contract") do
-      add_contract(new_contract)
-    end
+    TransactionContext.contract_artifacts[init_code_hash] ||
+    contract_artifacts[init_code_hash] ||
+    BlockBatchContext.get_contract_artifact!(init_code_hash)
   end
   
-  def supported_contract_class(init_code_hash, source_code = nil, validate: true)
-    validate_contract_support(init_code_hash) if validate
+  def add_contract_artifact(artifact)
+    artifact.block_number = current_block.block_number
     
-    find_and_build_class(init_code_hash) ||
-      create_artifact_and_build_class(init_code_hash, source_code)
+    contract_artifacts[artifact.init_code_hash] = artifact
+  end
+  
+  def create_new_contract(
+    address:,
+    init_code_hash:
+  )
+    artifact = find_contract_artifact(init_code_hash)
+    
+    contract_class = BlockContext.supported_contract_class(
+      init_code_hash
+    )
+    
+    new_contract = Contract.new(
+      transaction_hash: current_transaction.transaction_hash,
+      block_number: current_block.block_number,
+      transaction_index: current_transaction.transaction_index,
+      address: address,
+      current_type: artifact.name,
+      current_init_code_hash: artifact.init_code_hash
+    )
+    
+    add_contract(new_contract)
+  end
+  
+  def supported_contract_class(
+    init_code_hash,
+    validate: true
+  )
+    validate_contract_support(init_code_hash) if validate
+
+    find_contract_artifact(init_code_hash).contract_class
   end
   
   def current_chainid
@@ -209,31 +235,6 @@ class BlockContext < ActiveSupport::CurrentAttributes
     end
   end
   
-  def get_cached_class(init_code_hash)
-    attempt = ContractArtifact.cached_class_as_of_tx_hash(
-      init_code_hash)
-  end
-  
-  def find_and_build_class(init_code_hash)
-    TransactionContext.log_call("ContractCreation", "find_and_build_class") do
-      unless current_block
-        return get_cached_class(init_code_hash)
-      end
-      
-      from_outer_context = BlockBatchContext.get_contract_class(init_code_hash)
-
-      return from_outer_context if from_outer_context
-      
-      current = contract_artifacts.detect do |artifact|
-        artifact.init_code_hash == init_code_hash
-      end
-      
-      TransactionContext.log_call("ContractCreation", "current&.build_class") do
-        current&.build_class || get_cached_class(init_code_hash)
-      end
-    end
-  end
-  
   def previous_transactions
     contract_transactions.select do |tx|
       tx.transaction_index < current_transaction.transaction_index
@@ -244,33 +245,6 @@ class BlockContext < ActiveSupport::CurrentAttributes
     previous_transactions.map(&:contract_calls).flatten +
     current_transaction.contract_calls.select do |call|
       call.internal_transaction_index < current_call.internal_transaction_index
-    end
-  end
-    
-  def create_artifact_and_build_class(init_code_hash, source_code = nil)
-    TransactionContext.log_call("ContractCreation", "create_artifact_and_build_class") do
-      unless source_code
-        raise ContractSourceNotProvided.new("Need source code to create new artifact")
-      end
-    
-      artifact = TransactionContext.log_call("ContractCreation", "RubidityTranspiler.new(source_code).get_desired_artifact(init_code_hash)") do
-        RubidityTranspiler.new(source_code).get_desired_artifact(init_code_hash)
-      end
-      
-      self.contract_artifacts << TransactionContext.log_call("ContractCreation", "ContractArtifact.new") do
-        ContractArtifact.new(
-            artifact.attributes.merge(
-            block_number: current_block.block_number,
-            transaction_hash: current_transaction.transaction_hash,
-            transaction_index: current_transaction.transaction_index,
-            internal_transaction_index: current_call.internal_transaction_index,
-          )
-        )
-      end
-      
-      TransactionContext.log_call("ContractCreation", "artifact&.build_class") do
-        artifact&.build_class
-      end
     end
   end
 end

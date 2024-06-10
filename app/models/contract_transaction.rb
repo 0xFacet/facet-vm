@@ -57,7 +57,13 @@ class ContractTransaction < ApplicationRecord
         [:init_code_hash, :args].to_set,
         
         [:init_code_hash, :source_code].to_set,
-        [:init_code_hash, :source_code, :args].to_set
+        [:init_code_hash, :source_code, :args].to_set,
+        
+        [:init_code_hash, :contract_artifact].to_set,
+        [:init_code_hash, :contract_artifact, :args].to_set,
+        
+        [:contract_artifact].to_set,
+        [:contract_artifact, :args].to_set,
       ].include?(data_keys)
         raise InvalidEthscriptionError.new("Invalid data keys: #{data_keys}")
       end
@@ -129,6 +135,7 @@ class ContractTransaction < ApplicationRecord
       'ContractTransaction',
       'ContractCall',
       'ContractArtifact',
+      'ContractDependency',
       'Contract',
       'NewContractState',
     ]
@@ -237,13 +244,13 @@ class ContractTransaction < ApplicationRecord
       
       BlockBatchContext.set(
         contracts: {},
-        contract_classes: {}
+        contract_artifacts: {},
       ) do
         BlockContext.set(
           system_config: config_version,
           current_block: current_block,
           contracts: [],
-          contract_artifacts: [],
+          contract_artifacts: {},
           ethscriptions: [eth],
           current_log_index: 0
         ) do
@@ -290,6 +297,7 @@ class ContractTransaction < ApplicationRecord
   
   def with_global_context
     TransactionContext.set(
+      legacy_mode: false,
       call_stack: CallStack.new(TransactionContext),
       gas_counter: GasCounter.new(TransactionContext),
       active_contracts: [],
@@ -303,6 +311,7 @@ class ContractTransaction < ApplicationRecord
       transaction_index: transaction_index,
       call_counts: {},
       call_log_stack: [],
+      contract_artifacts: {}
     ) do
       yield
     end
@@ -310,10 +319,23 @@ class ContractTransaction < ApplicationRecord
   
   def make_initial_call
     payload_data = OpenStruct.new(payload.data)
+    
+    artifact = if payload_data.contract_artifact
+      ContractArtifact.parse_and_store(payload_data.contract_artifact, TransactionContext)
+    elsif payload_data.source_code.to_s != ''
+      TransactionContext.legacy_mode = true
       
+      source_code = payload_data.source_code
+      
+      artifact = RubidityTranspiler.new(source_code).generate_contract_artifact_json
+     
+      ContractArtifact.parse_and_store(artifact, TransactionContext, legacy_mode: true)
+    end
+    
+    init_code_hash = artifact&.init_code_hash || payload_data.init_code_hash
+    
     TransactionContext.call_stack.execute_in_new_frame(
-      to_contract_init_code_hash: payload_data.init_code_hash,
-      to_contract_source_code: payload_data.source_code,
+      to_contract_init_code_hash: init_code_hash,
       to_contract_address: payload_data.to&.downcase,
       function: payload_data.function,
       args: payload_data.args,
@@ -335,6 +357,8 @@ class ContractTransaction < ApplicationRecord
       TransactionContext.active_contracts.each do |c|
         c.state_manager.commit_transaction
       end
+      
+      TransactionContext.copy_artifacts_into_block
     else
       TransactionContext.active_contracts.each do |c|
         c.state_manager.rollback_transaction
@@ -350,6 +374,7 @@ class ContractTransaction < ApplicationRecord
     contract_calls.select do |call|
       call.internal_transaction_index > 0
     end.each do |call|
+      # TODO: Don't add it in the first place until the tx succeeds
       BlockContext.remove_contract(call.created_contract)
       
       call.assign_attributes(

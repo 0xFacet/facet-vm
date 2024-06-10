@@ -10,8 +10,10 @@ describe 'NameRegistry contract' do
   let(:daryl) { "0x000000000000000000000000000000000000000d" }
   
   before(:all) do
-    update_supported_contracts("StubERC20")
-    update_supported_contracts("NameRegistry01")
+    update_supported_contracts(
+      "StubERC20",
+      "NameRegistry01",
+    )
   end
   
   it 'registers names' do
@@ -40,7 +42,7 @@ describe 'NameRegistry contract' do
     
     template = Rails.root.join("spec/fixtures/name_registry.html").read
     
-    registry_deploy = trigger_contract_interaction_and_expect_success(
+    r = registry_deploy = trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
         data: {
@@ -57,7 +59,7 @@ describe 'NameRegistry contract' do
         }
       }
     )
-    
+    # binding.irb
     registry_address = registry_deploy.address
     
     [user_address, alice, bob, charlie].each do |address|

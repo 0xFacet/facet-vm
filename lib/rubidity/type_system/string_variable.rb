@@ -6,6 +6,8 @@ class StringVariable < GenericVariable
     super(...)
   end
   
+  # TODO: gas for methods that check every character should depend on string length
+  
   def +(other)
     unless other.is_a?(StringVariable)
       raise ContractError.new("Cannot add #{self.class} to #{other.class}")

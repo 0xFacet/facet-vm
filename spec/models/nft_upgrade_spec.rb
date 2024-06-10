@@ -484,7 +484,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
         to: upgrader.address,
         data: {
           function: "upgrade",
-          args: [v2.init_code_hash, v2.source_code]
+          args: [v2.legacy_init_code_hash, v2.source_code]
         }
       }
     )

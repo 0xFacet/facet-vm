@@ -13,10 +13,6 @@ class UltraMinimalProxy < UltraBasicObject
   end
   
   def method_missing(name, *args, **kwargs, &block)
-    if name.starts_with?("__") && name.ends_with?("__")
-      valid_method = false
-    end
-    
     args = ::VM.deep_unbox(args)
     kwargs = ::VM.deep_unbox(kwargs)
     

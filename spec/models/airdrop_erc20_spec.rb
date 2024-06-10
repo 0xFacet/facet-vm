@@ -59,8 +59,7 @@ RSpec.describe Contract, type: :model do
     end
 
    it "will simulate a deploy transaction for airdrop ERC20" do
-      transpiled = RubidityTranspiler.transpile_file("AirdropERC20")
-      item = transpiled.detect{|i| i.name.to_s == "AirdropERC20"}
+      item = RubidityTranspiler.transpile_and_get("AirdropERC20")
 
       from = "0xC2172a6315c1D7f6855768F843c420EbB36eDa97"
       data = {

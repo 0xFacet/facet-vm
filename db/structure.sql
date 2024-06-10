@@ -135,19 +135,16 @@ CREATE TABLE public.ar_internal_metadata (
 CREATE TABLE public.contract_artifacts (
     id bigint NOT NULL,
     transaction_hash character varying NOT NULL,
-    internal_transaction_index bigint NOT NULL,
     block_number bigint NOT NULL,
     transaction_index bigint NOT NULL,
     name character varying NOT NULL,
-    source_code text NOT NULL,
+    ast jsonb DEFAULT '{}'::jsonb NOT NULL,
     init_code_hash character varying NOT NULL,
-    "references" jsonb DEFAULT '[]'::jsonb NOT NULL,
-    pragma_language character varying NOT NULL,
-    pragma_version character varying NOT NULL,
+    execution_source_code text NOT NULL,
+    abi jsonb DEFAULT '[]'::jsonb NOT NULL,
+    legacy_source_code text,
     created_at timestamp(6) without time zone NOT NULL,
     updated_at timestamp(6) without time zone NOT NULL,
-    execution_source_code text,
-    serialized_ast bytea,
     CONSTRAINT chk_rails_e07e6a7a0d CHECK (((init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
 );
 
@@ -266,6 +263,41 @@ CREATE SEQUENCE public.contract_calls_id_seq
 --
 
 ALTER SEQUENCE public.contract_calls_id_seq OWNED BY public.contract_calls.id;
+
+
+--
+-- Name: contract_dependencies; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.contract_dependencies (
+    id bigint NOT NULL,
+    contract_artifact_init_code_hash character varying NOT NULL,
+    dependency_init_code_hash character varying NOT NULL,
+    "position" integer NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    CONSTRAINT chk_rails_073dbd2746 CHECK (((contract_artifact_init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text)),
+    CONSTRAINT chk_rails_27b7334fa0 CHECK (((dependency_init_code_hash)::text ~ '^0x[a-f0-9]{64}$'::text))
+);
+
+
+--
+-- Name: contract_dependencies_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.contract_dependencies_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: contract_dependencies_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.contract_dependencies_id_seq OWNED BY public.contract_dependencies.id;
 
 
 --
@@ -642,6 +674,13 @@ ALTER TABLE ONLY public.contract_calls ALTER COLUMN id SET DEFAULT nextval('publ
 
 
 --
+-- Name: contract_dependencies id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_dependencies ALTER COLUMN id SET DEFAULT nextval('public.contract_dependencies_id_seq'::regclass);
+
+
+--
 -- Name: contract_states id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -727,6 +766,14 @@ ALTER TABLE ONLY public.contract_block_change_logs
 
 ALTER TABLE ONLY public.contract_calls
     ADD CONSTRAINT contract_calls_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: contract_dependencies contract_dependencies_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_dependencies
+    ADD CONSTRAINT contract_dependencies_pkey PRIMARY KEY (id);
 
 
 --
@@ -816,13 +863,6 @@ CREATE UNIQUE INDEX idx_on_block_number_transaction_index_efc8dd9c1d ON public.s
 
 
 --
--- Name: idx_on_block_number_transaction_index_internal_tran_570359f80e; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_on_block_number_transaction_index_internal_tran_570359f80e ON public.contract_artifacts USING btree (block_number, transaction_index, internal_transaction_index);
-
-
---
 -- Name: idx_on_block_number_txi_internal_txi; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -837,17 +877,17 @@ CREATE UNIQUE INDEX idx_on_contract_address_block_number_9a58e579f6 ON public.co
 
 
 --
--- Name: idx_on_transaction_hash_internal_transaction_index_c95378cab3; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_on_transaction_hash_internal_transaction_index_c95378cab3 ON public.contract_artifacts USING btree (transaction_hash, internal_transaction_index);
-
-
---
 -- Name: idx_on_tx_hash_internal_txi; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE UNIQUE INDEX idx_on_tx_hash_internal_txi ON public.contract_calls USING btree (transaction_hash, internal_transaction_index);
+
+
+--
+-- Name: index_contract_artifacts_on_block_number_and_transaction_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contract_artifacts_on_block_number_and_transaction_index ON public.contract_artifacts USING btree (block_number, transaction_index);
 
 
 --
@@ -862,6 +902,13 @@ CREATE UNIQUE INDEX index_contract_artifacts_on_init_code_hash ON public.contrac
 --
 
 CREATE INDEX index_contract_artifacts_on_name ON public.contract_artifacts USING btree (name);
+
+
+--
+-- Name: index_contract_artifacts_on_transaction_hash; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_contract_artifacts_on_transaction_hash ON public.contract_artifacts USING btree (transaction_hash);
 
 
 --
@@ -918,6 +965,20 @@ CREATE INDEX index_contract_calls_on_status ON public.contract_calls USING btree
 --
 
 CREATE INDEX index_contract_calls_on_to_contract_address ON public.contract_calls USING btree (to_contract_address);
+
+
+--
+-- Name: index_contract_dependencies_on_artifact_and_dependency; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_contract_dependencies_on_artifact_and_dependency ON public.contract_dependencies USING btree (contract_artifact_init_code_hash, dependency_init_code_hash);
+
+
+--
+-- Name: index_contract_dependencies_on_artifact_and_position; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_contract_dependencies_on_artifact_and_position ON public.contract_dependencies USING btree (contract_artifact_init_code_hash, "position");
 
 
 --
@@ -1216,6 +1277,14 @@ ALTER TABLE ONLY public.contracts
 
 
 --
+-- Name: contract_dependencies fk_rails_094bf2cd28; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_dependencies
+    ADD CONSTRAINT fk_rails_094bf2cd28 FOREIGN KEY (dependency_init_code_hash) REFERENCES public.contract_artifacts(init_code_hash) ON DELETE CASCADE;
+
+
+--
 -- Name: ethscriptions fk_rails_104cee2b3d; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1261,6 +1330,14 @@ ALTER TABLE ONLY public.contract_artifacts
 
 ALTER TABLE ONLY public.system_config_versions
     ADD CONSTRAINT fk_rails_71887ba27f FOREIGN KEY (block_number) REFERENCES public.eth_blocks(block_number) ON DELETE CASCADE;
+
+
+--
+-- Name: contract_dependencies fk_rails_7c3b740d22; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.contract_dependencies
+    ADD CONSTRAINT fk_rails_7c3b740d22 FOREIGN KEY (contract_artifact_init_code_hash) REFERENCES public.contract_artifacts(init_code_hash) ON DELETE CASCADE;
 
 
 --

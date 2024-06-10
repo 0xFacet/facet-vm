@@ -1,10 +1,8 @@
 require 'rails_helper'
 
 RSpec.describe ContractImplementation, type: :model do
-  before(:all) do
-    hashes = RubidityTranspiler.transpile_file("ERC20Receiver").map(&:init_code_hash)
-    
-    ContractTestHelper.update_supported_contracts(*hashes)
+  before(:each) do
+    allow_any_instance_of(SystemConfigVersion).to receive(:contract_supported?).and_return(true)
   end
   
   it "sets msg.sender correctly when one contract calls another" do

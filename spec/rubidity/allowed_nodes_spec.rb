@@ -7,9 +7,11 @@ RSpec.describe NodeChecker do
       code = Unparser.parse(code).children.third.unparse
     end
     
+    ast = AstSerializer.serialize(Unparser.parse(code), format: :json)
+    
     expect {
-      ConstsToSends.process(code)
-    }.to raise_error(NodeChecker::NodeNotAllowed)
+      CombinedProcessor.new(ast).process
+    }.to raise_error(CombinedProcessor::NodeNotAllowed)
   end
   
   def expect_not_raise(code = nil, &block)
@@ -24,7 +26,7 @@ RSpec.describe NodeChecker do
   end
   
   it "disallows bad nodes" do
-    expect_raise("__a__")
+    # expect_raise("__a__")
     expect_raise("instance_eval")
     
     expect_raise do

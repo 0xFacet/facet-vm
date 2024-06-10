@@ -1,50 +1,51 @@
-class ContractBuilder < UltraBasicObject
-  def self.build_contract_class(artifact)
-    ::TransactionContext.log_call("ContractCreation", "ContractBuilder.build_contract_class") do
-      registry = {}.with_indifferent_access
-      
-      artifact.dependencies_and_self.each do |dep|
-        builder = new(registry)
-        
-        contract_class = ::ContractBuilderCleanRoom.execute_user_code_on_context(
-          builder,
-          [:contract],
-          "contract",
-          dep.execution_source_code,
-          dep.name
-        )
-        
-        contract_class.instance_variable_set(:@source_code, dep.source_code)
-        contract_class.instance_variable_set(:@init_code_hash, dep.init_code_hash)
-        registry[dep.name] = contract_class
-        
-        contract_class.available_contracts = registry.deep_dup
-      end
-      
-      registry[artifact.name]
-    end
-  end
+class ContractBuilder #< UltraBasicObject
+  # TODO: does this have to be a basic object?
 
-  def handle_call_from_proxy(method_name, *args, **kwargs, &block)
-    __send__(method_name, *args, **kwargs, &block)
+  def self.build_contract_class(artifact)
+    @built_classes ||= {}
+    
+    dep_classes = artifact.dependencies.map do |dep|
+      @built_classes[dep.init_code_hash] ||= build_contract_class(dep)
+    end.index_by(&:name).with_indifferent_access
+    
+    builder = new(artifact, dep_classes)
+    
+    ::ContractBuilderCleanRoom.execute_user_code_on_context(
+      builder,
+      [:contract],
+      "contract",
+      artifact.execution_source_code,
+      artifact.name
+    )
   end
   
-  def initialize(available_contracts)
-    @available_contracts = available_contracts
+  def initialize(artifact, dependency_classes = {})
+    @artifact = artifact
+    @dependency_classes = dependency_classes.with_indifferent_access
   end
   
   def contract(name, is: [], abstract: false, upgradeable: false, &block)
-    # TODO: validate arguments
+    raise ::ContractErrors::ContractBuilderError, "name must be a Symbol" unless name.is_a?(::Symbol)
+    raise ::ContractErrors::ContractBuilderError, "is must be an Array" unless is.is_a?(::Array) || is.is_a?(::Symbol)
+    raise ::ContractErrors::ContractBuilderError, "abstract must be a Boolean" unless [true, false].include?(abstract)
+    raise ::ContractErrors::ContractBuilderError, "upgradeable must be a Boolean" unless [true, false].include?(upgradeable)
+    raise ::ContractErrors::ContractBuilderError, "a block must be provided" unless block_given?
     
-    available_contracts = @available_contracts
+    name = name.to_s
+    artifact = @artifact.dependencies.find { |dep| dep.name == name } || @artifact
     
-    ::Class.new(::ContractImplementation) do
+    unless artifact.name == name
+      raise ::ContractErrors::ContractBuilderError, "Contract #{name} not found."
+    end
+    
+    dependency_classes = @dependency_classes
+    
+    contract_class = ::Class.new(::ContractImplementation) do
       @parent_contracts = []
       
       ::Array.wrap(is).each do |dep|
-        unless parent = available_contracts[dep]
-          # TODO: Raise real exception
-          raise "Dependency #{dep} is not available."
+        unless parent = dependency_classes[dep]
+          raise ::ContractErrors::ContractBuilderError, "Dependency #{dep} is not available."
         end
         
         @parent_contracts << parent
@@ -52,11 +53,7 @@ class ContractBuilder < UltraBasicObject
       
       @is_upgradeable = upgradeable
       @is_abstract_contract = abstract
-      @name = name.to_s
-
-      def self.handle_call_from_proxy(method_name, *args, **kwargs, &block)
-        __send__(method_name, *args, **kwargs, &block)
-      end
+      @name = name
       
       ::ContractBuilderCleanRoom.execute_user_code_on_context(
         self,
@@ -70,5 +67,17 @@ class ContractBuilder < UltraBasicObject
         block
       )
     end
+    
+    contract_class.available_contracts = @dependency_classes.
+      merge(name => contract_class)
+    
+    # if contract_class.available_contracts.key?(name)
+    #   raise ::ContractErrors::ContractBuilderError, "Contract #{name} already exists."
+    # end
+    
+    contract_class.contract_artifact = artifact
+    contract_class.init_code_hash = artifact.init_code_hash
+    
+    contract_class
   end
 end
