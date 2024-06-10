@@ -69,8 +69,7 @@ class ContractBuilder #< UltraBasicObject
     end
     
     contract_class.available_contracts = @dependency_classes.
-      merge(name => contract_class).
-      deep_dup
+      merge(name => contract_class)
     
     # if contract_class.available_contracts.key?(name)
     #   raise ::ContractErrors::ContractBuilderError, "Contract #{name} already exists."

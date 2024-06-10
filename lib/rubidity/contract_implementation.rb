@@ -7,8 +7,7 @@ class ContractImplementation
   # include InstrumentAllMethods
   
   class << self
-    attr_accessor :name, :is_abstract_contract, :legacy_source_code,
-    :init_code_hash, :parent_contracts, :source_file,
+    attr_accessor :name, :is_abstract_contract, :init_code_hash, :parent_contracts,
     :is_upgradeable, :contract_artifact
     
     attr_accessor :available_contracts, :state_variable_definitions, :events, :structs
