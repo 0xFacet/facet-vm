@@ -151,7 +151,11 @@ class ContractArtifact < ApplicationRecord
   end
   
   def contract_class
-    @_contract_class ||= ContractBuilder.build_contract_class(self)
+    return @_contract_class if @_contract_class
+    
+    @_contract_class = ContractBuilder.build_contract_class(self)
+    self.abi = @_contract_class.abi
+    @_contract_class
   end
   
   def build_class
@@ -168,13 +172,14 @@ class ContractArtifact < ApplicationRecord
           :execution_source_code,
         ],
         methods: [
-          :abi,
           :verbose_execution_source_code
         ]
       )
-    ).tap do |json|
+    ).with_indifferent_access.tap do |json|
       json[:dependencies] = dependencies.map(&:as_json)
       json[:source_code] = source_code
+      json[:abi] ||= contract_class.abi
+      json[:abi] = json[:abi].as_json
     end
   end
   
