@@ -11,7 +11,7 @@ class BlockBatchContext < ActiveSupport::CurrentAttributes
     if contract_artifacts[init_code_hash]
       return contract_artifacts[init_code_hash]
     else
-      raise "Contract not found: #{init_code_hash}"
+      raise ContractError, "Contract not found: #{init_code_hash}"
     end
   end
   
