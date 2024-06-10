@@ -23,9 +23,15 @@ module VM
       BoxedVariable.new(val)
     when Type
       BoxedVariable.new(val)
-    when Binding, Kernel
-      raise unless Rails.env.development? || Rails.env.test?
-      return val
+    when Class
+      unless val.ancestors.include?(ContractImplementation)
+        raise "Invalid value to box: #{val.inspect}"
+      end
+      
+      return BoxedVariable.new(val)
+    # when Binding, Kernel
+    #   raise unless Rails.env.development? || Rails.env.test?
+    #   return val
     else
       raise "Invalid value to box: #{val.inspect}"
     end

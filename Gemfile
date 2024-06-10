@@ -72,7 +72,7 @@ gem "eth", "~> 0.5.11"
 
 gem "activerecord-import", "~> 1.5"
 
-gem "parser", "3.3.1.0"
+gem "parser", "3.3.2.0"
 gem "unparser"
 
 gem "scout_apm", "~> 5.3"

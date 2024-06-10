@@ -10,13 +10,15 @@ class ContractBuilder #< UltraBasicObject
     
     builder = new(artifact, dep_classes)
     
-    ::ContractBuilderCleanRoom.execute_user_code_on_context(
+    contract_class = ContractBuilderCleanRoom.execute_user_code_on_context(
       builder,
       [:contract],
       "contract",
       artifact.execution_source_code,
       artifact.name
     )
+    
+    VM.unbox(contract_class)
   end
   
   def initialize(artifact, dependency_classes = {})

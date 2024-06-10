@@ -207,7 +207,7 @@ GEM
       activerecord (>= 5.0, < 7.2)
       activesupport (>= 5.0, < 7.2)
     parallel (1.24.0)
-    parser (3.3.1.0)
+    parser (3.3.2.0)
       ast (~> 2.4.1)
       racc
     pg (1.5.4)
@@ -371,7 +371,7 @@ DEPENDENCIES
   memoist (~> 0.16.2)
   msgpack (~> 1.7.2)
   newrelic_rpm
-  parser (= 3.3.1.0)
+  parser (= 3.3.2.0)
   pg (~> 1.1)
   pry
   puma (>= 6.4.0)
@@ -389,7 +389,7 @@ DEPENDENCIES
   unparser
 
 RUBY VERSION
-   ruby 3.3.1p55
+   ruby 3.3.2p78
 
 BUNDLED WITH
    2.4.14
