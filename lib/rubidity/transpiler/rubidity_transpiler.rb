@@ -24,7 +24,7 @@ class RubidityTranspiler
         instance.extract_contract_name(ast).to_s == contract_type.to_s
       end
       
-      hsh = new(ast).generate_contract_artifact
+      hsh = new(ast).generate_contract_artifact_json
       
       return hsh if get_hash
       
@@ -35,7 +35,7 @@ class RubidityTranspiler
       contracts_dir = Rails.root.join('app', 'models', 'contracts')
       Dir.glob("#{contracts_dir}/*.rubidity").each do |file|
         transpiler = new(file)
-        artifacts = transpiler.generate_contract_artifacts
+        artifacts = transpiler.generate_contract_artifact_jsons
         if artifacts.any? { |artifact| artifact.init_code_hash == init_code_hash }
           return transpiler.get_desired_artifact(init_code_hash)
         end
@@ -136,30 +136,52 @@ class RubidityTranspiler
     contract_ast.children.last.children.first.children.third.children.first
   end
   
-  def compute_init_code_hash(ast)
-    "0x" + Digest::Keccak256.hexdigest(ast.inspect)
+  def self.s(type, *children)
+    Parser::AST::Node.new(type, children)
   end
+  delegate :s, to: :class
+  
+  def self.compute_legacy_init_code_hash(ast)
+    with_pragma = legacy_ast(ast)
+    
+    "0x" + Digest::Keccak256.hexdigest(with_pragma.inspect)
+  end
+  delegate :compute_legacy_init_code_hash, to: :class
+  
+  def self.legacy_ast(ast)
+    prag_node = s(:send, nil, :pragma,
+      s(:sym, :rubidity),
+      s(:str, "1.0.0"))
+    
+    s(:begin, *[prag_node, *ast.children])
+  end
+  delegate :legacy_ast, to: :class
   
   def process_and_serialize_ast(ast)
     v1 = ConstsToSends.process(ast.unparse, box: false)
     AstSerializer.serialize(Unparser.parse(v1), format: :json)
   end
   
-  def generate_contract_artifact
+  def legacy_init_code_hash
+    self_ast = preprocessed_contract_asts.last
+    legacy_init_code_hash = compute_legacy_init_code_hash(self_ast)
+  end
+  
+  def generate_contract_artifact_json
     ensure_unique_names!
     
     self_ast = preprocessed_contract_asts.last
     dependency_asts = preprocessed_contract_asts.first(preprocessed_contract_asts.length - 1)
     
     dep_artifacts = dependency_asts.map do |ast|
-      RubidityTranspiler.new(ast).generate_contract_artifact
+      RubidityTranspiler.new(ast).generate_contract_artifact_json
     end
     
-    {
+     {
       name: extract_contract_name(self_ast),
       ast: process_and_serialize_ast(self_ast.children.last),
       dependencies: dep_artifacts,
-      legacy_source_code: self_ast.unparse
+      legacy_source_code: legacy_ast(self_ast).unparse,
     }.with_indifferent_access
   end
   

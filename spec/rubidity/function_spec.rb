@@ -3,6 +3,7 @@ require 'rails_helper'
 RSpec.describe FunctionProxy, type: :model do
   around do |example|
     TransactionContext.set(
+      legacy_mode: false,
       call_log_stack: [],
       call_counts: {},
       gas_counter: GasCounter.new(TransactionContext),

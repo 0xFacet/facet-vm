@@ -2,7 +2,7 @@ class TransactionContext < ActiveSupport::CurrentAttributes
   include ContractErrors
   
   attribute :call_stack, :current_call, :transaction_index, :current_transaction, :active_contracts,
-    :call_counts, :call_log_stack, :gas_counter, :contract_artifacts
+    :call_counts, :call_log_stack, :gas_counter, :contract_artifacts, :legacy_mode
   
   STRUCT_DETAILS = {
     msg:    { attributes: { sender: :address } },

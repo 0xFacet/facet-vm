@@ -96,7 +96,10 @@ class ContractVariable < GenericVariable
       if artifact_json
         artifact = ContractArtifact.parse_and_store(artifact_json, TransactionContext)
       elsif typed_source.value.present?
-        artifact = ContractArtifact.parse_and_store(RubidityTranspiler.new(typed_source.value).generate_contract_artifact, TransactionContext)
+        TransactionContext.legacy_mode = true
+        artifact = RubidityTranspiler.new(typed_source.value).generate_contract_artifact_json
+        
+        artifact = ContractArtifact.parse_and_store(artifact, TransactionContext, legacy_mode: true)
       end
       
       new_init_code_hash = typed.value

@@ -65,7 +65,7 @@ RSpec.describe "ContractArtifact Creation" do
   
   describe '.parse_and_store' do
     let(:json_data) do
-      RubidityTranspiler.new("StubERC721").generate_contract_artifact
+      RubidityTranspiler.new("StubERC721").generate_contract_artifact_json
     end
 
     before do
@@ -93,7 +93,7 @@ RSpec.describe "ContractArtifact Creation" do
 
   describe '.save_all' do
     let(:json_data) do
-      RubidityTranspiler.new("StubERC721").generate_contract_artifact
+      RubidityTranspiler.new("StubERC721").generate_contract_artifact_json
     end
 
     before do

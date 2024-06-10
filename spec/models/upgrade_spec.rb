@@ -41,7 +41,7 @@ describe 'Upgrading Contracts' do
         to: v1.effective_contract_address,
         data: {
           function: "upgradeFromV1",
-          args: [v2.init_code_hash, v2.source_code]
+          args: [v2.init_code_hash, v2.to_serializable_hash.to_json]
         }
       }
     )
@@ -107,7 +107,7 @@ describe 'Upgrading Contracts' do
         to: v1.effective_contract_address,
         data: {
           function: "upgradeFromV1",
-          args: [v2.init_code_hash, v2.source_code]
+          args: [v2.init_code_hash, v2.to_serializable_hash.to_json]
         }
       }
     )
@@ -331,7 +331,7 @@ describe 'Upgrading Contracts' do
         to: v1.effective_contract_address,
         data: {
           function: "upgradeFromV1",
-          args: [hash_v2, v2.source_code]
+          args: [hash_v2, v2.to_serializable_hash.to_json]
         }
       }
     )
@@ -354,7 +354,7 @@ describe 'Upgrading Contracts' do
         to: v1.effective_contract_address,
         data: {
           function: "upgradeAndRevert",  # Assuming you have a similar function in V2 for further upgrades
-          args: [hash_v3, v3.source_code]
+          args: [hash_v3, v3.to_serializable_hash.to_json]
         }
       }
     )
@@ -373,7 +373,7 @@ describe 'Upgrading Contracts' do
         to: v1.effective_contract_address,
         data: {
           function: "upgradeFromV2",  # Assuming you have a similar function in V2 for further upgrades
-          args: [hash_v3, v3.source_code]
+          args: [hash_v3, v3.to_serializable_hash.to_json]
         }
       }
     )
@@ -405,7 +405,7 @@ describe 'Upgrading Contracts' do
     )
   
     v2 = RubidityTranspiler.transpile_and_get("UpgradeableV2:UpgradeableTest")
-    hash_v2 = v2.init_code_hash
+    hash_v2 = v2.legacy_init_code_hash
     
     trigger_contract_interaction_and_expect_error(
       error_msg_includes: 'Contract is not upgradeable',
@@ -479,7 +479,7 @@ describe 'Upgrading Contracts' do
         to: a1.address,
         data: {
           function: "setNextUpgradeHash",
-          args: [hash_a2, a2.source_code]
+          args: [hash_a2, a2.to_serializable_hash.to_json]
         }
       }
     )
@@ -493,7 +493,7 @@ describe 'Upgrading Contracts' do
         to: b1.address,
         data: {
           function: "setNextUpgradeHash",
-          args: [hash_b2, b2.source_code]
+          args: [hash_b2, b2.to_serializable_hash.to_json]
         }
       }
     )

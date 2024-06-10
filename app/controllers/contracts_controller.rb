@@ -166,32 +166,11 @@ class ContractsController < ApplicationController
     transpiler = RubidityTranspiler.new(code)
     transpiler.filename = "./#{contract}__.rubidity"
     
-    artifact = transpiler.get_desired_artifact(contract.to_s)
-    artifact.abi = artifact.build_class.abi
+    json = RubidityTranspiler.new(source_code).generate_contract_artifact_json
+     
+    artifact = ContractArtifact.parse_and_store(json)
     
     render json: { result: artifact }
-  rescue => e
-    render json: { error: e.message }, status: 500
-  end
-  
-  def source_code_to_abi
-    code = params[:source_code]
-    contract = params[:contract_name]
-    
-    unless contract =~ /\A[a-z0-9_]+\z/i
-      raise "Invalid contract name"
-    end
-    
-    Timeout.timeout(5.seconds) do
-      transpiler = RubidityTranspiler.new(code.to_s)
-      transpiler.filename = "./#{contract}.rubidity"
-      
-      abi = transpiler.
-        get_desired_artifact(contract.to_s).
-        build_class.abi.as_json
-      
-      render json: { result: abi }
-    end
   rescue => e
     render json: { error: e.message }, status: 500
   end

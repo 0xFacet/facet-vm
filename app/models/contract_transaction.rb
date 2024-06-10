@@ -297,6 +297,7 @@ class ContractTransaction < ApplicationRecord
   
   def with_global_context
     TransactionContext.set(
+      legacy_mode: false,
       call_stack: CallStack.new(TransactionContext),
       gas_counter: GasCounter.new(TransactionContext),
       active_contracts: [],
@@ -321,9 +322,14 @@ class ContractTransaction < ApplicationRecord
     
     artifact = if payload_data.contract_artifact
       ContractArtifact.parse_and_store(payload_data.contract_artifact, TransactionContext)
-    elsif payload_data.source_code
+    elsif payload_data.source_code.to_s != ''
+      TransactionContext.legacy_mode = true
+      
       source_code = payload_data.source_code
-      ContractArtifact.parse_and_store(RubidityTranspiler.new(source_code).generate_contract_artifact, TransactionContext)
+      
+      artifact = RubidityTranspiler.new(source_code).generate_contract_artifact_json
+     
+      ContractArtifact.parse_and_store(artifact, TransactionContext, legacy_mode: true)
     end
     
     init_code_hash = artifact&.init_code_hash || payload_data.init_code_hash

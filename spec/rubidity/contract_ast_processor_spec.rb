@@ -55,6 +55,7 @@ RSpec.describe ContractAstProcessor do
   
   it "works on files" do
     normalized = <<~RUBY
+      pragma(:rubidity, "1.0.0")
       contract(:Dep1) {
       }
       contract(:Dep2) {

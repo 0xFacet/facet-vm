@@ -63,6 +63,7 @@ class BlockContext < ActiveSupport::CurrentAttributes
     
     contract_transactions.each do |contract_tx|
       TransactionContext.set(
+        legacy_mode: false,
         call_stack: CallStack.new(TransactionContext),
         gas_counter: GasCounter.new(TransactionContext),
         active_contracts: [],

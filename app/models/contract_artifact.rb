@@ -44,42 +44,76 @@ class ContractArtifact < ApplicationRecord
   
   def self.from_name(name)
     raise if Rails.env.production?
-    a = RubidityTranspiler.new(name).generate_contract_artifact
+    a = RubidityTranspiler.new(name).generate_contract_artifact_json
     parse_and_store(a)
   end
   
-  def self.precompute_hashes(artifact_data)
+  def to_serializable_hash
+    {
+      name: name,
+      ast: ast,
+      init_code_hash: init_code_hash,
+      legacy_source_code: legacy_source_code,
+      dependencies: dependencies.map(&:to_serializable_hash)
+    }.tap do |hsh|
+      if legacy_source_code
+        hsh[:legacy_source_code] = legacy_source_code
+      end
+      
+      if legacy_init_code_hash
+        hsh[:legacy_init_code_hash] = legacy_init_code_hash
+      end
+    end
+  end
+
+  def legacy_init_code_hash
+    RubidityTranspiler.new(legacy_source_code).legacy_init_code_hash
+  end
+  
+  def self.precompute_hashes(artifact_data, legacy_mode: false)
+    # binding.pry unless legacy_mode
     artifact_data = artifact_data.deep_symbolize_keys
-
-    dependencies = artifact_data[:dependencies].map do |dep_data|
-      precompute_hashes(dep_data)
+  
+    # Recursively compute hashes for dependencies
+    artifact_data[:dependencies] = artifact_data[:dependencies].map do |dep_data|
+      precompute_hashes(dep_data, legacy_mode: legacy_mode)
     end
-
-    combined_data = {
-      name: artifact_data[:name],
-      ast: artifact_data[:ast],
-      dependencies: dependencies.map { |dep| dep[:init_code_hash] }
-    }
-
-    computed_init_code_hash = sort_and_hash(combined_data)
-
-    if artifact_data[:init_code_hash] && artifact_data[:init_code_hash] != computed_init_code_hash
-      raise "Provided init_code_hash does not match computed hash for #{artifact_data[:name]}"
+    
+    if legacy_mode
+      # Compute hash for legacy mode
+      artifact_data[:init_code_hash] = RubidityTranspiler.new(artifact_data[:legacy_source_code]).
+        legacy_init_code_hash
+    else
+      # Compute hash for normal mode
+      combined_data = {
+        name: artifact_data[:name],
+        ast: artifact_data[:ast],
+        dependencies: artifact_data[:dependencies].map { |dep| dep[:init_code_hash] }
+      }
+      computed_init_code_hash = sort_and_hash(combined_data)
+  
+      # Check if provided init_code_hash matches computed hash
+      if artifact_data[:init_code_hash] && artifact_data[:init_code_hash] != computed_init_code_hash
+        binding.pry
+        raise "Provided init_code_hash does not match computed hash for #{artifact_data[:name]}"
+      end
+  
+      artifact_data[:init_code_hash] = computed_init_code_hash
     end
-
-    artifact_data[:init_code_hash] = computed_init_code_hash
-
+  
     artifact_data
   end
   
-  def self.parse_and_store(artifact_data, context = nil)
-    precomputed_data = precompute_hashes(artifact_data.deep_symbolize_keys)
+  def self.parse_and_store(artifact_data, context = nil, legacy_mode: false)
+    precomputed_data = precompute_hashes(
+      artifact_data.deep_symbolize_keys,
+      legacy_mode: legacy_mode
+    )
+    
     parse_and_store_recursively(precomputed_data, context)
   end
   
   def self.parse_and_store_recursively(artifact_data, context = nil)
-    artifact_data = precompute_hashes(artifact_data.deep_symbolize_keys)
-
     artifact = new(
       name: artifact_data[:name],
       ast: artifact_data[:ast],
@@ -89,7 +123,7 @@ class ContractArtifact < ApplicationRecord
 
     # First pass: Parse and store dependencies
     dependencies = artifact_data[:dependencies].map do |dep_data|
-      parse_and_store(dep_data, context)
+      parse_and_store_recursively(dep_data, context)
     end
 
     # Second pass: Build associations
@@ -116,10 +150,6 @@ class ContractArtifact < ApplicationRecord
     legacy_source_code
   end
   
-  def calculate_legacy_source_code
-    
-  end
-  
   def contract_class
     @_contract_class ||= ContractBuilder.build_contract_class(self)
   end
@@ -133,11 +163,9 @@ class ContractArtifact < ApplicationRecord
       options.merge(
         only: [
           :name,
-          :legacy_source_code,
+          :ast,
           :init_code_hash,
           :execution_source_code,
-          :contract_definitions,
-          :artifact_hash,
         ],
         methods: [
           :abi,
@@ -146,6 +174,7 @@ class ContractArtifact < ApplicationRecord
       )
     ).tap do |json|
       json[:dependencies] = dependencies.map(&:as_json)
+      json[:source_code] = source_code
     end
   end
   

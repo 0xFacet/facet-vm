@@ -9,8 +9,6 @@ Rails.application.routes.draw do
         post "/simulate", to: "contracts#simulate_transaction"
         
         post "/simulate_with_state", to: "contracts#simulate_transaction_with_state"
-        post "/source_code_to_abi", to: "contracts#source_code_to_abi"
-        get "/source_code_to_abi", to: "contracts#source_code_to_abi"
         post "/source_code_to_artifact", to: "contracts#source_code_to_artifact"
         get "/source_code_to_artifact", to: "contracts#source_code_to_artifact"
         

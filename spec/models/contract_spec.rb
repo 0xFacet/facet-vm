@@ -419,7 +419,7 @@ RSpec.describe Contract, type: :model do
           to: bridge.effective_contract_address,
           data: {
             function: "upgrade",
-            args: [v1.init_code_hash, v1.source_code]
+            args: [v1.legacy_init_code_hash, v1.source_code]
           }
         }
       )
@@ -429,7 +429,7 @@ RSpec.describe Contract, type: :model do
       end
 
       expect(contract_upgraded_event['data']['oldHash']).to eq(v2.init_code_hash)
-      expect(contract_upgraded_event['data']['newHash']).to eq(v1.init_code_hash)
+      expect(contract_upgraded_event['data']['newHash']).to eq(v1.legacy_init_code_hash)
       
       bal = ContractTransaction.make_static_call(
         contract: bridge.effective_contract_address,

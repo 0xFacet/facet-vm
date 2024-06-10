@@ -205,7 +205,7 @@ module ContractTestHelper
     
     new_hashes = new_names.map do |name|
       item = RubidityTranspiler.transpile_and_get(name)
-      item.init_code_hash
+      RubidityTranspiler.new(item.legacy_source_code).legacy_init_code_hash
     end
     
     ContractTestHelper.update_supported_contracts(*new_hashes, replace: true)
@@ -214,7 +214,7 @@ module ContractTestHelper
   def update_supported_contracts(*new_names)
     new_hashes = new_names.map do |name|
       item = RubidityTranspiler.transpile_and_get(name)
-      item.init_code_hash
+      RubidityTranspiler.new(item.legacy_source_code).legacy_init_code_hash
     end
     
     ContractTestHelper.update_supported_contracts(*new_hashes)
