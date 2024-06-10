@@ -30,19 +30,6 @@ class RubidityTranspiler
       
       ContractArtifact.parse_and_store(hsh)
     end
-    
-    def find_and_transpile(init_code_hash)
-      contracts_dir = Rails.root.join('app', 'models', 'contracts')
-      Dir.glob("#{contracts_dir}/*.rubidity").each do |file|
-        transpiler = new(file)
-        artifacts = transpiler.generate_contract_artifact_jsons
-        if artifacts.any? { |artifact| artifact.init_code_hash == init_code_hash }
-          return transpiler.get_desired_artifact(init_code_hash)
-        end
-      end
-      raise UnknownInitCodeHash.new("No contract found with init code hash: #{init_code_hash.inspect}")
-    end
-    memoize :find_and_transpile
   end
   
   def initialize(filename_or_string)

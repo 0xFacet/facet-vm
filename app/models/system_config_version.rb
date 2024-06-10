@@ -89,18 +89,9 @@ class SystemConfigVersion < ApplicationRecord
   end
   
   def self.current_supported_contract_artifacts
-    artifacts = Rails.cache.fetch(["current_supported_contract_artifacts", all]) do
-      current.supported_contracts.map do |item|
-        begin
-          RubidityTranspiler.find_and_transpile(item)
-        rescue UnknownInitCodeHash => e
-          ContractArtifact.find_by_init_code_hash!(item)
-        end
-      end
-    end.deep_dup
-    
-    artifacts.each(&:set_abi)
-    artifacts
+    Rails.cache.fetch(["current_supported_contract_artifacts", current]) do
+      ContractArtifact.where(init_code_hash: current.supported_contracts)
+    end
   end
   
   def as_json(options = {})
