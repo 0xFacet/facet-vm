@@ -56,7 +56,9 @@ class Ethscription < ApplicationRecord
       end
       
       if mimetype == ContractTransaction.transaction_mimetype
-        build_contract_transaction(ethscription: self)
+        new_contract_transaction = ContractTransaction.new(ethscription: self)
+        
+        association(:contract_transaction).target = new_contract_transaction
       elsif mimetype == SystemConfigVersion.system_mimetype
         version = SystemConfigVersion.create_from_ethscription!(self, persist: persist)
         

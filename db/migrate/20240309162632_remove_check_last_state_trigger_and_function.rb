@@ -1,5 +1,7 @@
 class RemoveCheckLastStateTriggerAndFunction < ActiveRecord::Migration[7.1]
   def up
+    return unless pg_adapter?
+    
     execute <<-SQL
       DROP TRIGGER IF EXISTS check_before_delete ON contract_states;
       DROP FUNCTION IF EXISTS check_last_state();
@@ -7,6 +9,8 @@ class RemoveCheckLastStateTriggerAndFunction < ActiveRecord::Migration[7.1]
   end
 
   def down
+    return unless pg_adapter?
+    
     execute <<-SQL
       CREATE OR REPLACE FUNCTION check_last_state() RETURNS TRIGGER AS $$
       DECLARE

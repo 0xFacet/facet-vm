@@ -1,100 +1,160 @@
 require 'rails_helper'
 
 RSpec.describe ForLoop do
-  class DummyClass
-    include ForLoop
+  before(:each) do
+    allow_any_instance_of(SystemConfigVersion).to receive(:contract_supported?).and_return(true)
   end
 
-  let(:dummy_class) { DummyClass.new }
-
+  let(:bob) { "0x000000000000000000000000000000000000000b" }
+  
+  let(:test_contract_address) do
+    address = trigger_contract_interaction_and_expect_success(
+      from: bob,
+      payload: {
+        to: nil,
+        data: {
+          type: "ForLoopTest"
+        }
+      }
+    ).address
+  end
+  
+  let(:test_contract_address2) do
+    address = trigger_contract_interaction_and_expect_success(
+      from: bob,
+      payload: {
+        to: nil,
+        data: {
+          type: "InfiniteLooper:ForLoopTest"
+        }
+      }
+    ).address
+  end
+  
   describe '#forLoop' do
     it 'skips even numbers' do
-      ary = (1..10).to_a
-      result = []
+      ret = trigger_contract_interaction_and_expect_success(
+        from: bob,
+        payload: {
+          op: "call",
+          data: {
+            to: test_contract_address,
+            function: "skipEvenNumbers",
+            args: [(1..10).to_a]
+          }
+        }
+      ).return_value
 
-      dummy_class.forLoop(start: 0, condition: ->(i) { i < ary.length }, step: 1) do |i|
-        next if i.even?
-        result << i
-      end
-
-      expect(result).to eq([1, 3, 5, 7, 9])
+      expect(ret).to eq([1, 3, 5, 7, 9])
     end
 
     it 'stops the loop when i is greater than 5' do
-      ary = (1..10).to_a
-      result = []
-
-      dummy_class.forLoop(start: 0, condition: ->(i) { i < ary.length }, step: 1) do |i|
-        break if i > 5
-        result << i
-      end
+      result = trigger_contract_interaction_and_expect_success(
+        from: bob,
+        payload: {
+          op: "call",
+          data: {
+            to: test_contract_address,
+            function: "stopAtFive",
+            args: [(1..10).to_a]
+          }
+        }
+      ).return_value
 
       expect(result).to eq([0, 1, 2, 3, 4, 5])
     end
 
     it 'raises an error when max iterations are exceeded' do
-      ary = (1..10).to_a
-
-      expect {
-        dummy_class.forLoop(start: 0, condition: ->(i) { i < ary.length }, step: 1, max_iterations: 5) do |i|
-        end
-      }.to raise_error(StandardError, "MaxIterationsExceeded")
+      allow(TransactionContext).to receive(:gas_limit).and_return(100)
+      
+      result = trigger_contract_interaction_and_expect_error(
+        from: bob,
+        payload: {
+          op: "call",
+          data: {
+            to: test_contract_address2,
+            function: "doInfiniteLoop",
+          }
+        }
+      )
     end
     
     it 'runs with default arguments' do
-      result = []
-      dummy_class.forLoop(condition: ->(i) { i < 5 }) do |i|
-        result << i
-      end
+      result = trigger_contract_interaction_and_expect_success(
+        from: bob,
+        payload: {
+          op: "call",
+          data: {
+            to: test_contract_address,
+            function: "testDefaultArgs",
+            args: [(1..10).to_a]
+          }
+        }
+      ).return_value
+      
       expect(result).to eq([0, 1, 2, 3, 4])
     end
     
     it 'decrements with a negative step' do
-      result = []
-      dummy_class.forLoop(start: 5, condition: ->(i) { i >= 0 }, step: -1) do |i|
-        result << i
-      end
+      result = trigger_contract_interaction_and_expect_success(
+        from: bob,
+        payload: {
+          op: "call",
+          data: {
+            to: test_contract_address,
+            function: "negativeStep",
+            args: [(1..10).to_a]
+          }
+        }
+      ).return_value
       expect(result).to eq([5, 4, 3, 2, 1, 0])
     end
     
     it 'never runs if condition is immediately false' do
-      result = []
-      dummy_class.forLoop(start: 10, condition: ->(i) { i < 5 }) do |i|
-        result << i
-      end
+      result = trigger_contract_interaction_and_expect_success(
+        from: bob,
+        payload: {
+          op: "call",
+          data: {
+            to: test_contract_address,
+            function: "conditionImmediatelyFalse",
+            args: [(1..10).to_a]
+          }
+        }
+      ).return_value
       expect(result).to be_empty
     end
     
-    it 'handles non-integer steps' do
-      result = []
-      dummy_class.forLoop(start: 0, condition: ->(i) { i < 5 }, step: 0.5) do |i|
-        result << i
-      end
-      expect(result).to eq([0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5])
-    end
-    
     it 'increments by custom step value' do
-      result = []
-      dummy_class.forLoop(start: 0, condition: ->(i) { i < 10 }, step: 2) do |i|
-        result << i
-      end
+      result = trigger_contract_interaction_and_expect_success(
+        from: bob,
+        payload: {
+          op: "call",
+          data: {
+            to: test_contract_address,
+            function: "customStepValue",
+            args: [(1..10).to_a]
+          }
+        }
+      ).return_value
       expect(result).to eq([0, 2, 4, 6, 8])
     end
     
     it 'handles nested forLoops correctly' do
-      outer_results = []
-      inner_results = []
-    
-      dummy_class.forLoop(start: 0, condition: ->(i) { i < 3 }, step: 1, max_iterations: 5) do |i|
-        outer_results << i
-    
-        dummy_class.forLoop(start: 10, condition: ->(j) { j < 13 }, step: 1, max_iterations: 5) do |j|
-          inner_results << j
-        end
-      end
-    
-      expect(outer_results).to eq([0, 1, 2])
-      expect(inner_results).to eq([10, 11, 12, 10, 11, 12, 10, 11, 12])
+      result = trigger_contract_interaction_and_expect_success(
+        from: bob,
+        payload: {
+          op: "call",
+          data: {
+            to: test_contract_address,
+            function: "nestedForLoops",
+            args: [(1..10).to_a]
+          }
+        }
+      ).return_value.with_indifferent_access
+      
+      expect(result[:outer]).to eq([0, 1, 2])
+      expect(result[:inner]).to eq([10, 11, 12, 10, 11, 12, 10, 11, 12])
     end    
   end
 end

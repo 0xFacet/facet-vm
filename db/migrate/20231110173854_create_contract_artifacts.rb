@@ -8,7 +8,7 @@ class CreateContractArtifacts < ActiveRecord::Migration[7.1]
       t.string :name, null: false
       t.text :source_code, null: false
       t.string :init_code_hash, null: false
-      t.jsonb :references, default: [], null: false
+      t.column :references, :jsonb, default: [], null: false
       t.string :pragma_language, null: false
       t.string :pragma_version, null: false
     
@@ -17,7 +17,9 @@ class CreateContractArtifacts < ActiveRecord::Migration[7.1]
       t.index :init_code_hash, unique: true
       t.index :name
     
-      t.check_constraint "init_code_hash ~ '^0x[a-f0-9]{64}$'"
+      if pg_adapter?
+        t.check_constraint "init_code_hash ~ '^0x[a-f0-9]{64}$'"
+      end
     
       t.foreign_key :ethscriptions, column: :transaction_hash, primary_key: :transaction_hash, on_delete: :cascade
       t.foreign_key :eth_blocks, column: :block_number, primary_key: :block_number, on_delete: :cascade

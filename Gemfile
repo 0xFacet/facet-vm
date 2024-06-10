@@ -1,10 +1,10 @@
 source "https://rubygems.org"
 git_source(:github) { |repo| "https://github.com/#{repo}.git" }
 
-ruby "3.3.0"
+ruby "3.3.2"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
-gem "rails", "~> 7.1.2"
+gem "rails", "~> 7.1.3.3"
 
 # Use postgresql as the database for Active Record
 gem "pg", "~> 1.1"
@@ -72,6 +72,7 @@ gem "eth", "~> 0.5.11"
 
 gem "activerecord-import", "~> 1.5"
 
+gem "parser", "3.3.2.0"
 gem "unparser"
 
 gem "scout_apm", "~> 5.3"
@@ -90,3 +91,17 @@ gem 'rswag-api'
 gem 'rswag-ui'
 
 gem 'newrelic_rpm'
+
+gem "sqlite3", "~> 1.7"
+
+gem "rubocop"
+
+gem "memery", "~> 1.5"
+
+gem "correlations", "~> 1.0"
+
+gem "csv", "~> 3.3"
+
+gem "cbor", "~> 0.5.9"
+
+gem "msgpack", "~> 1.7.2"

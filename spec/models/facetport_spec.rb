@@ -11,6 +11,7 @@ describe 'FacetPort contract' do
   before(:all) do
     update_supported_contracts("StubERC721")
     update_supported_contracts("StubERC20")
+    update_supported_contracts("FacetPortV101")
   end
   
   it "Lists and sells" do

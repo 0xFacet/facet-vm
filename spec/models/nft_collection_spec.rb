@@ -151,8 +151,11 @@ RSpec.describe "NFTCollection01", type: :model do
   end
 
   before do
-    update_supported_contracts("NFTCollection01")
-    update_supported_contracts("EditionMetadataRenderer01")
+    update_supported_contracts(
+      "NFTCollection01",
+      "EditionMetadataRenderer01",
+      "PublicMintERC20"
+    )
 
     trigger_contract_interaction_and_expect_success(
       from: non_owner_address,
@@ -817,6 +820,7 @@ RSpec.describe "NFTCollection01", type: :model do
       )
   
       token_uri = get_contract_state(nft_contract.address, 'tokenURI', 1)
+      
       expect(token_uri).to eq("data:application/json;base64,eyJuYW1lIjogIlRlc3QgTmFtZSAxIiwgImRlc2NyaXB0aW9uIjogIlRlc3QgZGVzY3JpcHRpb24iLCAiaW1hZ2UiOiAiaHR0cHM6Ly9leGFtcGxlLmNvbS9uZXcucG5nIiwgImFuaW1hdGlvbl91cmwiOiAiaHR0cHM6Ly9leGFtcGxlLmNvbS9hbmltYXRpb24ucG5nIiwgInByb3BlcnRpZXMiOiB7Im51bWJlciI6IDEsICJuYW1lIjogIlRlc3QgTmFtZSJ9fQ==")
   
       trigger_contract_interaction_and_expect_error(

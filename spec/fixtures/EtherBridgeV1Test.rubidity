@@ -5,11 +5,11 @@ import '/app/models/contracts/Upgradeable.rubidity'
 
 contract :EtherBridgeV1Test, is: [:ERC20, :Upgradeable], upgradeable: true do
   event :InitiateWithdrawal, { from: :address, amount: :uint256, withdrawalId: :bytes32 }
-  event :WithdrawalComplete, { to: :address, amounts: [:uint256], withdrawalIds: [:bytes32] }
+  event :WithdrawalComplete, { to: :address, amounts: :uint256[], withdrawalIds: :bytes32[] }
 
   address :public, :trustedSmartContract
   mapping ({ address: :uint256 }), :public, :pendingWithdrawalAmounts
-  mapping ({ address: array(:bytes32) }), :public, :pendingUserWithdrawalIds
+  mapping ({ address: :bytes32[] }), :public, :pendingUserWithdrawalIds
 
   bool :public, :bridgeOutPaused
   
@@ -88,11 +88,11 @@ contract :EtherBridgeV1Test, is: [:ERC20, :Upgradeable], upgradeable: true do
     emit :WithdrawalComplete, to: to, amounts: amounts, withdrawalIds: withdrawalIds
   end
   
-  function :getPendingWithdrawalsForUser, { user: :address }, :public, :view, returns: [:bytes32] do
+  function :getPendingWithdrawalsForUser, { user: :address }, :public, :view, returns: :bytes32[] do
     return s.pendingUserWithdrawalIds[user]
   end
   
-  function :_removeFirstOccurenceOfValueFromArray, { arr: array(:bytes32), value: :bytes32 }, :internal, returns: :bool do
+  function :_removeFirstOccurenceOfValueFromArray, { arr: :bytes32[], value: :bytes32 }, :internal, returns: :bool do
     forLoop(
       condition: -> i { i < arr.length },
     ) do |i|
@@ -104,7 +104,7 @@ contract :EtherBridgeV1Test, is: [:ERC20, :Upgradeable], upgradeable: true do
     return false
   end
   
-  function :_removeItemAtIndex, { arr: array(:bytes32), indexToRemove: :uint256 }, :internal, returns: :bool do
+  function :_removeItemAtIndex, { arr: :bytes32[], indexToRemove: :uint256 }, :internal, returns: :bool do
     lastIndex = arr.length - 1
     
     if lastIndex != indexToRemove

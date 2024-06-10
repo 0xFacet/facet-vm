@@ -49,8 +49,8 @@ class FunctionProxy
           components: type.struct_definition.fields.map do |field_name, field_type|
             {
               name: field_name,
-              type: field_type[:type].name.to_s,
-              internalType: field_type[:type].name.to_s,
+              type: field_type.name.to_s,
+              internalType: field_type.name.to_s,
             }
           end
         }
@@ -79,8 +79,8 @@ class FunctionProxy
           components: type.struct_definition.fields.map do |field_name, field_type|
             {
               name: field_name,
-              type: field_type[:type].name.to_s,
-              internalType: field_type[:type].name.to_s,
+              type: field_type.name.to_s,
+              internalType: field_type.name.to_s,
             }
           end
         }]
@@ -150,8 +150,8 @@ class FunctionProxy
     
     validate_arg_names(other_args)
     
-    return Struct.new(nil).new if args.blank?
-    
+    return ContractFunctionArgs.new if args.blank?
+        
     as_typed = if other_args.is_a?(Array)
       args.keys.zip(other_args).map do |key, value|
         type = args[key]
@@ -164,17 +164,20 @@ class FunctionProxy
       end
     end
     
-    struct_class = Struct.new(*as_typed.keys)
-    struct_class.new(*as_typed.values)
+    ContractFunctionArgs.new(as_typed)
   end
   
   def convert_return_to_typed_variable(ret_val)
-    return nil if constructor?
+    return NullVariable.instance if constructor?
+    
+    ret_val = VM.deep_unbox(ret_val)
     
     if returns.nil?
-      return nil if ret_val.nil?
+      if ret_val.eq(NullVariable.instance)
+        return NullVariable.instance
+      end
       
-      raise ContractError, "Function #{func_location} returned #{ret_val.inspect}, but expected nil"
+      raise ContractError, "Function #{func_location} returned #{ret_val.inspect}, but expected null"
     end
   
     if ret_val.nil?
@@ -182,7 +185,7 @@ class FunctionProxy
     end
     
     if returns.is_a?(Hash)
-      ret_val.each.with_object({}) do |(key, value), acc|
+      ret_val = ret_val.each.with_object({}) do |(key, value), acc|
         acc[key.to_sym] = TypedVariable.create_or_validate(create_type(returns[key]), value)
       end
       DestructureOnly.new(ret_val)

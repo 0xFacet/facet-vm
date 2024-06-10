@@ -40,7 +40,7 @@ contract :ERC20LiquidityPool do
     inputReserve = ERC20(inputToken).balanceOf(address(this))
     outputReserve = ERC20(outputToken).balanceOf(address(this))
 
-    ((inputAmount * outputReserve) / (inputReserve + inputAmount)).to_i
+    ((inputAmount * outputReserve) / (inputReserve + inputAmount))
   end
 
   function :swap, {
@@ -48,8 +48,8 @@ contract :ERC20LiquidityPool do
     outputToken: :address,
     inputAmount: :uint256
   }, :public, returns: :uint256 do
-    require([s.token0, s.token1].include?(inputToken), "Invalid input token")
-    require([s.token0, s.token1].include?(outputToken), "Invalid output token")
+    require(inputToken == s.token0 || inputToken == s.token1, "Invalid input token")
+    require(outputToken == s.token0 || outputToken == s.token1, "Invalid output token")
 
     require(inputToken != outputToken, "Input and output tokens can't be the same")
 

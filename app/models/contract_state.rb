@@ -9,7 +9,7 @@ class ContractState < ApplicationRecord
     'block_number DESC, transaction_index DESC' : 'block_number DESC'
     order(Arel.sql(order_clause))
   }
-  
+   
   def as_json(options = {})
     super(
       options.merge(

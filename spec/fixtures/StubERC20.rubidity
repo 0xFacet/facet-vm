@@ -14,4 +14,8 @@ contract :StubERC20, is: :ERC20 do
   function :airdrop, { to: :address, amount: :uint256 }, :public do
     _mint(to: to, amount: amount)
   end
+  
+  function :updateName, { name: :string }, :public do
+    s.name = name
+  end
 end

@@ -71,7 +71,8 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
       "EtherBridge03",
       "FacetBuddyFactory",
       "FacetBuddy",
-      "TokenUpgradeRenderer02"
+      "TokenUpgradeRenderer02",
+      "PublicMintERC20"
     )
   end
 
@@ -217,7 +218,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
       }
     )
     
-    trigger_contract_interaction_and_expect_success(
+    r = trigger_contract_interaction_and_expect_success(
       from: owner_address,
       payload: {
         to: nft_contract.address,
@@ -483,7 +484,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
         to: upgrader.address,
         data: {
           function: "upgrade",
-          args: [v2.init_code_hash, v2.source_code]
+          args: [v2.legacy_init_code_hash, v2.source_code]
         }
       }
     )
@@ -535,7 +536,7 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
       amount: amount * per_mint_fee
     )
     
-    trigger_contract_interaction_and_expect_success(
+    r = trigger_contract_interaction_and_expect_success(
       from: non_owner_address,
       payload: {
         to: upgrader.address,
@@ -548,6 +549,8 @@ RSpec.describe "TokenUpgradeRenderer01", type: :model do
         }
       }
     )
+    # puts JSON.pretty_generate(r.stats.nested_log)
+    # exit
     
     token_uri_base_64 = get_contract_state(nft_contract.address, "tokenURI", 1)
     

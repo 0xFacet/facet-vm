@@ -4,6 +4,6 @@ import './TestContract.rubidity'
 
 contract :TestContractOverrideWithoutModifier, is: :TestContract do
   function :_mint, { to: :address, amount: :uint256 }, :public do
-    _TestContract._mint(to: to, amount: amount)
+    TestContract._mint(to: to, amount: amount)
   end
 end

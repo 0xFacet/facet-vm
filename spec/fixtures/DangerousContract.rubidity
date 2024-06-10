@@ -1,0 +1,10 @@
+pragma :rubidity, "1.0.0"
+
+contract :DangerousContract do
+  uint256 :dangerousMethod
+  
+  constructor() {
+    s.dangerousMethod
+    s.dangerousMethod = 22
+  }
+end

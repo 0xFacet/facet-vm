@@ -82,7 +82,9 @@ RSpec.describe "PresaleERC20", type: :model do
   before do
     update_supported_contracts(
       "FacetSwapV1Factory02",
+      "FacetSwapV1Router03",
       "PublicMintERC20",
+      "FacetSwapV1Pair02",
       "PresaleERC20"
     )
     trigger_contract_interaction_and_expect_success(

@@ -26,7 +26,7 @@ contract :FacetSwapV1RouterWithRewards, is: :FacetSwapV1Router, upgradeable: tru
   mapping ({ address: :uint256 }), :public, :totalStakedLP
   mapping ({ address: :uint256 }), :public, :accRewardsPerShare
   
-  array :address, :public, :topFiveSwappers, initial_length: 5
+  array :address, :public, :topFiveSwappers, length: 5
   mapping ({ address: :uint256 }), :public, :feesGeneratedBySwapper
   mapping ({ address: :uint256 }), :public, :swapperRewards
   
@@ -132,10 +132,10 @@ contract :FacetSwapV1RouterWithRewards, is: :FacetSwapV1Router, upgradeable: tru
   function :swapExactTokensForTokens, { 
     amountIn: :uint256,
     amountOutMin: :uint256,
-    path: [:address],
+    path: :address[],
     to: :address,
     deadline: :uint256
-  }, :public, :virtual, :override, returns: [:uint256] do
+  }, :public, :virtual, :override, returns: :uint256[] do
     amounts = FacetSwapV1Router.swapExactTokensForTokens(
       amountIn: amountIn - calculateFeeAmount(amountIn),
       amountOutMin: amountOutMin,
@@ -169,10 +169,10 @@ contract :FacetSwapV1RouterWithRewards, is: :FacetSwapV1Router, upgradeable: tru
   function :swapTokensForExactTokens, {
     amountOut: :uint256,
     amountInMax: :uint256,
-    path: [:address],
+    path: :address[],
     to: :address,
     deadline: :uint256
-  }, :public, :virtual, :override, returns: [:uint256] do
+  }, :public, :virtual, :override, returns: :uint256[] do
     amounts = FacetSwapV1Router.swapTokensForExactTokens(
       amountOut: amountOut + calculateFeeAmount(amountOut),
       amountInMax: amountInMax,
@@ -248,7 +248,7 @@ contract :FacetSwapV1RouterWithRewards, is: :FacetSwapV1Router, upgradeable: tru
       return feeAmount
     end
     
-    path = array(:address, 2)
+    path = :address[2]
     path[0] = token
     path[1] = s.WETH
     

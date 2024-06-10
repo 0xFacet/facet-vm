@@ -502,7 +502,7 @@ describe 'FacetSwapV1Router contract' do
           function: "upgradeAndCall",
           args: {
             newHash: v2.init_code_hash,
-            newSource: v2.source_code,
+            newSource: v2.to_serializable_hash.to_json,
             migrationCalldata: migrationCalldata.to_json
           }
         }
@@ -520,7 +520,7 @@ describe 'FacetSwapV1Router contract' do
           function: "upgrade",
           args: {
             newHash: v2.init_code_hash,
-            newSource: v2.source_code,
+            newSource: v2.to_serializable_hash.to_json,
           }
         }
       }
@@ -537,7 +537,7 @@ describe 'FacetSwapV1Router contract' do
           args: {
             pairs: [pair_address2],
             newHash: v2.init_code_hash,
-            newSource: v2.source_code,
+            newSource: v2.to_serializable_hash.to_json,
           }
         }
       }

@@ -1,6 +1,11 @@
 require 'rails_helper'
 
 RSpec.describe "FacetSwapV1Factory", type: :model do
+  before(:all) do
+    update_supported_contracts("FacetSwapV1Factory")
+    update_supported_contracts("FacetSwapV1Pair")
+  end
+  
   it 'creates a new pair successfully' do
     factory_deploy_receipt = trigger_contract_interaction_and_expect_success(
       from: "0xC2172a6315c1D7f6855768F843c420EbB36eDa97",
