@@ -236,8 +236,6 @@ class StoragePointer
     end
   end
   
-  private
-
   def set(key, value)
     TransactionContext.log_call("StoragePointer", label, "set") do
       TransactionContext.increment_gas("Storage#{label.to_s.upcase_first}Set")

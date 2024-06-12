@@ -34,6 +34,12 @@ class Type
   end
   
   def initialize(type_name, metadata = {})
+    if type_name.is_a?(Symbol)
+      if type_name.end_with?('[]')
+        type_name = [type_name.to_s[0...-2].to_sym]
+      end
+    end
+    
     if type_name.is_a?(Array)
       if type_name.length != 1
         raise TypeError.new("Invalid array type #{type_name.inspect}")
@@ -59,6 +65,8 @@ class Type
     
     self.name = type_name.to_sym
     self.metadata = metadata.deep_dup
+  rescue => e
+    binding.pry
   end
   
   def self.create(type_or_name, metadata = {})
