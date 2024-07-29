@@ -118,6 +118,12 @@ class TransactionContext < ActiveSupport::CurrentAttributes
     new_contract
   end
   
+  def rollback_to(call_index)
+    active_contracts.each do |contract|
+      contract.state_manager.rollback_to_call_index(call_index)
+    end
+  end
+  
   def log_event(event)
     current_index = BlockContext.get_and_increment_log_index
     

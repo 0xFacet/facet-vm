@@ -1,6 +1,6 @@
 class StateManager
   attr_accessor :contract, :state_var_layout, :state_data, :max_indices,
-  :transaction_changes, :block_changes, :saved_implementation,
+  :transaction_changes, :block_changes, :saved_implementation, :snapshots
   
   ARRAY_LENGTH_SUFFIX = "__length__".freeze
   
@@ -8,8 +8,8 @@ class StateManager
     @contract = contract
     @contract_address = contract.address
     @state_var_layout = state_var_layout
-
     @skip_state_save = skip_state_save
+    @snapshots = {}
     
     reload_state
   end
@@ -22,6 +22,8 @@ class StateManager
     @block_changes = {
       state: {}.with_indifferent_access,
     }.with_indifferent_access
+    
+    @snapshots.clear
     
     @state_data = NewContractState.load_state_as_hash(@contract_address)
     
@@ -155,6 +157,27 @@ class StateManager
     json_value = value.as_json
     
     @transaction_changes[:state][key] = { from: original_value, to: json_value }
+  end
+  
+  def take_snapshot(call_index)
+    @snapshots[call_index] = @transaction_changes.deep_dup
+  end
+
+  def restore_snapshot(call_index)
+    if @snapshots[call_index]
+      @transaction_changes = @snapshots[call_index]
+    else
+      raise "No snapshot available to restore at call index #{call_index}"
+    end
+  end
+
+  def rollback_to_call_index(call_index)
+    valid_snapshots = @snapshots.keys.select { |index| index <= call_index }.sort.reverse
+    if valid_snapshots.any?
+      restore_snapshot(valid_snapshots.first)
+    else
+      clear_transaction
+    end
   end
   
   def commit_transaction

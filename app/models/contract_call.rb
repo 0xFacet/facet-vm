@@ -105,6 +105,8 @@ class ContractCall < ApplicationRecord
     
     result = nil
     
+    
+    state_manager.take_snapshot(call_index)
     state_manager.with_state_var_layout(implementation_class.state_var_def_json) do
       result = call_function(function, args)
     end
@@ -123,6 +125,10 @@ class ContractCall < ApplicationRecord
     raise ContractError,
     "Invalid change in read-only context: #{function}, #{args.inspect}. Contract: #{effective_contract.address}."
   rescue ContractError, TransactionError => e
+    if @call_stack.push_count > call_index
+      TransactionContext.rollback_to(call_index)
+    end
+
     assign_attributes(error_message: e.message, status: :failure, end_time: Time.current)
     
     assign_contract

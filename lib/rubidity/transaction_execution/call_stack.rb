@@ -1,6 +1,8 @@
 class CallStack
   include ContractErrors
   
+  attr_reader :push_count
+  
   # TODO: set max stack depth (including internal calls)
   # Verify this doesn't affect the past
   # MAX_CALL_COUNT = 400
