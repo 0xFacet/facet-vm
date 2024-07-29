@@ -105,8 +105,9 @@ class ContractCall < ApplicationRecord
     
     result = nil
     
-    
+    call_index = @call_stack.push_count
     state_manager.take_snapshot(call_index)
+    
     state_manager.with_state_var_layout(implementation_class.state_var_def_json) do
       result = call_function(function, args)
     end
