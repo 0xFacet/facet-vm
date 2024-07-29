@@ -82,6 +82,9 @@ class ContractCall < ApplicationRecord
       find_and_validate_existing_contract!
     end
     
+    call_index = @call_stack.push_count
+    state_manager.take_snapshot(call_index)
+    
     if !implementation.public_abi.key?(function)
       raise ContractError.new("Call to unknown function: #{function}", self)
     end
@@ -104,9 +107,6 @@ class ContractCall < ApplicationRecord
     internal_call_read_only_context_stack.push(in_read_only_context?)
     
     result = nil
-    
-    call_index = @call_stack.push_count
-    state_manager.take_snapshot(call_index)
     
     state_manager.with_state_var_layout(implementation_class.state_var_def_json) do
       result = call_function(function, args)
