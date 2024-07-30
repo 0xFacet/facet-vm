@@ -128,6 +128,17 @@ class ContractCall < ApplicationRecord
   rescue ContractError, TransactionError => e
     if call_index != nil && @call_stack.push_count > call_index
       TransactionContext.rollback_to(call_index)
+      
+      call_stack.all_frames.each_with_index do |call, index|
+        next if index <= call_index
+      
+        call.assign_attributes(
+          error_message: e.message,
+          status: :failure,
+          logs: [],
+          return_value: nil
+        )
+      end
     end    
 
     assign_attributes(error_message: e.message, status: :failure, end_time: Time.current)

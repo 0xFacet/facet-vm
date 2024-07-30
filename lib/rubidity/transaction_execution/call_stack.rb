@@ -1,7 +1,7 @@
 class CallStack
   include ContractErrors
   
-  attr_reader :push_count
+  attr_reader :push_count, :all_frames
   
   # TODO: set max stack depth (including internal calls)
   # Verify this doesn't affect the past
@@ -9,6 +9,7 @@ class CallStack
 
   def initialize(transaction_context)
     @frames = []
+    @all_frames = []
     @push_count = 0
     @transaction_context = transaction_context
   end
@@ -89,6 +90,7 @@ class CallStack
   
   def push(frame)
     @frames.push(frame)
+    @all_frames.push(frame)
     
     @push_count += 1
   end
