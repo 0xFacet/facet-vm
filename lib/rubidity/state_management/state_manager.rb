@@ -165,7 +165,7 @@ class StateManager
 
   def restore_snapshot(call_index)
     if @snapshots[call_index]
-      @transaction_changes = @snapshots[call_index]
+      @transaction_changes = @snapshots[call_index].deep_dup
     else
       raise "No snapshot available to restore at call index #{call_index}"
     end
