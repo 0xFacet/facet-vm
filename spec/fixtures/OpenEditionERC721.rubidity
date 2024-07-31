@@ -35,7 +35,10 @@ contract :OpenEditionERC721, is: :ERC721 do
     require(block.timestamp >= s.mintStart, 'Minting has not started')
     require(block.timestamp < s.mintEnd, 'Minting has ended')
     
-    amount.times do |id|
+    forLoop(
+      condition: -> id { id < amount },
+      max_iterations: amount
+    ) do |id|
       _mint(to: msg.sender, id: s.totalSupply + id)
     end
     

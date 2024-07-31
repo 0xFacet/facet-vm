@@ -3,9 +3,8 @@ require 'rails_helper'
 describe 'Upgrading Contracts' do
   let(:user_address) { "0xc2172a6315c1d7f6855768f843c420ebb36eda97" }
 
-  before(:all) do
-    hashes = RubidityTranspiler.transpile_file("UpgradeableTest").map(&:init_code_hash)
-    ContractTestHelper.update_supported_contracts(hashes)
+  before(:each) do
+    allow_any_instance_of(SystemConfigVersion).to receive(:contract_supported?).and_return(true)
   end
   
   it 'is upgradeable' do
@@ -42,7 +41,7 @@ describe 'Upgrading Contracts' do
         to: v1.effective_contract_address,
         data: {
           function: "upgradeFromV1",
-          args: [v2.init_code_hash, v2.source_code]
+          args: [v2.init_code_hash, v2.to_serializable_hash.to_json]
         }
       }
     )
@@ -74,7 +73,95 @@ describe 'Upgrading Contracts' do
     expect(version).to eq(2)
   end
   
+  it 'upgrades can be reverted' do
+    v1 = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: nil,
+        data: {
+          type: "UpgradeableV1:UpgradeableTest"
+        }
+      }
+    )
+    
+    hi_result = ContractTransaction.make_static_call(
+      contract: v1.address,
+      function_name: "sayHi",
+      function_args: "Rubidity"
+    )
+    
+    expect(hi_result).to eq("Hello Rubidity")
+    
+    version = ContractTransaction.make_static_call(
+      contract: v1.address,
+      function_name: "version",
+    )
+    
+    expect(version).to eq(1)
+
+    v2 = RubidityTranspiler.transpile_and_get("UpgradeableV2:UpgradeableTest")
+
+    upgrade_tx = trigger_contract_interaction_and_expect_success(
+      from: user_address,
+      payload: {
+        to: v1.effective_contract_address,
+        data: {
+          function: "upgradeFromV1",
+          args: [v2.init_code_hash, v2.to_serializable_hash.to_json]
+        }
+      }
+    )
+    # binding.pry
+    
+    v1_log = upgrade_tx.logs.detect do |i|
+      i['event'] == 'NotifyOfVersion' && i['data']['from'] == "v1"
+    end
+    
+    v2_log = upgrade_tx.logs.detect do |i|
+      i['event'] == 'NotifyOfVersion' && i['data']['from'] == "v2"
+    end
+    
+    expect(v1_log['data']['version']).to eq(2)
+    expect(v2_log['data']['version']).to eq(2)
+    
+    hi_result = ContractTransaction.make_static_call(
+      contract: v1.address,
+      function_name: "sayHi",
+      function_args: "Rubidity"
+    )
+    
+    expect(hi_result).to eq("Greetings Rubidity")
+    
+    version = ContractTransaction.make_static_call(
+      contract: v1.address,
+      function_name: "version",
+    )
+    
+    expect(version).to eq(2)
+    
+    post_upgrade_block = EthBlock.max_processed_block_number
+    ContractBlockChangeLog.rollback_changes(v1.address, post_upgrade_block - 1)
+    
+    hi_result = ContractTransaction.make_static_call(
+      contract: v1.address,
+      function_name: "sayHi",
+      function_args: "Rubidity"
+    )
+    
+    expect(hi_result).to eq("Hello Rubidity")
+    
+    version = ContractTransaction.make_static_call(
+      contract: v1.address,
+      function_name: "version",
+    )
+    
+    expect(version).to eq(1)
+
+  end
+  
   it 'deals with infinite loop' do
+    allow(TransactionContext).to receive(:gas_limit).and_return(100)
+    
     d1 = trigger_contract_interaction_and_expect_success(
       from: user_address,
       payload: {
@@ -244,7 +331,7 @@ describe 'Upgrading Contracts' do
         to: v1.effective_contract_address,
         data: {
           function: "upgradeFromV1",
-          args: [hash_v2, v2.source_code]
+          args: [hash_v2, v2.to_serializable_hash.to_json]
         }
       }
     )
@@ -267,7 +354,7 @@ describe 'Upgrading Contracts' do
         to: v1.effective_contract_address,
         data: {
           function: "upgradeAndRevert",  # Assuming you have a similar function in V2 for further upgrades
-          args: [hash_v3, v3.source_code]
+          args: [hash_v3, v3.to_serializable_hash.to_json]
         }
       }
     )
@@ -286,7 +373,7 @@ describe 'Upgrading Contracts' do
         to: v1.effective_contract_address,
         data: {
           function: "upgradeFromV2",  # Assuming you have a similar function in V2 for further upgrades
-          args: [hash_v3, v3.source_code]
+          args: [hash_v3, v3.to_serializable_hash.to_json]
         }
       }
     )
@@ -318,7 +405,7 @@ describe 'Upgrading Contracts' do
     )
   
     v2 = RubidityTranspiler.transpile_and_get("UpgradeableV2:UpgradeableTest")
-    hash_v2 = v2.init_code_hash
+    hash_v2 = v2.legacy_init_code_hash
     
     trigger_contract_interaction_and_expect_error(
       error_msg_includes: 'Contract is not upgradeable',
@@ -392,7 +479,7 @@ describe 'Upgrading Contracts' do
         to: a1.address,
         data: {
           function: "setNextUpgradeHash",
-          args: [hash_a2, a2.source_code]
+          args: [hash_a2, a2.to_serializable_hash.to_json]
         }
       }
     )
@@ -406,7 +493,7 @@ describe 'Upgrading Contracts' do
         to: b1.address,
         data: {
           function: "setNextUpgradeHash",
-          args: [hash_b2, b2.source_code]
+          args: [hash_b2, b2.to_serializable_hash.to_json]
         }
       }
     )

@@ -25,10 +25,6 @@ class TokensController < ApplicationController
     as_of_block = params[:as_of_block].to_i
     contract_address = params[:address].to_s.downcase
     
-    contract_state_future = ContractState.where(
-      contract_address: contract_address,
-    ).where("block_number <= ?", as_of_block).newest_first.limit(1).load_async
-    
     function_event_pairs = [
       ['bridgeIn', 'BridgedIn'],
       ['markWithdrawalComplete', 'WithdrawalComplete']
@@ -40,16 +36,25 @@ class TokensController < ApplicationController
       as_of_block: as_of_block
     )
     
-    contract_state = contract_state_future.first
+    state = ContractBlockChangeLog.historical_state(
+      contract_address,
+      as_of_block
+    )
     
-    state = contract_state.state
+    withdrawal_amount_states = state.select do |key, _|
+      key.first == 'withdrawalIdAmount'
+    end
     
-    if !state["withdrawalIdAmount"]
+    total_supply_state = state[['totalSupply']]
+    
+    trusted_smart_contract = state[['trustedSmartContract']]
+    
+    if withdrawal_amount_states.blank?
       render json: { error: "Invalid contract" }, status: 400
       return
     end
     
-    pending_withdraw_amount = state['withdrawalIdAmount'].values.sum
+    pending_withdraw_amount = withdrawal_amount_states.values.sum
     
     result = async_result.first
     
@@ -60,8 +65,8 @@ class TokensController < ApplicationController
       as_of_block: as_of_block,
       contract_address: contract_address,
       pending_withdraw_amount: pending_withdraw_amount,
-      total_supply: state['totalSupply'],
-      trusted_smart_contract: state['trustedSmartContract'],
+      total_supply: total_supply_state.value,
+      trusted_smart_contract: trusted_smart_contract.value,
       total_bridged_in: total_bridged_in,
       total_withdraw_complete: total_withdraw_complete
     }

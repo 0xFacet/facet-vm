@@ -1,140 +1,165 @@
 class ContractArtifact < ApplicationRecord
-  CodeIntegrityError = Class.new(StandardError)
-  
   include ContractErrors
-  extend Memoist
   
   belongs_to :eth_block, foreign_key: :block_number, primary_key: :block_number, optional: true
   has_many :contracts, foreign_key: :current_init_code_hash, primary_key: :init_code_hash
   
+  has_many :contract_dependencies, -> { order(:position) }, foreign_key: :contract_artifact_init_code_hash, primary_key: :init_code_hash, dependent: :destroy, inverse_of: :contract_artifact
+  has_many :dependencies, through: :contract_dependencies, source: :dependency
+  has_many :dependent_contract_dependencies, class_name: 'ContractDependency', foreign_key: :dependency_init_code_hash, primary_key: :init_code_hash, inverse_of: :dependency
+  
   scope :newest_first, -> {
     order(
       block_number: :desc,
-      transaction_index: :desc,
-      internal_transaction_index: :desc
+      transaction_index: :desc
     ) 
   }
   
-  attr_accessor :abi
-  
-  after_find :verify_ast_and_hash
-  before_validation :verify_ast_and_hash_on_save
-  
-  after_commit :flush_cache
-  
   class << self
-    include ContractErrors
-    extend Memoist
+    include Memery
     
-    def latest_tx_hash
-      newest_first.limit(1).pluck(:transaction_hash).first
+    def sort_and_hash(data)
+      json = JSON.generate(recursive_sort(data), max_nesting: false)
+      "0x" + Digest::Keccak256.hexdigest(json)
     end
+    memoize :sort_and_hash
     
-    def cached_class_as_of_tx_hash(init_code_hash, hash)
-      find_by(init_code_hash: init_code_hash)&.build_class
-    end
-    memoize :cached_class_as_of_tx_hash
-    
-    def all_contract_classes
-      all.map(&:build_class).index_by(&:init_code_hash).with_indifferent_access
-    end
-    memoize :all_contract_classes
-    
-    # TODO: remove
-    def class_from_name(name)
-      artifacts = where(name: name)
-      
-      if artifacts.count > 1
-        raise "Multiple artifacts found with name: #{name.inspect}"
-      end
-      
-      artifact = artifacts.first
-      
-      unless artifact
-        raise UnknownContractName.new("No contract found with name: #{name.inspect}")
-      end
-      
-      artifact.build_class
-    end
-    
-    def build_class(artifact_attributes)
-      artifact = new(artifact_attributes)
-      ContractBuilder.build_contract_class(artifact).tap do |new_class|
-        if new_class.init_code_hash != artifact.init_code_hash || new_class.source_code != artifact.source_code
-          raise CodeIntegrityError.new("Code integrity error")
+    def recursive_sort(value)
+      case value
+      when Hash
+        value.keys.sort.each_with_object({}) do |key, hash|
+          hash[key] = recursive_sort(value[key])
         end
-      end
-    end
-    memoize :build_class
-    
-    def types_that_implement(base_type)
-      impl = class_from_name(base_type)
-      contracts = all_contract_classes.values.reject(&:is_abstract_contract)
-      
-      contracts.select do |contract|
-        contract.implements?(impl)
-      end
-    end
-    
-    def deployable_contracts
-      all_contract_classes.values.reject(&:is_abstract_contract)
-    end
-    
-    def all_abis(deployable_only: false)
-      current_artifact_classes = SystemConfigVersion.current_supported_contract_artifacts.map(&:build_class)
-      contract_classes = all_contract_classes.values + current_artifact_classes
-      contract_classes = contract_classes.uniq(&:init_code_hash)
-      contract_classes.reject!(&:is_abstract_contract) if deployable_only
-      
-      contract_classes.each_with_object({}) do |contract_class, hash|
-        hash[contract_class.name] = contract_class.abi.as_json
+      when Array
+        value.map { |element| recursive_sort(element) }
+      else
+        value
       end
     end
   end
   
   def set_abi
-    self.abi = build_class.abi
+    self.abi = build_class.abi.as_json
   end
   
-  def dependencies_and_self
-    as_objs = references.map do |dep|
-      self.class.new(dep.to_h)
+  def self.from_name(name)
+    raise if Rails.env.production?
+    a = RubidityTranspiler.new(name).generate_contract_artifact_json
+    parse_and_store(a)
+  end
+  
+  def to_serializable_hash
+    {
+      name: name,
+      ast: ast,
+      init_code_hash: init_code_hash,
+      # legacy_source_code: legacy_source_code,
+      dependencies: dependencies.map(&:to_serializable_hash)
+    }.tap do |hsh|
+      # if legacy_source_code
+      #   hsh[:legacy_source_code] = legacy_source_code
+      # end
+      
+      # if legacy_init_code_hash
+      #   hsh[:legacy_init_code_hash] = legacy_init_code_hash
+      # end
+    end
+  end
+
+  def legacy_init_code_hash
+    RubidityTranspiler.new(legacy_source_code).legacy_init_code_hash
+  end
+  
+  def self.precompute_hashes(artifact_data, legacy_mode: false)
+    # binding.pry unless legacy_mode
+    artifact_data = artifact_data.deep_symbolize_keys
+  
+    # Recursively compute hashes for dependencies
+    artifact_data[:dependencies] = artifact_data[:dependencies].map do |dep_data|
+      precompute_hashes(dep_data, legacy_mode: legacy_mode)
     end
     
-    as_objs << self
+    if legacy_mode
+      # Compute hash for legacy mode
+      artifact_data[:init_code_hash] = RubidityTranspiler.new(artifact_data[:legacy_source_code]).
+        legacy_init_code_hash
+    else
+      # Compute hash for normal mode
+      combined_data = {
+        name: artifact_data[:name],
+        ast: artifact_data[:ast],
+        dependencies: artifact_data[:dependencies].map { |dep| dep[:init_code_hash] }
+      }
+      computed_init_code_hash = sort_and_hash(combined_data)
+  
+      # Check if provided init_code_hash matches computed hash
+      if artifact_data[:init_code_hash] && artifact_data[:init_code_hash] != computed_init_code_hash
+        binding.pry
+        raise "Provided init_code_hash does not match computed hash for #{artifact_data[:name]}"
+      end
+  
+      artifact_data[:init_code_hash] = computed_init_code_hash
+    end
+  
+    artifact_data
+  end
+  
+  def self.parse_and_store(artifact_data, context = nil, legacy_mode: false)
+    precomputed_data = precompute_hashes(
+      artifact_data.deep_symbolize_keys,
+      legacy_mode: legacy_mode
+    )
+    
+    parse_and_store_recursively(precomputed_data, context)
+  end
+  
+  def self.parse_and_store_recursively(artifact_data, context = nil)
+    artifact = new(
+      name: artifact_data[:name],
+      ast: artifact_data[:ast],
+      init_code_hash: artifact_data[:init_code_hash],
+      legacy_source_code: artifact_data[:legacy_source_code]
+    )
+
+    # First pass: Parse and store dependencies
+    dependencies = artifact_data[:dependencies].map do |dep_data|
+      parse_and_store_recursively(dep_data, context)
+    end
+
+    # Second pass: Build associations
+    dependencies.each_with_index do |dependency, index|
+      artifact.contract_dependencies.build(dependency: dependency, position: index + 1)
+      artifact.dependencies.target << dependency
+    end
+
+    # Calculate execution_source_code
+    artifact.generate_execution_source_code
+
+    if context
+      context.add_contract_artifact(artifact)
+    end
+
+    artifact
+  end
+  
+  def generate_execution_source_code
+    self.execution_source_code ||= CombinedProcessor.new(ast).process
+  end
+  
+  def source_code
+    legacy_source_code
+  end
+  
+  def contract_class
+    return @_contract_class if @_contract_class
+    
+    @_contract_class = ContractBuilder.build_contract_class(self)
+    self.abi = @_contract_class.abi
+    @_contract_class
   end
   
   def build_class
-    self.class.build_class(self.attributes.deep_dup)
-  end
-    
-  def self.emphasized_code_exerpt(name:, line_number:)
-    return
-    before_lines = 5
-    after_lines = 5
-    
-    code = class_from_name(name).source_code
-    
-    lines = code.split("\n")
-    start = [0, line_number - 1 - before_lines].max   # Don't go below the first line
-    finish = [lines.count - 1, line_number - 1 + after_lines].min  # Don't exceed total lines
-    range = (start..finish)
-    
-    minimum_indent = lines[range].map { |line| line[/\A */].size }.min
-    
-    range.each do |i|
-      # Indent the line correctly
-      indented_line = " " * (lines[i][/\A */].size - minimum_indent)
-  
-      if i == line_number - 1
-        # Add '>' to the emphasized line while keeping the original indentation
-        lines[i] = "#{indented_line}> #{lines[i].lstrip}"
-      else
-        lines[i] = "#{indented_line}  #{lines[i].lstrip}"
-      end
-    end
-  
-    lines[range].join("\n")
+    contract_class
   end
   
   def as_json(options = {})
@@ -142,34 +167,30 @@ class ContractArtifact < ApplicationRecord
       options.merge(
         only: [
           :name,
-          :source_code,
-          :init_code_hash
+          :ast,
+          :init_code_hash,
+          :execution_source_code,
         ],
-        methods: :abi
+        methods: [
+          :verbose_execution_source_code
+        ]
       )
-    )
-  end
-  
-  def flush_cache
-    self.class.flush_cache if self.class.respond_to?(:flush_cache)
-  end
-  
-  private
-  
-  def verify_ast_and_hash_on_save
-    begin
-      verify_ast_and_hash
-    rescue CodeIntegrityError => e
-      errors.add(:base, e.message)
+    ).with_indifferent_access.tap do |json|
+      json[:dependencies] = dependencies.map(&:as_json)
+      json[:source_code] = source_code
+      json[:abi] ||= contract_class.abi
+      json[:abi] = json[:abi].as_json
+      json[:create_payload] = to_serializable_hash
     end
   end
-
-  def verify_ast_and_hash
-    parsed_ast = Unparser.parse(source_code).inspect
-    hsh = "0x" + Digest::Keccak256.hexdigest(parsed_ast)
-
-    if hsh != init_code_hash
-      raise CodeIntegrityError.new("Hash mismatch")
-    end
+  
+  def generate_ast_array
+    (dependencies.map(&:generate_ast_array) + [ast]).flatten
+  end
+  
+  def verbose_execution_source_code
+    generate_ast_array.map do |ast|
+      CombinedProcessor.new(ast).process
+    end.join("\n")
   end
 end

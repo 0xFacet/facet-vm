@@ -8,48 +8,53 @@ class RubidityTranspiler
   class << self
     extend Memoist
     
-    def transpile_file(filename)
-      new(filename).generate_contract_artifacts
-    end
+    # def hack_get(name)
+    #   transpile_and_get(name)
+    # end
+    # memoize :hack_get
     
-    def transpile_and_get(contract_type)
+    def transpile_and_get(contract_type, get_hash: false)
       unless contract_type.include?(" ")
         contract_type, file = contract_type.split(":")
       end
       
-      new(file || contract_type).get_desired_artifact(contract_type)
-    end
-    
-    def find_and_transpile(init_code_hash)
-      contracts_dir = Rails.root.join('app', 'models', 'contracts')
-      Dir.glob("#{contracts_dir}/*.rubidity").each do |file|
-        transpiler = new(file)
-        artifacts = transpiler.generate_contract_artifacts
-        if artifacts.any? { |artifact| artifact.init_code_hash == init_code_hash }
-          return transpiler.get_desired_artifact(init_code_hash)
-        end
+      instance = new(file || contract_type)
+      
+      ast = instance.preprocessed_contract_asts.detect do |ast|
+        instance.extract_contract_name(ast).to_s == contract_type.to_s
       end
-      raise UnknownInitCodeHash.new("No contract found with init code hash: #{init_code_hash.inspect}")
+      
+      hsh = new(ast).generate_contract_artifact_json
+      
+      return hsh if get_hash
+      
+      ContractArtifact.parse_and_store(hsh)
     end
-    memoize :find_and_transpile
   end
   
   def initialize(filename_or_string)
-    if File.exist?(filename_or_string)
-      self.filename = filename_or_string
-    else
-      with_suffix = "#{filename_or_string}.rubidity"
-      contracts_path = Rails.root.join('app', 'models', 'contracts', with_suffix)
-      if File.exist?(contracts_path)
-        self.filename = contracts_path
+    TransactionContext.log_call("ContractCreation", "RubidityTranspiler.new") do
+      if filename_or_string.is_a?(Parser::AST::Node)
+        @file_ast = filename_or_string
+      elsif File.exist?(filename_or_string)
+        self.filename = filename_or_string
       else
-        # Check if the file exists in "spec/fixtures"
-        fixtures_path = Rails.root.join('spec', 'fixtures', with_suffix)
-        if File.exist?(fixtures_path)
-          self.filename = fixtures_path
+        with_suffix = "#{filename_or_string}.rubidity"
+        contracts_path = Rails.root.join('app', 'models', 'contracts', with_suffix)
+        if File.exist?(contracts_path)
+          self.filename = contracts_path
         else
-          # If the file doesn't exist in any of the directories, treat the input as a code string
-          @file_ast = Unparser.parse(filename_or_string)
+          # Check if the file exists in "spec/fixtures"
+          fixtures_path = Rails.root.join('spec', 'fixtures', with_suffix)
+          if File.exist?(fixtures_path)
+            self.filename = fixtures_path
+          else
+            # If the file doesn't exist in any of the directories, treat the input as a code string
+            @code = filename_or_string
+            TransactionContext.log_call("ContractCreation", "Unparser.parse") do
+              @file_ast = Unparser.parse(filename_or_string)
+            end
+          end
         end
       end
     end
@@ -67,22 +72,16 @@ class RubidityTranspiler
   end
   
   def file_ast
-    @file_ast || ImportResolver.process(filename)
+    if filename
+      ImportResolver.process(filename, @code)
+    else
+      @file_ast
+    end
   end
   memoize :file_ast
   
   def pragma_node
     file_ast.children.first
-  end
-  
-  def pragma_lang_and_version
-    pragma_parser = Class.new(BasicObject) do
-      def self.pragma(lang, version)
-        [lang, version]
-      end
-    end
-    
-    pragma_parser.instance_eval(Unparser.unparse(pragma_node))
   end
   
   def contract_asts
@@ -109,8 +108,10 @@ class RubidityTranspiler
   end
   
   def preprocessed_contract_asts
-    contract_asts.map do |contract_ast|
-      ContractAstProcessor.process(contract_ast)
+    TransactionContext.log_call("ContractCreation", "ContractAstProcessor.process") do
+      contract_asts.map do |contract_ast|
+        ContractAstProcessor.process(contract_ast)
+      end
     end
   end
   
@@ -122,46 +123,69 @@ class RubidityTranspiler
     contract_ast.children.last.children.first.children.third.children.first
   end
   
-  def compute_init_code_hash(ast)
-    "0x" + Digest::Keccak256.hexdigest(ast.inspect)
+  def self.s(type, *children)
+    Parser::AST::Node.new(type, children)
+  end
+  delegate :s, to: :class
+  
+  def self.compute_legacy_init_code_hash(ast)
+    with_pragma = legacy_ast(ast)
+    
+    "0x" + Digest::Keccak256.hexdigest(with_pragma.inspect)
+  end
+  delegate :compute_legacy_init_code_hash, to: :class
+  
+  def self.legacy_ast(ast)
+    prag_node = s(:send, nil, :pragma,
+      s(:sym, :rubidity),
+      s(:str, "1.0.0"))
+    
+    s(:begin, *[prag_node, *ast.children])
+  end
+  delegate :legacy_ast, to: :class
+  
+  def process_and_serialize_ast(ast)
+    v1 = ConstsToSends.process(ast.unparse, box: false)
+    AstSerializer.serialize(Unparser.parse(v1), format: :json)
   end
   
-  def get_desired_artifact(name_or_init_hash)
-    desired_artifact = generate_contract_artifacts.detect do |artifact|
-      artifact.name.to_s == name_or_init_hash.to_s ||
-      artifact.init_code_hash == name_or_init_hash.to_s
+  def legacy_init_code_hash
+    self_ast = preprocessed_contract_asts.last
+    legacy_init_code_hash = compute_legacy_init_code_hash(self_ast)
+  end
+  
+  def generate_contract_artifact_json
+    ensure_unique_names!
+    
+    self_ast = preprocessed_contract_asts.last
+    dependency_asts = preprocessed_contract_asts.first(preprocessed_contract_asts.length - 1)
+    
+    dep_artifacts = dependency_asts.map do |ast|
+      RubidityTranspiler.new(ast).generate_contract_artifact_json
     end
     
-    sub_transpiler = self.class.new(desired_artifact.source_code)
-    
-    new_artifacts = sub_transpiler.generate_contract_artifacts
-  
-    references = new_artifacts.reject { |i| i.name == desired_artifact.name }
-    
-    desired_artifact.references = references
-    desired_artifact
+     {
+      name: extract_contract_name(self_ast),
+      ast: process_and_serialize_ast(self_ast.children.last),
+      dependencies: dep_artifacts,
+      legacy_source_code: legacy_ast(self_ast).unparse,
+    }.with_indifferent_access
   end
   
-  def generate_contract_artifacts
+  def extract_dependencies(contract_ast)
+    RubidityTranspiler.new(contract_ast).preprocessed_contract_asts.map do |sub_ast|
+      extract_contract_name(sub_ast)
+    end
+  end
+  
+  def ensure_unique_names!
     unless contract_names == contract_names.uniq
       duplicated_names = contract_names.group_by(&:itself).select { |_, v| v.size > 1 }.keys
       raise "Duplicate contract names in #{filename}: #{duplicated_names}"
     end
+  end
   
-    preprocessed_contract_asts.each_with_object([]) do |contract_ast, artifacts|
-      contract_ast = ast_with_pragma(contract_ast)
-
-      new_source = contract_ast.unparse
-      contract_name = extract_contract_name(contract_ast)
-      init_code_hash = compute_init_code_hash(contract_ast)
-  
-      artifacts << ContractArtifact.new(
-        init_code_hash: init_code_hash,
-        name: contract_name,
-        source_code: new_source,
-        pragma_language: pragma_lang_and_version.first,
-        pragma_version: pragma_lang_and_version.last
-      )
-    end
+  def validate_rubidity!
+    ParsedContractFile.process(file_ast)
   end
 end

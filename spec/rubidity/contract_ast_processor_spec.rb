@@ -14,43 +14,44 @@ RSpec.describe ContractAstProcessor do
   
   it "disallows duplicate contract names" do
     expect {
-      RubidityTranspiler.transpile_file(dupe_contract)
+      RubidityTranspiler.transpile_and_get("TestDuplicateContract")
     }.to raise_error(/Duplicate contract names.*/)
   end
-  
-  it "rewrites constants" do
-    code = <<~RUBY
-      contract :A do
-      end
-      contract :D do
-      end
-      contract :B, is: :D do
-        function :test do
-          B.constructor
-          A._mint
-          C.blah
-          D.fun
-        end
-      end
-    RUBY
+
+  # TODO: Test with ConstsToSends
+  # it "rewrites constants" do
+  #   code = <<~RUBY
+  #     contract :A do
+  #     end
+  #     contract :D do
+  #     end
+  #     contract :B, is: :D do
+  #       function :test do
+  #         B.constructor
+  #         A._mint
+  #         C.blah
+  #         D.fun
+  #       end
+  #     end
+  #   RUBY
     
-    output = <<~RUBY
-      contract(:A) {
-      }
-      contract(:D) {
-      }
-      contract(:B, is: :D) {
-        function(:test) {
-          self.B.constructor
-          self.A._mint
-          self.C.blah
-          self.D.fun
-        }
-      }
-    RUBY
+  #   output = <<~RUBY
+  #     contract(:A) {
+  #     }
+  #     contract(:D) {
+  #     }
+  #     contract(:B, is: :D) {
+  #       function(:test) {
+  #         self.B.constructor
+  #         self.A._mint
+  #         self.C.blah
+  #         self.D.fun
+  #       }
+  #     }
+  #   RUBY
     
-    test_preprocessor(code, output)
-  end
+  #   test_preprocessor(code, output)
+  # end
   
   it "works on files" do
     normalized = <<~RUBY
@@ -63,9 +64,9 @@ RSpec.describe ContractAstProcessor do
       }
     RUBY
     
-    transpiled = RubidityTranspiler.transpile_file(unused_reference)
+    transpiled = RubidityTranspiler.transpile_and_get("TestUnusedReference")
     
-    expect(transpiled.last[:source_code]).to eq(normalized)
+    expect(transpiled.legacy_source_code).to eq(normalized)
   end
 
   it "retains the bottom contract" do

@@ -1,5 +1,8 @@
 class DestructureOnly
+  include Exposable
   include ContractErrors
+  
+  expose :to_ary
   
   def initialize(hash)
     @hash = hash
@@ -17,8 +20,6 @@ class DestructureOnly
   def as_json(*)
     @hash.as_json
   end
-
-  private
 
   def method_missing(name, *args, &block)
     raise InvalidDestructuringError, "This object must be destructured immediately and cannot be used as a regular object"

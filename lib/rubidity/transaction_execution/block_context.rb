@@ -26,7 +26,9 @@ class BlockContext < ActiveSupport::CurrentAttributes
   end
   
   def system_config_versions
-    (parsed_ethscriptions || []).map(&:system_config_version).compact
+    parsed_ethscriptions.select do |eth|
+      eth.mimetype == SystemConfigVersion.system_mimetype
+    end.map(&:system_config_version).compact
   end
   
   def process!
@@ -55,17 +57,15 @@ class BlockContext < ActiveSupport::CurrentAttributes
       t.payload.dig('data', 'to')&.downcase
     end.uniq.compact
     
-    Contract.where(address: initial_contracts, deployed_successfully: true).each do |contract|
+    BlockBatchContext.get_existing_contract_batch(initial_contracts).each do |contract|
       add_contract(contract)
     end
     
-    self.contract_artifacts = ContractArtifact.where(
-      init_code_hash: contracts.map(&:current_init_code_hash)
-    ).to_a
-    
     contract_transactions.each do |contract_tx|
       TransactionContext.set(
+        legacy_mode: false,
         call_stack: CallStack.new(TransactionContext),
+        gas_counter: GasCounter.new(TransactionContext),
         active_contracts: [],
         current_transaction: contract_tx,
         tx_origin: contract_tx.tx_origin,
@@ -74,7 +74,10 @@ class BlockContext < ActiveSupport::CurrentAttributes
         block_timestamp: current_block.timestamp,
         block_blockhash: current_block.blockhash,
         block_chainid: current_chainid,
-        transaction_index: contract_tx.transaction_index
+        transaction_index: contract_tx.transaction_index,
+        call_counts: {},
+        contract_artifacts: {},
+        call_log_stack: []
       ) do
         contract_tx.execute_transaction
       end
@@ -92,15 +95,19 @@ class BlockContext < ActiveSupport::CurrentAttributes
       contract_transactions.flat_map{|i| i.contract_calls.target }
     )
     
-    ContractArtifact.import!(contract_artifacts.select(&:new_record?))
+    artifacts = contract_artifacts.values.select(&:new_record?)
+    ContractArtifact.import!(artifacts, on_duplicate_key_ignore: true)
+    
+    ContractDependency.import!(
+      contract_artifacts.values.flat_map(&:contract_dependencies).select(&:new_record?),
+      on_duplicate_key_ignore: true
+    )
     
     Contract.import!(contracts.select(&:new_record?))
-    
-    states_to_save = contracts.map do |c|
-      c.new_state_for_save(block_number: current_block.block_number)
-    end.compact
-    
-    ContractState.import!(states_to_save)
+    # TODO do this in batches
+    contracts.map do |c|
+      c.state_manager.persist(current_block.block_number)
+    end
   end
   
   def start_block_passed?
@@ -110,8 +117,11 @@ class BlockContext < ActiveSupport::CurrentAttributes
   
   def add_contract(contract)
     contracts << contract if contract
-    contract&.initialize_state
     contract
+  end
+  
+  def remove_contract(contract)
+    contracts.delete(contract)
   end
   
   def get_existing_contract(address)
@@ -122,15 +132,37 @@ class BlockContext < ActiveSupport::CurrentAttributes
     
     return in_memory if in_memory
     
-    from_db = Contract.find_by(deployed_successfully: true, address: address)
+    from_outer_context = BlockBatchContext.get_existing_contract(address)
     
-    add_contract(from_db)
+    add_contract(from_outer_context)
   end
   
-  def create_new_contract(address:, init_code_hash:, source_code:)
-    new_contract_implementation = BlockContext.supported_contract_class(
-      init_code_hash,
-      source_code
+  def find_contract_artifact(init_code_hash)
+    unless current_block
+      return ContractArtifact.
+      includes(contract_dependencies: :dependency).
+      find_by!(init_code_hash: init_code_hash)
+    end
+    
+    TransactionContext.contract_artifacts[init_code_hash] ||
+    contract_artifacts[init_code_hash] ||
+    BlockBatchContext.get_contract_artifact!(init_code_hash)
+  end
+  
+  def add_contract_artifact(artifact)
+    artifact.block_number = current_block.block_number
+    
+    contract_artifacts[artifact.init_code_hash] = artifact
+  end
+  
+  def create_new_contract(
+    address:,
+    init_code_hash:
+  )
+    artifact = find_contract_artifact(init_code_hash)
+    
+    contract_class = BlockContext.supported_contract_class(
+      init_code_hash
     )
     
     new_contract = Contract.new(
@@ -138,18 +170,20 @@ class BlockContext < ActiveSupport::CurrentAttributes
       block_number: current_block.block_number,
       transaction_index: current_transaction.transaction_index,
       address: address,
-      current_type: new_contract_implementation.name,
-      current_init_code_hash: init_code_hash
+      current_type: artifact.name,
+      current_init_code_hash: artifact.init_code_hash
     )
     
     add_contract(new_contract)
   end
   
-  def supported_contract_class(init_code_hash, source_code = nil, validate: true)
+  def supported_contract_class(
+    init_code_hash,
+    validate: true
+  )
     validate_contract_support(init_code_hash) if validate
-    
-    find_and_build_class(init_code_hash) ||
-      create_artifact_and_build_class(init_code_hash, source_code)
+
+    find_contract_artifact(init_code_hash).contract_class
   end
   
   def current_chainid
@@ -201,25 +235,6 @@ class BlockContext < ActiveSupport::CurrentAttributes
     end
   end
   
-  def get_cached_class(init_code_hash)
-    ContractArtifact.cached_class_as_of_tx_hash(
-      init_code_hash,
-      current_transaction&.transaction_hash
-    )
-  end
-  
-  def find_and_build_class(init_code_hash)
-    unless current_block
-      return get_cached_class(init_code_hash)
-    end
-    
-    current = contract_artifacts.detect do |artifact|
-      artifact.init_code_hash == init_code_hash
-    end
-  
-    current&.build_class || get_cached_class(init_code_hash)
-  end
-  
   def previous_transactions
     contract_transactions.select do |tx|
       tx.transaction_index < current_transaction.transaction_index
@@ -230,33 +245,6 @@ class BlockContext < ActiveSupport::CurrentAttributes
     previous_transactions.map(&:contract_calls).flatten +
     current_transaction.contract_calls.select do |call|
       call.internal_transaction_index < current_call.internal_transaction_index
-    end
-  end
-    
-  def create_artifact_and_build_class(init_code_hash, source_code = nil)
-    unless source_code
-      raise ContractSourceNotProvided.new("Need source code to create new artifact")
-    end
-  
-    artifact = RubidityTranspiler.new(source_code).get_desired_artifact(init_code_hash)
-    
-    self.contract_artifacts << ContractArtifact.new(
-      artifact.attributes.merge(
-        block_number: current_block.block_number,
-        transaction_hash: current_transaction.transaction_hash,
-        transaction_index: current_transaction.transaction_index,
-        internal_transaction_index: current_call.internal_transaction_index,
-      )
-    )
-    
-    artifact&.build_class
-  end
-  
-  private
-  
-  def validate_contract_support(init_code_hash)
-    unless system_config.contract_supported?(init_code_hash)
-      raise ContractError.new("Contract is not supported: #{init_code_hash.inspect}")
     end
   end
 end

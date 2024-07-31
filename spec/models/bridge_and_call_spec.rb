@@ -17,6 +17,264 @@ describe 'BridgeAndCall contract' do
     update_supported_contracts("EtherBridge03")
     update_supported_contracts("FacetBuddyFactory")
     update_supported_contracts("FacetBuddy")
+    update_supported_contracts("NFTCollection01")
+  end
+  
+  it "fails when the user didn't bridge in enough to cover the mint price" do
+    erc20Bridge = trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: :create,
+        data: {
+          type: "EtherBridge03",
+          args: {
+            name: "Facet Ether",
+            symbol: "FETH",
+            trustedSmartContract: trusted_smart_contract
+          }
+        }
+      }
+    )
+    
+    factory = trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: :create,
+        data: {
+          type: "FacetBuddyFactory",
+          args: {
+            erc20Bridge: erc20Bridge.address,
+          }
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: :call,
+        data: {
+          to: erc20Bridge.address,
+          function: "setFacetBuddyFactory",
+          args: factory.address
+        }
+      }
+    )
+    
+    bridge = erc20Bridge
+    
+    nft_contract = trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: :create,
+        data: {
+          type: "NFTCollection01",
+          args: {
+            name: name,
+            symbol: symbol,
+            maxSupply: max_supply,
+            baseURI: base_uri,
+            weth: bridge.address,
+            perMintFee: per_mint_fee,
+            feeTo: fee_to_address
+          }
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        to: nft_contract.address,
+        data: {
+          function: "setPublicMintSettings",
+          args: {
+            publicMaxPerAddress: 0,
+            publicMintStart: 1,
+            publicMintEnd: 0,
+            publicMintPrice: 1.ether  # Set the mint price to 1 ether
+          }
+        }
+      }
+    )
+    
+    call_data = {
+      function: "airdrop",
+      args: {
+        to: daryl,
+        amount: 1,
+        merkleProof: []
+      }
+    }.to_json
+    
+    expect(ContractTransaction.make_static_call(
+      contract: bridge.address,
+      function_name: "balanceOf",
+      function_args: daryl
+    )).to eq(0)
+    
+    trigger_contract_interaction_and_expect_success(
+      from: trusted_smart_contract,
+      payload: {
+        op: :call,
+        data: {
+          to: bridge.address,
+          function: "bridgeAndCall",
+          args: {
+            to: daryl,
+            amount: per_mint_fee + 1,  # Insufficient amount to cover the mint price
+            addressToCall: nft_contract.address,
+            base64Calldata: Base64.strict_encode64(call_data)
+          }
+        }
+      }
+    )
+    
+    nft_balance = ContractTransaction.make_static_call(
+      contract: nft_contract.address,
+      function_name: "balanceOf",
+      function_args: daryl
+    )
+    
+    expect(nft_balance).to eq(0)
+    
+    eth_balance = ContractTransaction.make_static_call(
+      contract: bridge.address,
+      function_name: "balanceOf",
+      function_args: daryl
+    )
+    
+    expect(eth_balance).to eq(per_mint_fee + 1)
+  end
+  
+  it "fails when the user didn't bridge in enough to cover the mint price2" do
+    helper = trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: :create,
+        data: {
+          type: "BridgeAndCallHelper",
+          args: {
+            bridge: alice,
+            fee: 0,
+            owner: alice
+          }
+        }
+      }
+    )
+    
+    erc20Bridge = trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: :create,
+        data: {
+          type: "EtherBridge02",
+          args: {
+            name: "Facet Ether",
+            symbol: "FETH",
+            trustedSmartContract: trusted_smart_contract,
+            bridgeAndCallHelper: helper.address
+          }
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: :call,
+        data: {
+          to: helper.address,
+          function: "setBridge",
+          args: erc20Bridge.address
+        }
+      }
+    )
+    
+    bridge = erc20Bridge
+    
+    nft_contract = trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        op: :create,
+        data: {
+          type: "NFTCollection01",
+          args: {
+            name: name,
+            symbol: symbol,
+            maxSupply: max_supply,
+            baseURI: base_uri,
+            weth: bridge.address,
+            perMintFee: per_mint_fee,
+            feeTo: fee_to_address
+          }
+        }
+      }
+    )
+    
+    trigger_contract_interaction_and_expect_success(
+      from: alice,
+      payload: {
+        to: nft_contract.address,
+        data: {
+          function: "setPublicMintSettings",
+          args: {
+            publicMaxPerAddress: 0,
+            publicMintStart: 1,
+            publicMintEnd: 0,
+            publicMintPrice: 1.ether  # Set the mint price to 1 ether
+          }
+        }
+      }
+    )
+    
+    call_data = {
+      function: "airdrop",
+      args: {
+        to: daryl,
+        amount: 1,
+        merkleProof: []
+      }
+    }.to_json
+    
+    expect(ContractTransaction.make_static_call(
+      contract: bridge.address,
+      function_name: "balanceOf",
+      function_args: daryl
+    )).to eq(0)
+    
+    trigger_contract_interaction_and_expect_success(
+      from: trusted_smart_contract,
+      payload: {
+        op: :call,
+        data: {
+          to: bridge.address,
+          function: "bridgeAndCall",
+          args: {
+            to: daryl,
+            amount: 1.ether,  # Insufficient amount to cover the mint price
+            addressToCall: nft_contract.address,
+            base64Calldata: Base64.strict_encode64(call_data)
+          }
+        }
+      }
+    )
+    
+    eth_balance = ContractTransaction.make_static_call(
+      contract: bridge.address,
+      function_name: "balanceOf",
+      function_args: daryl
+    )
+    
+    expect(eth_balance).to eq(1.ether)
+    
+    nft_balance = ContractTransaction.make_static_call(
+      contract: nft_contract.address,
+      function_name: "balanceOf",
+      function_args: daryl
+    )
+    
+    expect(nft_balance).to eq(0)  # Ensure no tokens were airdropped due to failure
   end
   
   it "does things" do

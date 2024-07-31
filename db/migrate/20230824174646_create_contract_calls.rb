@@ -8,12 +8,12 @@ class CreateContractCalls < ActiveRecord::Migration[7.1]
       t.string :created_contract_address
       t.string :effective_contract_address
       t.string :function
-      t.jsonb :args, default: {}, null: false
+      t.column :args, :jsonb, default: {}, null: false
       t.string :call_type, null: false
       t.string :call_level, null: false
-      t.jsonb :return_value
-      t.jsonb :logs, default: [], null: false
-      t.jsonb :error
+      t.column :return_value, :jsonb
+      t.column :logs, :jsonb, default: [], null: false
+      t.column :error, :jsonb
       t.string :status, null: false
       t.bigint :block_number, null: false
       t.bigint :block_timestamp, null: false
@@ -33,11 +33,13 @@ class CreateContractCalls < ActiveRecord::Migration[7.1]
       t.index :to_contract_address
       t.index [:transaction_hash, :internal_transaction_index], unique: true, name: :idx_on_tx_hash_internal_txi
     
-      t.check_constraint "created_contract_address IS NULL OR created_contract_address ~ '^0x[a-f0-9]{40}$'"
-      t.check_constraint "to_contract_address IS NULL OR to_contract_address ~ '^0x[a-f0-9]{40}$'"
-      t.check_constraint "effective_contract_address IS NULL OR effective_contract_address ~ '^0x[a-f0-9]{40}$'"
-      t.check_constraint "transaction_hash ~ '^0x[a-f0-9]{64}$'"
-      t.check_constraint "from_address ~ '^0x[a-f0-9]{40}$'"
+      if pg_adapter?
+        t.check_constraint "created_contract_address IS NULL OR created_contract_address ~ '^0x[a-f0-9]{40}$'"
+        t.check_constraint "to_contract_address IS NULL OR to_contract_address ~ '^0x[a-f0-9]{40}$'"
+        t.check_constraint "effective_contract_address IS NULL OR effective_contract_address ~ '^0x[a-f0-9]{40}$'"
+        t.check_constraint "transaction_hash ~ '^0x[a-f0-9]{64}$'"
+        t.check_constraint "from_address ~ '^0x[a-f0-9]{40}$'"
+      end
       
       t.check_constraint "call_type IN ('call', 'create')"
       t.check_constraint "call_type <> 'call' OR to_contract_address IS NOT NULL"
@@ -50,7 +52,10 @@ class CreateContractCalls < ActiveRecord::Migration[7.1]
       
       t.check_constraint "status IN ('success', 'failure')"
       t.check_constraint "(status = 'failure' AND error IS NOT NULL) OR (status = 'success' AND error IS NULL)"
-      t.check_constraint "(status = 'failure' AND logs = '[]'::jsonb) OR status = 'success'"
+      
+      if pg_adapter?
+        t.check_constraint "(status = 'failure' AND logs = '[]'::jsonb) OR status = 'success'"
+      end
     
       t.foreign_key :ethscriptions, column: :transaction_hash, primary_key: :transaction_hash, on_delete: :cascade
       t.foreign_key :eth_blocks, column: :block_number, primary_key: :block_number, on_delete: :cascade

@@ -5,17 +5,17 @@ class CreateTransactionReceipts < ActiveRecord::Migration[7.1]
       t.string :from_address, null: false
       t.string :status, null: false
       t.string :function
-      t.jsonb :args, default: {}, null: false
-      t.jsonb :logs, default: [], null: false
+      t.column :args, :jsonb, default: {}, null: false
+      t.column :logs, :jsonb, default: [], null: false
       t.bigint :block_timestamp, null: false
-      t.jsonb :error
+      t.column :error, :jsonb
       t.string :to_contract_address
       t.string :effective_contract_address
       t.string :created_contract_address
       t.bigint :block_number, null: false
       t.bigint :transaction_index, null: false
       t.string :block_blockhash, null: false
-      t.jsonb :return_value
+      t.column :return_value, :jsonb
       t.integer :runtime_ms, null: false
       t.string :call_type, null: false
       t.bigint :gas_price
@@ -33,12 +33,14 @@ class CreateTransactionReceipts < ActiveRecord::Migration[7.1]
       t.index :block_number
       t.index [:block_number, :runtime_ms]
 
-      t.check_constraint "effective_contract_address ~ '^0x[a-f0-9]{40}$'"
-      t.check_constraint "to_contract_address IS NULL OR to_contract_address ~ '^0x[a-f0-9]{40}$'"
-      t.check_constraint "created_contract_address IS NULL OR created_contract_address ~ '^0x[a-f0-9]{40}$'"
-      t.check_constraint "from_address ~ '^0x[a-f0-9]{40}$'"
-      t.check_constraint "block_blockhash ~ '^0x[a-f0-9]{64}$'"
-      t.check_constraint "transaction_hash ~ '^0x[a-f0-9]{64}$'"
+      if pg_adapter?
+        t.check_constraint "effective_contract_address ~ '^0x[a-f0-9]{40}$'"
+        t.check_constraint "to_contract_address IS NULL OR to_contract_address ~ '^0x[a-f0-9]{40}$'"
+        t.check_constraint "created_contract_address IS NULL OR created_contract_address ~ '^0x[a-f0-9]{40}$'"
+        t.check_constraint "from_address ~ '^0x[a-f0-9]{40}$'"
+        t.check_constraint "block_blockhash ~ '^0x[a-f0-9]{64}$'"
+        t.check_constraint "transaction_hash ~ '^0x[a-f0-9]{64}$'"
+      end
       t.check_constraint "status IN ('success', 'failure')"
       
       t.check_constraint "call_type IN ('call', 'create')"
@@ -52,6 +54,8 @@ class CreateTransactionReceipts < ActiveRecord::Migration[7.1]
       
       t.timestamps
     end
+    
+    return unless pg_adapter?
     
     execute <<-SQL
       CREATE OR REPLACE FUNCTION check_status()

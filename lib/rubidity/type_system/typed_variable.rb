@@ -1,49 +1,64 @@
 class TypedVariable
-  include TypedObject
-  
   include ContractErrors
-  extend AttrPublicReadPrivateWrite
+  extend Memoist
+  class << self; extend Memoist; end
   
-  attr_accessor :value, :on_change
-  attr_public_read_private_write :type
-
-  def initialize(type, value = nil, on_change: nil, **options)
-    self.type = type
-    self.value = value.nil? ? type.default_value : value
-    self.on_change = on_change
-    
-    if type.bool?
-      raise TypeError.new("Use literals instead of TypedVariable for booleans")
-    end
-    
-    extend_with_type_methods
+  [:==, :>, :<=, :>=, :<, :!, :!=].each do |method|
+    undef_method(method) if method_defined?(method)
   end
   
-  def self.create(type, value = nil, on_change: nil, **options)
+  attr_accessor :value, :type
+  
+  def initialize(type, value = nil, **options)
+    self.type = type
+    self.value = value.nil? ? type.default_value : value
+  end
+  
+  def self.create(type, value = nil, **options)
+    # TODO: Cache this create also
     type = Type.create(type)
     
-    if type.bool?
-      return value.nil? ? type.default_value :
-        type.check_and_normalize_literal(value)
-    end
+    @_var_cache ||= Hash.new { |h, k| h[k] = {} }
     
-    options[:on_change] = on_change
-    
-    if type.mapping?
-      MappingVariable.new(type, value, **options)
-    elsif type.array?
+    if type.array?
       ArrayVariable.new(type, value, **options)
     elsif type.contract?
       ContractVariable.new(type, value, **options)
     elsif type.struct?
       StructVariable.new(type, value, **options)
+    elsif type.string?
+      @_var_cache[type][value] ||= StringVariable.new(type, value, **options)
+      # StringVariable.new(type, value, **options)
+    elsif type.bytes?
+      @_var_cache[type][value] ||= BytesVariable.new(type, value, **options)
+      # BytesVariable.new(type, value, **options)
+    elsif type.address?
+      @_var_cache[type][value] ||= AddressVariable.new(type, value, **options)
+      # AddressVariable.new(type, value, **options)
+    elsif type.is_int? || type.is_uint?
+      @_var_cache[type][value] ||= IntegerVariable.new(type, value, **options)
+      # IntegerVariable.new(type, value, **options)
+    elsif type.null?
+      NullVariable.instance
     else
-      new(type, value, **options)
+      GenericVariable.new(type, value, **options)
     end
   end
   
-  def self.create_or_validate(type, value = nil, on_change: nil)
-    if value.is_a?(TypedObject)
+  def self.create_as_proxy(...)
+    ::TypedVariableProxy.new(create(...))
+  end
+  
+  def self.create_or_validate(type, value = nil)
+    if value.is_a?(StoragePointer)
+      if value.current_type.array?
+        value = value.load_array
+      elsif value.current_type.struct?
+        value = value.load_struct
+      end
+    end
+    
+    if value.is_a?(TypedVariable)
       unless Type.create(type).can_be_assigned_from?(value.type)
         raise VariableTypeError.new("invalid #{type}: #{value.inspect}")
       end
@@ -51,7 +66,7 @@ class TypedVariable
       value = value.value
     end
     
-    create(type, value, on_change: on_change)
+    create(type, value)
   end
   
   def self.validated_value(type, value, allow_nil: false)
@@ -64,6 +79,10 @@ class TypedVariable
     serialize
   end
   
+  def serialize
+    value
+  end
+  
   def to_s
     if type.string?
       value
@@ -72,96 +91,32 @@ class TypedVariable
     end
   end
   
-  def deserialize(serialized_value)
-    self.value = serialized_value
+  def has_default_value?
+    value == type.default_value
   end
   
+  # TODO: Make immutable for value types
   def value=(new_value)
+    if !@value.nil?
+      raise TypeError.new("Cannot change value of #{self.value.inspect}")
+    end
+    
     new_value = type.check_and_normalize_literal(new_value)
     
     if @value != new_value
-      on_change&.call
-      
-      if new_value.respond_to?(:on_change=)
-        new_value.on_change = on_change
+      if type.is_value_type? && @value != type.default_value && !@value.nil?
+        raise TypeError.new("Cannot change value of #{self.value.inspect}")
       end
       
       @value = new_value
     end
   end
   
-  def method_missing(name, *args, &block)
-    if value.respond_to?(name)
-      result = value.send(name, *args, &block)
-      
-      if result.class == value.class
-        begin
-          result = type.check_and_normalize_literal(result)
-        rescue ContractErrors::VariableTypeError => e
-          if type.is_uint?
-            result = TypedVariable.create(:uint256, result)
-          else
-            raise
-          end
-        end
-      end
-      
-      result
-    else
-      super
-    end
-  end
-
-  def respond_to_missing?(name, include_private = false)
-    value.respond_to?(name, include_private) || super
-  end
-  
-  def !
-    raise TypeError.new("Cannot negate `TypedVariable's")
-  end
-  
-  def !=(other)
-    !(self == other)
-  end
-  
-  def ==(other)
-    if other.is_a?(TypedObject)
-      return false unless type.values_can_be_compared?(other.type)
-      return value == other.value
-    else
-      return value == TypedVariable.create(type, other).value
-    end
-  end
-  
   def hash
-    [value, type].hash
+    [value.hash, type.hash].hash
   end
 
   def eql?(other)
     hash == other.hash
-  end
-  
-  def toPackedBytes
-    TypedVariable.create(:bytes, value)
-  end
-  
-  private
-  
-  def extend_with_type_methods
-    if type.address?
-      extend RubidityTypeExtensions::AddressMethods
-    end
-    
-    if type.string?
-      extend RubidityTypeExtensions::StringMethods
-    end
-    
-    if type.bytes?
-      extend RubidityTypeExtensions::BytesMethods
-    end
-    
-    if type.is_int? || type.is_uint?
-      extend RubidityTypeExtensions::UintOrIntMethods
-    end
   end
 end

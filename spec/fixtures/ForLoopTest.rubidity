@@ -1,0 +1,123 @@
+pragma :rubidity, "1.0.0"
+
+contract :InfiniteLooper do
+  function :constructor do
+  end
+  
+  function :doInfiniteLoop, :public do
+    forLoop(
+      condition: -> (i) { true },
+    ) do |i|
+      1 + 1
+    end
+  end
+end
+
+contract :ForLoopTest do
+  constructor() do
+  end
+  
+  function :skipEvenNumbers, { input: [:uint256] }, :public, returns: [:uint256] do
+    ret = array(:uint256)
+    
+    forLoop(
+      start: 0,
+      condition: -> (i) { i < input.length },
+      step: 1
+    ) do |i|
+      if i % 2 == 1
+        ret.push(i)
+      end
+    end
+    
+    ret
+  end
+  
+  function :stopAtFive, { input: [:uint256] }, :public, returns: [:uint256] do
+    ret = array(:uint256)
+    
+    forLoop(
+      start: 0,
+      condition: -> (i) { i <= 5 },
+      step: 1
+    ) do |i|
+      
+      ret.push(i)
+    end
+    
+    ret
+  end
+  
+  function :testMaxIterations, { input: [:uint256] }, :public, returns: [:uint256] do
+    ret = array(:uint256)
+    
+    forLoop(
+      start: 0,
+      condition: -> (i) { i < input.length },
+      step: 1,
+      max_iterations: 5
+    ) do |i|
+      ret.push(i)
+    end
+    
+    ret
+  end
+  
+  function :testDefaultArgs, { input: [:uint256] }, :public, returns: [:uint256] do
+    ret = array(:uint256)
+    
+    forLoop(condition: -> (i) { i < 5 }) do |i|
+      ret.push(i)
+    end
+    
+    ret
+  end
+  
+  function :negativeStep, { input: [:uint256] }, :public, returns: [:uint256] do
+    ret = array(:int256)
+    
+    forLoop(
+      start: int256(5),
+      condition: -> (i) { i >= 0 },
+      step: int256(-1)
+    ) do |i|
+      ret.push(i)
+    end
+    
+    ret
+  end
+  
+  function :conditionImmediatelyFalse, { input: [:uint256] }, :public, returns: [:uint256] do
+    ret = array(:uint256)
+    
+    forLoop(start: 10, condition: ->(i) { i < 5 }) do |i|
+      ret.push(i)
+    end
+    
+    ret
+  end
+  
+  function :customStepValue, { input: [:uint256] }, :public, returns: [:uint256] do
+    ret = array(:uint256)
+    
+    forLoop(start: 0, condition: ->(i) { i < 10 }, step: 2)do |i|
+      ret.push(i)
+    end
+    
+    ret
+  end
+  
+  function :nestedForLoops, { input: [:uint256] }, :public, returns: { inner: [:uint256], outer: [:uint256] } do
+    inner = array(:uint256)
+    outer = array(:uint256)
+    
+    forLoop(start: 0, condition: ->(i) { i < 3 }, step: 1, max_iterations: 5) do |i|
+      outer.push(i)
+      forLoop(start: 10, condition: ->(j) { j < 13 }, step: 1, max_iterations: 5) do |j|
+        inner.push(j)
+      end
+    end
+    
+    { inner: inner, outer: outer }
+  end
+end

@@ -21,10 +21,12 @@ class CreateEthscriptions < ActiveRecord::Migration[7.1]
       t.index :transaction_hash, unique: true
       t.index :processing_state
     
-      t.check_constraint "block_blockhash ~ '^0x[a-f0-9]{64}$'"
-      t.check_constraint "creator ~ '^0x[a-f0-9]{40}$'"
-      t.check_constraint "transaction_hash ~ '^0x[a-f0-9]{64}$'"
-      t.check_constraint "initial_owner ~ '^0x[a-f0-9]{40}$'"
+      if pg_adapter?
+        t.check_constraint "block_blockhash ~ '^0x[a-f0-9]{64}$'"
+        t.check_constraint "creator ~ '^0x[a-f0-9]{40}$'"
+        t.check_constraint "transaction_hash ~ '^0x[a-f0-9]{64}$'"
+        t.check_constraint "initial_owner ~ '^0x[a-f0-9]{40}$'"
+      end
     
       t.check_constraint "processing_state IN ('pending', 'success', 'failure')"
       
@@ -34,6 +36,8 @@ class CreateEthscriptions < ActiveRecord::Migration[7.1]
       
       t.timestamps
     end    
+    
+    return unless pg_adapter?
     
     execute <<-SQL
       CREATE OR REPLACE FUNCTION check_ethscription_order()

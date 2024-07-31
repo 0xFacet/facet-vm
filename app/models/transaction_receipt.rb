@@ -21,6 +21,21 @@ class TransactionReceipt < ApplicationRecord
     find_by_transaction_hash(...)
   end
   
+  def stats
+    TransactionStatsAnalyzer.new(self)
+  end
+  
+  def self.a
+    scope = TransactionReceipt.where(status: "success", function: 'callBuddyForUser').where.not(function: 'constructor')
+    
+    scope = TransactionReceipt.all
+    
+    AggregateTransactionStatsAnalyzer.new(
+      # scope.last(5).first(1)
+      scope.order("random()").limit(100_000)
+    ).calculate_bucket_stats
+  end
+  
   def page_key
     transaction_hash
   end
@@ -93,5 +108,37 @@ class TransactionReceipt < ApplicationRecord
   
   def success?
     status.to_s == 'success'
+  end
+  
+  def self.pearson_correlation(x, y)
+    n = x.size
+    return 0 if n == 0
+  
+    sum_x = x.sum
+    sum_y = y.sum
+    sum_x_sq = x.map { |xi| xi**2 }.sum
+    sum_y_sq = y.map { |yi| yi**2 }.sum
+    sum_xy = x.zip(y).map { |xi, yi| xi * yi }.sum
+  
+    numerator = sum_xy - (sum_x * sum_y / n)
+    denominator = Math.sqrt((sum_x_sq - (sum_x**2 / n)) * (sum_y_sq - (sum_y**2 / n)))
+  
+    return 0 if denominator == 0
+  
+    numerator / denominator
+  end
+  
+  def self.gas_runtime_correlation_test
+    sample = where.not(function: 'constructor').where(status: "success")#.
+      # order("random()").limit(100_000)
+    
+      # sample = where(function: 'constructor').where(status: "success")
+      
+    data = sample.pluck(:runtime_ms, :facet_gas_used)
+      
+    runtimes = data.map { |d| d[0] }
+    gas_used = data.map { |d| d[1] }
+  
+    pearson_correlation(runtimes, gas_used)
   end
 end

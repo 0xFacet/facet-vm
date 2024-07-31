@@ -9,6 +9,8 @@ class SystemConfigVersion < ApplicationRecord
     order(block_number: :desc, transaction_index: :desc) 
   }
   
+  attr_accessor :all_contracts_supported
+  
   def self.latest_tx_hash
     newest_first.limit(1).pluck(:transaction_hash).first
   end
@@ -74,23 +76,22 @@ class SystemConfigVersion < ApplicationRecord
     (newest_first.first || new).freeze
   end
   
+  def v2_start_block
+    # TODO: Real legacy mode should end at a certain block
+  end
+  
   def contract_supported?(init_code_hash)
+    return true unless TransactionContext.legacy_mode
+    
+    ENV['ALL_CONTRACTS_SUPPORTED'] == 'true' ||
+    all_contracts_supported ||
     supported_contracts.include?(init_code_hash)
   end
   
   def self.current_supported_contract_artifacts
-    artifacts = Rails.cache.fetch([all]) do
-      current.supported_contracts.map do |item|
-        begin
-          RubidityTranspiler.find_and_transpile(item)
-        rescue UnknownInitCodeHash => e
-          ContractArtifact.find_by_init_code_hash!(item)
-        end
-      end
-    end.deep_dup
-    
-    artifacts.each(&:set_abi)
-    artifacts
+    Rails.cache.fetch(["current_supported_contract_artifacts", current]) do
+      ContractArtifact.where(init_code_hash: current.supported_contracts)
+    end
   end
   
   def as_json(options = {})

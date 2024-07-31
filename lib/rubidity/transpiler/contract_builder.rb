@@ -1,51 +1,53 @@
-class ContractBuilder < BasicObject
-  def self.build_contract_class(artifact)
-    registry = {}.with_indifferent_access
-    
-    artifact.dependencies_and_self.each do |dep|
-      builder = new(registry, dep.source_code, dep.name, 1)
-      contract_class = builder.instance_eval_with_isolation
-      
-      contract_class.instance_variable_set(:@source_code, dep.source_code)
-      contract_class.instance_variable_set(:@init_code_hash, dep.init_code_hash)
-      registry[dep.name] = contract_class
-      
-      contract_class.instance_variable_set(
-        :@available_contracts,
-        registry.deep_dup
-      )
-    end
-    
-    registry[artifact.name]
-  end
+class ContractBuilder #< UltraBasicObject
+  # TODO: does this have to be a basic object?
 
-  def instance_eval_with_isolation
-    instance_eval(@source, @filename, @line_number).tap do
-      remove_instance_variable(:@source)
-      remove_instance_variable(:@filename)
-      remove_instance_variable(:@line_number)
-    end
+  def self.build_contract_class(artifact)
+    @built_classes ||= {}
+    
+    dep_classes = artifact.dependencies.map do |dep|
+      @built_classes[dep.init_code_hash] ||= build_contract_class(dep)
+    end.index_by(&:name).with_indifferent_access
+    
+    builder = new(artifact, dep_classes)
+    
+    contract_class = ContractBuilderCleanRoom.execute_user_code_on_context(
+      builder,
+      [:contract],
+      "contract",
+      artifact.execution_source_code,
+      artifact.name
+    )
+    
+    VM.unbox(contract_class)
   end
   
-  def initialize(available_contracts, source, filename, line_number)
-    @available_contracts = available_contracts
-    @source = source
-    @filename = filename.to_s
-    @line_number = line_number
-  end
-  
-  def pragma(...)
+  def initialize(artifact, dependency_classes = {})
+    @artifact = artifact
+    @dependency_classes = dependency_classes.with_indifferent_access
   end
   
   def contract(name, is: [], abstract: false, upgradeable: false, &block)
-    available_contracts = @available_contracts
+    raise ::ContractErrors::ContractBuilderError, "name must be a Symbol" unless name.is_a?(::Symbol)
+    raise ::ContractErrors::ContractBuilderError, "is must be an Array" unless is.is_a?(::Array) || is.is_a?(::Symbol)
+    raise ::ContractErrors::ContractBuilderError, "abstract must be a Boolean" unless [true, false].include?(abstract)
+    raise ::ContractErrors::ContractBuilderError, "upgradeable must be a Boolean" unless [true, false].include?(upgradeable)
+    raise ::ContractErrors::ContractBuilderError, "a block must be provided" unless block_given?
     
-    ::Class.new(::ContractImplementation) do
+    name = name.to_s
+    artifact = @artifact.dependencies.find { |dep| dep.name == name } || @artifact
+    
+    unless artifact.name == name
+      raise ::ContractErrors::ContractBuilderError, "Contract #{name} not found."
+    end
+    
+    dependency_classes = @dependency_classes
+    
+    contract_class = ::Class.new(::ContractImplementation) do
       @parent_contracts = []
       
       ::Array.wrap(is).each do |dep|
-        unless parent = available_contracts[dep]
-          raise "Dependency #{dep} is not available."
+        unless parent = dependency_classes[dep]
+          raise ::ContractErrors::ContractBuilderError, "Dependency #{dep} is not available."
         end
         
         @parent_contracts << parent
@@ -53,17 +55,31 @@ class ContractBuilder < BasicObject
       
       @is_upgradeable = upgradeable
       @is_abstract_contract = abstract
-      @name = name.to_s
+      @name = name
       
-      define_singleton_method(:evaluate_block, &block)
-      evaluate_block
-      singleton_class.remove_method(:evaluate_block)
+      ::ContractBuilderCleanRoom.execute_user_code_on_context(
+        self,
+        [
+          :event,
+          :function,
+          :constructor,
+          *::StateVariableDefinitions.public_instance_methods
+        ],
+        "build_contract_class",
+        block
+      )
     end
-  end
-  
-  private
-  
-  def remove_instance_variable(var)
-    ::Object.instance_method(:remove_instance_variable).bind(self).call(var)
+    
+    contract_class.available_contracts = @dependency_classes.
+      merge(name => contract_class)
+    
+    # if contract_class.available_contracts.key?(name)
+    #   raise ::ContractErrors::ContractBuilderError, "Contract #{name} already exists."
+    # end
+    
+    contract_class.contract_artifact = artifact
+    contract_class.init_code_hash = artifact.init_code_hash
+    
+    contract_class
   end
 end

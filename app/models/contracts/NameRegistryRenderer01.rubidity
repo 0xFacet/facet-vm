@@ -81,7 +81,7 @@ contract :NameRegistryRenderer01, abstract: true do
       links: links
     )
     
-    template = "`#{s.cardTemplate}`"
+    template = "` #{s.cardTemplate} `"
     
     wrapped = <<~HTML
       <script>
