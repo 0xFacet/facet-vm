@@ -49,8 +49,8 @@ class Contract < ApplicationRecord
     implementation.state_proxy.state_changed
   end
   
-  def take_state_snapshot
-    return unless should_take_snapshot?
+  def take_state_snapshot(force: false)
+    return unless should_take_snapshot? || force
     
     new_snapshot = ContractStateSnapshot.new(
       state: implementation.state_proxy.serialize,

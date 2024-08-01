@@ -18,7 +18,7 @@ class ContractCall < ApplicationRecord
   before_validation :ensure_runtime_ms
   
   attr_accessor :to_contract, :salt, :pending_logs, :to_contract_init_code_hash, :to_contract_source_code,
-    :in_low_level_call_context
+    :in_low_level_call_context, :parent_call, :call_stack
   
   belongs_to :created_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'created_contract_address', optional: true
   belongs_to :called_contract, class_name: 'Contract', primary_key: 'address', foreign_key: 'to_contract_address', optional: true
@@ -38,6 +38,12 @@ class ContractCall < ApplicationRecord
       find_and_validate_existing_contract!
     end
     
+    if call_level.to_sym == :low
+      TransactionContext.active_contracts.each do |contract|
+        contract.take_state_snapshot(force: true)
+      end
+    end
+    
     result = effective_contract.execute_function(
       function,
       args,
@@ -55,11 +61,34 @@ class ContractCall < ApplicationRecord
     
     is_create? ? created_contract.address : result
   rescue ContractError, TransactionError => e
+    if call_level.to_sym == :low
+      TransactionContext.active_contracts.each(&:load_last_snapshot)
+      
+      child_calls.each do |call|
+        call.assign_attributes(
+          error_message: e.message,
+          status: :failure,
+          logs: [],
+          return_value: nil
+        )
+      end
+    end
+    
     assign_attributes(error_message: e.message, status: :failure, end_time: Time.current)
     
     assign_contract
     
     raise
+  ensure
+    if call_level.to_sym == :low
+      TransactionContext.active_contracts.each do |contract|
+        contract.state_snapshots.pop
+      end
+    end
+  end
+  
+  def child_calls
+    call_stack.all_frames.select{|f| f.parent_call == self}
   end
   
   def assign_contract

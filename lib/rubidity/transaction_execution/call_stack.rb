@@ -2,9 +2,12 @@ class CallStack
   include ContractErrors
   
   MAX_CALL_COUNT = 400
-
+  
+  attr_reader :all_frames
+  
   def initialize(transaction_context)
     @frames = []
+    @all_frames = []
     @push_count = 0
     @transaction_context = transaction_context
   end
@@ -40,6 +43,7 @@ class CallStack
     current_transaction = @transaction_context.current_transaction
       
     call = @transaction_context.current_transaction.contract_calls.build(
+      call_stack: self,
       call_level: call_level,
       in_low_level_call_context: in_low_level_call_context(call_level),
       to_contract_address: to_contract_address,
@@ -55,7 +59,8 @@ class CallStack
       block_blockhash: current_transaction.block_blockhash,
       block_timestamp: current_transaction.block_timestamp,
       transaction_index: current_transaction.transaction_index,
-      start_time: Time.current
+      start_time: Time.current,
+      parent_call: current_frame
     )
     
     @transaction_context.set(current_call: call) do
@@ -85,6 +90,7 @@ class CallStack
   
   def push(frame)
     @frames.push(frame)
+    @all_frames.push(frame)
     
     @push_count += 1
   end
