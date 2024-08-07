@@ -38,8 +38,14 @@ class ContractCall < ApplicationRecord
       find_and_validate_existing_contract!
     end
     
+    initial_active_contract_addresses = TransactionContext.active_contracts.map(&:address).deep_dup
+    
     if call_level.to_sym == :low
-      TransactionContext.active_contracts.each do |contract|
+      initial_active_contracts = TransactionContext.active_contracts.select do |contract|
+        initial_active_contract_addresses.include?(contract.address)
+      end
+      
+      initial_active_contracts.each do |contract|
         contract.take_state_snapshot(force: true)
       end
     end
@@ -62,7 +68,7 @@ class ContractCall < ApplicationRecord
     is_create? ? created_contract.address : result
   rescue ContractError, TransactionError => e
     if call_level.to_sym == :low
-      TransactionContext.active_contracts.each(&:load_last_snapshot)
+      TransactionContext.active_contracts.each(&:rollback_most_recent_snapshot)
       
       child_calls.each do |call|
         call.assign_attributes(
@@ -81,7 +87,11 @@ class ContractCall < ApplicationRecord
     raise
   ensure
     if call_level.to_sym == :low
-      TransactionContext.active_contracts.each do |contract|
+      initial_active_contracts = TransactionContext.active_contracts.select do |contract|
+        initial_active_contract_addresses.include?(contract.address)
+      end
+      
+      initial_active_contracts.each do |contract|
         contract.state_snapshots.pop
       end
     end

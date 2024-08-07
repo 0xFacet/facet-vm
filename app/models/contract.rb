@@ -42,6 +42,17 @@ class Contract < ApplicationRecord
     take_state_snapshot
   end
   
+  def rollback_most_recent_snapshot
+    to_restore = state_snapshots.last
+    
+    if to_restore
+      load_last_snapshot
+    else
+      reload
+      initialize_state
+    end
+  end
+  
   def should_take_snapshot?
     state_snapshots.blank? ||
     current_init_code_hash_changed? ||
