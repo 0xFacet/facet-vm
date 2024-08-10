@@ -61,7 +61,9 @@ class ContractImplementation
   :json_stringify,
   :string,
   :address,
-  :bytes32
+  :bytes32,
+  :storage_get,
+  :storage_set
   
   GLOBAL_METHODS = [
   :msg_sender,
@@ -99,9 +101,24 @@ class ContractImplementation
   :log_event,
   :call_stack,
   :current_address,
+  :storage_get,
+  :storage_set
   ].to_set.freeze
   
   attr_reader :current_context
+  
+  def storage_get(path)
+    s.get(path)
+  rescue => e
+    puts "Failed to get value: #{e.message}"
+  end
+  
+  # Global function to set a value in storage
+  def storage_set(path, value)
+    s.set(path, value)  # Assuming path is an array and the last element is the key to set
+  rescue => e
+    puts "Failed to set value: #{e.message}"
+  end
   
   def handle_call_from_proxy(method_name, *args, **kwargs, &block)
     unless method_exposed?(method_name)
