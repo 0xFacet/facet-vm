@@ -1,5 +1,5 @@
 class BlocksController < ApplicationController
-  cache_actions_on_block etag: EthBlock.max_processed_block_number
+  cache_actions_on_block
   before_action :set_eth_block_scope
 
   def index
@@ -8,16 +8,20 @@ class BlocksController < ApplicationController
       
       scope = @eth_block_scope.order(block_number: :desc)
 
-      cache_key = ["blocks_index", scope, page, per_page]
+      etag = EthBlock.max_processed_block_number
+      
+      set_cache_control_headers(etag: etag, max_age: 12.seconds) do
+        cache_key = ["blocks_index", scope, page, per_page]
+        
+        result = Rails.cache.fetch(cache_key) do
+          res = scope.page(page).per(per_page).to_a
+          numbers_to_strings(res)
+        end
 
-      result = Rails.cache.fetch(cache_key) do
-        res = scope.page(page).per(per_page).to_a
-        numbers_to_strings(res)
+        render json: {
+          result: result
+        }
       end
-
-      render json: {
-        result: result
-      }
     else
       render_paginated_json(@eth_block_scope)
     end
