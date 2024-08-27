@@ -1,5 +1,5 @@
 class BlocksController < ApplicationController
-  cache_actions_on_block
+  cache_actions_on_block etag: EthBlock.max_processed_block_number
   before_action :set_eth_block_scope
 
   def index
